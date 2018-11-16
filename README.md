@@ -1,4 +1,4 @@
-# underway
+# Runderway: A real-time analytical suite for underway oceanographic data
 R scripts for real-time analysis of underway flow-through data aboard the USCGC Healy and other ships running MetAcq software
 
 REALTIME DATA PLOTTER FOR METACQ
