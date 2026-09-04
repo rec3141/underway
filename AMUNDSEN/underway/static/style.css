@@ -35,6 +35,11 @@ a:hover { text-decoration: underline; }
 .brand .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
+/* brand left, tabs right, controls on their own full-width row: the same
+   places on every tab, whatever each tab shows in the controls row */
+.top .brand { order: 1; }
+.top .tabs { order: 2; margin-left: auto; }
+.top .controls { order: 3; flex: 1 0 100%; }
 .live { color: #7ee787; font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: .5px; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }

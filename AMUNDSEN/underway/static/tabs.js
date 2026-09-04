@@ -52,7 +52,7 @@
     const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length);
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
-      for (const [la, lo] of c.track) { lat.push(la); lon.push(lo); cd.push(c.id); txt.push(`<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar`); }
+      for (const [la, lo] of c.track) { lat.push(la); lon.push(lo); cd.push(c.id); txt.push(`<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)}`); }
       lat.push(null); lon.push(null); cd.push(null); txt.push("");
     }
     if (tows.length) {
@@ -69,7 +69,7 @@
         text: dips.map(({ c, i }) => `${castLabel(c)} · dip ${i + 1}`), marker: { size: 9, color: "#ffb454" } });
       out.push({ type: "scattermap", mode: "markers", name: "MVP tow starts", showlegend: false, hoverinfo: "text",
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
-        text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar · click to select the tow`),
+        text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)} · click to select the tow`),
         marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? "#ffb454" : "#7ee787"), symbol: "circle" } });
       // generous click target for tow starts (drawn beneath the station targets)
       out.push({ type: "scattermap", mode: "markers", name: "tow hit targets", showlegend: false, hoverinfo: "skip",
@@ -137,7 +137,7 @@
         <input type="checkbox" ${whole ? "checked" : ""} ${part ? 'class="partial"' : ""} title="${isTow ? "whole tow" : "select"}">
         <span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span>
         <span class="name">${esc(castLabel(c))}${part ? ` <small>${dips.length}/${c.n_profiles} dips</small>` : ""}</span>
-        <span class="meta-row"><span class="when">${esc(castDate(c))}</span><span class="depth">${c.max_p != null ? c.max_p + " dbar" : ""}</span><span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></span></li>`;
+        <span class="meta-row"><span class="when">${esc(castDate(c))}</span><span class="depth">${maxDepth(c)}</span><span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></span></li>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
         html += c.track.map((t, i) => `<li class="dip ${picked.has(i) ? "on" : ""}" data-id="${esc(c.id)}#${i}">
@@ -187,6 +187,7 @@
     return (((-1.82e-15 * p + 2.279e-10) * p - 2.2512e-5) * p + 9.72659) * p / g;
   }
   const depths = (prof) => prof.p.map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));
+  const maxDepth = (c) => c.max_p != null ? `${Math.round(depthFrom(c.max_p, c.lat))} m` : "";
   // Temperature, salinity and density lead; the rest in a stable order
   const VAR_ORDER = ["Temperature", "Salinity", "Sigma-t", "Oxygen", "Oxygen saturation", "Fluorescence", "CDOM", "PAR", "Transmission", "Buoyancy frequency", "Sound velocity"];
   const orderVars = (vs) => [...vs].sort((a, b) => (VAR_ORDER.indexOf(a) + 1 || 99) - (VAR_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b));
@@ -307,12 +308,14 @@
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
         hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
-    const bottoms = withVar.map((d) => d.bottom_m ?? depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat));
+    // echo-sounder bottom where there is one, else the deepest sample; the
+    // fill is clipped to the frame so a bottom far below the casts stays out of it
+    const bottoms = withVar.map((d) => Math.min(maxD + step, d.bottom_m > 0 ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
     traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms, line: { color: "#2b3441", width: 2, shape: "spline" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)", hoverinfo: "skip", name: "bottom" });
     traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => maxD + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
     const layout = { ...CAST_LAYOUT, margin: { l: 50, r: 8, t: 18, b: 34 },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, type: byTime ? "date" : "linear" },
-      yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxD + step, 0] } };
+      yaxis: { ...THEME.yaxis, autorange: false, title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxD + step, 0] } };
     Plotly.react($("#cs-plot"), traces, layout, CFG);
     wireCastPanels(host, () => renderSection(host, data));
   }

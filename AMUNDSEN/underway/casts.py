@@ -441,8 +441,8 @@ def mvp_casts(leg: Leg) -> list[Cast]:
         first, last = ds[0], ds[-1]
         out.append(Cast(id=f"{leg.id}:MVP_{tow}", leg=leg.id, kind="MVP", cast=tow, time=first.time, time_end=last.time,
                         lat=first.lat, lon=first.lon, lat_end=last.lat, lon_end=last.lon, station=tow, label=f"{len(ds)} dips",
-                        bottom_m=max((d.bottom_m for d in ds if d.bottom_m is not None), default=None), units=units,
-                        profiles=[{"time": d.time, "lat": d.lat, "lon": d.lon, "bottom_m": d.bottom_m, "p": d.p, "vars": d.vars} for d in ds]))
+                        bottom_m=max((d.bottom_m for d in ds if d.bottom_m is not None and d.bottom_m > 0), default=None), units=units,
+                        profiles=[{"time": d.time, "lat": d.lat, "lon": d.lon, "bottom_m": d.bottom_m if d.bottom_m is not None and d.bottom_m > 0 else None, "p": d.p, "vars": d.vars} for d in ds]))
     if out:
         log.info("%s: %d MVP tows (%d dips)", leg.id, len(out), len(dips))
     return out
@@ -506,6 +506,8 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
     try:
         bottom = float(hdr.get("Bottom Depth (m)", ""))
     except ValueError:
+        bottom = None
+    if bottom is not None and bottom <= 0:       # -99999.9 when the sounder had no bottom
         bottom = None
     c = Cast(id=f"{leg.id}:{key}", leg=leg.id, kind="MVP", cast=p.parent.name + "/" + p.stem, time=time,
              lat=lat, lon=lon, station=p.parent.name, label="", bottom_m=bottom,

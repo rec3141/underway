@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a shaded-bathymetry tile pyramid from the GEBCO 2024 GeoTIFF release.
+# Build a shaded relief (bathymetry + land) tile pyramid from the GEBCO 2024 GeoTIFF release.
 #
 #   make_gebco_tiles.sh ZIP OUTDIR [XMIN YMIN XMAX YMAX] [ZMIN-ZMAX]
 #
@@ -10,7 +10,7 @@
 #
 # The pyramid is Web Mercator (EPSG:3857), which is what the dashboard's
 # MapLibre map uses. Depth is rendered as a colour ramp with a hillshade
-# blended in, land is left transparent so the vector land layer shows through.
+# blended in; land carries a hypsometric ramp under the same hillshade.
 # Needs GDAL >= 3.4 (gdalbuildvrt, gdalwarp, gdaldem, gdal2tiles.py).
 set -euo pipefail
 
@@ -44,7 +44,9 @@ echo "reprojecting to web mercator"
 gdalwarp -q -t_srs EPSG:3857 -r bilinear -multi -co COMPRESS=DEFLATE -co TILED=YES \
     "$WORK/region.tif" "$WORK/region_3857.tif"
 
-# depth ramp: pale shelf to dark abyss; anything at or above sea level transparent
+# depth ramp: pale shelf to dark abyss; land a muted hypsometric ramp (olive
+# lowlands to pale high ground) so it reads under the hillshade without
+# competing with the track colours
 cat > "$WORK/ramp.txt" <<'EOF'
 -6000  6 14 34
 -4000  10 26 58
@@ -61,8 +63,14 @@ cat > "$WORK/ramp.txt" <<'EOF'
 -50    152 198 222
 -20    176 212 230
 0      196 224 236
-1      0 0 0 0
-9000   0 0 0 0
+0.01   58 72 62
+150    74 88 70
+400    98 104 80
+800    124 118 94
+1200   148 140 116
+1800   176 170 152
+2500   206 204 198
+3500   232 232 232
 EOF
 echo "colour relief + hillshade"
 gdaldem color-relief -q -alpha "$WORK/region_3857.tif" "$WORK/ramp.txt" "$WORK/color.tif"

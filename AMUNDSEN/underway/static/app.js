@@ -280,13 +280,16 @@
     });
 
     const view = state.view || fitView(d.lat, d.lon);
-    // With a GEBCO tile pyramid available the shaded raster is the bathymetry
-    // and the Natural Earth depth bands stay out of the way; without it the
+    // With a GEBCO tile pyramid the shaded raster carries both bathymetry and
+    // land relief, so the Natural Earth depth bands and land fills stay out of
+    // the way (glaciers become a light wash, coastlines stay); without it the
     // bands are what the toggle controls.
+    const relief = state.bathy && SITE.raster;
     const layers = [];
     for (const l of (state.geo || [])) {
       if (l.name === "bathy" && (!state.bathy || SITE.raster)) continue;
-      layers.push(l);
+      if (l.name === "land" && relief) continue;
+      layers.push(l.name === "ice" && relief ? { ...l, opacity: .35 } : l);
     }
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
                      map: { style: mapStyle(state.bathy), center: view.center, zoom: view.zoom, layers } };
@@ -458,7 +461,7 @@
       `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Axes are UTC; the header shows ship time (${SITE.local_tz}). Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded bathymetry (15 arc-second grid) and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}, all served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}, all served locally; Web Mercator.</p>`;
   }
 
   // ------------------------------------------------------------ data flow
