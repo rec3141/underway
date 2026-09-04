@@ -24,7 +24,12 @@
     $("#tabchat")?.classList.toggle("on", st.side && st.open);
     $("#chatsidebtn").textContent = st.side ? "⇥" : "⇤";
     $("#chatsidebtn").title = st.side ? "back to the corner" : "open as a side bar";
-    if (st.open) setTimeout(() => { log.scrollTop = log.scrollHeight; for (const p of document.querySelectorAll(".plot")) if (p.data) window.Plotly?.Plots.resize(p); }, 60);
+    // the page just changed width: every Plotly graph, the map included,
+    // has to be told (a container change is not a window resize)
+    setTimeout(() => {
+      if (st.open) log.scrollTop = log.scrollHeight;
+      for (const p of document.querySelectorAll(".plot, #map")) if (p.data && p.offsetParent) window.Plotly?.Plots.resize(p);
+    }, 80);
   }
   const fmtT = (t) => { const d = new Date(t * 1000); const now = new Date();
     return (d.toDateString() === now.toDateString() ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " ") + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); };
