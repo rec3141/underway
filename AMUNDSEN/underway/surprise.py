@@ -1,11 +1,18 @@
-"""Surprise score: how unusual each minute looks against the recent past.
+"""Surprise: how unusual each minute is against its own recent past.
 
-A model is fitted on the most recent ``learn_hours`` of minute-median
-features. Three statistics are computed for every minute — Hotelling's T² in
-the retained PCA subspace, the squared reconstruction residual Q, and a
-shrinkage Mahalanobis distance — each converted to an upper-tail empirical
-p-value against the learning set, and the score is the sum of their −log10 p.
-Larger means more surprising.
+Minute-median features, robustly scaled over the record, are compared with
+exponentially weighted estimates of their mean and covariance built from the
+minutes *before* each one, at several half-lives spaced roughly log-evenly
+from a quarter of an hour to two days (``SURPRISE_SCALES``). The squared
+Mahalanobis distance at each half-life becomes an upper-tail chi-square
+p-value, reported as −log10 p and capped; the combined score is the mean over
+half-lives.
+
+The short half-lives fire the moment a front is crossed — every time, since
+their reference is only the last hour or so of water — and settle again
+within a few half-lives; the long ones stay raised while the ship is in
+water unlike the last day or two. The mean across scales therefore spikes at
+a crossing and fades roughly logarithmically afterwards.
 """
 
 from __future__ import annotations
@@ -14,8 +21,9 @@ import logging
 
 import numpy as np
 import pandas as pd
+from scipy.stats import chi2
 
-from .config import SurpriseConfig
+from .config import SURPRISE_NAME, SURPRISE_SCALES, SurpriseConfig, surprise_scale_name
 
 log = logging.getLogger(__name__)
 
@@ -28,114 +36,81 @@ def _winsor(x: np.ndarray, p: tuple[float, float]) -> np.ndarray:
     return np.clip(x, lo, hi)
 
 
-def _shrink_cov(X: np.ndarray) -> np.ndarray:
-    """Schäfer–Strimmer shrinkage of the sample covariance toward its diagonal.
-
-    Keeps the estimate well-conditioned when the learning window is short
-    relative to the number of features, or when features are nearly collinear.
-    """
-    n, p = X.shape
-    Xc = X - X.mean(axis=0)
-    S = Xc.T @ Xc / (n - 1)
-    if n < 4 or p < 2:
-        return S + np.eye(p) * 1e-9
-    # variance of each covariance entry, for the optimal shrinkage intensity
-    W = np.einsum("ni,nj->nij", Xc, Xc)
-    var_s = W.var(axis=0, ddof=1) * n / (n - 1) ** 2
-    off = ~np.eye(p, dtype=bool)
-    denom = (S[off] ** 2).sum()
-    lam = 1.0 if denom == 0 else float(np.clip(var_s[off].sum() / denom, 0.0, 1.0))
-    T = np.diag(np.diag(S))
-    return lam * T + (1 - lam) * S
+def _prep(name: str, x: np.ndarray, cfg: SurpriseConfig) -> np.ndarray:
+    # fluorescence is log-normal: a bloom would otherwise own the scale
+    if "fluor" in name.lower():
+        x = np.log10(np.clip(x, cfg.log_floor, None))
+    return _winsor(x, cfg.winsor)
 
 
-def _ecdf_upper_p(train: np.ndarray, x: np.ndarray) -> np.ndarray:
-    """P(train >= x) with a +1/n floor so the most extreme value is not p=0."""
-    tr = np.sort(train[np.isfinite(train)])
-    n = tr.size
-    if n == 0:
-        return np.full_like(x, np.nan, dtype=float)
-    ranks = np.searchsorted(tr, x, side="left")      # number of train values < x
-    return 1.0 - ranks / n + 1.0 / n
-
-
-def surprise_score(minute: pd.DataFrame, cfg: SurpriseConfig) -> pd.Series | None:
-    """``minute`` has a UTC DatetimeIndex at 1-minute resolution and one column
-    per candidate feature. Returns a Series aligned to that index, or None when
-    there is not enough data to fit a model."""
+def surprise_scores(minute: pd.DataFrame, cfg: SurpriseConfig) -> pd.DataFrame | None:
+    """``minute`` has a UTC DatetimeIndex at 1-minute resolution (gaps allowed)
+    and one column per candidate feature. Returns a frame on the full minute
+    grid with one column per scale plus the combined ``SURPRISE_NAME``, or
+    None when there is not enough data."""
     if minute.shape[1] < 2 or minute.empty:
         log.info("surprise: fewer than 2 features; skipping")
         return None
-
-    t_end = minute.index.max()
-    learn_mask = minute.index >= t_end - pd.Timedelta(hours=cfg.learn_hours)
-    learn = minute.loc[learn_mask]
-
-    cover = learn.notna().mean()
-    feats = list(cover[cover >= cfg.min_feature_cover].index)
+    cover = minute.notna().mean()
+    feats = list(cover[cover >= cfg.min_feature_cover].index)      # features with (almost) no data at all
     if len(feats) < 2:
         log.info("surprise: not enough well-covered features (%s); skipping",
                  ", ".join(f"{k}={v:.2f}" for k, v in cover.items()))
         return None
 
-    X_all = np.column_stack([_winsor(minute[f].to_numpy(float), cfg.winsor) for f in feats])
-    X_learn = X_all[learn_mask]
-
-    med = np.nanmedian(X_learn, axis=0)
-    q75, q25 = np.nanpercentile(X_learn, [75, 25], axis=0)
+    # the full minute grid, so time keeps passing through the gaps and the
+    # memory of a previous leg has faded by the time the next one starts
+    grid = minute[feats].asfreq("1min")
+    X = np.column_stack([_prep(f, grid[f].to_numpy(float), cfg) for f in feats])
+    med = np.nanmedian(X, axis=0)
+    q75, q25 = np.nanpercentile(X, [75, 25], axis=0)
     iqr = q75 - q25
     iqr[~np.isfinite(iqr) | (iqr == 0)] = 1.0
-    Z_all = (X_all - med) / iqr
-    Z_learn = Z_all[learn_mask]
+    Z = (X - med) / iqr
+    n, p = Z.shape
+    zf = pd.DataFrame(Z, index=grid.index, columns=feats)
+    eye = np.eye(p) * cfg.ridge
 
-    good_learn = np.isfinite(Z_learn).all(axis=1)
-    Zl = Z_learn[good_learn]
-    if Zl.shape[0] < 10:
-        log.info("surprise: only %d complete learning rows; skipping", Zl.shape[0])
-        return None
-
-    # PCA on the (already robust-scaled) learning rows
-    _, s, Vt = np.linalg.svd(Zl, full_matrices=False)
-    eig = s ** 2 / max(1, Zl.shape[0] - 1)
-    vr = eig / eig.sum()
-    k = int(np.searchsorted(np.cumsum(vr), cfg.pca_variance) + 1)
-    k = max(1, min(k, len(vr) - 1)) if len(vr) > 1 else 1
-    P = Vt[:k].T                      # p × k loadings
-    lam = eig[:k]
-
-    def stats(Z: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        scores = Z @ P
-        t2 = (scores ** 2 / lam).sum(axis=1)
-        resid = Z - scores @ P.T
-        q = (resid ** 2).sum(axis=1)
-        return t2, q
-
-    S = _shrink_cov(Zl)
-    Sinv = np.linalg.pinv(S)
-    mu = Zl.mean(axis=0)
-
-    def maha(Z: np.ndarray) -> np.ndarray:
+    out = pd.DataFrame(index=grid.index)
+    total = np.zeros(n)
+    count = np.zeros(n)
+    for label, half in SURPRISE_SCALES:
+        ew = zf.ewm(halflife=half, ignore_na=False, min_periods=max(10, half // 2))
+        # the reference for a minute is the history up to the minute before it
+        mu = ew.mean().shift(1).to_numpy()
+        cov = ew.cov().to_numpy().reshape(n, p, p)
+        cov = np.concatenate([np.full((1, p, p), np.nan), cov[:-1]])
         d = Z - mu
-        return np.einsum("ij,jk,ik->i", d, Sinv, d)
-
-    t2_l, q_l = stats(Zl)
-    md_l = maha(Zl)
-
-    good_all = np.isfinite(Z_all).all(axis=1)
-    out = np.full(Z_all.shape[0], np.nan)
-    if good_all.any():
-        Za = Z_all[good_all]
-        t2_a, q_a = stats(Za)
-        md_a = maha(Za)
-        p = np.column_stack([
-            _ecdf_upper_p(t2_l, t2_a),
-            _ecdf_upper_p(q_l, q_a),
-            _ecdf_upper_p(md_l, md_a),
-        ])
-        score = np.nansum(-np.log10(p), axis=1)
-        score[~np.isfinite(score)] = np.nan
-        out[good_all] = score
-
-    log.info("surprise: %d features (%s), k=%d, learn rows=%d",
-             len(feats), ", ".join(feats), k, Zl.shape[0])
-    return pd.Series(out, index=minute.index, name="surprise")
+        S = cov + eye
+        # a minute is scored on whichever features it has (and a reference
+        # for), so a sensor that is missing for a leg does not silence the rest
+        have = np.isfinite(d) & np.isfinite(np.diagonal(S, axis1=1, axis2=2))
+        d2 = np.full(n, np.nan)
+        dof = np.zeros(n)
+        for pattern in np.unique(have, axis=0):
+            k = int(pattern.sum())
+            if k < 2:
+                continue
+            rows = np.flatnonzero((have == pattern).all(axis=1))
+            Sk = S[np.ix_(rows, np.flatnonzero(pattern), np.flatnonzero(pattern))]
+            dk = d[np.ix_(rows, np.flatnonzero(pattern))]
+            good = np.isfinite(Sk).all(axis=(1, 2))
+            if not good.any():
+                continue
+            sol = np.linalg.solve(Sk[good], dk[good][:, :, None])[:, :, 0]
+            d2[rows[good]] = (dk[good] * sol).sum(axis=1)
+            dof[rows[good]] = k
+        with np.errstate(invalid="ignore"):
+            s = np.minimum(-np.log10(np.maximum(chi2.sf(d2, np.maximum(dof, 1)), 1e-300)), cfg.cap)
+        s[~np.isfinite(d2)] = np.nan
+        out[surprise_scale_name(label)] = s
+        fin = np.isfinite(s)
+        total[fin] += s[fin]
+        count += fin
+    with np.errstate(invalid="ignore"):
+        comb = total / count
+    comb[count == 0] = np.nan
+    out[SURPRISE_NAME] = comb
+    log.info("surprise: %d features (%s), scales %s, %d scored minutes",
+             p, ", ".join(feats), ", ".join(l for l, _ in SURPRISE_SCALES), int((count > 0).sum()))
+    return out

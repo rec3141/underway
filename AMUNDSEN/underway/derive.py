@@ -12,9 +12,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .config import (POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, VARIABLES,
+from .config import (POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
                      Variable)
-from .surprise import surprise_score
+from .surprise import surprise_scores
 
 log = logging.getLogger(__name__)
 
@@ -191,21 +191,27 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
 
     # surprise on minute medians of the feature set
     note = ""
+    scored = False
     if len(feats) >= 2:
         minute = df[feats].resample("1min").median()
         minute = minute.dropna(how="all")
-        s = surprise_score(minute, SURPRISE)
-        if s is not None:
-            # broadcast the minute score back onto the raw cadence
+        sc = surprise_scores(minute, SURPRISE)
+        if sc is not None:
+            # broadcast the minute scores back onto the raw cadence
             m = df.index.floor("1min")
-            out["Surprise (−log10 p)"] = s.reindex(m).to_numpy()
-            note = (f"fitted on the last {SURPRISE.learn_hours:g} h using "
+            for col in sc.columns:
+                out[col] = sc[col].reindex(m).to_numpy()
+            scored = True
+            note = ("each minute against exponentially weighted history at half-lives "
+                    + ", ".join(l for l, _ in SURPRISE_SCALES) + " using "
                     + ", ".join(display.get(f, f) for f in feats))
         else:
-            note = "not enough recent data to fit a model"
+            note = "not enough data to score"
     else:
         note = "fewer than two feature columns available"
-    if "Surprise (−log10 p)" not in out:
-        out["Surprise (−log10 p)"] = np.nan
+    if not scored:
+        for v in VARIABLES:
+            if v.name.startswith("Surprise"):
+                out[v.name] = np.nan
 
     return Analysis(out, res, pos_src, feats, note)

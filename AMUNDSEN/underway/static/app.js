@@ -24,7 +24,7 @@
     bathy: store.get("bathy", true),
     stations: store.get("stations", true),
     order: store.get("order", []),
-    panel: store.get("panel", {}),                    // name -> "min" | "wide"
+    panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
     raw: null,                                        // window payload as built
     data: null,                                       // same, filtered to shown legs
     geo: null,
@@ -475,7 +475,7 @@
     $("#sources").innerHTML = `<tr><th>panel</th><th>source column (Instrument — Variable)</th>${legCols}</tr>${rows.join("")}`;
     const f = M.files;
     $("#notes").innerHTML =
-      `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Score is Σ −log10 p over T², Q and Mahalanobis tests; above 3 is shaded.</p>` +
+      `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
       `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
@@ -544,6 +544,8 @@
     fmtUTC, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit,
   });
+
+  for (const n of M.default_minimised || []) if (!(n in state.panel)) state.panel[n] = "min";
 
   (async () => {
     renderControls();

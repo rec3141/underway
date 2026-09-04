@@ -135,12 +135,23 @@ DEFAULT_WINDOW = "6h"
 
 @dataclass(frozen=True)
 class SurpriseConfig:
-    learn_hours: float = 48         # model is fitted on the most recent span
-    min_feature_cover: float = 0.60 # features below this finite fraction are dropped
+    min_feature_cover: float = 0.05 # features below this finite fraction over the record are dropped
     winsor: tuple[float, float] = (0.005, 0.995)
-    pca_variance: float = 0.95      # retained variance for the T² subspace
+    ridge: float = 0.01             # variance floor (in IQR² units) added to every scale's covariance
+    cap: float = 6.0                # −log10 p ceiling per scale
+    log_floor: float = 0.01         # fluorescence is log-transformed above this
 
 SURPRISE = SurpriseConfig()
+# half-lives of the exponentially weighted references, roughly log-spaced
+SURPRISE_SCALES: tuple[tuple[str, int], ...] = (("15 min", 15), ("1 h", 60), ("3 h", 180), ("12 h", 720), ("48 h", 2880))
+SURPRISE_NAME = "Surprise (−log10 p)"
+
+def surprise_scale_name(label: str) -> str:
+    return f"Surprise · {label}"
+
+# one panel per scale, after the combined score; they start minimised
+VARIABLES = VARIABLES[:1] + tuple(Variable(surprise_scale_name(l), "", (), derived=True) for l, _ in SURPRISE_SCALES) + VARIABLES[1:]
+DEFAULT_MINIMISED: tuple[str, ...] = tuple(surprise_scale_name(l) for l, _ in SURPRISE_SCALES)
 
 # ---------------------------------------------------------------- locations
 

@@ -23,7 +23,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
-from .config import DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, VARIABLES, WINDOWS, Window
+from .config import DEFAULT_MINIMISED, DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, VARIABLES, WINDOWS, Window
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -91,9 +91,9 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
     rule = f"{w.step_s}s"
     agg: dict[str, object] = {"lat": "mean", "lon": "mean", "dist_km": "max", "leg": "first"}
     for v in VARIABLES:
-        if v.name not in df.columns or (v.derived and v.name != "Surprise (−log10 p)"):
+        if v.name not in df.columns or (v.derived and not v.name.startswith("Surprise")):
             continue
-        if v.name == "Surprise (−log10 p)":
+        if v.name.startswith("Surprise"):
             agg[v.name] = "max"                     # keep spikes visible when binning
         elif v.circular:
             agg[v.name] = _circular_mean_deg
@@ -185,7 +185,7 @@ def aggregate(a: Analysis, rule: str) -> dict:
     position and the leg, over the whole record. Bins with no data are
     dropped, so the table is only as long as the data."""
     df = a.frame
-    names = [v.name for v in VARIABLES if v.name in df.columns and not v.derived or v.name == "Surprise (−log10 p)"]
+    names = [v.name for v in VARIABLES if v.name in df.columns and (not v.derived or v.name.startswith("Surprise"))]
     names = [n for n in names if n in df.columns]
     g = df[names + ["lat", "lon", "leg"]].resample(rule)
     mean, mn, mx, cnt = g[names].mean(), g[names].min(), g[names].max(), g[names].count()
@@ -328,6 +328,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         } for r in res],
         "position_source": a.position_source,
         "surprise": {"features": [union_keys.get(f, f) for f in a.surprise_features], "note": a.surprise_note},
+        "default_minimised": list(DEFAULT_MINIMISED),
         "stations": stations,
         "data_range": {"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
         "latest": latest,
