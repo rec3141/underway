@@ -74,6 +74,12 @@ Two systemd units (the files are in `/etc/systemd/system/`):
   overlap, and writes straight into the web root.
 - `underway-dashboard.service` runs `python3 -m underway serve` on port 8042.
 
+If neither data root is a directory, or they hold no `YYYY_LEG_NN` folders
+with ACSD files, `build` exits with status 2 without touching the web root:
+the SMB mounts drop from time to time, and an empty mount looks exactly like
+"no data", so the run fails loudly rather than publishing an empty page over a
+good one. `journalctl -u underway.service` shows the reason.
+
 Useful commands:
 
 ```sh
