@@ -1,0 +1,25 @@
+# Ship-LAN front door on port 80. The dashboard (underway-dashboard.service,
+# 127.0.0.1:8042) answers at /underway/ and at http://underway.local (mDNS
+# alias from underway-mdns.service); the older static sites under
+# /var/www/html and the :5000 API keep their paths.
+:80 {
+    encode zstd gzip
+    redir / /underway/ 302
+    redir /underway /underway/ 302
+    handle_path /underway/* {
+        reverse_proxy 127.0.0.1:8042
+    }
+    handle /api/* {
+        reverse_proxy 127.0.0.1:5000
+    }
+    handle {
+        root * /var/www/html
+        header Cache-Control "no-store"
+        file_server
+    }
+}
+
+http://underway.local {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8042
+}
