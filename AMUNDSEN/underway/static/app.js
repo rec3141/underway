@@ -192,7 +192,19 @@
     state.geo = layers;
   }
 
-  const OCEAN_STYLE = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
+  // The GEBCO pyramid goes into the style as a proper source so MapLibre knows
+  // its maxzoom and scales the deepest tiles at closer zooms; a Plotly layer
+  // shorthand cannot say that, and the raster simply vanished past zoom 9.
+  function mapStyle(withRaster) {
+    const style = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
+    if (withRaster && SITE.raster) {
+      const base = location.origin + location.pathname.replace(/[^/]*$/, "");
+      style.sources.gebco = { type: "raster", tiles: [base + SITE.raster.url], tileSize: 256,
+                              minzoom: SITE.raster.minzoom, maxzoom: SITE.raster.maxzoom, attribution: SITE.raster.attribution };
+      style.layers.push({ id: "gebco", type: "raster", source: "gebco", paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
+    }
+    return style;
+  }
 
   // Web-Mercator zoom that fits a lat/lon box into the map element, minus a margin.
   function fitView(lats, lons) {
@@ -264,18 +276,12 @@
     // and the Natural Earth depth bands stay out of the way; without it the
     // bands are what the toggle controls.
     const layers = [];
-    if (SITE.raster && state.bathy) {
-      const base = location.origin + location.pathname.replace(/[^/]*$/, "");
-      layers.push({ sourcetype: "raster", source: [base + SITE.raster.url], below: "traces", opacity: 1,
-                    minzoom: SITE.raster.minzoom, maxzoom: SITE.raster.maxzoom + 2, name: "gebco",
-                    sourceattribution: SITE.raster.attribution });
-    }
     for (const l of (state.geo || [])) {
       if (l.name === "bathy" && (!state.bathy || SITE.raster)) continue;
       layers.push(l);
     }
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
-                     map: { style: OCEAN_STYLE, center: view.center, zoom: view.zoom, layers } };
+                     map: { style: mapStyle(state.bathy), center: view.center, zoom: view.zoom, layers } };
     Plotly.react(el, traces, layout, CFG).then(() => {
       el.removeAllListeners?.("plotly_relayout");
       el.on("plotly_relayout", (ev) => {

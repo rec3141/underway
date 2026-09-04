@@ -14,6 +14,9 @@
 }
 
 * { box-sizing: border-box; }
+/* author display rules (inline-flex etc.) would otherwise beat the browser's
+   default [hidden] { display: none } */
+[hidden] { display: none !important; }
 /* The page itself never scrolls: the header is fixed in place, the map column
    is pinned, and only the panel column scrolls. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
@@ -174,11 +177,22 @@ main {
 .castside, .castmain { min-width: 0; }
 /* the pane is the only scroller: no nested scroll regions, so no doubled bars */
 .castlist { list-style: none; margin: 0; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
-.castlist li { display: grid; grid-template-columns: 18px auto auto 1fr auto auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }
+/* two-line rows: [toggle] [box] [badge] name        then   date · depth · leg */
+.castlist li { display: grid; grid-template-columns: 18px auto auto minmax(0, 1fr); grid-template-areas: "tog box kind name" ". . . meta"; column-gap: 8px; row-gap: 1px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }
+.castlist li .tog { grid-area: tog; } .castlist li input { grid-area: box; } .castlist li .kind { grid-area: kind; }
+.castlist li .name { grid-area: name; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.castlist li .when, .castlist li .depth, .castlist li .leg { grid-area: meta; }
+.castlist li .when { display: inline; }
+.castlist li .when::after { content: " · "; }
+.castlist li .depth:not(:empty)::after { content: " · "; }
+.castlist li .depth, .castlist li .leg { display: inline; }
+.castlist li .meta-row { grid-area: meta; }
 .castlist li:hover { background: var(--card-2); }
 .castlist li.on { background: rgba(92,200,255,.12); }
 .castlist li.part { background: rgba(255,180,84,.10); }
 .castlist li.dip { padding-left: 26px; font-size: 12px; opacity: .9; }
+.castside .pane-tools.compact { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; }
+.castside .pane-tools.compact input[type=search] { grid-column: 1 / -1; width: 100%; }
 .castlist .tog { width: 18px; height: 18px; padding: 0; background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; }
 .castlist .tog:hover { color: var(--fg); }
 .castlist .kind.dip { background: transparent; color: var(--muted); font-weight: 600; }

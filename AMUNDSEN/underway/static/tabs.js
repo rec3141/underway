@@ -133,15 +133,13 @@
         <input type="checkbox" ${whole ? "checked" : ""} ${part ? 'class="partial"' : ""} title="${isTow ? "whole tow" : "select"}">
         <span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span>
         <span class="name">${esc(castLabel(c))}${part ? ` <small>${dips.length}/${c.n_profiles} dips</small>` : ""}</span>
-        <span class="when">${esc(castDate(c))}</span>
-        <span class="depth">${c.max_p != null ? c.max_p + " dbar" : ""}</span>
-        <span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></li>`;
+        <span class="meta-row"><span class="when">${esc(castDate(c))}</span><span class="depth">${c.max_p != null ? c.max_p + " dbar" : ""}</span><span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></span></li>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
         html += c.track.map((t, i) => `<li class="dip ${picked.has(i) ? "on" : ""}" data-id="${esc(c.id)}#${i}">
           <span class="tog"></span><input type="checkbox" ${picked.has(i) ? "checked" : ""}>
           <span class="kind dip">#${i + 1}</span><span class="name">dip ${i + 1}</span>
-          <span class="when">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</span><span class="depth"></span><span class="leg"></span></li>`).join("");
+          <span class="meta-row"><span class="when">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</span></span></li>`).join("");
       }
       return html;
     };
