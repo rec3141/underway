@@ -38,9 +38,12 @@
   };
 
   UW.selectedCastKeys = () => new Set([...casts.sel].map(parentId));
-  UW.onStationClick = (key) => {
-    if (!casts.idx) return;
+  // a station click on the map toggles its cast and opens the Casts tab; a
+  // quiet call (the stations table) only makes sure it is selected
+  UW.onStationClick = async (key, opts = {}) => {
+    if (!casts.idx) { if (!opts.quiet) return; await ensureCastIndex(); }
     if (!castById(key)) return;
+    if (opts.quiet) { if (!casts.sel.has(key)) toggleCast(key); return; }
     toggleCast(key);
     if ($("#pane-casts").hidden) UW.showTab("casts");
   };
@@ -210,7 +213,7 @@
       });
     }
   }
-  const CAST_LAYOUT = { ...THEME, margin: { l: 46, r: 8, t: 6, b: 30 }, showlegend: false, dragmode: "pan" };
+  const CAST_LAYOUT = { ...THEME, margin: { l: 52, r: 8, t: 6, b: 36 }, showlegend: false, dragmode: "pan" };
 
   function renderProfiles(host, data) {
     const vars = orderVars(new Set(data.flatMap((d) => Object.keys(d.units))));
@@ -231,8 +234,8 @@
         });
       });
       const layout = { ...CAST_LAYOUT, hovermode: "closest",
-        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 } },
-        yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 } } };
+        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 } },
+        yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 } } };
       Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     }
     wireCastPanels(host, () => renderProfiles(host, data));
@@ -302,7 +305,7 @@
       (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span>`).join("")}</div>`);
     const traces = [
       { type: "heatmap", x: xPlot, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
-        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 10 }, outlinewidth: 0 },
+        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 12 }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
@@ -320,9 +323,9 @@
       line: { color: "#3b4658", width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)",
       marker: { size: sounded.map((b) => b ? 5 : 0), color: "#8ea3ba", symbol: "diamond" },
       hovertext: withVar.map((d, i) => sounded[i] ? `${d.label}<br>bottom ${Math.round(d.bottom_m)} m` : `${d.label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
-    const layout = { ...CAST_LAYOUT, margin: { l: 50, r: 8, t: 18, b: 34 },
-      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, type: byTime ? "date" : "linear" },
-      yaxis: { ...THEME.yaxis, autorange: false, title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxD + step, 0] } };
+    const layout = { ...CAST_LAYOUT, margin: { l: 54, r: 8, t: 18, b: 40 },
+      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 }, type: byTime ? "date" : "linear" },
+      yaxis: { ...THEME.yaxis, autorange: false, title: { text: "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 }, range: [maxD + step, 0] } };
     Plotly.react($("#cs-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
   }
@@ -411,8 +414,8 @@
       hovertemplate: "%{text}<extra></extra>", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .6 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · last 14 days`, false).replace('class="panel card castplot', 'class="panel card castplot wide');
     const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
-      xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 10 } }, tickfont: { size: 10 } },
-      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 10 }, fixedrange: true },
+      xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 12 } }, tickfont: { size: 12 } },
+      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 12 }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: new Date(now), x1: new Date(now), yref: "paper", y0: 0, y1: 1, line: { color: "#7ee787", width: 1.5, dash: "dot" } }] };
     Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderTimeline(host, evs, s));
@@ -553,9 +556,41 @@
   async function ensureAgg() {
     const stamp = UW.M.generated_utc;
     if (tbl.loadedFor !== stamp) { tbl.data = {}; tbl.loadedFor = stamp; }
+    if (tbl.rule === "stations") return;
     if (!tbl.data[tbl.rule]) {
       try { tbl.data[tbl.rule] = await getJSON(`${UW.M.aggregates[tbl.rule].file}?v=${encodeURIComponent(stamp)}`); } catch { tbl.data[tbl.rule] = { variables: [], rows: [] }; }
     }
+  }
+  // stations: the CTD station list, one row per cast
+  const STATION_COLS = [["time", "time (UTC)"], ["leg", "leg"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
+  function stationRows() {
+    const q = tbl.search.toLowerCase();
+    let rows = (UW.M.stations || []).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg }));
+    if (q) rows = rows.filter((r) => `${r.time} ${r.legLabel} ${r.station} ${r.label} ${r.type} ${r.comments}`.toLowerCase().includes(q));
+    const k = tbl.sort.key in { t: 1 } ? "time" : tbl.sort.key, dir = tbl.sort.dir;
+    const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];
+    rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
+    return rows;
+  }
+  function renderStations() {
+    const rows = stationRows();
+    const arrow = (k) => (tbl.sort.key === k || (k === "time" && tbl.sort.key === "t")) ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
+    const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc((r.time || "").replace("T", " ").slice(0, 16)) :
+      k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
+    const body = rows.map((r) => `<tr>${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
+    $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    $("#tblmeta").textContent = `${rows.length.toLocaleString()} stations · click a row to see it on the map and open its cast`;
+    for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
+      const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "time" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderStations();
+    };
+    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
+      const r = rows[i];
+      for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
+      tr.classList.add("on");
+      UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
+      UW.onStationClick?.(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`, { quiet: true });
+    };
   }
   function currentRows() {
     const d = tbl.data[tbl.rule]; if (!d) return [];
@@ -568,6 +603,8 @@
     return rows;
   }
   function renderTable() {
+    $("#aggstat").parentElement.hidden = tbl.rule === "stations";
+    if (tbl.rule === "stations") return renderStations();
     const d = tbl.data[tbl.rule]; if (!d) return;
     const rows = currentRows();
     const stat = ["mean", "min", "max", "n"][tbl.stat];
@@ -589,6 +626,15 @@
     };
   }
   function downloadCSV() {
+    if (tbl.rule === "stations") {
+      const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+      const rows = stationRows();
+      const lines = [STATION_COLS.map(([k]) => q(k)).join(",")].concat(rows.map((r) => STATION_COLS.map(([k]) => q(k === "leg" ? r.legLabel : r[k])).join(",")));
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "stations.csv"; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      return;
+    }
     const d = tbl.data[tbl.rule]; if (!d) return;
     const stat = ["mean", "min", "max", "n"][tbl.stat];
     const rows = currentRows();

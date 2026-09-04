@@ -21,7 +21,6 @@
     xmode: store.get("xmode", "time"),
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
-    bathy: store.get("bathy", true),
     stations: store.get("stations", true),
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
@@ -47,7 +46,7 @@
 
   const THEME = {
     paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#121920",
-    font: { color: "#c9d4e0", family: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", size: 11 },
+    font: { color: "#c9d4e0", family: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", size: 12.5 },
     xaxis: { gridcolor: "#243040", zerolinecolor: "#243040", linecolor: "#34435a" },
     yaxis: { gridcolor: "#243040", zerolinecolor: "#243040", linecolor: "#34435a" },
     hoverlabel: { bgcolor: "#1b242e", bordercolor: "#5cc8ff", font: { color: "#e6ecf2", size: 12 } },
@@ -189,8 +188,6 @@
     sel.value = state.colour;
     sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
 
-    $("#bathy").checked = state.bathy;
-    $("#bathy").onchange = (e) => { state.bathy = e.target.checked; store.set("bathy", state.bathy); renderMap(); };
     $("#stations").checked = state.stations;
     $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
@@ -291,7 +288,7 @@
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
       marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: true,
                 colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
-                  tickfont: { size: 10 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
+                  tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     if (li >= 0) traces.push({
@@ -332,16 +329,16 @@
     // With a GEBCO tile pyramid the shaded raster carries both bathymetry and
     // land relief, so the Natural Earth depth bands and land fills stay out of
     // the way (glaciers become a light wash, coastlines stay); without it the
-    // bands are what the toggle controls.
-    const relief = state.bathy && SITE.raster;
+    // bands stand in for the bathymetry.
+    const relief = !!SITE.raster;
     const layers = [];
     for (const l of (state.geo || [])) {
-      if (l.name === "bathy" && (!state.bathy || SITE.raster)) continue;
+      if (l.name === "bathy" && SITE.raster) continue;
       if (l.name === "land" && relief) continue;
       layers.push(l.name === "ice" && relief ? { ...l, opacity: .35 } : l);
     }
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
-                     map: { style: mapStyle(state.bathy), center: view.center, zoom: view.zoom, layers } };
+                     map: { style: mapStyle(true), center: view.center, zoom: view.zoom, layers } };
     Plotly.react(el, traces, layout, CFG).then(() => {
       state.fitPending = false;
       el.removeAllListeners?.("plotly_relayout");
@@ -482,12 +479,12 @@
     };
     const useLog = !!state.log[name] && y.some((q) => q > 0);
     const layout = {
-      ...THEME, margin: { l: 46, r: 8, t: 6, b: 28 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
-      xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 },
+      ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
+      xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
                ticksuffix: state.xmode === "time" ? "" : " km" },
-      yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 },
+      yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
     if (name.startsWith("Surprise")) {
