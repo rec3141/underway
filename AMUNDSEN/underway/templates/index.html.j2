@@ -37,13 +37,6 @@
       <datalist id="spanticks"></datalist>
       <output id="spanlabel" for="span">6h</output>
     </div>
-    <div class="group seg" id="xmode" aria-label="X axis">
-      <button data-x="time" class="on">Time</button>
-      <button data-x="distance">Distance</button>
-    </div>
-    <label class="group select">Colour by
-      <select id="colour"></select>
-    </label>
   </div>
 </header>
 <div class="alertbar" id="alert" hidden>
@@ -65,6 +58,10 @@
 
   <section class="side">
     <div class="pane" id="pane-underway">
+      <div class="pane-tools compact">
+        <div class="group seg xmode" aria-label="X axis"><button data-x="time" class="on">Time</button><button data-x="distance">Distance</button></div>
+        <label class="group select">Colour by <select id="colour"></select></label>
+      </div>
       <div class="panels" id="panels"></div>
       <div class="dock" id="dock" hidden></div>
     </div>
@@ -82,6 +79,7 @@
         <div class="castmain">
           <div class="pane-tools compact">
             <div class="group seg" id="castmode"><button data-m="profiles" class="on">Profiles</button><button data-m="section">Section</button></div>
+            <div class="group seg xmode" id="castxmode" aria-label="Section x axis" hidden><button data-x="time" class="on">Time</button><button data-x="distance">Distance</button></div>
             <label class="group select" id="castvarwrap" hidden>Variable <select id="castvar"></select></label>
             <span class="muted" id="castmeta"></span>
           </div>

@@ -172,7 +172,8 @@
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
     r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); requestFit(); loadWindow(); };
 
-    for (const b of $("#xmode").querySelectorAll("button")) {
+    // every Time/Distance pill (the underway pane's and the cast section's) shows and sets the same mode
+    for (const b of document.querySelectorAll(".xmode button")) {
       b.classList.toggle("on", b.dataset.x === state.xmode);
       b.onclick = () => { state.xmode = b.dataset.x; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
     }
@@ -575,10 +576,9 @@
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
     document.querySelector("main").className = "tab-" + name;
-    // the underway controls stay for the cast tab too: its section view
-    // follows the Time/Distance switch
-    $("#controls-underway").hidden = !(name === "underway" || name === "casts");
-    for (const el of $("#controls-underway").querySelectorAll(".legmenu, .span, .select")) el.hidden = name === "casts";
+    // the header row (legs, span) belongs to the underway tab; the other
+    // switches live in the figure area
+    $("#controls-underway").hidden = name !== "underway";
     $("#maphint").hidden = name !== "casts";
     store.set("tab", name);
     window.UW?.onTab?.(name);

@@ -179,6 +179,7 @@
     const host = $("#castplots");
     const sel = orderedSelection();
     $("#castvarwrap").hidden = casts.mode !== "section";
+    $("#castxmode").hidden = casts.mode !== "section";          // the section's x axis follows Time/Distance
     if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div>'; $("#castmeta").textContent = ""; return; }
     const data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
     const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
