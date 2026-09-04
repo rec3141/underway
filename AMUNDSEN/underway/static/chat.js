@@ -32,8 +32,7 @@
     }, 80);
   }
   const fmtT = (t) => { const d = new Date(t * 1000); const now = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    return (d.toDateString() === now.toDateString() ? "" : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} `) + `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+    return (d.toDateString() === now.toDateString() ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " ") + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); };
   const linkify = (s) => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|\s)@(\w+)/g, '$1<span class="at">@$2</span>');
   const isCrew = (name) => st.crew.some((c) => c.name === name);
 

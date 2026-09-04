@@ -320,7 +320,7 @@
     const traces = [
       { type: "heatmap", x: xPlot, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 12 }, outlinewidth: 0 },
-        hovertemplate: (byTime ? "%{x|%Y-%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
+        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
         hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
@@ -527,7 +527,7 @@
         evs.slice(0, 6).map(({ e, cont }) => entryHtml(e, cont)).join("") +
         (evs.length > 6 ? `<div class="mmore">+${evs.length - 6} more</div>` : "") + `</div>`);
     }
-    const label = `${cal.month} · ${first.toLocaleString("en", { month: "long", timeZone: "UTC" })}`;
+    const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
     calFrame(host, label, `<div class="mgrid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>`, items,
       (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); });
     // a day number opens that day in the 3-day view
@@ -556,12 +556,12 @@
           `<span class="mt">${evStart(e).toISOString().slice(11, 16)}Z</span> ${esc(e.summary || "")}</div>`;
       }).join("");
       const nowLine = k === today ? `<div class="dnow" style="top:${((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 100).toFixed(2)}%"></div>` : "";
-      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${d.toLocaleDateString("en", { weekday: "short", timeZone: "UTC" })} ${k}</div>
+      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}</div>
         <div class="dallday">${allDay.map((e) => entryHtml(e, false)).join("")}</div>
         <div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhour" style="top:${(h / 24 * 100).toFixed(2)}%"></div>`).join("")}${blocks}${nowLine}</div></div>`;
     }).join("");
     const axis = `<div class="daxis"><div class="dhead"></div><div class="dallday"></div><div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhl" style="top:${(h / 24 * 100).toFixed(2)}%">${String(h).padStart(2, "0")}</div>`).join("")}</div></div>`;
-    const label = `${dayKey(days[0])} – ${dayKey(days[2])}`;
+    const label = `${days[0].toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${days[2].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
     calFrame(host, label, `<div class="dgrid">${axis}${cols}</div>`, items,
       (n) => { cal.day = dayKey(new Date(centre.getTime() + n * 86400e3)); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); });
   }

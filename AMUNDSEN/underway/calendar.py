@@ -98,27 +98,18 @@ def _what_changed(prev: dict | None, new: dict) -> dict | None:
     for k, r in new_rows.items():
         o = old_rows.get(k)
         if o is None:
-            changed.append(f"new: {r.get('station')} — {r.get('operation')} {_iso_day(r)} {r.get('start')}–{r.get('end')}")
+            changed.append(f"new: {r.get('station')} — {r.get('operation')} {r.get('date')} {r.get('start')}–{r.get('end')}")
         elif (o.get("status"), o.get("end"), o.get("comment")) != (r.get("status"), r.get("end"), r.get("comment")):
             changed.append(f"{r.get('station')} — {r.get('operation')}: {r.get('status')}")
     for k, o in old_rows.items():
         if k not in new_rows:
-            changed.append(f"removed: {o.get('station')} — {o.get('operation')} {_iso_day(o)}")
+            changed.append(f"removed: {o.get('station')} — {o.get('operation')} {o.get('date')}")
     if changed:
         parts.append("Schedule: " + "; ".join(changed[:6]) + (f" (+{len(changed) - 6} more)" if len(changed) > 6 else ""))
     if not parts:
         return None
     return {"changed_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "text": " · ".join(parts),
             "kind": "whiteboard" if parts[0].startswith("Whiteboard") else "schedule"}
-
-
-def _iso_day(r: dict) -> str:
-    """The row's ship-local day as YYYY-MM-DD (the page writes dd/mm/yy)."""
-    m = re.match(r"(\d{2})/(\d{2})/(\d{2,4})$", r.get("date") or "")
-    if not m:
-        return r.get("date") or ""
-    y = int(m.group(3)); y += 2000 if y < 100 else 0
-    return f"{y:04d}-{m.group(2)}-{m.group(1)}"
 
 
 def _instants(r: dict) -> dict:
