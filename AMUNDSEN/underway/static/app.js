@@ -482,7 +482,7 @@
     };
     const useLog = !!state.log[name] && y.some((q) => q > 0);
     const layout = {
-      ...THEME, margin: { l: 46, r: 8, t: 6, b: 28 }, showlegend: false, hovermode: "x", dragmode: "pan",
+      ...THEME, margin: { l: 46, r: 8, t: 6, b: 28 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 },
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
