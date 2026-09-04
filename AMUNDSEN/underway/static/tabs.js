@@ -71,6 +71,10 @@
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
         text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar · click to select the tow`),
         marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? "#ffb454" : "#7ee787"), symbol: "circle" } });
+      // generous click target for tow starts (drawn beneath the station targets)
+      out.push({ type: "scattermap", mode: "markers", name: "tow hit targets", showlegend: false, hoverinfo: "skip",
+        lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
+        marker: { size: 22, color: "rgba(126,231,135,0.02)" } });
     }
     const sel = orderedSelection().filter((c) => c.lat != null);
     if (casts.mode === "section" && sel.length > 1) out.push({
@@ -176,9 +180,40 @@
     return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
   }
 
+  // UNESCO (1983) pressure -> depth, metres; latitude in degrees
+  function depthFrom(p, lat) {
+    const x = Math.sin((lat ?? 70) * Math.PI / 180) ** 2;
+    const g = 9.780318 * (1 + (5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * p;
+    return (((-1.82e-15 * p + 2.279e-10) * p - 2.2512e-5) * p + 9.72659) * p / g;
+  }
+  const depths = (prof) => prof.p.map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));
+  // Temperature, salinity and density lead; the rest in a stable order
+  const VAR_ORDER = ["Temperature", "Salinity", "Sigma-t", "Oxygen", "Oxygen saturation", "Fluorescence", "CDOM", "PAR", "Transmission", "Buoyancy frequency", "Sound velocity"];
+  const orderVars = (vs) => [...vs].sort((a, b) => (VAR_ORDER.indexOf(a) + 1 || 99) - (VAR_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b));
+  const castPanelState = { wide: new Set(store.get("casts.wide", [])) };
+
+  // same frame and controls as the underway panels
+  function castPanelHtml(id, title, unit, wideable = true) {
+    return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${title === "Temperature" ? "on" : ""}" data-cp="${esc(id)}">
+      <div class="head"><h3>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
+        <button class="reset" title="reset zoom">⟲</button>${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
+      <div class="plot" id="${esc(id)}"></div></section>`;
+  }
+  function wireCastPanels(host, rerender) {
+    for (const sec of host.querySelectorAll(".castplot")) {
+      const id = sec.dataset.cp;
+      sec.querySelector(".reset").onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
+      sec.querySelector(".wide")?.addEventListener("click", () => {
+        castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
+        store.set("casts.wide", [...castPanelState.wide]); rerender();
+      });
+    }
+  }
+  const CAST_LAYOUT = { ...THEME, margin: { l: 46, r: 8, t: 6, b: 30 }, showlegend: false, dragmode: "pan" };
+
   function renderProfiles(host, data) {
-    const vars = [...new Set(data.flatMap((d) => Object.keys(d.units)))];
-    host.innerHTML = vars.map((v) => `<div class="castplot card"><div class="head"><h3>${esc(v)}</h3><span class="unit">${esc(data.find((d) => d.units[v])?.units[v] || "")}</span></div><div class="plot" id="cp-${v.replace(/\W+/g, "_")}"></div></div>`).join("") +
+    const vars = orderVars(new Set(data.flatMap((d) => Object.keys(d.units))));
+    host.innerHTML = vars.map((v) => castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "")).join("") +
       `<div class="castlegend">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))} <small>${esc(castDate(d))}</small></span>`).join("")}</div>`;
     for (const v of vars) {
       const traces = [];
@@ -187,18 +222,19 @@
         ps.forEach((p, j) => {
           if (!p.vars[v]) return;
           traces.push({
-            type: "scatter", mode: "lines", name: p.label, x: p.vars[v], y: p.p, connectgaps: false,
+            type: "scatter", mode: "lines", name: p.label, x: p.vars[v], y: depths(p), connectgaps: false,
             line: { width: ps.length > 1 ? 1 : 1.6, color: ps.length > 1 ? towShade(PALETTE[i % PALETTE.length], j, ps.length) : PALETTE[i % PALETTE.length] },
             opacity: ps.length > 1 ? 0.8 : 1,
-            hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{y} dbar<extra></extra>`,
+            hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{y:.0f} m<extra></extra>`,
           });
         });
       });
-      const layout = { ...THEME, margin: { l: 44, r: 8, t: 4, b: 30 }, showlegend: false, hovermode: "closest",
-        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, side: "bottom" },
-        yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "dbar", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 } } };
+      const layout = { ...CAST_LAYOUT, hovermode: "closest",
+        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 } },
+        yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 } } };
       Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG);
     }
+    wireCastPanels(host, () => renderProfiles(host, data));
   }
 
   // interpolate a cast's variable onto a common pressure grid
@@ -224,9 +260,11 @@
     // tows contribute every dip; everything is ordered by time
     const withVar = data.flatMap(profilesOf).filter((d) => d.vars[v]).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
-    const maxP = Math.max(...withVar.map((d) => d.p[d.p.length - 1]));
-    const step = maxP > 1500 ? 5 : maxP > 400 ? 2 : 1;
-    const grid = []; for (let p = 0; p <= maxP; p += step) grid.push(p);
+    // depth grid (metres) shared by every profile
+    const maxD = Math.max(...withVar.map((d) => depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
+    const step = maxD > 1500 ? 5 : maxD > 400 ? 2 : 1;
+    const grid = []; for (let d = 0; d <= maxD; d += step) grid.push(d);
+    const onDepthGrid = (prof) => onGrid({ p: depths(prof), vars: prof.vars }, v, grid);
     // x follows the header's Time/Distance switch: distance is cumulative
     // along the profiles in time order, time is each profile's own
     const byTime = UW.state.xmode === "time";
@@ -235,29 +273,48 @@
       const a = withVar[i - 1], b = withVar[i];
       km.push(km[i - 1] + (a.lat != null && b.lat != null ? haversine(a, b) : 1));
     }
-    const x = byTime ? withVar.map((d, i) => d.time ? new Date(d.time + (d.time.endsWith("Z") ? "" : "Z")) : new Date(i)) : km;
+    const tms = withVar.map((d, i) => d.time ? Date.parse(d.time + (d.time.endsWith("Z") ? "" : "Z")) : i);
+    const xs = byTime ? tms : km;
     const xTitle = byTime ? "time (UTC)" : "distance along section (km)";
     const xFmt = (i) => byTime ? (withVar[i].time || "").replace("T", " ").slice(0, 16) : `${km[i].toFixed(0)} km`;
-    const z = grid.map((_, gi) => withVar.map((d) => onGrid(d, v, grid)[gi]));
     const unit = withVar[0].units[v] || "";
+    // Resample onto a regular x grid so the section interpolates between
+    // profiles in both modes (a heatmap on irregular x only smooths in pixels).
+    const cols = withVar.map(onDepthGrid);
+    const NX = 240;
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), span = x1 - x0 || 1;
+    const xg = Array.from({ length: NX }, (_, i) => x0 + span * i / (NX - 1));
+    const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
+    const z = grid.map((_, gi) => xg.map((xv) => {
+      let k = 0; while (k < order.length - 1 && xs[order[k + 1]] < xv) k++;
+      const a = order[k], b = order[Math.min(k + 1, order.length - 1)];
+      const za = cols[a][gi], zb = cols[b][gi];
+      if (a === b || xs[b] === xs[a]) return za;
+      const t = (xv - xs[a]) / (xs[b] - xs[a]);
+      if (za == null || zb == null) return t < 0.5 ? za : zb;      // no bridging into a gap
+      return za + (zb - za) * t;
+    }));
+    const xPlot = byTime ? xg.map((t) => new Date(t)) : xg;
+    const xPts = byTime ? tms.map((t) => new Date(t)) : km;
     const dense = withVar.length > 24;      // a tow: label only every few dips
-    host.innerHTML = `<div class="castplot card wide"><div class="head"><h3>${esc(v)} section</h3><span class="unit">${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${esc(unit)}</span></div><div class="plot tall" id="cs-plot"></div></div>` +
+    host.innerHTML = castPanelHtml("cs-plot", `${v} section`, `${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${unit}`, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
       (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span>`).join("")}</div>`);
     const traces = [
-      { type: "heatmap", x, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: byTime ? false : "best",
+      { type: "heatmap", x: xPlot, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 10 }, outlinewidth: 0 },
-        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y} dbar<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
-      { type: "scatter", mode: dense ? "markers" : "markers+text", x, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
+        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
+      { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
         hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
-    const bottoms = withVar.map((d) => d.bottom_m ?? d.p[d.p.length - 1]);
-    traces.push({ type: "scatter", mode: "lines", x, y: bottoms, line: { color: "#2b3441", width: 2 }, fill: "tonexty", fillcolor: "rgba(43,52,65,.9)", hoverinfo: "skip", name: "bottom" });
-    traces.push({ type: "scatter", mode: "lines", x, y: bottoms.map(() => maxP + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
-    const layout = { ...THEME, margin: { l: 50, r: 8, t: 18, b: 34 }, showlegend: false,
+    const bottoms = withVar.map((d) => d.bottom_m ?? depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat));
+    traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms, line: { color: "#2b3441", width: 2, shape: "spline" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)", hoverinfo: "skip", name: "bottom" });
+    traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => maxD + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    const layout = { ...CAST_LAYOUT, margin: { l: 50, r: 8, t: 18, b: 34 },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, type: byTime ? "date" : "linear" },
-      yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "pressure (dbar)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxP + step, 0] } };
+      yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxD + step, 0] } };
     Plotly.react($("#cs-plot"), traces, layout, CFG);
+    wireCastPanels(host, () => renderSection(host, data));
   }
 
   function wireCasts() {

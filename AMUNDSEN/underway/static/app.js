@@ -270,6 +270,14 @@
                 color: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? "#ffb454" : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
+    // an all-but-invisible oversized copy on top gives each station a generous
+    // click target without changing how it looks
+    if (st.length) traces.push({
+      type: "scattermap", mode: "markers", name: "station hit targets", showlegend: false, hoverinfo: "skip",
+      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon),
+      customdata: st.map((s) => `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`),
+      marker: { size: 26, color: "rgba(255,255,255,0.02)" },
+    });
 
     const view = state.view || fitView(d.lat, d.lon);
     // With a GEBCO tile pyramid available the shaded raster is the bathymetry
