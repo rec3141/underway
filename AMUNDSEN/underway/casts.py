@@ -51,7 +51,17 @@ ROSETTE_VARS = {
 }
 MVP_VARS = {"Temp": ("Temperature", "°C"), "Sal": ("Salinity", "PSU"), "Density": ("Sigma-t", "kg/m³"),
             "SV": ("Sound velocity", "m/s"),
-            "ANLG1": ("MVP analogue 1", "counts"), "ANLG2": ("MVP analogue 2", "counts"), "ANLG3": ("MVP analogue 3", "counts")}
+            # the AML CTD-SV's three analogue inputs, in raw counts (millivolts):
+            # a C-Star transmissometer, an oxygen optode and an ECO fluorometer,
+            # identified from the ship's own MVP plots (Data/MVP/<leg>/<tow>/plot).
+            # No calibration file travels with the data, so the scalings below
+            # are nominal: 0–5 V C-Star with a 4.70 V clean-water reference and
+            # 0.06 V dark, oxygen left in volts, fluorometer ≈ 6.3 µg/L per volt.
+            "ANLG1": ("Transmission", "% (nominal)"), "ANLG2": ("Dissolved oxygen", "V (raw)"),
+            "ANLG3": ("Fluorescence", "µg/L (nominal)")}
+MVP_SCALE = {"ANLG1": lambda v: 100.0 * (v / 1000.0 - 0.06) / (4.70 - 0.06),
+             "ANLG2": lambda v: v / 1000.0,
+             "ANLG3": lambda v: 6.3 * v / 1000.0}
 BIN_DBAR = 1.0
 MAX_NEW_PER_BUILD = 80        # new Rosette casts parsed per build; the rest wait for the next run
 MAX_NEW_MVP_PER_BUILD = 240   # MVP dips are ~1 MB text files, so many more fit in a build
@@ -104,7 +114,7 @@ def _cache_path(leg: str, key: str) -> Path:
 RECENT_DAYS = 3
 # bump when the parsed representation changes so old cache entries are redone
 CACHE_VERSION = 3
-MVP_CACHE_VERSION = 4    # bumped when the MVP column set changes
+MVP_CACHE_VERSION = 5    # bumped when the MVP column set or scaling changes
 
 
 def _cached(leg: str, key: str, sources: list[Path]):
@@ -523,6 +533,8 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
         if col not in ci:
             continue
         v = down[:, ci[col]]
+        if col in MVP_SCALE:
+            v = MVP_SCALE[col](v.astype(float))
         vals = []
         for b in levels:
             sel = v[(bins == b) & np.isfinite(v)]
