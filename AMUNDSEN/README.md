@@ -10,7 +10,7 @@ the previous 48 hours. A span slider reaches from the last hour back across
 every leg on the share, and a leg list filters what is shown.
 
 ```
-underway/            the Python package
+dashboard/           the Python package
   config.py          variables, windows, data roots — the file to edit
   ingest.py          ACSD files -> one SQLite store per leg (incremental)
   derive.py          position, distance, variable resolution, surprise
