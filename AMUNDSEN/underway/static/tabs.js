@@ -176,12 +176,92 @@
     $("#castclear").textContent = nsel ? `clear (${nsel})` : "clear";
   }
 
+  // ------------------------------------------------------------ live cast
+  // One cast, the one in the water (or the last one back on deck), from the
+  // deck unit's UDP feed via api/live; the chosen variables overlay on their
+  // own x axes against depth. Polls every 2 s while on screen.
+  const live = { vars: store.get("casts.live.vars", ["temperature", "salinity"]), which: "current", data: null, timer: null, showCfg: false };
+  const LIVE_SKIP = new Set(["scan", "time", "t", "pressure", "prdm", "prm", "pr", "p", "depth", "depsm", "depth_m"]);
+  const liveVisible = () => casts.mode === "live" && !$("#pane-casts").hidden;
+  async function pollLive() {
+    clearTimeout(live.timer);
+    if (!liveVisible()) return;
+    try { live.data = await getJSON(`api/live?t=${Date.now()}`); } catch { live.data = null; }
+    drawLive($("#castplots"));
+    live.timer = setTimeout(pollLive, 2000);
+  }
+  function renderLive(host) {
+    host.innerHTML = `<div class="livebar" id="livebar"></div><div id="livebody"></div>`;
+    pollLive();
+  }
+  function drawLive(host) {
+    const bar = host.querySelector("#livebar"), body = host.querySelector("#livebody");
+    if (!bar || !body) return;
+    const d = live.data;
+    if (!d) { bar.innerHTML = `<span class="muted">live feed unavailable (server not reachable)</span>`; return; }
+    const cast = live.which === "current" && d.current ? d.current : (d.current || d.last);
+    const which = cast === d.current ? "in the water" : cast === d.last ? "last cast (on deck)" : null;
+    const age = d.last_packet_age_s;
+    const feed = d.port ? `listening on UDP ${d.port}${d.packets ? ` · ${d.packets.toLocaleString()} packets · ${d.rate_hz} Hz · last ${age != null ? age.toFixed(0) + " s ago" : "—"}${d.source ? " from " + esc(d.source) : ""}` : " · nothing received yet"}` : "feed off — set the UDP port below";
+    const cols = (d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
+    const chips = cols.map((c) => `<button type="button" class="chip livevar ${live.vars.includes(c) ? "on" : ""}" data-v="${esc(c)}">${esc(c)}</button>`).join("");
+    bar.innerHTML = `<div class="livestatus"><span class="dot ${d.packets && age != null && age < 10 ? "on" : ""}"></span><span>${feed}</span>
+        ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
+        <button type="button" class="chip" id="livecfg" title="port and column names">⚙</button></div>
+      <div class="livevars">${chips}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>
+      <form class="livecfgform" id="livecfgform" ${live.showCfg ? "" : "hidden"}><label>UDP port <input name="port" value="${d.port || ""}" size="6"></label>
+        <label>columns (Seasave order) <input name="columns" value="${esc((d.columns || []).join(","))}" size="60"></label><button type="submit">apply</button>
+        <details><summary>last raw packets</summary><pre class="mono">${esc((d.raw || []).join("\n"))}</pre></details></form>`;
+    for (const b of bar.querySelectorAll(".livevar")) b.onclick = () => { live.vars = live.vars.includes(b.dataset.v) ? live.vars.filter((x) => x !== b.dataset.v) : [...live.vars, b.dataset.v]; store.set("casts.live.vars", live.vars); drawLive(host); };
+    for (const b of bar.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
+    bar.querySelector("#livecfg").onclick = () => { live.showCfg = !live.showCfg; drawLive(host); };
+    bar.querySelector("#livecfgform").onsubmit = async (ev) => { ev.preventDefault(); const f = new FormData(ev.target);
+      try { await fetch("api/live", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ port: +f.get("port") || 0, columns: f.get("columns") }) }); } catch {}
+      live.showCfg = false; pollLive(); };
+    if (!cast || !cast.t.length) {
+      body.innerHTML = `<div class="empty">${d.packets ? "Packets arrive but no cast is in the water yet — the plot starts when pressure passes 2 dbar." : "Waiting for the deck unit. Start acquisition in Seasave; the plot begins when the package goes in."}</div>`;
+      return;
+    }
+    if (!body.querySelector("#live-plot")) body.innerHTML = castPanelHtml("live-plot", "Live cast", "", false).replace('class="panel card castplot', 'class="panel card castplot wide tall');
+    const pcol = d.pressure_col, lat = UW.M.latest?.lat ?? 70;
+    const P = cast.cols[pcol] || [];
+    const depth = cast.depth_like ? P : P.map((p) => p == null ? null : depthFrom(p, lat));
+    let imax = 0; for (let i = 0; i < P.length; i++) if (P[i] != null && P[i] > (P[imax] ?? -1)) imax = i;
+    const vars = live.vars.filter((v) => cast.cols[v]);
+    const traces = [], layout = { ...CAST_LAYOUT, hovermode: "closest", margin: { l: 56, r: 16, t: 40, b: 44 } };
+    const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2), step = 0.09;
+    const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
+    const maxD = Math.max(1, ...depth.filter((x) => x != null));
+    layout.yaxis = { ...THEME.yaxis, domain: [y0, y1], autorange: false, range: [maxD * 1.04, 0], title: { text: cast.depth_like ? "depth (m)" : "depth (m, from pressure)", font: { size: 12 } }, tickfont: { size: 12 } };
+    vars.forEach((v, i) => {
+      const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = PALETTE[i % PALETTE.length];
+      const bottom = i % 2 === 0, k = Math.floor(i / 2);        // alternate bottom / top, working outwards
+      layout[key] = { ...THEME.xaxis, title: { text: v, font: { size: 12, color } }, tickfont: { size: 11, color }, side: bottom ? "bottom" : "top",
+        ...(i === 0 ? { anchor: "y" } : { overlaying: "x", anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) }) };
+      const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v} ${dash ? "up" : "down"}`, xaxis: ax, yaxis: "y",
+        x: cast.cols[v].slice(from, to), y: depth.slice(from, to), line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
+        hovertemplate: `${esc(v)} %{x:.3~f}<br>%{y:.1f} m<extra>${dash ? "up" : "down"}</extra>` });
+      seg(0, imax + 1, false);
+      if (imax < P.length - 1) seg(imax, P.length, true);
+    });
+    // the package now
+    const li = depth.length - 1;
+    if (depth[li] != null && vars.length) traces.push({ type: "scatter", mode: "markers", xaxis: "x", yaxis: "y", x: [cast.cols[vars[0]][li]], y: [depth[li]], marker: { size: 11, color: "#ffb454", symbol: "diamond" }, hoverinfo: "skip", name: "now" });
+    layout.showlegend = false;
+    Plotly.react($("#live-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
+    const sub = host.querySelector("#live-plot")?.closest(".castplot")?.querySelector(".now");
+    if (sub) sub.textContent = `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + new Date(cast.started * 1000).toISOString().slice(11, 16) + "Z" : ""}`;
+    wireCastPanels(host, () => drawLive(host));
+  }
+
   async function renderCastPlots() {
     fillCastVars();
+    if (casts.mode !== "live") clearTimeout(live.timer);
     const host = $("#castplots");
     const sel = orderedSelection();
     $("#castvarwrap").hidden = casts.mode !== "section";
     $("#castxmode").hidden = casts.mode !== "section";          // the section's x axis follows Time/Distance
+    if (casts.mode === "live") { $("#castmeta").textContent = "the cast in the water, from the deck unit"; return renderLive(host); }
     if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div>'; $("#castmeta").textContent = ""; return; }
     const data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
     const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
@@ -722,6 +802,7 @@
     if (!$("#pane-table").hidden) renderTable();
   };
   UW.onTab = async (name) => {
+    if (name !== "casts") clearTimeout(live.timer);
     if (name === "casts") { await ensureCastIndex(); renderCastList(); renderCastPlots(); UW.renderMap(); }
     if (name === "calendar") { await ensureCalendar(); renderCalendar(); }
     if (name === "table") { await ensureAgg(); renderTable(); }

@@ -34,6 +34,7 @@ _last_post: dict[str, float] = {}       # address -> last post, a light rate lim
 
 _emoji: dict[str, str] = {}             # name -> avatar last seen with
 CREW = None                             # the model-driven crew, once the server is up
+LIVE = None                             # the live CTD listener, once the server is up
 
 
 def _chat_conn() -> sqlite3.Connection:
@@ -136,6 +137,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == "/api/live":
+            return self._json(200, LIVE.status() if LIVE else {"port": 0})
         if u.path == "/api/chat":
             q = parse_qs(u.query)
             try:
@@ -152,6 +155,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urlsplit(self.path)
+        if u.path == "/api/live" and LIVE:
+            # retune the listener from the page: {"port": 5555, "columns": "scan,pressure,..."}
+            try:
+                n = min(int(self.headers.get("Content-Length", "0")), 4096)
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                LIVE.configure(int(payload.get("port", LIVE.port)), payload.get("columns") or None)
+                return self._json(200, LIVE.status())
+            except Exception as e:                       # noqa: BLE001
+                return self._json(400, {"error": str(e)})
         if u.path != "/api/chat":
             return self._json(404, {"error": "not found"})
         try:
@@ -186,8 +198,13 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def serve(root: Path, port: int, bind: str) -> None:
-    global CREW
+    global CREW, LIVE
     from .chatbot import Crew
+    from .live import LiveCTD
+    try:
+        LIVE = LiveCTD()
+    except Exception as e:                  # noqa: BLE001 — a taken port must not stop the site
+        log.warning("live CTD listener not started: %s", e)
     CREW = Crew(root, post=lambda n, e, t: chat_post("crew", n, t, e, bot=True), read=lambda: chat_read(0, None))
     CREW.start()
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))
