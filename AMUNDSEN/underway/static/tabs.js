@@ -208,30 +208,54 @@
   // Temperature, salinity and density lead; the rest in a stable order
   const VAR_ORDER = ["Temperature", "Salinity", "Sigma-t", "Oxygen", "Oxygen saturation", "Fluorescence", "CDOM", "PAR", "Transmission", "Buoyancy frequency", "Sound velocity"];
   const orderVars = (vs) => [...vs].sort((a, b) => (VAR_ORDER.indexOf(a) + 1 || 99) - (VAR_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b));
-  const castPanelState = { wide: new Set(store.get("casts.wide", [])) };
+  // the profile panels can be reordered by drag, widened, and minimised to a
+  // chip row, like the underway panels; remembered on the device
+  const castPanelState = { wide: new Set(store.get("casts.wide", [])), min: new Set(store.get("casts.min", [])), order: store.get("casts.order", []) };
+  const saveCastPanels = () => { store.set("casts.wide", [...castPanelState.wide]); store.set("casts.min", [...castPanelState.min]); store.set("casts.order", castPanelState.order); };
+  const castOrder = (vars) => { const o = castPanelState.order.filter((v) => vars.includes(v)); return [...o, ...vars.filter((v) => !o.includes(v))]; };
 
   // same frame and controls as the underway panels
-  function castPanelHtml(id, title, unit, wideable = true) {
-    return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${title === "Temperature" ? "on" : ""}" data-cp="${esc(id)}">
-      <div class="head"><h3>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
-        <button class="reset" title="reset zoom">⟲</button>${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
+  function castPanelHtml(id, title, unit, wideable = true, movable = false) {
+    return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${title === "Temperature" ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
+      <div class="head">${movable ? '<span class="handle" title="drag to reorder">⋮⋮</span>' : ""}<h3>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
+        <button class="reset" title="reset zoom">⟲</button>${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
-  function wireCastPanels(host, rerender) {
+  function wireCastPanels(host, rerender, vars = []) {
     for (const sec of host.querySelectorAll(".castplot")) {
-      const id = sec.dataset.cp;
+      const id = sec.dataset.cp, v = sec.dataset.var;
       sec.querySelector(".reset").onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
       sec.querySelector(".wide")?.addEventListener("click", () => {
         castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
-        store.set("casts.wide", [...castPanelState.wide]); rerender();
+        saveCastPanels(); rerender();
       });
+      sec.querySelector(".min")?.addEventListener("click", () => { castPanelState.min.add(v); saveCastPanels(); rerender(); });
+      if (sec.draggable) {
+        sec.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", v); sec.classList.add("dragging"); });
+        sec.addEventListener("dragend", () => sec.classList.remove("dragging"));
+        sec.addEventListener("dragover", (e) => { e.preventDefault(); sec.classList.add("over"); });
+        sec.addEventListener("dragleave", () => sec.classList.remove("over"));
+        sec.addEventListener("drop", (e) => {
+          e.preventDefault(); sec.classList.remove("over");
+          const from = e.dataTransfer.getData("text/plain");
+          if (!from || from === v) return;
+          const order = castOrder(vars).filter((x) => x !== from);
+          const at = order.indexOf(v);
+          order.splice(e.offsetX < sec.clientWidth / 2 ? at : at + 1, 0, from);
+          castPanelState.order = order; saveCastPanels(); rerender();
+        });
+      }
     }
+    for (const chip of host.querySelectorAll(".dock .chip")) chip.onclick = () => { castPanelState.min.delete(chip.dataset.var); saveCastPanels(); rerender(); };
   }
   const CAST_LAYOUT = { ...THEME, margin: { l: 52, r: 8, t: 6, b: 36 }, showlegend: false, dragmode: "pan" };
 
   function renderProfiles(host, data) {
-    const vars = orderVars(new Set(data.flatMap((d) => Object.keys(d.units))));
-    host.innerHTML = vars.map((v) => castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "")).join("") +
+    const all = castOrder(orderVars(new Set(data.flatMap((d) => Object.keys(d.units)))));
+    const vars = all.filter((v) => !castPanelState.min.has(v));
+    const minimised = all.filter((v) => castPanelState.min.has(v));
+    host.innerHTML = vars.map((v) => castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true)).join("") +
+      (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
       `<div class="castlegend">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))} <small>${esc(castDate(d))}</small></span>`).join("")}</div>`;
     for (const v of vars) {
       const traces = [];
@@ -252,7 +276,7 @@
         yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 } } };
       Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     }
-    wireCastPanels(host, () => renderProfiles(host, data));
+    wireCastPanels(host, () => renderProfiles(host, data), all);
   }
 
   // interpolate a cast's variable onto a common pressure grid

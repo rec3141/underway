@@ -376,6 +376,8 @@ html.chat-side .alertbar, html.chat-side .top { padding-right: 20px; }
 
 .panel .plot.empty { display: grid; place-items: center; color: var(--muted); font-size: 13px; text-align: center; padding: 12px; }
 
+.castplots .castdock { grid-column: 1 / -1; position: static; padding: 4px 0; }
+
 /* ---------------------------------------------------------------- footer */
 footer { padding: 14px 0 18px; color: var(--muted); font-size: 12.5px; }
 details.card { padding: 8px 12px; margin-bottom: 10px; }
