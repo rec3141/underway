@@ -1,0 +1,17 @@
+[Unit]
+Description=Underway Dashboard static server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=UNDERWAY_TILES_DIR=/data/gis/tiles
+Environment=TZ=America/Toronto
+Type=simple
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+ExecStart=/opt/miniforge3/bin/python3 -m dashboard serve --root /data/underway/www --port 8042
+Restart=on-failure
+User=cryomics
+Group=cryomics
+
+[Install]
+WantedBy=multi-user.target

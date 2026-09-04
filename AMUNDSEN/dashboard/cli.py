@@ -1,9 +1,9 @@
 """Command-line entry point.
 
-    python -m underway legs                      list legs found on the shares
-    python -m underway build --root DIR          ingest new files from every leg, rebuild DIR
-    python -m underway serve --root DIR [--port N]
-    python -m underway gcal-push                 push queued calendar items, refresh the feeds
+    python -m dashboard legs                      list legs found on the shares
+    python -m dashboard build --root DIR          ingest new files from every leg, rebuild DIR
+    python -m dashboard serve --root DIR [--port N]
+    python -m dashboard gcal-push                 push queued calendar items, refresh the feeds
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ DEFAULT_TITLE = "CCGS Amundsen — Underway"
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="underway", description=__doc__,
+    p = argparse.ArgumentParser(prog="dashboard", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="cmd", required=True)

@@ -18,7 +18,7 @@ underway/            the Python package
   legs.py            finds legs on the shares
   build.py           combined record -> data/*.json + index.html
   serve.py           static server (no-store headers for data files)
-  cli.py             `python -m underway {legs,build,serve}`
+  cli.py             `python -m dashboard {legs,build,serve}`
   templates/         index.html.j2
   static/            app.js, style.css, plotly.min.js, geo/*.geojson
 update_underway_py.sh    systemd-facing wrapper: build into the web root
@@ -49,9 +49,9 @@ scheduler/               separate tool: event log -> Google Calendar sync (R)
 
 ```sh
 cd AMUNDSEN
-python3 -m underway legs                     # what is on the shares
-python3 -m underway build --root /path/to/webroot
-python3 -m underway serve --root /path/to/webroot --port 8042
+python3 -m dashboard legs                     # what is on the shares
+python3 -m dashboard build --root /path/to/webroot
+python3 -m dashboard serve --root /path/to/webroot --port 8042
 ```
 
 `build` syncs every leg's store (only new or changed day files are parsed),
@@ -95,7 +95,7 @@ Two systemd units (the files are in `/etc/systemd/system/`):
 - `underway.timer` → `underway.service` runs `update_underway_py.sh` every
   10 minutes (`OnCalendar=*:0/10`). The wrapper holds a lock so runs never
   overlap, and writes straight into the web root.
-- `underway-dashboard.service` runs `python3 -m underway serve` on port 8042.
+- `underway-dashboard.service` runs `python3 -m dashboard serve` on port 8042.
 
 If neither data root is a directory, or they hold no `YYYY_LEG_NN` folders
 with ACSD files, `build` exits with status 2 without touching the web root:

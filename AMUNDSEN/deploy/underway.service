@@ -1,0 +1,46 @@
+[Unit]
+Description=Amundsen Underway Dashboard generator
+Wants=network-online.target
+After=network-online.target
+# Ensure the share is mounted before running:
+# Replace the path with your real mount path
+# RequiresMountsFor removed: the build reads the local mirror
+
+[Service]
+Environment=UNDERWAY_LOCAL=1
+Environment=UNDERWAY_MIRROR=/data/ship
+Environment=UNDERWAY_WEBROOT=/data/underway/www
+Environment=UNDERWAY_TILES_DIR=/data/gis/tiles
+Type=oneshot
+User=cryomics
+Group=cryomics
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+Environment=TZ=America/Toronto
+# Optional env file for secrets like GOOGLE creds; create it root:root 600
+EnvironmentFile=-/home/cryomics/.config/underway/underway.env
+
+ExecStart=/home/cryomics/Desktop/underway/AMUNDSEN/update_underway_py.sh
+
+# Nice I/O to be friendly on shared storage
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+
+# Hardening (adjust if R needs more capabilities)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+ReadWritePaths=/data
+# If you keep the service-account JSON in this dir, include it in ReadWritePaths or make it read-only there.
+# Restrict networking surface (still allows HTTP/HTTPS)
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal

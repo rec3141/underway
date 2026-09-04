@@ -41,7 +41,7 @@ if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
 fi
 
 cd "$PROJECT"
-nice -n 19 ionice -c3 "$PYTHON" -m underway build --root "$WEBROOT" \
+nice -n 19 ionice -c3 "$PYTHON" -m dashboard build --root "$WEBROOT" \
     --title "CCGS Amundsen — Underway" \
     --link "Amundsen Schedule (event log & operations)|https://calendar.google.com/calendar/embed?src=d8d73fcd6bb2cf89d766d2d9606c40dc1810c5b8c8d7d52d68a2b370efd0aa5d%40group.calendar.google.com&ctz=America%2FToronto" \
     --link "Underway Updates (surprise episodes)|https://calendar.google.com/calendar/embed?src=7ae4b788832de21af8d8aea44eb379098a4f5e1fb2f7dc9262af18c380b62abb%40group.calendar.google.com&ctz=America%2FToronto" \
