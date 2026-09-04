@@ -4,7 +4,7 @@ After=avahi-daemon.service network-online.target
 Wants=network-online.target avahi-daemon.service
 
 [Service]
-ExecStart=/home/cryomics/Desktop/underway/AMUNDSEN/tools/publish-mdns.sh underway.local wlo1
+ExecStart=/home/cryomics/Desktop/underway/AMUNDSEN/tools/publish-mdns.sh underway.local wlo1 enp5s0 enp6s0
 Restart=always
 RestartSec=10
 

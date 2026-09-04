@@ -23,7 +23,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
-from .config import (DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
+from .config import (DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
@@ -346,6 +346,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "aggregates": agg_meta,
         "casts": {"index": "data/casts/index.json", "n": len(casts_idx["casts"]), "variables": casts_idx["variables"]},
         "calendar": {"file": "data/calendar.json", **cal},
+        "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 
@@ -380,6 +381,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             raster = {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "minzoom": zooms[0], "maxzoom": zooms[-1],
                       "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
+            "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
             "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster,
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}

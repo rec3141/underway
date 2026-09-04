@@ -184,8 +184,13 @@ main {
 .pane-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 0 0 10px; }
 .pane-tools input[type=search] { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; font: inherit; font-size: 13px; min-width: 220px; }
 .pane-tools button { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.pane-tools .seg button { border-radius: 0; margin-left: -1px; }
+.pane-tools .seg button:first-child { border-radius: 7px 0 0 7px; margin-left: 0; }
+.pane-tools .seg button:last-child { border-radius: 0 7px 7px 0; }
+.pane-tools .seg button.on { background: var(--accent); color: #062033; border-color: var(--accent); font-weight: 650; }
+.seg.small button { padding: 4px 9px; font-size: 12.5px; }
 .muted { color: var(--muted); } .small { font-size: 12px; }
-.maphint { color: var(--accent-2); font-size: 12px; }
+.maphint { color: var(--accent-2); }
 
 /* casts */
 /* selector above the figures */
@@ -243,7 +248,7 @@ table.sched th { color: var(--muted); font-weight: 600; }
 .status { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #34435a; }
 tr.st-in-progress .status { background: #22503a; color: #7ee787; }
 tr.st-completed .status { color: var(--muted); }
-.whiteboard { background: rgba(255,180,84,.1); border-left: 3px solid var(--accent-2); padding: 8px 10px; border-radius: 4px; margin: 10px 0 6px; }
+.whiteboard { background: rgba(255,180,84,.1); border-left: 3px solid var(--accent-2); padding: 8px 10px; border-radius: 4px; margin: 10px 0 6px; white-space: pre-line; }
 .agenda .day { margin-bottom: 14px; }
 .agenda h4 { margin: 0 0 4px; font-size: 13px; color: var(--accent); }
 .agenda h4 small { color: var(--muted); font-weight: 400; margin-left: 8px; }
@@ -303,7 +308,7 @@ tr.st-completed .status { color: var(--muted); }
 @media (max-width: 640px) { .mcell { min-height: 56px; } .mev { font-size: 10px; } .mev .mt { display: none; } .dbody { height: 50vh; min-height: 300px; } }
 
 /* table */
-.tablewrap { overflow: auto; max-height: calc(100vh - 210px); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.tablewrap { overflow: auto; max-height: calc(100vh - 210px); margin-right: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }   /* its own scrollbar clears the pane's */
 #aggtable tbody tr { cursor: pointer; }
 #aggtable tbody tr.on td { background: rgba(92,200,255,.14); }
 .castlist .kind.TM { background: #4a3a1e; color: #ffb454; }

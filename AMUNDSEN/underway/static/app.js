@@ -363,7 +363,7 @@
       (spd != null ? `<span>speed <b>${spd.toFixed(1)} kn</b></span>` : "") +
       (st.length ? `<span><b>${st.length}</b> CTD casts</span>` : "") +
       `<span class="mono">${d.start.slice(0, 16)}Z → ${d.end.slice(0, 16)}Z</span>` +
-      `<span class="hint">scroll to zoom · drag to pan · ⟲ fits</span>`;
+      `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
 
   // ------------------------------------------------------------ panels
@@ -579,7 +579,7 @@
     // the header row (legs, span) belongs to the underway tab; the other
     // switches live in the figure area
     $("#controls-underway").hidden = name !== "underway";
-    $("#maphint").hidden = name !== "casts";
+    const hint = $("#maphint"); if (hint) hint.hidden = name !== "casts";
     store.set("tab", name);
     window.UW?.onTab?.(name);
     if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);

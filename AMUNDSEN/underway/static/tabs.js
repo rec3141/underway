@@ -379,7 +379,8 @@
     let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
       (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
-      `<p class="muted small">Source: ship intranet Schedule page · calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
+      `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
+      ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
     // agenda: logged events and scheduled operations (current and former)
     // grouped by UTC day, newest first
     const byDay = new Map();
@@ -564,7 +565,7 @@
   }
 
   // ================================================================ table
-  const tbl = { rule: store.get("tbl.rule", "1h"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
+  const tbl = { rule: store.get("tbl.rule", "stations"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
   async function ensureAgg() {
     const stamp = UW.M.generated_utc;
     if (tbl.loadedFor !== stamp) { tbl.data = {}; tbl.loadedFor = stamp; }

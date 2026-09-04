@@ -49,7 +49,6 @@
     <div class="maptools">
       <button id="mapreset" title="fit to track">⟲</button>
       <label><input type="checkbox" id="stations" checked> CTD stations</label>
-      <span class="maphint" id="maphint" hidden>click a station to add its cast</span>
     </div>
     <div id="map"></div>
     <div id="mapmsg" class="mapmsg" hidden></div>
@@ -99,7 +98,7 @@
 
     <div class="pane" id="pane-table" hidden>
       <div class="pane-tools">
-        <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button><button data-r="stations">Stations</button></div>
+        <div class="group seg" id="aggrule"><button data-r="stations" class="on">Stations</button><button data-r="1h">Hourly</button><button data-r="1d">Daily</button></div>
         <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
         <input type="search" id="tblsearch" placeholder="filter rows">
         <button id="tblcsv" title="download the visible table as CSV">CSV</button>
@@ -117,6 +116,7 @@
         </div>
       </details>
       <div class="meta">
+        <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
         <span>Dashboard by Eric Collins · Data: Amundsen Science (ACSD) · Basemap: Natural Earth{% if site.raster %} · GEBCO 2024{% endif %}</span>
         {% for l in site.links %}<span>· <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a></span>{% endfor %}
         <span class="right">underway v{{ site.version }} · <time id="gen"></time></span>

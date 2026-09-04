@@ -183,6 +183,12 @@ SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <
 # per-leg SQLite stores; derived data, safe to delete
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))
 
+# ---------------------------------------------------------------- ship intranet
+# pages on the ship's own web server, linked from the dashboard (LAN only)
+INTRANET_BASE = os.environ.get("UNDERWAY_INTRANET", "http://10.0.0.2")
+INTRANET_LINKS: tuple[tuple[str, str], ...] = (("Schedule", "Schedule.html"), ("Event log", "Eventlog.html"), ("Rosette log", "RosetteLog.html"),
+                                                ("Live", "live.html"), ("Tutorial", "Tuto.html"))
+
 # ---------------------------------------------------------------- google calendar
 GCAL = {
     "schedule": {"id": "d8d73fcd6bb2cf89d766d2d9606c40dc1810c5b8c8d7d52d68a2b370efd0aa5d@group.calendar.google.com",
