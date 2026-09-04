@@ -52,7 +52,8 @@
     if (!casts.idx || casts.kind === "CTD") return out;
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
-    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length);
+    const f = UW.currentFilter();
+    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
       for (const [la, lo] of c.track) { lat.push(la); lon.push(lo); cd.push(c.id); txt.push(`<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)}`); }
@@ -137,7 +138,9 @@
   function renderCastList() {
     const ul = $("#castlist"); if (!casts.idx) return;
     const q = casts.search.toLowerCase();
+    const f = UW.currentFilter();
     const rows = casts.idx.casts
+      .filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
       .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q))
       .sort((a, b) => (b.time || "").localeCompare(a.time || ""));
@@ -372,7 +375,8 @@
     const s = cal.data.schedule || {};
     $("#calmeta").textContent = `${cal.data.events.length} logged events · schedule ${s.updated ? "updated " + s.updated : "unavailable"}${s.stale ? " (cached copy)" : ""}`;
     const q = cal.search.toLowerCase();
-    const evs = cal.data.events.filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
+    const f = UW.currentFilter();
+    const evs = cal.data.events.filter((e) => UW.inFilter(e.leg, e.time_utc, f)).filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
     if (cal.view === "timeline") return renderTimeline(host, evs, s);
     if (cal.view === "month") return renderMonth(host, q);
     const sched = (s.rows || []).map((r) => `<tr class="st-${esc((r.status || "").toLowerCase().replace(/\s+/g, "-"))}"><td>${esc(r.date)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td><span class="status">${esc(r.status)}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`).join("");
@@ -386,7 +390,7 @@
     const byDay = new Map();
     const add = (d, x) => { if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(x); };
     for (const e of evs) add((e.time_utc || "").slice(0, 10), { t: e.time_utc || "", e });
-    for (const r of scheduledRows(s)) if (!q || JSON.stringify(r).toLowerCase().includes(q)) add(r.start_utc.slice(0, 10), { t: r.start_utc, r });
+    for (const r of scheduledRows(s)) if ((!q || JSON.stringify(r).toLowerCase().includes(q)) && (UW.inFilter(null, r.start_utc, f) || UW.inFilter(null, r.end_utc, f) || UW.tms(r.start_utc) > f.end)) add(r.start_utc.slice(0, 10), { t: r.start_utc, r });
     const days = [...byDay.keys()].sort().reverse().slice(0, 60);
     const evHtml = (e) => `<div class="ev" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
           <span class="t">${esc((e.time_utc || "").slice(11, 16))}Z</span>
@@ -410,8 +414,8 @@
   const scheduledRows = (s) => [...(s.rows || []), ...(s.former || [])].filter((r) => r.start_utc && r.end_utc);
   function renderTimeline(host, evs, s) {
     const now = Date.now();
-    const when = (e) => new Date(e.time_utc.replace(" ", "T") + (e.time_utc.includes("T") || e.time_utc.length < 19 ? "" : "Z"));
-    const recent = evs.filter((e) => now - when(e) < 14 * 86400e3);
+    const when = (e) => new Date(UW.tms(e.time_utc));
+    const recent = evs;                                   // already the legs and span on display
     const types = [...new Set(recent.map((e) => e.activity || "other"))].slice(0, 20);
     const traces = types.map((t, i) => {
       const es = recent.filter((e) => (e.activity || "other") === t);
@@ -421,11 +425,12 @@
     });
     // scheduled operations as bars on their own row: current ones bright,
     // former ones (off the intranet page now) dimmer
-    const rows = scheduledRows(s).map((r) => ({ r, d0: new Date(r.start_utc), d1: new Date(r.end_utc) })).filter((b) => now - b.d1 < 14 * 86400e3);
+    const f = UW.currentFilter();
+    const rows = scheduledRows(s).map((r) => ({ r, d0: new Date(r.start_utc), d1: new Date(r.end_utc) })).filter((b) => b.d1 >= f.start);
     if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${b.r.start_utc.slice(0, 16).replace("T", " ")}–${b.r.end_utc.slice(11, 16)}Z`),
       hovertemplate: "%{text}<extra></extra>", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .6 });
-    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · last 14 days`, false).replace('class="panel card castplot', 'class="panel card castplot wide');
+    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span`, false).replace('class="panel card castplot', 'class="panel card castplot wide');
     const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 12 } }, tickfont: { size: 12 } },
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 12 }, fixedrange: true },
@@ -578,7 +583,8 @@
   const STATION_COLS = [["time", "time (UTC)"], ["leg", "leg"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
   function stationRows() {
     const q = tbl.search.toLowerCase();
-    let rows = (UW.M.stations || []).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg }));
+    const f = UW.currentFilter();
+    let rows = (UW.M.stations || []).filter((s) => UW.inFilter(s.leg, s.time, f)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg }));
     if (q) rows = rows.filter((r) => `${r.time} ${r.legLabel} ${r.station} ${r.label} ${r.type} ${r.comments}`.toLowerCase().includes(q));
     const k = tbl.sort.key in { t: 1 } ? "time" : tbl.sort.key, dir = tbl.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];
@@ -612,7 +618,8 @@
   function currentRows() {
     const d = tbl.data[tbl.rule]; if (!d) return [];
     const q = tbl.search.toLowerCase();
-    let rows = d.rows.map((r) => ({ ...r, legLabel: UW.legById(UW.M.legs[r.leg]?.id)?.label || "" }));
+    const f = UW.currentFilter();
+    let rows = d.rows.filter((r) => UW.inFilter(UW.M.legs[r.leg]?.id, r.t, f)).map((r) => ({ ...r, legLabel: UW.legById(UW.M.legs[r.leg]?.id)?.label || "" }));
     if (q) rows = rows.filter((r) => `${fmtUTC(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
     const k = tbl.sort.key, dir = tbl.sort.dir;
     const val = (r) => k === "t" ? r.t : k === "leg" ? r.legLabel : k === "lat" || k === "lon" ? r[k] : (r[k] ? r[k][tbl.stat] : null);
@@ -675,6 +682,11 @@
 
   // ================================================================ glue
   UW.onXMode = () => { if (!$("#pane-casts").hidden && casts.mode === "section") renderCastPlots(); };
+  UW.onFilter = () => {
+    if (!$("#pane-casts").hidden && casts.idx) renderCastList();
+    if (!$("#pane-calendar").hidden && cal.data) renderCalendar();
+    if (!$("#pane-table").hidden) renderTable();
+  };
   UW.onTab = async (name) => {
     if (name === "casts") { await ensureCastIndex(); renderCastList(); renderCastPlots(); UW.renderMap(); }
     if (name === "calendar") { await ensureCalendar(); renderCalendar(); }

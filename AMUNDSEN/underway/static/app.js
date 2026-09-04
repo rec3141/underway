@@ -95,6 +95,21 @@
   const legById = (id) => M.legs.find((l) => l.id === id);
   const legByIndex = (i) => M.legs[i];
   const shownLegs = () => M.legs.filter((l) => !state.hidden.has(l.id));
+  // The legs menu and the span slider filter every tab. The span runs back
+  // from the end of the record; times without a zone are UTC.
+  const tms = (s) => { if (s == null || s === "") return NaN; if (typeof s === "number") return s;
+    let t = String(s).trim().replace(" ", "T").replace(/^(\d{4})\/(\d{2})\/(\d{2})/, "$1-$2-$3");
+    if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(t)) t += "Z"; return Date.parse(t); };
+  function currentFilter() {
+    const w = M.windows.find((x) => x.label === state.win) || M.windows[0];
+    const end = Date.parse(M.data_range.end);
+    return { legs: new Set(shownLegs().map((l) => l.id)), start: end - (w?.hours || 1) * 3600e3, end, label: w?.label };
+  }
+  function inFilter(legId, time, f = currentFilter()) {
+    if (legId != null && !f.legs.has(legId)) return false;
+    const t = tms(time);
+    return isNaN(t) || (t >= f.start && t <= f.end + 60e3);
+  }
 
   // ------------------------------------------------------------ leg filter
   // Rows of hidden legs become null so lines break there instead of bridging
@@ -298,7 +313,8 @@
       marker: { size: 16, color: "#ffb454", opacity: .95 },
     });
     const shownIds = new Set(shownLegs().map((l) => l.id));
-    const st = state.stations ? (M.stations || []).filter((s) => shownIds.has(s.leg)) : [];
+    const f = currentFilter();
+    const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
     const selected = window.UW?.selectedCastKeys?.() || new Set();
     if (st.length) traces.push({
       type: "scattermap", mode: "markers", name: "CTD stations", showlegend: false,
@@ -532,6 +548,7 @@
     state.data = applyLegFilter(state.raw);
     renderLegMenu();
     render();
+    window.UW?.onFilter?.();
   }
 
   async function loadWindow() {
@@ -576,9 +593,9 @@
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
     document.querySelector("main").className = "tab-" + name;
-    // the header row (legs, span) belongs to the underway tab; the other
-    // switches live in the figure area
-    $("#controls-underway").hidden = name !== "underway";
+    // the header row (legs, span) filters every tab; the other switches live
+    // in the figure areas
+    $("#controls-underway").hidden = false;
     const hint = $("#maphint"); if (hint) hint.hidden = name !== "casts";
     store.set("tab", name);
     window.UW?.onTab?.(name);
@@ -590,7 +607,7 @@
   window.UW = Object.assign(window.UW || {}, {
     get M() { return M; }, get state() { return state; }, SITE, THEME, CFG,
     fmtUTC, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms,
   });
 
   (async () => {
