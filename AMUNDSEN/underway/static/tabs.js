@@ -233,7 +233,7 @@
       const layout = { ...CAST_LAYOUT, hovermode: "closest",
         xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 } },
         yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 } } };
-      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG);
+      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     }
     wireCastPanels(host, () => renderProfiles(host, data));
   }
@@ -323,7 +323,7 @@
     const layout = { ...CAST_LAYOUT, margin: { l: 50, r: 8, t: 18, b: 34 },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, type: byTime ? "date" : "linear" },
       yaxis: { ...THEME.yaxis, autorange: false, title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxD + step, 0] } };
-    Plotly.react($("#cs-plot"), traces, layout, CFG);
+    Plotly.react($("#cs-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
   }
 
@@ -414,7 +414,7 @@
       xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 10 } }, tickfont: { size: 10 } },
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 10 }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: new Date(now), x1: new Date(now), yref: "paper", y0: 0, y1: 1, line: { color: "#7ee787", width: 1.5, dash: "dot" } }] };
-    Plotly.react($("#cal-plot"), traces, layout, CFG);
+    Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderTimeline(host, evs, s));
   }
   // Calendar view: a month grid or three days centred on a day, from the

@@ -54,6 +54,27 @@
   };
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
 
+  // Shift+scroll zooms the x axis alone, Ctrl+scroll the y axis alone, about
+  // the cursor; a plain scroll keeps Plotly's zoom of both. Listens in the
+  // capture phase so Plotly's own wheel handler never sees the modified event.
+  function axisZoom(gd) {
+    if (gd._axisZoom) return;
+    gd._axisZoom = true;
+    gd.addEventListener("wheel", (ev) => {
+      const fl = gd._fullLayout;
+      if (!(ev.shiftKey || ev.ctrlKey) || !fl || !fl.xaxis || !fl.yaxis) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const rect = gd.getBoundingClientRect();
+      const ax = ev.shiftKey ? fl.xaxis : fl.yaxis;
+      const px = ev.shiftKey ? ev.clientX - rect.left - ax._offset : ev.clientY - rect.top - ax._offset;
+      const c = ax.p2l(px);
+      const k = Math.exp(ev.deltaY * 0.0015);
+      const r0 = ax.r2l(ax.range[0]), r1 = ax.r2l(ax.range[1]);
+      const lo = c + (r0 - c) * k, hi = c + (r1 - c) * k;
+      Plotly.relayout(gd, { [`${ax._name}.range`]: [ax.l2r(lo), ax.l2r(hi)], [`${ax._name}.autorange`]: false });
+    }, { passive: false, capture: true });
+  }
+
   // ------------------------------------------------------------ helpers
   const fmtUTC = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 16) + "Z";
   const fmtLocal = (iso) => new Date(iso).toLocaleString(undefined, { timeZone: SITE.local_tz,
@@ -475,7 +496,7 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, [trace], layout, CFG);
+    Plotly.react(plot, [trace], layout, CFG).then(() => axisZoom(plot));
   }
 
   function renderPanels() {
@@ -493,6 +514,7 @@
     const f = M.files;
     $("#notes").innerHTML =
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
+      `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
       `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
@@ -570,7 +592,7 @@
   window.UW = Object.assign(window.UW || {}, {
     get M() { return M; }, get state() { return state; }, SITE, THEME, CFG,
     fmtUTC, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit,
+    renderMap, showTab, focusMap, requestFit, axisZoom,
   });
 
   (async () => {
