@@ -37,7 +37,7 @@ run() {   # run <label> <src> <dst> <filter...>
   local out rc=0
   out=$("${RS[@]}" "$@" "$src/" "$dst/" 2>&1) || rc=$?
   if [[ $rc -eq 0 ]]; then
-    echo "$(ts) $label: $(echo "$out" | grep -E 'Number of regular files transferred|Total transferred file size' | sed -E 's/ +/ /g' | tr '\n' ';')" | tee -a "$LOG"
+    echo "$(ts) $label: $(echo "$out" | grep -iE 'files transferred|transferred file size|total size' | sed -E 's/ +/ /g' | tr '\n' ';')" | tee -a "$LOG"
   else
     echo "$(ts) $label: rsync exit $rc — $(echo "$out" | grep -v '^$' | tail -1)" | tee -a "$LOG"
   fi
