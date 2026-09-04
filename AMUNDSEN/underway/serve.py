@@ -71,7 +71,12 @@ def chat_read(since: int, name: str | None, emoji: str = "") -> dict:
             c.close()
     typing = sorted(CREW.typing) if CREW else []
     return {"messages": [{"id": i, "t": t, "name": n, "text": x, "emoji": e or ""} for i, t, n, x, e in rows],
-            "online": online, "typing": typing, "crew": crew_list(), "now": now}
+            "online": online, "typing": typing, "crew": crew_list(), "model": crew_model(), "now": now}
+
+
+def crew_model() -> str:
+    from .chatbot import LLM_MODEL
+    return LLM_MODEL if CREW and CREW.enabled else ""
 
 
 def crew_list() -> list[dict]:

@@ -68,7 +68,7 @@
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
       typing.hidden = !t.length; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} typing…` : "";
       crewEl.hidden = !st.crew.length;
-      crewEl.innerHTML = st.crew.length ? "crew: " + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ") : "";
+      crewEl.innerHTML = st.crew.length ? `AI crew (${esc(j.model || "local model")}): ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ") : "";
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
     } catch { dot.className = "dot"; who.textContent = "offline"; }
     clearTimeout(st.timer);
