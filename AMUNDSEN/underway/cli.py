@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from .build import build
-from .legs import discover
+from .legs import RootsUnavailable, discover
 from .serve import serve
 
 DEFAULT_TITLE = "CCGS Amundsen — Underway"
@@ -42,7 +42,12 @@ def main(argv: list[str] | None = None) -> int:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
 
     if a.cmd == "legs":
-        for l in discover():
+        try:
+            found = discover()
+        except RootsUnavailable as e:
+            logging.error("%s", e)
+            return 2
+        for l in found:
             print(f"{'*' if l.live else ' '} {l.id:<13} {l.files:3d} files {l.bytes/1e6:6.0f} MB "
                   f"{l.first_date}..{l.last_date}  stations={'yes' if l.stations else 'no'}")
         return 0
@@ -56,7 +61,13 @@ def main(argv: list[str] | None = None) -> int:
         label, _, url = s_.partition("|")
         if url:
             links.append({"label": label.strip(), "url": url.strip()})
-    r = build(a.root, a.title, links)
+    try:
+        r = build(a.root, a.title, links)
+    except RootsUnavailable as e:
+        # exit non-zero so the systemd timer surfaces it instead of quietly
+        # republishing an empty dashboard over a good one
+        logging.error("%s", e)
+        return 2
     if r["unresolved"]:
         logging.warning("unresolved variables: %s", ", ".join(r["unresolved"]))
     return 0

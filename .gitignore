@@ -28,3 +28,6 @@ __pycache__/
 .claude/
 .claude.json
 node_modules/
+
+# python packaging artifacts
+*.egg-info/

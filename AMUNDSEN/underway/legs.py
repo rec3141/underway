@@ -2,17 +2,32 @@
 
 Each leg keeps its own SQLite store so ingest stays incremental per leg; the
 dashboard itself is built from all legs together.
+
+Discovery raises rather than returning an empty list when the shares are not
+there. The ship's SMB mounts drop routinely, and a silent empty result would let
+a scheduled build publish an empty dashboard over a good one.
 """
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import DATA_ROOT, DB_DIR, FILE_PATTERN, SHARE_ROOT
 
+log = logging.getLogger(__name__)
+
 LEG_RE = re.compile(r"^(\d{4})_LEG_(\d{2})$")
+
+
+class RootsUnavailable(RuntimeError):
+    """The data shares are not mounted, or hold no legs.
+
+    Distinct from "no new files": this means we cannot see the source data at
+    all, so any build from it would be wrong rather than merely stale.
+    """
 
 
 @dataclass
@@ -74,10 +89,28 @@ def discover() -> list[Leg]:
         leg.newest_mtime = max(leg.newest_mtime, mt)
 
     full = DATA_ROOT / "FULL_CSV"                   # current season
-    if full.is_dir():
+    have_full, have_share = full.is_dir(), SHARE_ROOT.is_dir()
+    if not (have_full or have_share):
+        raise RootsUnavailable(
+            "no data shares are reachable — neither\n"
+            f"    {full}   (UNDERWAY_DATA_ROOT={DATA_ROOT})\n"
+            f"    {SHARE_ROOT}   (UNDERWAY_SHARE_ROOT={SHARE_ROOT})\n"
+            "is a directory. The ship's SMB mounts are probably down, or these "
+            "defaults are wrong for this machine (they assume Linux /mnt/ship; "
+            "macOS mounts under /Volumes). Set UNDERWAY_DATA_ROOT and "
+            "UNDERWAY_SHARE_ROOT to override."
+        )
+    # one of the two missing is survivable — the current season can exist without
+    # the archive, and vice versa — but it is worth saying so out loud.
+    if not have_full:
+        log.warning("current-season root missing: %s", full)
+    if not have_share:
+        log.warning("archive root missing: %s", SHARE_ROOT)
+
+    if have_full:
         for d in sorted(full.iterdir()):
             add(d)
-    if SHARE_ROOT.is_dir():                        # archived seasons: Share/<year>/<leg>/
+    if have_share:                                 # archived seasons: Share/<year>/<leg>/
         for ydir in sorted(SHARE_ROOT.iterdir()):
             if ydir.is_dir() and re.fullmatch(r"\d{4}", ydir.name):
                 for d in sorted(ydir.iterdir()):
@@ -89,6 +122,12 @@ def discover() -> list[Leg]:
             leg.stations = cand
 
     out = sorted(legs.values(), key=lambda l: (l.year, l.number))
-    if out:
+    if not out:
+        raise RootsUnavailable(
+            "the shares are reachable but contain no legs matching YYYY_LEG_NN "
+            f"with {FILE_PATTERN.pattern} files (looked under {full} and "
+            f"{SHARE_ROOT}). An empty mount point looks exactly like this."
+        )
+
         max(out, key=lambda l: l.newest_mtime).live = True
     return out
