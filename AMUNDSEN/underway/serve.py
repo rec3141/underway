@@ -86,7 +86,7 @@ def crew_list() -> list[dict]:
 
 def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False) -> dict:
     name = " ".join(name.split())[:NAME_MAX] or "anon"
-    text = text.strip()[:TEXT_MAX if not bot else 1000]
+    text = text.strip()[:TEXT_MAX if not bot else 2600]
     emoji = _clean_emoji(emoji)
     if not text:
         return {"error": "empty"}

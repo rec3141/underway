@@ -30,7 +30,8 @@ LLM_MODEL = os.environ.get("UNDERWAY_LLM_MODEL", "gemma4-local")
 CHIME_MIN_S = 45 * 60          # unprompted remarks at most this often …
 EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
-MAX_TOKENS = 180
+MAX_TOKENS = 500
+NUM_CTX = 16384               # room for the dashboard summary and a long chat
 TIMEOUT = 240
 
 PERSONAS = {
@@ -124,23 +125,26 @@ class Crew:
         import requests
         p = PERSONAS[handle]
         chat = self.read()
-        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-14:])
+        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-40:])
         system = (f"You are {p['name']}, {p['voice']} You are one of several crew members in the chat of the CCGS Amundsen underway "
                   f"dashboard, read by the scientists aboard, who like a laugh. Speak as your character in plain text, no markdown, no "
                   f"lists. Be entertaining first and useful second. Use everything you know: general oceanography, rules of thumb, "
                   f"astronomy, arithmetic from the numbers at hand (a saturation from temperature and salinity, sunset from the "
                   f"position and date, an ETA from speed and distance). Always give a best guess rather than a refusal, and just "
                   f"say it is a guess. The dashboard summary below is the truth about current ship readings; do not make up "
-                  f"readings that are not in it, but estimate freely beyond it.\n\n"
+                  f"readings that are not in it, but estimate freely beyond it. Questions about anything else — history, "
+                  f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
+                  f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
+                  f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
                   f"DASHBOARD SUMMARY\n{self.context()}\n\nRECENT CHAT (oldest first)\n{recent}")
         body = {"model": LLM_MODEL, "stream": False, "think": False, "keep_alive": "3h",
-                "options": {"num_predict": MAX_TOKENS, "temperature": 1.0},
+                "options": {"num_predict": MAX_TOKENS, "num_ctx": NUM_CTX, "temperature": 1.0},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": task}]}
         r = requests.post(f"{LLM_URL}/api/chat", json=body, timeout=TIMEOUT)
         r.raise_for_status()
         text = (r.json().get("message") or {}).get("content", "").strip()
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
-        return text[:900] or None
+        return text[:2500] or None
 
     def _speak(self, handle: str, task: str) -> None:
         if not self.enabled:
