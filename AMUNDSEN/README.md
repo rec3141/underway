@@ -138,12 +138,18 @@ The map stays on the left; the tabs swap the right-hand pane.
   the Plotly HTML plots under `Data/Rosette/<leg>/plots/` add the variables
   the `.cnv` lacks (CDOM, PAR, buoyancy frequency, nitrates), and are the sole
   source for legs without `.cnv` files. Station, label and time come from the
-  leg's CTD logbook. An MVP tow (`Data/MVP/<leg>/<tow>/*.m1`) is one entry
-  holding every dip, drawn as a track on the map. Select casts from the list,
-  or click station markers and tow tracks on the map; *Profiles* overlays them
-  per variable (a tow's dips shade from light to dark along the tow),
-  *Section* grids one variable against distance along the selected profiles in
-  time order. Parsing is cached under `db/casts/` (versioned, trusted by name
+  leg's CTD logbook; the plot filename says which rosette (Classic or TM), and
+  the list filters Rosette / TM / MVP. An MVP tow (`Data/MVP/<leg>/<tow>/*.m1`)
+  is one entry holding every dip, drawn as a track on the map: its row selects
+  the whole tow (for a section), and expanding it lets individual dips be
+  picked (for profiles). Select from the list, or click station markers and
+  tow starts on the map; *Profiles* overlays the selection per variable (a
+  tow's dips shade light to dark along the tow), *Section* grids one variable
+  against the header's Time or Distance axis in time order.
+  Both SeaBird CTDs are handled: the SBE 9 rosette (`prDM`, `t090C`, with
+  CDOM, PAR and SUNA columns) and the SBE 19plus (`prdM`, `tv290C`). Files on
+  the share are read in one call each — CIFS charges a network round trip per
+  read, so line-by-line access turns a 21 MB `.cnv` into minutes. Parsing is cached under `db/casts/` (versioned, trusted by name
   except for casts under three days old, because every `stat()` on the share
   costs seconds) and batched per build so the underway page keeps its cadence.
 - **Calendar** — the ship's event log (`Data/EventLog/<leg>/Eventlog_<leg>.xls`)
