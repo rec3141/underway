@@ -3,6 +3,7 @@
     python -m underway legs                      list legs found on the shares
     python -m underway build --root DIR          ingest new files from every leg, rebuild DIR
     python -m underway serve --root DIR [--port N]
+    python -m underway gcal-push                 push queued calendar items, refresh the feeds
 """
 
 from __future__ import annotations
@@ -37,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--port", type=int, default=8042)
     s.add_argument("--bind", default="0.0.0.0")
 
+    sub.add_parser("gcal-push", help="push queued Google Calendar items and refresh the feed cache")
+
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
@@ -54,6 +57,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if a.cmd == "serve":
         serve(a.root, a.port, a.bind)
+        return 0
+
+    if a.cmd == "gcal-push":
+        from .gcal import push
+        push()
         return 0
 
     links = []

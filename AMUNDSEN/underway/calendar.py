@@ -191,9 +191,9 @@ def build_calendar(legs: list[Leg], root: Path, frame=None) -> dict:
         log.exception("google calendar import failed")
         payload["gcal"] = []
     try:
-        payload["gcal_sync"] = gcal.sync(events, payload["schedule"], frame)
+        payload["gcal_sync"] = gcal.queue(events, payload["schedule"], frame)
     except Exception:                       # noqa: BLE001
-        log.exception("google calendar push failed")
+        log.exception("google calendar queue failed")
     atomic_write(root / "data" / "calendar.json", json.dumps(payload, separators=(",", ":")))
     sched = payload["schedule"]
     log.info("calendar: %d events, %d scheduled operations (%d former)", len(events), len(sched.get("rows", [])), len(sched.get("former", [])))

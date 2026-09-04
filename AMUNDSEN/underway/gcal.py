@@ -8,13 +8,15 @@ tab, and the ship's operations and surprise episodes are pushed to them.
   minutes with the ``SURPRISE_ALERT_SCALE`` score above ``SURPRISE_ALERT``,
   runs less than half an hour apart merged — extended while it continues.
 
-Pushes use the service account in ``GCAL_CREDS`` (a JWT exchanged for a
-token; the account owns both calendars). Every pushed item is remembered in
-``db/gcal_state.json`` by fingerprint with the event id and a hash of its
-body, so a rebuild inserts nothing twice and patches only what changed. The
-import caches the ICS feeds in ``db/gcal_cache.json`` so the page keeps its
-last copy without internet. Both are rate-limited to ``GCAL_SYNC_MINUTES``
-and every request has a short timeout: a build never waits on Starlink.
+The build itself touches no Google endpoint: it writes the wanted items to
+``db/gcal_queue.json`` and reads the feeds from ``db/gcal_cache.json``. The
+``gcal-push`` command (underway-gcal.timer, every few minutes) refreshes the
+feed cache and works through the queue with the service account in
+``GCAL_CREDS`` (a JWT exchanged for a token; the account owns both
+calendars), at most ``GCAL_MAX_CALLS`` requests per run. Every pushed item
+is remembered in ``db/gcal_state.json`` by fingerprint with its event id and
+a hash of its body, so nothing is inserted twice and only changes are
+patched; an empty state adopts what is already on the calendars.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from .config import (DB_DIR, GCAL, GCAL_CREDS, GCAL_MAX_INSERTS, GCAL_SINCE, GCAL_SYNC_MINUTES, LOCAL_TZ,
+from .config import (DB_DIR, GCAL, GCAL_CREDS, GCAL_MAX_CALLS, GCAL_SINCE, GCAL_SYNC_MINUTES, LOCAL_TZ,
                      SURPRISE_ALERT, SURPRISE_ALERT_SCALE, SURPRISE_NAME, surprise_scale_name)
 
 log = logging.getLogger(__name__)
@@ -93,8 +95,9 @@ def parse_ics(text: str) -> list[dict]:
     return events
 
 
-def import_calendars() -> list[dict]:
-    """The public feeds of both calendars, from cache when fresh or offline."""
+def import_calendars(fetch: bool = False) -> list[dict]:
+    """The public feeds of both calendars: the cached copy, refreshed when
+    ``fetch`` is set and the copy is older than ``GCAL_SYNC_MINUTES``."""
     import requests
     cache_p = DB_DIR / "gcal_cache.json"
     cache = json.loads(cache_p.read_text()) if cache_p.is_file() else {}
@@ -104,7 +107,9 @@ def import_calendars() -> list[dict]:
         entry = cache.get(key, {})
         fetched = entry.get("fetched_utc")
         fresh = fetched and (now - datetime.fromisoformat(fetched)) < timedelta(minutes=GCAL_SYNC_MINUTES)
-        if not fresh:
+        if not fetch:
+            entry = dict(entry, stale=not fetched or (now - datetime.fromisoformat(fetched)) > timedelta(minutes=3 * GCAL_SYNC_MINUTES))
+        elif not fresh:
             try:
                 r = requests.get(f"https://calendar.google.com/calendar/ical/{c['id'].replace('@', '%40')}/public/basic.ics",
                                  timeout=TIMEOUT)
@@ -115,8 +120,9 @@ def import_calendars() -> list[dict]:
                 log.info("gcal %s: not fetched (%s); using cache", key, e)
                 entry = dict(entry, stale=True)
         out.append({"key": key, "label": c["label"], "id": c["id"], **entry})
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-    cache_p.write_text(json.dumps(cache))
+    if fetch:
+        DB_DIR.mkdir(parents=True, exist_ok=True)
+        cache_p.write_text(json.dumps(cache))
     return out
 
 
@@ -271,28 +277,57 @@ def surprise_items(frame: pd.DataFrame, hours: float = 72) -> list[tuple[str, st
     return out
 
 
-def sync(events: list[dict], sched: dict, frame: pd.DataFrame | None) -> dict:
-    """Push what is new or changed; rate-limited, never raises."""
-    if os.environ.get("UNDERWAY_GCAL", "1") != "1" or not GCAL_CREDS.is_file():
-        return {"skipped": "disabled" if os.environ.get("UNDERWAY_GCAL") == "0" else "no credentials"}
-    state_p = DB_DIR / "gcal_state.json"
-    state = json.loads(state_p.read_text()) if state_p.is_file() else {"last_sync": None, "items": {}}
-    now = datetime.now(timezone.utc)
-    last = state.get("last_sync")
-    if last and now - datetime.fromisoformat(last) < timedelta(minutes=GCAL_SYNC_MINUTES):
-        return {"skipped": "recent"}
-    dry = os.environ.get("UNDERWAY_GCAL_DRYRUN") == "1"
-    items = eventlog_items(events) + schedule_items(sched) + surprise_items(frame)
+def _hash(body: dict) -> str:
+    return hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def _state() -> dict:
+    p = DB_DIR / "gcal_state.json"
+    return json.loads(p.read_text()) if p.is_file() else {"last_sync": None, "items": {}}
+
+
+def _pending(items: list, state: dict) -> list:
     todo = []
     for cal, fp, body in items:
-        h = hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16]
+        h = _hash(body)
         known = state["items"].get(fp)
         if known is None:
             todo.append(("insert", cal, fp, body, h))
         elif known.get("hash") != h:
             todo.append(("patch", cal, fp, body, h))
+    return todo
+
+
+def queue(events: list[dict], sched: dict, frame: pd.DataFrame | None) -> dict:
+    """Called by the build: write what the calendars should hold; no network."""
+    if os.environ.get("UNDERWAY_GCAL", "1") != "1":
+        return {"skipped": "disabled"}
+    items = eventlog_items(events) + schedule_items(sched) + surprise_items(frame)
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    (DB_DIR / "gcal_queue.json").write_text(json.dumps({"queued_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                                         "items": [[c, fp, b] for c, fp, b in items]}))
+    state = _state()
+    return {"items": len(items), "pending": len(_pending(items, state)), "last_push": state.get("last_sync")}
+
+
+def push() -> dict:
+    """The ``gcal-push`` command: refresh the feed cache, then insert or patch
+    queued items up to ``GCAL_MAX_CALLS`` requests. Never raises."""
+    try:
+        feeds = import_calendars(fetch=True)
+        log.info("gcal: feeds %s", ", ".join(f"{f['label']} {len(f.get('events', []))}{' (stale)' if f.get('stale') else ''}" for f in feeds))
+    except Exception as e:                  # noqa: BLE001
+        log.info("gcal: feeds not refreshed (%s)", e)
+    if not GCAL_CREDS.is_file():
+        return {"skipped": "no credentials"}
+    qp = DB_DIR / "gcal_queue.json"
+    if not qp.is_file():
+        return {"skipped": "nothing queued"}
+    items = [tuple(x) for x in json.loads(qp.read_text())["items"]]
+    state = _state()
+    todo = _pending(items, state)
     inserted = patched = failed = 0
-    if todo and not dry:
+    if todo:
         try:
             api = _Api()
         except Exception as e:              # noqa: BLE001
@@ -306,12 +341,12 @@ def sync(events: list[dict], sched: dict, frame: pd.DataFrame | None) -> dict:
                     for fp, eid in api.list_fps(c["id"], _utc(GCAL_SINCE).isoformat()).items():
                         state["items"][fp] = {"cal": cal, "event_id": eid, "hash": None}
                 log.info("gcal: adopted %d existing events", len(state["items"]))
-                todo = [(("patch" if fp in state["items"] else "insert"), cal, fp, body, h) for _, cal, fp, body, h in todo]
+                todo = _pending(items, state)
             except Exception as e:          # noqa: BLE001
                 log.warning("gcal: could not list existing events (%s)", e)
                 return {"skipped": f"no listing: {e}"}
         for op, cal, fp, body, h in todo:
-            if op == "insert" and inserted >= GCAL_MAX_INSERTS:
+            if inserted + patched + failed >= GCAL_MAX_CALLS:
                 break
             cal_id = GCAL[cal]["id"]
             body = dict(body, extendedProperties={"private": {"fp": fp}})
@@ -331,12 +366,10 @@ def sync(events: list[dict], sched: dict, frame: pd.DataFrame | None) -> dict:
                 log.warning("gcal %s %s failed: %s", op, fp, e)
                 if failed >= 5:
                     break
-    state["last_sync"] = now.isoformat(timespec="seconds")
-    if not dry:
-        DB_DIR.mkdir(parents=True, exist_ok=True)
-        state_p.write_text(json.dumps(state))
-    info = {"items": len(items), "pending": max(0, len(todo) - inserted - patched), "inserted": inserted, "patched": patched, "failed": failed}
-    if dry:
-        info["dry_run"] = [(op, cal, fp, body["summary"]) for op, cal, fp, body, _ in todo[:12]]
-    log.info("gcal: %d items, %d inserted, %d patched, %d failed, %d pending%s", len(items), inserted, patched, failed, info["pending"], " (dry run)" if dry else "")
+    state["last_sync"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    (DB_DIR / "gcal_state.json").write_text(json.dumps(state))
+    info = {"items": len(items), "inserted": inserted, "patched": patched, "failed": failed,
+            "pending": max(0, len(todo) - inserted - patched)}
+    log.info("gcal: %d items, %d inserted, %d patched, %d failed, %d pending", len(items), inserted, patched, failed, info["pending"])
     return info

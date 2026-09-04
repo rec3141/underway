@@ -1,0 +1,12 @@
+[Unit]
+Description=Push Google Calendar items every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnCalendar=*-*-* *:02/5:30
+AccuracySec=10s
+Unit=underway-gcal.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

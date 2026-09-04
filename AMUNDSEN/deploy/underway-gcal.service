@@ -1,0 +1,21 @@
+[Unit]
+Description=Push the underway dashboard's queued Google Calendar items
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cryomics
+Group=cryomics
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+Environment=TZ=America/Toronto
+ExecStart=/opt/miniforge3/bin/python3 -m underway gcal-push
+TimeoutStartSec=8min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+StandardOutput=journal
+StandardError=journal
