@@ -284,8 +284,17 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     h = hashlib.sha1()
     for name in ("app.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
+    # a raster tile pyramid (tools/make_gebco_tiles.sh) lives in the web root
+    # only — too large for the repository — and is used when present
+    tiles = root / "static" / "tiles" / "gebco"
+    raster = None
+    if tiles.is_dir():
+        zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
+        if zooms:
+            raster = {"url": "static/tiles/gebco/{z}/{x}/{y}.png", "minzoom": zooms[0], "maxzoom": zooms[-1],
+                      "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
-            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers,
+            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster,
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}
     env = Environment(loader=FileSystemLoader(str(PKG / "templates")), autoescape=True)

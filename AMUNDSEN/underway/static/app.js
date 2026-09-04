@@ -253,7 +253,20 @@
     });
 
     const view = state.view || fitView(d.lat, d.lon);
-    const layers = (state.geo || []).filter((l) => state.bathy || l.name !== "bathy");
+    // With a GEBCO tile pyramid available the shaded raster is the bathymetry
+    // and the Natural Earth depth bands stay out of the way; without it the
+    // bands are what the toggle controls.
+    const layers = [];
+    if (SITE.raster && state.bathy) {
+      const base = location.origin + location.pathname.replace(/[^/]*$/, "");
+      layers.push({ sourcetype: "raster", source: [base + SITE.raster.url], below: "traces", opacity: 1,
+                    minzoom: SITE.raster.minzoom, maxzoom: SITE.raster.maxzoom + 2, name: "gebco",
+                    sourceattribution: SITE.raster.attribution });
+    }
+    for (const l of (state.geo || [])) {
+      if (l.name === "bathy" && (!state.bathy || SITE.raster)) continue;
+      layers.push(l);
+    }
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
                      map: { style: OCEAN_STYLE, center: view.center, zoom: view.zoom, layers } };
     Plotly.react(el, traces, layout, CFG).then(() => {
@@ -419,7 +432,7 @@
       `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Axes are UTC; the header shows ship time (${SITE.local_tz}). Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: Natural Earth 10 m coastline, land, glaciers and depth bands, served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded bathymetry (15 arc-second grid) and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}, all served locally; Web Mercator.</p>`;
   }
 
   // ------------------------------------------------------------ data flow
