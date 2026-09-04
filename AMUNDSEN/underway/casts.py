@@ -50,7 +50,8 @@ ROSETTE_VARS = {
     "Buoyancy": ("Buoyancy frequency", "rad²/s²"), "Sigma-t": ("Sigma-t", "kg/m³"),
 }
 MVP_VARS = {"Temp": ("Temperature", "°C"), "Sal": ("Salinity", "PSU"), "Density": ("Sigma-t", "kg/m³"),
-            "SV": ("Sound velocity", "m/s")}
+            "SV": ("Sound velocity", "m/s"),
+            "ANLG1": ("MVP analogue 1", "counts"), "ANLG2": ("MVP analogue 2", "counts"), "ANLG3": ("MVP analogue 3", "counts")}
 BIN_DBAR = 1.0
 MAX_NEW_PER_BUILD = 80        # new Rosette casts parsed per build; the rest wait for the next run
 MAX_NEW_MVP_PER_BUILD = 240   # MVP dips are ~1 MB text files, so many more fit in a build
@@ -103,6 +104,7 @@ def _cache_path(leg: str, key: str) -> Path:
 RECENT_DAYS = 3
 # bump when the parsed representation changes so old cache entries are redone
 CACHE_VERSION = 3
+MVP_CACHE_VERSION = 4    # bumped when the MVP column set changes
 
 
 def _cached(leg: str, key: str, sources: list[Path]):
@@ -118,7 +120,7 @@ def _cached(leg: str, key: str, sources: list[Path]):
         cast = c["cast"]
     except (OSError, json.JSONDecodeError, KeyError):
         return None
-    if c.get("version") != CACHE_VERSION:
+    if c.get("version") != (MVP_CACHE_VERSION if key.startswith("MVP") else CACHE_VERSION):
         return None
     t = cast.get("time") or ""
     recent = True
@@ -142,7 +144,7 @@ def _store(leg: str, key: str, sources: list[Path], cast: dict) -> None:
     p = _cache_path(leg, key)
     p.parent.mkdir(parents=True, exist_ok=True)
     stamp = [[s.name, s.stat().st_size, int(s.stat().st_mtime)] for s in sources]
-    p.write_text(json.dumps({"version": CACHE_VERSION, "stamp": stamp, "cast": cast}, separators=(",", ":")))
+    p.write_text(json.dumps({"version": MVP_CACHE_VERSION if key.startswith("MVP") else CACHE_VERSION, "stamp": stamp, "cast": cast}, separators=(",", ":")))
 
 
 # ---------------------------------------------------------------- rosette

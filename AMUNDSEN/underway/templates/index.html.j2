@@ -20,6 +20,7 @@
     <button data-tab="casts" role="tab">Casts</button>
     <button data-tab="calendar" role="tab">Agenda</button>
     <button data-tab="table" role="tab">Table</button>
+    <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
   </nav>
   <div class="controls" id="controls-underway">
     <details class="group legmenu" id="legmenu">
@@ -131,14 +132,21 @@ window.__SITE__ = {{ site|tojson }};
 window.__MANIFEST__ = {{ m|tojson }};
 </script>
 <aside class="chat collapsed" id="chat" aria-label="ship chat">
-  <button class="chathead" id="chathead"><span class="dot" id="chatdot"></span><b>Chat</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
+  <div class="chathead">
+    <button class="chattoggle" id="chathead"><span class="dot" id="chatdot"></span><b>Chat</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
+    <button class="chatside" id="chatsidebtn" title="open as a side bar">⇤</button>
+  </div>
   <div class="chatbody">
     <div class="chatlog" id="chatlog"></div>
+    <div class="chattyping muted" id="chattyping" hidden></div>
+    <div class="chatcrew muted" id="chatcrew" hidden></div>
     <form class="chatform" id="chatform" autocomplete="off">
+      <button type="button" class="emojibtn" id="chatemoji" title="pick your emoji">🙂</button>
       <input id="chatname" placeholder="name" maxlength="24" title="your name, remembered on this device">
       <input id="chattext" placeholder="message · Enter to send" maxlength="500">
       <button type="submit" title="send">➤</button>
     </form>
+    <div class="emojipick" id="emojipick" hidden></div>
   </div>
 </aside>
 

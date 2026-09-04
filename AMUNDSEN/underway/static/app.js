@@ -571,7 +571,8 @@
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
   function showTab(name) {
-    for (const b of $("#tabs").querySelectorAll("button")) b.classList.toggle("on", b.dataset.tab === name);
+    if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
+    for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
     document.querySelector("main").className = "tab-" + name;
     // the underway controls stay for the cast tab too: its section view

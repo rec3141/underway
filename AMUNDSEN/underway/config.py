@@ -84,6 +84,8 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^avos — relative wind speed", r"^ats_mettower — relative wind speed", r"wind speed")),
     Variable("Ship speed (kn)", "kn",
              (r"^posmv — speed", r"^cnav — speed", r"speed \(knt\)")),
+    Variable("Sea state · 4σ heave (m)", "m", (), derived=True),
+    Variable("Roll & pitch RMS (°)", "°", (), derived=True),
     Variable("Time elapsed (h)", "h", (), derived=True),
     Variable("Distance travelled (km)", "km", (), derived=True),
 )
@@ -104,6 +106,11 @@ LINE_WARMING: tuple[tuple[str, ...], tuple[str, ...]] = ((r"^tsg — salinometer
 # pump is off or the line is choked, and the TSG readings are the line's, not
 # the sea's — the surprise model drops them for those minutes
 LOW_FLOW_V = 0.5
+# Ship motion from the POSMV (5 s cadence): 4σ of heave over MOTION_WINDOW is
+# the significant-wave-height proxy, and the RMS of the roll and pitch
+# departures from their running means the ship's tilt energy.
+MOTION = {"roll": (r"^posmv — roll",), "pitch": (r"^posmv — pitch",), "heave": (r"^posmv — heave",)}
+MOTION_WINDOW = "10min"
 # Window-filled derived variables: computed per window, not in the record
 WINDOW_FILLED = ("Time elapsed (h)", "Distance travelled (km)")
 

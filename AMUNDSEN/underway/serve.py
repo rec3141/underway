@@ -32,51 +32,78 @@ _online: dict[str, float] = {}          # name -> last poll, for "who has the pa
 _last_post: dict[str, float] = {}       # address -> last post, a light rate limit
 
 
+_emoji: dict[str, str] = {}             # name -> avatar last seen with
+CREW = None                             # the model-driven crew, once the server is up
+
+
 def _chat_conn() -> sqlite3.Connection:
     CHAT_DB.parent.mkdir(parents=True, exist_ok=True)
     c = sqlite3.connect(CHAT_DB, timeout=5)
     c.execute("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, t REAL NOT NULL, addr TEXT, name TEXT NOT NULL, text TEXT NOT NULL)")
+    cols = {r[1] for r in c.execute("PRAGMA table_info(messages)")}
+    if "emoji" not in cols:
+        c.execute("ALTER TABLE messages ADD COLUMN emoji TEXT")
     return c
 
 
-def chat_read(since: int, name: str | None) -> dict:
+def _clean_emoji(e: str) -> str:
+    e = (e or "").strip()
+    return e[:8] if e and "<" not in e else ""
+
+
+def chat_read(since: int, name: str | None, emoji: str = "") -> dict:
     now = time.time()
     with _chat_lock:
         if name:
             _online[name] = now
+            if emoji:
+                _emoji[name] = _clean_emoji(emoji)
         for k in [k for k, v in _online.items() if now - v > 45]:
             del _online[k]
-        online = sorted(_online)
+        online = [{"name": n, "emoji": _emoji.get(n, "")} for n in sorted(_online)]
         c = _chat_conn()
         try:
             if since > 0:
-                rows = c.execute("SELECT id, t, name, text FROM messages WHERE id > ? ORDER BY id", (since,)).fetchall()
+                rows = c.execute("SELECT id, t, name, text, emoji FROM messages WHERE id > ? ORDER BY id", (since,)).fetchall()
             else:
-                rows = c.execute("SELECT id, t, name, text FROM messages ORDER BY id DESC LIMIT ?", (CHAT_PAGE,)).fetchall()[::-1]
+                rows = c.execute("SELECT id, t, name, text, emoji FROM messages ORDER BY id DESC LIMIT ?", (CHAT_PAGE,)).fetchall()[::-1]
         finally:
             c.close()
-    return {"messages": [{"id": i, "t": t, "name": n, "text": x} for i, t, n, x in rows], "online": online, "now": now}
+    typing = sorted(CREW.typing) if CREW else []
+    return {"messages": [{"id": i, "t": t, "name": n, "text": x, "emoji": e or ""} for i, t, n, x, e in rows],
+            "online": online, "typing": typing, "crew": crew_list(), "now": now}
 
 
-def chat_post(addr: str, name: str, text: str) -> dict:
+def crew_list() -> list[dict]:
+    from .chatbot import PERSONAS
+    return [{"handle": h, "name": p["name"], "emoji": p["emoji"]} for h, p in PERSONAS.items()] if CREW and CREW.enabled else []
+
+
+def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False) -> dict:
     name = " ".join(name.split())[:NAME_MAX] or "anon"
-    text = text.strip()[:TEXT_MAX]
+    text = text.strip()[:TEXT_MAX if not bot else 1000]
+    emoji = _clean_emoji(emoji)
     if not text:
         return {"error": "empty"}
     now = time.time()
     with _chat_lock:
-        if now - _last_post.get(addr, 0) < 1.0:
-            return {"error": "slow down"}
-        _last_post[addr] = now
-        _online[name] = now
+        if not bot:
+            if now - _last_post.get(addr, 0) < 1.0:
+                return {"error": "slow down"}
+            _last_post[addr] = now
+            _online[name] = now
+            if emoji:
+                _emoji[name] = emoji
         c = _chat_conn()
         try:
-            cur = c.execute("INSERT INTO messages (t, addr, name, text) VALUES (?, ?, ?, ?)", (now, addr, name, text))
+            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji) VALUES (?, ?, ?, ?, ?)", (now, addr, name, text, emoji))
             c.execute("DELETE FROM messages WHERE id <= (SELECT MAX(id) FROM messages) - ?", (CHAT_KEEP,))
             c.commit()
             mid = cur.lastrowid
         finally:
             c.close()
+    if not bot and CREW:
+        CREW.on_message(name, text)
     return {"ok": True, "id": mid, "t": now}
 
 
@@ -112,7 +139,7 @@ class Handler(SimpleHTTPRequestHandler):
                 since = 0
             name = (q.get("name", [""])[0] or "").strip()[:NAME_MAX] or None
             try:
-                return self._json(200, chat_read(since, name))
+                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0]))
             except Exception as e:                       # noqa: BLE001
                 log.warning("chat read failed: %s", e)
                 return self._json(500, {"error": "chat unavailable"})
@@ -125,7 +152,7 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             n = min(int(self.headers.get("Content-Length", "0")), 4096)
             payload = json.loads(self.rfile.read(n) or b"{}")
-            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")))
+            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")), str(payload.get("emoji", "")))
         except Exception as e:                           # noqa: BLE001
             log.warning("chat post failed: %s", e)
             r = {"error": "bad request"}
@@ -154,6 +181,10 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def serve(root: Path, port: int, bind: str) -> None:
+    global CREW
+    from .chatbot import Crew
+    CREW = Crew(root, post=lambda n, e, t: chat_post("crew", n, t, e, bot=True), read=lambda: chat_read(0, None))
+    CREW.start()
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))
     log.info("serving %s on http://%s:%d/", root, bind or "0.0.0.0", port)
     try:

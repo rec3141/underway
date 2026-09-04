@@ -317,9 +317,30 @@ tr.st-completed .status { color: var(--muted); }
 .chat { position: fixed; right: 16px; bottom: 0; z-index: 40; width: 340px; max-width: calc(100vw - 24px);
   background: var(--card); border: 1px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,.4);
   display: flex; flex-direction: column; max-height: 60vh; }
-.chat .chathead { display: flex; align-items: center; gap: 8px; width: 100%; background: var(--card-2); color: var(--fg); border: 0; border-bottom: 1px solid var(--line);
-  padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; border-radius: 10px 10px 0 0; text-align: left; }
-.chat .chathead .muted { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.chat .chathead { display: flex; align-items: stretch; background: var(--card-2); border-bottom: 1px solid var(--line); border-radius: 10px 10px 0 0; }
+.chat .chattoggle { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; background: transparent; color: var(--fg); border: 0;
+  padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.chat .chatside { background: transparent; color: var(--muted); border: 0; border-left: 1px solid var(--line); padding: 0 12px; font-size: 15px; cursor: pointer; }
+.chat .chatside:hover { color: var(--fg); }
+.chat .chattoggle .muted { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+/* side-bar mode: full height on the right, the page makes room */
+.chat.sidebar { top: 0; bottom: 0; right: 0; width: 380px; max-height: none; height: 100vh; border-radius: 0; border-left: 1px solid var(--line); border-bottom: 0; box-shadow: none; }
+.chat.sidebar .chathead, .chat.sidebar .chattoggle { border-radius: 0; }
+.chat.sidebar .chatlog { max-height: none; }
+.chat.sidebar .caret { display: none; }
+html.chat-side body { padding-right: 380px; }
+html.chat-side .alertbar, html.chat-side .top { padding-right: 20px; }
+@media (max-width: 900px) { .chat.sidebar { width: 100vw; } html.chat-side body { padding-right: 0; } }
+.chattyping, .chatcrew { padding: 2px 10px; font-size: 11.5px; }
+.chatcrew .mention { background: transparent; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: inherit; font-size: 11.5px; cursor: pointer; }
+.chatcrew .mention:hover { border-color: var(--accent); }
+.chatlog .msg .av { margin-right: 5px; }
+.chatlog .msg.bot .who { color: #d2a8ff; }
+.chatlog .msg .txt .at { color: var(--accent); font-weight: 600; }
+.chatform .emojibtn { background: var(--card-2); border: 1px solid var(--line); border-radius: 7px; padding: 0 6px; font-size: 16px; cursor: pointer; }
+.emojipick { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 6px 10px 10px; border-top: 1px solid var(--line); }
+.emojipick button { background: transparent; border: 1px solid transparent; border-radius: 6px; font-size: 18px; padding: 2px 0; cursor: pointer; }
+.emojipick button:hover { border-color: var(--accent); background: var(--card-2); }
 .chat .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: 0 0 auto; }
 .chat .dot.on { background: #7ee787; }
 .chat .badge { background: var(--accent-2); color: #2a1a00; font-weight: 700; font-size: 11px; border-radius: 999px; padding: 0 7px; }
@@ -334,10 +355,10 @@ tr.st-completed .status { color: var(--muted); }
 .chatlog .msg.mine .who { color: var(--accent-2); }
 .chatlog .msg .when { color: var(--muted); font-size: 11px; margin-left: 6px; font-family: var(--mono); }
 .chatlog .msg .txt { white-space: pre-wrap; word-break: break-word; }
-.chatform { display: grid; grid-template-columns: 84px 1fr auto; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); }
+.chatform { display: grid; grid-template-columns: auto 84px 1fr auto; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); }
 .chatform input { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font: inherit; font-size: 13px; min-width: 0; }
 .chatform button { background: var(--accent); color: #062033; border: 0; border-radius: 7px; padding: 0 12px; font: inherit; cursor: pointer; }
-@media (max-width: 640px) { .chat { right: 0; width: 100vw; max-width: 100vw; border-radius: 0; } .chatform { grid-template-columns: 70px 1fr auto; } .chatform input { font-size: 16px; } }
+@media (max-width: 640px) { .chat { right: 0; width: 100vw; max-width: 100vw; border-radius: 0; } .chatform { grid-template-columns: auto 70px 1fr auto; } .chatform input { font-size: 16px; } }
 
 /* ---------------------------------------------------------------- footer */
 footer { padding: 14px 0 18px; color: var(--muted); font-size: 12.5px; }

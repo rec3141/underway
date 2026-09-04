@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .config import (LINE_WARMING, LOW_FLOW_V, POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
+from .config import (LINE_WARMING, LOW_FLOW_V, MOTION, MOTION_WINDOW, POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
                      Variable)
 from .surprise import surprise_scores
 
@@ -79,6 +79,7 @@ def needed_keys(keys: list[str], display: dict[str, str]) -> tuple[list[str], li
     feats = resolve_features(keys)
     want = {r.key for r in res if r.key} | {k for pair in pos for k in pair} | set(feats)
     want |= {k for k in (_first_match(pats, keys) for pats in LINE_WARMING) if k}
+    want |= {k for k in (_first_match(pats, keys) for pats in MOTION.values()) if k}
     return sorted(want), res, pos, feats
 
 
@@ -188,6 +189,12 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     sal_t, hull_t = (_first_match(pats, list(df.columns)) for pats in LINE_WARMING)
     if sal_t and hull_t:
         out["TSG line warming (°C)"] = df[sal_t] - df[hull_t]
+    mk = {n: _first_match(pats, list(df.columns)) for n, pats in MOTION.items()}
+    if mk["heave"]:
+        out["Sea state · 4σ heave (m)"] = 4 * df[mk["heave"]].rolling(MOTION_WINDOW, min_periods=24).std()
+    if mk["roll"] and mk["pitch"]:
+        dev2 = sum((df[mk[n]] - df[mk[n]].rolling(MOTION_WINDOW, min_periods=24).mean()) ** 2 for n in ("roll", "pitch"))
+        out["Roll & pitch RMS (°)"] = np.sqrt(dev2.rolling(MOTION_WINDOW, min_periods=24).mean())
     flow = None
     if tsg is not None and "flow" in tsg.columns:
         flow = tsg["flow"]
