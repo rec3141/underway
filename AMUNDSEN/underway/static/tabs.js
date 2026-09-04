@@ -43,7 +43,7 @@
   UW.onStationClick = async (key, opts = {}) => {
     if (!casts.idx) { if (!opts.quiet) return; await ensureCastIndex(); }
     if (!castById(key)) return;
-    if (opts.quiet) { if (!casts.sel.has(key)) toggleCast(key); return; }
+    if (opts.quiet) { if (opts.toggle || !casts.sel.has(key)) toggleCast(key); return; }
     toggleCast(key);
     if ($("#pane-casts").hidden) UW.showTab("casts");
   };
@@ -594,16 +594,19 @@
     const body = rows.map((r) => `<tr class="${casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
     const nsel = rows.filter((r) => casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
-    $("#tblmeta").textContent = `${rows.length.toLocaleString()} stations${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to see it on the map and select its cast`;
+    $("#tblmeta").textContent = `${rows.length.toLocaleString()} stations${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to select its cast (again to deselect)`;
     for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
       const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "time" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderStations();
     };
-    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
-      const r = rows[i];
-      for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
-      tr.classList.add("on", "sel");
-      UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
-      UW.onStationClick?.(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`, { quiet: true }).then?.(() => renderStations());
+    // a click selects the cast (and shows the station on the map); a click on
+    // a selected row deselects it
+    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = async () => {
+      const r = rows[i], key = `${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`;
+      const was = casts.sel.has(key);
+      if (!was) UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
+      await UW.onStationClick?.(key, { quiet: true, toggle: true });
+      renderStations();
+      if (!was) $("#aggtable").querySelectorAll("tbody tr")[i]?.classList.add("on");
     };
   }
   function currentRows() {
