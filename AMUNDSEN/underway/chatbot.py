@@ -3,7 +3,8 @@
 Each persona has an @handle. They answer when addressed (``@capn``,
 ``@polly``, ``@doc``) and, every so often while someone has the page open,
 one of them peeks at the current data and says something unprompted — sooner
-when a surprise episode or a schedule change has just appeared. They see a
+when a surprise episode or a schedule change has just appeared — and now and
+then a second one riffs on what the first said. They see a
 compact summary of what the dashboard shows (latest values, position, intake
 flow, surprise, schedule, whiteboard) and the recent chat.
 
@@ -30,6 +31,7 @@ LLM_MODEL = os.environ.get("UNDERWAY_LLM_MODEL", "gemma4-local")
 CHIME_MIN_S = 45 * 60          # unprompted remarks at most this often …
 EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
+BANTER_P = 0.4                 # chance another crew member riffs on a crew remark (one hop only)
 MAX_TOKENS = 500
 NUM_CTX = 16384               # room for the dashboard summary and a long chat
 TIMEOUT = 240
@@ -148,10 +150,13 @@ class Crew:
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return text[:2500] or None
 
-    def _speak(self, handle: str, task: str) -> None:
+    def _speak(self, handle: str, task: str, banter: bool = True) -> None:
+        """Generate and post one remark; sometimes another crew member then
+        riffs on it (never more than one hop, so they cannot chain forever)."""
         if not self.enabled:
             return
         p = PERSONAS[handle]
+        text = None
         with self.lock:
             self.typing.add(handle)
             try:
@@ -163,6 +168,12 @@ class Crew:
                 log.info("crew %s stayed quiet (%s)", handle, e)
             finally:
                 self.typing.discard(handle)
+        if text and banter and random.random() < BANTER_P:
+            other = random.choice([h for h in PERSONAS if h != handle])
+            time.sleep(random.uniform(8, 25))
+            self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
+                               f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
+                        banter=False)
 
     # ------------------------------------------------------------ triggers
     def on_message(self, name: str, text: str) -> None:
