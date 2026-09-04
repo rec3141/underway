@@ -132,15 +132,20 @@ Configure in `config.SURPRISE`.
 The map stays on the left; the tabs swap the right-hand pane.
 
 - **Underway** — the rolling-window panels described above.
-- **Casts** — CTD profiles and sections. Rosette casts come from the Plotly
-  HTML plots Amundsen Science publishes under `Data/Rosette/<leg>/plots/`
-  (the 1-dbar profile is embedded in each file; no `.cnv` is shared), joined
-  to the leg's CTD logbook for station, time and position. MVP tows come from
-  `Data/MVP/<leg>/<tow>/*.m1`. Select casts from the list or by clicking
-  station markers on the map; *Profiles* overlays them per variable,
-  *Section* grids one variable against distance along the selected casts.
-  Parsing is cached under `db/casts/` and limited to 40 new casts per build so
-  the underway page keeps its cadence; the rest arrive on later runs.
+- **Casts** — CTD profiles and sections. A Rosette cast's profile is the
+  SeaBird `.cnv` in `Data/external_proprietary/CTD/` when one exists
+  (downcast, binned to 1 dbar; position and seafloor depth from the file);
+  the Plotly HTML plots under `Data/Rosette/<leg>/plots/` add the variables
+  the `.cnv` lacks (CDOM, PAR, buoyancy frequency, nitrates), and are the sole
+  source for legs without `.cnv` files. Station, label and time come from the
+  leg's CTD logbook. An MVP tow (`Data/MVP/<leg>/<tow>/*.m1`) is one entry
+  holding every dip, drawn as a track on the map. Select casts from the list,
+  or click station markers and tow tracks on the map; *Profiles* overlays them
+  per variable (a tow's dips shade from light to dark along the tow),
+  *Section* grids one variable against distance along the selected profiles in
+  time order. Parsing is cached under `db/casts/` (versioned, trusted by name
+  except for casts under three days old, because every `stat()` on the share
+  costs seconds) and batched per build so the underway page keeps its cadence.
 - **Calendar** — the ship's event log (`Data/EventLog/<leg>/Eventlog_<leg>.xls`)
   as an agenda or timeline, with the operations schedule scraped from the
   intranet (`UNDERWAY_SCHEDULE_URL`, default `http://10.0.0.2/Schedule.html`;
