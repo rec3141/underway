@@ -1,0 +1,5 @@
+this project lives in ~/Desktop/underway_dev
+the outputs are rsync'd to the Share drive
+the Share drive is mounted to /var/www/html
+(because cross-filesystem symlinks don't work)
+

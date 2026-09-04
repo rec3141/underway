@@ -1,0 +1,30 @@
+# credentials — never commit
+.gmail_creds
+.noble-vortex-*.json
+underway.env
+*.creds
+*.pem
+*.key
+
+# derived data, caches, logs
+db/
+cache/
+*.db
+*.db-wal
+*.db-shm
+*.log
+.Rhistory
+*.Rhistory
+
+# backups kept beside originals during migrations; git is the history
+*.bak
+*.bak-*
+
+# editors, tooling, OS droppings
+._*
+.DS_Store
+__pycache__/
+*.pyc
+.claude/
+.claude.json
+node_modules/

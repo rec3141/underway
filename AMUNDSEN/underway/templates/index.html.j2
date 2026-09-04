@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ site.title }}</title>
+<link rel="stylesheet" href="static/style.css">
+<script src="static/plotly.min.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>{{ site.title }}</h1>
+    <div class="sub" id="status">loading…</div>
+  </div>
+  <div class="controls">
+    <details class="group legmenu" id="legmenu">
+      <summary id="legsummary">Legs</summary>
+      <div class="pop">
+        <div class="pophead">Legs to show · <a href="#" id="legall">all</a> · <a href="#" id="legnone">none</a></div>
+        <ul id="leglist"></ul>
+        <div class="popfoot" id="legfoot"></div>
+      </div>
+    </details>
+    <div class="group span" aria-label="Time span">
+      <span class="lbl">Span</span>
+      <input type="range" id="span" min="0" max="0" step="1" value="0" list="spanticks">
+      <datalist id="spanticks"></datalist>
+      <output id="spanlabel" for="span">6h</output>
+    </div>
+    <div class="group seg" id="xmode" aria-label="X axis">
+      <button data-x="time" class="on">Time</button>
+      <button data-x="distance">Distance</button>
+    </div>
+    <label class="group select">Colour by
+      <select id="colour"></select>
+    </label>
+  </div>
+</header>
+
+<main>
+  <section class="map card">
+    <div class="maptools">
+      <button id="mapreset" title="fit to track">⟲</button>
+      <label><input type="checkbox" id="bathy" checked> bathymetry</label>
+      <label><input type="checkbox" id="stations" checked> CTD stations</label>
+    </div>
+    <div id="map"></div>
+    <div id="mapmsg" class="mapmsg" hidden></div>
+    <div class="map-foot" id="mapfoot"></div>
+  </section>
+
+  <section class="side">
+    <div class="panels" id="panels"></div>
+    <div class="dock" id="dock" hidden></div>
+    <footer>
+      <details class="card">
+        <summary>Data sources &amp; provenance</summary>
+        <div class="prov">
+          <table id="sources"></table>
+          <div class="notes" id="notes"></div>
+        </div>
+      </details>
+      <div class="meta">
+        <span>Dashboard by Eric Collins · Data: Amundsen Science (ACSD) · Basemap: Natural Earth</span>
+        {% for l in site.links %}<span>· <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a></span>{% endfor %}
+        <span class="right">underway v{{ site.version }} · <time id="gen"></time></span>
+      </div>
+    </footer>
+  </section>
+</main>
+
+<script>
+window.__SITE__ = {{ site|tojson }};
+window.__MANIFEST__ = {{ m|tojson }};
+</script>
+<script src="static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+station,operations,status,date,start,end,duration_hour,comment,operations_href
+NA,Transit to NB02,Completed,2025-09-08,2H 50M 0S,14H 35M 0S,11.75,NA,.\html_temp\Alarm_operation_138338.html
+NA,Deploy Helicopter,Canceled,NA,NA,NA,0.5,Ice Beacon Deployment - Pending weather,.\html_temp\Alarm_operation_184413.html
+NB02,Rosette,Completed,2025-09-08,14H 55M 0S,15H 50M 0S,0.92,Nutrient - estimated Depth 410,.\html_temp\Alarm_operation_79584.html
+NB02,Foredeck CTD,Completed,2025-09-08,15H 50M 0S,16H 20M 0S,0.5,Test with Quentin,.\html_temp\Alarm_operation_107063.html
+NB02,Helicopter recovery,Canceled,NA,NA,NA,0.5,NA,.\html_temp\Alarm_operation_215499.html
+NA,Transit to ES_S5,Completed,2025-09-08,16H 15M 0S,22H 45M 0S,6.5,NA,.\html_temp\Alarm_operation_153467.html
+ES_S5,Rosette,Completed,2025-09-08,22H 45M 0S,23H 30M 0S,0.75,Nutrient - Estimated Depth 200m,.\html_temp\Alarm_operation_79584.html
+NA,Transit to ES_S4,Completed,2025-09-09,5M 0S,20M 0S,0.25,NA,.\html_temp\Alarm_operation_153362.html
+ES_S4,CTD,Completed,2025-09-09,25M 0S,1H 5M 0S,0.6699999999999999,CTD Front Deck - Estimated Depth 300m,.\html_temp\Alarm_operation_16169.html
+NA,Transit to ES_S2,Completed,2025-09-09,1H 5M 0S,2H 0M 0S,0.92,NA,.\html_temp\Alarm_operation_153158.html
+ES_S2,CTD,Completed,2025-09-09,2H 0M 0S,2H 35M 0S,0.58,"CTD - Rosett is first choice, backup Front Deck - Estimated Depth 300m",.\html_temp\Alarm_operation_16169.html
+NA,Transit to ES_S1,Completed,2025-09-09,2H 35M 0S,2H 55M 0S,0.32999999999999996,NA,.\html_temp\Alarm_operation_153059.html
+ES_S1,Rosette,In progress,2025-09-09,3H 0M 0S,4H 0M 0S,1,Nutrient - Estimated Depth 230m,.\html_temp\Alarm_operation_79584.html
+NA,Transit to ES_S3,NA,2025-09-09,4H 0M 0S,5H 0M 0S,1,NA,.\html_temp\Alarm_operation_153259.html
+ES_S3,Baited cam deployment,NA,2025-09-09,5H 0M 0S,5H 30M 0S,0.5,NA,.\html_temp\Alarm_operation_226597.html
+ES_S3,TM Rosette,NA,2025-09-09,5H 30M 0S,6H 30M 0S,1,NA,.\html_temp\Alarm_operation_101594.html
+ES_S3,Deploy Zodiac for surface water,NA,2025-09-09,6H 30M 0S,6H 45M 0S,0.25,NA,.\html_temp\Alarm_operation_338420.html
+ES_S3,Rosette,NA,2025-09-09,6H 45M 0S,7H 45M 0S,1,Full - Estimated Depth 335,.\html_temp\Alarm_operation_79584.html
+ES_S3,Drop Camera,NA,2025-09-09,7H 45M 0S,8H 45M 0S,1,NA,.\html_temp\Alarm_operation_109895.html
+ES_S3,Baited cam recovery,NA,2025-09-09,8H 45M 0S,9H 15M 0S,0.5,NA,.\html_temp\Alarm_operation_204669.html
+ES_S3,Recover Zodiac,NA,2025-09-09,9H 15M 0S,9H 30M 0S,0.25,NA,.\html_temp\Alarm_operation_145849.html
+ES_S3,Rosette,NA,2025-09-09,9H 30M 0S,10H 30M 0S,1,Large volume for Aaron,.\html_temp\Alarm_operation_79584.html
+ES_S3,Tucker,NA,2025-09-09,10H 30M 0S,11H 30M 0S,1,NA,.\html_temp\Alarm_operation_65192.html
+ES_S3,Hydrobios,NA,2025-09-09,11H 30M 0S,12H 30M 0S,1,NA,.\html_temp\Alarm_operation_101317.html
+ES_S3,Box core,NA,2025-09-09,12H 30M 0S,13H 45M 0S,1.25,Extra Time for testing Box Core equipment,.\html_temp\Alarm_operation_85421.html
+ES_S3,IKMT,NA,2025-09-09,13H 45M 0S,15H 45M 0S,2,NA,.\html_temp\Alarm_operation_23939.html
+NA,Transit to ES3,NA,2025-09-09,15H 45M 0S,45M 0S,9,*NOTE THE DIFFERENCE BETWEEN ES_S3 and ES3*,.\html_temp\Alarm_operation_137345.html
+ES3,Rosette,NA,2025-09-10,45M 0S,1H 45M 0S,1,Nutrient - Estimated Depth 92,.\html_temp\Alarm_operation_79584.html
+NA,Transit to ES1,NA,2025-09-10,1H 45M 0S,8H 45M 0S,7,NA,.\html_temp\Alarm_operation_137145.html
+ES1,Rosette,NA,2025-09-10,8H 45M 0S,9H 45M 0S,1,Full - Estimated Depth 475,.\html_temp\Alarm_operation_79584.html
+ES1,Hydrobios Net,NA,2025-09-10,9H 45M 0S,10H 45M 0S,1,NA,.\html_temp\Alarm_operation_140083.html
+ES1,Deploy Mooring #1,NA,2025-09-10,10H 45M 0S,11H 45M 0S,1,Traditional Mooring,.\html_temp\Alarm_operation_164972.html
+ES1,Deploy Mooring #2,NA,2025-09-10,11H 45M 0S,12H 45M 0S,1,WBAT,.\html_temp\Alarm_operation_165071.html
+ES1,Piston Core,NA,2025-09-10,12H 45M 0S,15H 45M 0S,3,NA,.\html_temp\Alarm_operation_117559.html

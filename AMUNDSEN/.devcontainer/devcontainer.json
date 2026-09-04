@@ -1,0 +1,32 @@
+{
+  "name": "Claude Code Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "America/Toronto",
+      "CLAUDE_CODE_VERSION": "latest"
+    }
+  },
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      }
+    }
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder}/.claude,target=/home/node/.claude,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "sudo chown -R node:node /home/node/.claude",
+  "remoteUser": "node"
+}
