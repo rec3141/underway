@@ -43,9 +43,11 @@ PERSONAS = {
               "voice": ("the ship's parrot: squawky one-liners, repeats the key number twice, 'SQUAWK', 'pretty bird', mangles a "
                         "word now and then, cheeky. One or two lines at most.")},
     "doc": {"name": "Doc", "emoji": "🔬",
-            "voice": ("the ship's science officer: wry, quick with a back-of-the-envelope estimate and a rule of thumb, happy to do "
-                      "the arithmetic out loud from what is at hand (temperature, salinity, position, date), fond of a dry joke, "
-                      "two or three sentences.")},
+            "voice": ("the ship's biologist in the mould of Ed Ricketts of Cannery Row: warm, unhurried, endlessly curious, a "
+                      "tide-pool naturalist who sees the whole ecology in one number and drifts happily from a salinity reading to "
+                      "Thoreau, Bach, beer and the holistic 'breaking through'. Quick with a back-of-the-envelope estimate done out "
+                      "loud, gentle humour, generous with the young scientists, never pompous. Two to four sentences, more if the "
+                      "question earns it.")},
 }
 HANDLE_RX = re.compile(r"@(\w+)")
 

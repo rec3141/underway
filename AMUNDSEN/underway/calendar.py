@@ -166,9 +166,16 @@ def parse_schedule(s: str) -> dict:
             rows.append({"station": cells[0], "operation": cells[1], "status": cells[2], "date": cells[3],
                          "start": cells[4], "end": cells[5], "duration_h": _num(cells[6]),
                          "comment": cells[7] if len(cells) > 7 else ""})
-    wb = re.search(r"Whiteboard\s*(?:</[^>]+>\s*)*(?:<[^>]+>\s*)*([^<]{3,})", txt)
+    # the whiteboard is the <p> that follows the "Whiteboard" heading, one
+    # line per <br>
+    wb = re.search(r"Whiteboard\s*</p>.*?<p[^>]*>(.*?)</p>", txt, flags=re.S | re.I)
+    board = ""
+    if wb:
+        raw = re.sub(r"<br\s*/?>", "\n", wb.group(1), flags=re.I)
+        lines = [" ".join(html.unescape(re.sub(r"<[^>]+>", " ", l)).split()) for l in raw.split("\n")]
+        board = "\n".join(l for l in lines if l)
     return {"title": title.group(1) if title else "", "updated": updated.group(1).strip() if updated else None,
-            "rows": rows, "whiteboard": html.unescape(wb.group(1)).strip() if wb else ""}
+            "rows": rows, "whiteboard": board}
 
 
 def _num(s):
