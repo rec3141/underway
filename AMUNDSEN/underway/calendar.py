@@ -5,6 +5,10 @@
 * The schedule is the ship intranet page ``http://10.0.0.2/Schedule.html`` —
   a table of planned operations and a whiteboard note. It is fetched at build
   time and cached so the page keeps its last copy when the intranet is down.
+  The page only lists current and upcoming operations, so every row seen is
+  also kept in ``db/schedule_history.json``; rows no longer on the page are
+  served as ``former`` operations. Schedule times are ship wall-clock
+  (``LOCAL_TZ``) and are given to the page as UTC instants.
 """
 
 from __future__ import annotations
@@ -15,12 +19,13 @@ import logging
 import os
 import re
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import pandas as pd
 
-from .config import DATA_ROOT, DB_DIR
+from .config import DATA_ROOT, DB_DIR, LOCAL_TZ
 from .legs import Leg
 
 log = logging.getLogger(__name__)
@@ -63,14 +68,59 @@ def fetch_schedule() -> dict:
         sched["fetched_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(sched))
-        return sched
     except Exception as e:                      # noqa: BLE001 — intranet down: serve the cached copy
         log.info("schedule not fetched (%s); using cache", e)
         if cache.is_file():
             sched = json.loads(cache.read_text())
             sched["stale"] = True
-            return sched
-        return {"rows": [], "whiteboard": "", "title": "", "updated": None, "stale": True}
+        else:
+            sched = {"rows": [], "whiteboard": "", "title": "", "updated": None, "stale": True}
+    for r in sched["rows"]:
+        r.update(_instants(r))
+    sched["former"] = _remember(sched["rows"], sched.get("title", ""))
+    return sched
+
+
+def _instants(r: dict) -> dict:
+    """UTC start/end for a schedule row whose date and times are ship wall-clock."""
+    m = re.match(r"(\d{2})/(\d{2})/(\d{2,4})$", r.get("date") or "")
+    if not m:
+        return {}
+    y = int(m.group(3)); y += 2000 if y < 100 else 0
+    tz = ZoneInfo(LOCAL_TZ)
+    def at(hm, default):
+        hh, mm = (hm or default).split(":")[:2]
+        return datetime(y, int(m.group(2)), int(m.group(1)), int(hh), int(mm), tzinfo=tz)
+    try:
+        t0 = at(r.get("start"), "00:00"); t1 = at(r.get("end"), "23:59")
+    except ValueError:
+        return {}
+    if t1 < t0:
+        t1 += timedelta(days=1)
+    return {"start_utc": t0.astimezone(timezone.utc).isoformat(timespec="minutes"),
+            "end_utc": t1.astimezone(timezone.utc).isoformat(timespec="minutes")}
+
+
+def _remember(rows: list[dict], title: str) -> list[dict]:
+    """Fold the rows seen now into the history; return the former rows (seen
+    before, no longer on the page), oldest first."""
+    hist_p = DB_DIR / "schedule_history.json"
+    hist = json.loads(hist_p.read_text()) if hist_p.is_file() else {}
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    key = lambda r: "|".join(str(r.get(k) or "") for k in ("date", "start", "station", "operation"))
+    current = set()
+    for r in rows:
+        if not r.get("start_utc"):
+            continue
+        k = key(r); current.add(k)
+        h = hist.get(k, {"first_seen": now})
+        h.update(r); h["last_seen"] = now; h["leg"] = title or h.get("leg", "")
+        hist[k] = h
+    hist_p.parent.mkdir(parents=True, exist_ok=True)
+    hist_p.write_text(json.dumps(hist))
+    former = [dict(h, former=True) for k, h in hist.items() if k not in current]
+    former.sort(key=lambda h: h.get("start_utc", ""))
+    return former
 
 
 def parse_schedule(s: str) -> dict:
@@ -104,5 +154,6 @@ def build_calendar(legs: list[Leg], root: Path) -> dict:
     payload = {"events": events, "schedule": fetch_schedule(),
                "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     atomic_write(root / "data" / "calendar.json", json.dumps(payload, separators=(",", ":")))
-    log.info("calendar: %d events, %d scheduled operations", len(events), len(payload["schedule"].get("rows", [])))
-    return {"events": len(events), "schedule_rows": len(payload["schedule"].get("rows", []))}
+    sched = payload["schedule"]
+    log.info("calendar: %d events, %d scheduled operations (%d former)", len(events), len(sched.get("rows", [])), len(sched.get("former", [])))
+    return {"events": len(events), "schedule_rows": len(sched.get("rows", [])), "former": len(sched.get("former", []))}

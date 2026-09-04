@@ -111,7 +111,7 @@
     }
     $("#legsummary").textContent = `Legs · ${shownLegs().length}/${M.legs.length}`;
     $("#legfoot").textContent = `${inWindow.size} leg${inWindow.size === 1 ? "" : "s"} fall within the current span`;
-    $("#legall").onclick = (e) => { e.preventDefault(); state.hidden.clear(); store.set("hiddenLegs", []); state.view = null; applyAndRender(); };
+    $("#legall").onclick = (e) => { e.preventDefault(); state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); applyAndRender(); };
     $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); applyAndRender(); };
   }
 
@@ -139,7 +139,7 @@
     r.value = idx;
     $("#spanlabel").textContent = labels[idx];
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
-    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); state.view = null; loadWindow(); };
+    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); requestFit(); loadWindow(); };
 
     for (const b of $("#xmode").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.x === state.xmode);
@@ -161,7 +161,7 @@
     $("#bathy").onchange = (e) => { state.bathy = e.target.checked; store.set("bathy", state.bathy); renderMap(); };
     $("#stations").checked = state.stations;
     $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
-    $("#mapreset").onclick = () => { state.view = null; renderMap(); };
+    $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
   }
 
   // ------------------------------------------------------------ basemap
@@ -224,6 +224,17 @@
   }
 
   // ------------------------------------------------------------ map
+  // Ask the next render to fit the track. Stray relayout events (a page
+  // reflow fires one on phones) must not put a stale view back before then.
+  function requestFit() { state.view = null; state.fitPending = true; }
+  // Centre the map on a point (a table row, an event) and mark it.
+  function focusMap(lat, lon, label) {
+    if (lat == null || lon == null) return;
+    const zoom = Math.max(state.view?.zoom ?? fitView(state.data?.lat || [lat], state.data?.lon || [lon]).zoom, 6);
+    state.view = { center: { lat: +lat, lon: +lon }, zoom }; state.fitPending = false;
+    state.focus = { lat: +lat, lon: +lon, label: label || "" };
+    renderMap();
+  }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   function renderMap() {
@@ -279,7 +290,13 @@
       marker: { size: 26, color: "rgba(255,255,255,0.02)" },
     });
 
-    const view = state.view || fitView(d.lat, d.lon);
+    if (state.focus) traces.push({
+      type: "scattermap", mode: "markers", name: "focus", showlegend: false, hoverinfo: "text", text: [state.focus.label],
+      lat: [state.focus.lat, state.focus.lat], lon: [state.focus.lon, state.focus.lon],
+      marker: { size: [22, 12], color: ["#5cc8ff", "#0f1419"], opacity: [.9, 1] },
+    });
+
+    const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
     // With a GEBCO tile pyramid the shaded raster carries both bathymetry and
     // land relief, so the Natural Earth depth bands and land fills stay out of
     // the way (glaciers become a light wash, coastlines stay); without it the
@@ -294,8 +311,10 @@
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
                      map: { style: mapStyle(state.bathy), center: view.center, zoom: view.zoom, layers } };
     Plotly.react(el, traces, layout, CFG).then(() => {
+      state.fitPending = false;
       el.removeAllListeners?.("plotly_relayout");
       el.on("plotly_relayout", (ev) => {
+        if (state.fitPending) return;
         const c2 = ev["map.center"], z = ev["map.zoom"];
         if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
       });
@@ -523,7 +542,7 @@
   window.UW = Object.assign(window.UW || {}, {
     get M() { return M; }, get state() { return state; }, SITE, THEME, CFG,
     fmtUTC, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab,
+    renderMap, showTab, focusMap, requestFit,
   });
 
   (async () => {
@@ -532,7 +551,7 @@
     showTab(store.get("tab", "underway"));
     await loadGeo();
     await loadWindow();
-    setInterval(checkForUpdate, 60 * 1000);
+    setInterval(checkForUpdate, 30 * 1000);
     window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
   })();

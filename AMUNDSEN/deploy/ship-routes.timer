@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-assert ship LAN routes every minute
+
+[Timer]
+OnBootSec=1min
+OnCalendar=*-*-* *:*:30
+AccuracySec=5s
+Unit=ship-routes.service
+
+[Install]
+WantedBy=timers.target

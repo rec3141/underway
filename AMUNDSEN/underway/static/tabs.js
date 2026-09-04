@@ -310,9 +310,16 @@
     ];
     // echo-sounder bottom where there is one, else the deepest sample; the
     // fill is clipped to the frame so a bottom far below the casts stays out of it
-    const bottoms = withVar.map((d) => Math.min(maxD + step, d.bottom_m > 0 ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
-    traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms, line: { color: "#2b3441", width: 2, shape: "spline" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)", hoverinfo: "skip", name: "bottom" });
+    // seabed: the echo-sounder bottom logged with each profile (a marker), or
+    // the deepest sample where none was logged; straight segments between
+    // profiles, clipped to the frame
+    const sounded = withVar.map((d) => d.bottom_m > 0);
+    const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
     traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => maxD + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    traces.push({ type: "scatter", mode: "lines+markers", x: xPts, y: bottoms, name: "bottom",
+      line: { color: "#3b4658", width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)",
+      marker: { size: sounded.map((b) => b ? 5 : 0), color: "#8ea3ba", symbol: "diamond" },
+      hovertext: withVar.map((d, i) => sounded[i] ? `${d.label}<br>bottom ${Math.round(d.bottom_m)} m` : `${d.label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
     const layout = { ...CAST_LAYOUT, margin: { l: 50, r: 8, t: 18, b: 34 },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, type: byTime ? "date" : "linear" },
       yaxis: { ...THEME.yaxis, autorange: false, title: { text: "depth (m)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxD + step, 0] } };
@@ -356,44 +363,57 @@
       (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
       `<p class="muted small">Source: ship intranet Schedule page · calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
-    // agenda: events grouped by UTC day, newest first
+    // agenda: logged events and scheduled operations (current and former)
+    // grouped by UTC day, newest first
     const byDay = new Map();
-    for (const e of evs) { const d = (e.time_utc || "").slice(0, 10); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(e); }
+    const add = (d, x) => { if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(x); };
+    for (const e of evs) add((e.time_utc || "").slice(0, 10), { t: e.time_utc || "", e });
+    for (const r of scheduledRows(s)) if (!q || JSON.stringify(r).toLowerCase().includes(q)) add(r.start_utc.slice(0, 10), { t: r.start_utc, r });
     const days = [...byDay.keys()].sort().reverse().slice(0, 60);
-    html += `<section class="agenda">` + days.map((d) => `<div class="day"><h4>${esc(d)} <small>${byDay.get(d).length} events · ${esc(UW.legById(byDay.get(d)[0].leg)?.label || "")}</small></h4>` +
-      byDay.get(d).sort((a, b) => (b.time_utc || "").localeCompare(a.time_utc || "")).map((e) => `<div class="ev">
+    const evHtml = (e) => `<div class="ev" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
           <span class="t">${esc((e.time_utc || "").slice(11, 16))}Z</span>
           <span class="st">${esc(e.station || "")}</span>
           <span class="what">${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</span>
           <span class="pos muted">${e.lat != null && e.lon != null ? dms(+e.lat, +e.lon) : ""}${e.depth_m != null ? " · " + Math.round(+e.depth_m) + " m" : ""}</span>
-          ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`).join("") + `</div>`).join("") + `</section>`;
+          ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`;
+    const schedHtml = (r) => `<div class="ev sched ${r.former ? "former" : ""}">
+          <span class="t">${esc(r.start_utc.slice(11, 16))}Z</span>
+          <span class="st">${esc(r.station || "")}</span>
+          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : "scheduled"}</span> <span class="status">${esc(r.status || "")}</span></span>
+          <span class="pos muted">${esc(r.start_utc.slice(11, 16))}–${esc(r.end_utc.slice(11, 16))}Z${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
+          ${r.comment ? `<span class="cm muted">${esc(r.comment)}</span>` : ""}</div>`;
+    html += `<section class="agenda">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t.localeCompare(a.t)); const first = items.find((x) => x.e)?.e;
+      return `<div class="day"><h4>${esc(d)} <small>${items.filter((x) => x.e).length} events · ${items.filter((x) => x.r).length} scheduled · ${esc(UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "")}</small></h4>` +
+        items.map((x) => x.e ? evHtml(x.e) : schedHtml(x.r)).join("") + `</div>`; }).join("") + `</section>`;
     host.innerHTML = html;
+    for (const el of host.querySelectorAll(".ev[data-lat]")) el.onclick = () => { if (el.dataset.lat) UW.focusMap(el.dataset.lat, el.dataset.lon, el.querySelector(".st")?.textContent); };
   }
+  // current rows plus the former ones the history remembers, each with UTC instants
+  const scheduledRows = (s) => [...(s.rows || []), ...(s.former || [])].filter((r) => r.start_utc && r.end_utc);
   function renderTimeline(host, evs, s) {
-    host.innerHTML = '<div class="castplot card wide"><div class="plot tall" id="cal-plot"></div></div>';
     const now = Date.now();
-    const recent = evs.filter((e) => now - new Date(e.time_utc.replace(" ", "T") + (e.time_utc.includes("T") || e.time_utc.length < 19 ? "" : "Z")) < 14 * 86400e3);
+    const when = (e) => new Date(e.time_utc.replace(" ", "T") + (e.time_utc.includes("T") || e.time_utc.length < 19 ? "" : "Z"));
+    const recent = evs.filter((e) => now - when(e) < 14 * 86400e3);
     const types = [...new Set(recent.map((e) => e.activity || "other"))].slice(0, 20);
     const traces = types.map((t, i) => {
       const es = recent.filter((e) => (e.activity || "other") === t);
-      return { type: "scatter", mode: "markers", name: t, x: es.map((e) => new Date(e.time_utc.replace(" ", "T") + "Z")), y: es.map(() => t),
+      return { type: "scatter", mode: "markers", name: t, x: es.map(when), y: es.map(() => t),
         text: es.map((e) => `${esc(e.station || "")} · ${esc(e.event || "")} ${esc(e.label || "")}`), hovertemplate: "%{x|%m-%d %H:%M}Z<br>%{text}<extra>" + esc(t) + "</extra>",
         marker: { size: 8, color: PALETTE[i % PALETTE.length] } };
     });
-    // scheduled operations as bars on their own row
-    const bars = (s.rows || []).map((r) => {
-      const m = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(r.date || ""); if (!m) return null;
-      const d0 = new Date(`20${m[3]}-${m[2]}-${m[1]}T${r.start || "00:00"}:00Z`); let d1 = new Date(`20${m[3]}-${m[2]}-${m[1]}T${r.end || "23:59"}:00Z`);
-      if (d1 < d0) d1 = new Date(d1.getTime() + 86400e3);
-      return { r, d0, d1 };
-    }).filter(Boolean);
-    if (bars.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: bars.map((b) => b.d0), x: bars.map((b) => b.d1 - b.d0), y: bars.map(() => "scheduled"),
-      text: bars.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})`), hovertemplate: "%{text}<extra></extra>", marker: { color: "rgba(255,180,84,.7)" }, width: .6 });
-    const layout = { ...THEME, margin: { l: 130, r: 10, t: 10, b: 40 }, showlegend: false, barmode: "overlay",
+    // scheduled operations as bars on their own row: current ones bright,
+    // former ones (off the intranet page now) dimmer
+    const rows = scheduledRows(s).map((r) => ({ r, d0: new Date(r.start_utc), d1: new Date(r.end_utc) })).filter((b) => now - b.d1 < 14 * 86400e3);
+    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"),
+      text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${b.r.start_utc.slice(0, 16).replace("T", " ")}–${b.r.end_utc.slice(11, 16)}Z`),
+      hovertemplate: "%{text}<extra></extra>", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .6 });
+    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · last 14 days`, false).replace('class="panel card castplot', 'class="panel card castplot wide');
+    const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 10 } }, tickfont: { size: 10 } },
-      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 10 } },
+      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 10 }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: new Date(now), x1: new Date(now), yref: "paper", y0: 0, y1: 1, line: { color: "#7ee787", width: 1.5, dash: "dot" } }] };
     Plotly.react($("#cal-plot"), traces, layout, CFG);
+    wireCastPanels(host, () => renderTimeline(host, evs, s));
   }
   function wireCalendar() {
     for (const b of $("#calview").querySelectorAll("button")) {
@@ -432,6 +452,12 @@
     const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtUTC(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    const shown = rows.slice(0, 2000);
+    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
+      const r = shown[i]; if (r.lat == null) return;
+      for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
+      tr.classList.add("on"); UW.focusMap(r.lat, r.lon, `${fmtUTC(r.t)} · ${r.legLabel}`);
+    };
     $("#tblmeta").textContent = `${rows.length.toLocaleString()} rows · ${stat}${rows.length > 2000 ? " · showing first 2000" : ""}`;
     for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
       const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "t" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderTable();

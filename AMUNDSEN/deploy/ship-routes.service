@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep the ship's 10.0.0.x network routed over the LAN, not the VPN
+# The UM VPN re-installs its 10.0.0.0/25 routes on every reconnect, which
+# swallows the ship's Samba (10.0.0.10) and intranet (10.0.0.2); the CIFS
+# mount then hangs and the mirror goes stale. Re-asserting the /26s is
+# idempotent, so this simply runs every minute.
+
+[Service]
+Type=oneshot
+ExecStart=/home/cryomics/Desktop/underway/AMUNDSEN/tools/ship-routes.sh on

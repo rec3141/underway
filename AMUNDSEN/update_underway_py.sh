@@ -23,7 +23,7 @@ else
     WEBROOT=${UNDERWAY_WEBROOT:-/mnt/ship/Share/2026/2026_LEG_03/Collins/underway_dashboard}
 fi
 
-# one run at a time; the timer fires every 10 minutes regardless
+# one run at a time; the timer fires every minute regardless
 mkdir -p "$PROJECT/cache"
 exec 9>"$PROJECT/cache/.run.lock"
 flock -n 9 || { echo "Another run is in progress; exiting."; exit 0; }
@@ -32,8 +32,12 @@ umask 002
 export TZ=America/Toronto
 
 if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
-    # a failed mirror pass is not fatal: the build proceeds on what is mirrored
-    "$PROJECT/tools/mirror-share.sh" "$MIRROR" || echo "mirror pass had errors; building from the existing mirror"
+    # a failed mirror pass is not fatal: the build proceeds on what is mirrored.
+    # The underway files are mirrored every run; the cast, MVP and archive
+    # trees (a CIFS stat per file) every ten minutes, or when asked for.
+    mode=quick
+    [[ ${UNDERWAY_MIRROR_FULL:-0} == 1 || $(( 10#$(date +%M) % 10 )) -eq 0 ]] && mode=full
+    "$PROJECT/tools/mirror-share.sh" "$MIRROR" "$mode" || echo "mirror pass had errors; building from the existing mirror"
 fi
 
 cd "$PROJECT"

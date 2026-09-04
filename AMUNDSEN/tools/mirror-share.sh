@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Mirror the parts of the ship's shares the dashboard reads onto local disk.
 #
-#   mirror-share.sh [DEST]        default DEST=/data/ship
+#   mirror-share.sh [DEST] [full|quick]     default DEST=/data/ship, full
+#
+# quick copies only what changes minute to minute (the ACSD day files and the
+# event logs); full also walks the CTD, MVP and archived-season trees, which
+# is a stat per file over CIFS and only worth doing every few minutes.
 #
 # The build then runs entirely against the mirror (UNDERWAY_DATA_ROOT=DEST/Data,
 # UNDERWAY_SHARE_ROOT=DEST/Share). One rsync pass per build does all the
@@ -15,6 +19,7 @@
 set -euo pipefail
 
 DEST=${1:-/data/ship}
+MODE=${2:-full}
 SRC_DATA=${UNDERWAY_MIRROR_DATA:-/mnt/ship/Data}
 SRC_SHARE=${UNDERWAY_MIRROR_SHARE:-/mnt/ship/Share}
 LOG=${DEST}/mirror.log
@@ -46,14 +51,15 @@ run() {   # run <label> <src> <dst> <filter...>
 # --- Data share ---------------------------------------------------------------
 run "FULL_CSV"  "$SRC_DATA/FULL_CSV"             "$DEST/Data/FULL_CSV" \
     --include='*/' --include='ACSD_????????.csv' --exclude='*'
+run "EventLog"  "$SRC_DATA/EventLog"             "$DEST/Data/EventLog" \
+    --include='*/' --include='Eventlog_*.xls' --include='Eventlog_*.xlsx' --exclude='*'
+if [[ $MODE == quick ]]; then echo "$(ts) quick mirror pass complete" | tee -a "$LOG"; exit 0; fi
 run "Rosette"   "$SRC_DATA/Rosette"              "$DEST/Data/Rosette" \
     --include='*/' --include='Logs/*CTD_logbook.csv' --include='plots/*_raw_data.html' --exclude='*'
 run "CTD cnv"   "$SRC_DATA/external_proprietary/CTD" "$DEST/Data/external_proprietary/CTD" \
     --include='*.cnv' --include='*.CNV' --exclude='*'
 run "MVP"       "$SRC_DATA/MVP"                  "$DEST/Data/MVP" \
     --include='*/' --include='*.m1' --exclude='*'
-run "EventLog"  "$SRC_DATA/EventLog"             "$DEST/Data/EventLog" \
-    --include='*/' --include='Eventlog_*.xls' --include='Eventlog_*.xlsx' --exclude='*'
 
 # --- archived seasons on the Share drive: Share/<year>/<leg>/ACSD_*.csv --------
 if [[ -d $SRC_SHARE ]]; then
