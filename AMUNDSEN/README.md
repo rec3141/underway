@@ -121,6 +121,27 @@ empirical p-value against the learning set; the score is Σ −log10 p, so 3 is
 roughly "one in a thousand across the three tests". Larger is more surprising.
 Configure in `config.SURPRISE`.
 
+## Tabs
+
+The map stays on the left; the tabs swap the right-hand pane.
+
+- **Underway** — the rolling-window panels described above.
+- **Casts** — CTD profiles and sections. Rosette casts come from the Plotly
+  HTML plots Amundsen Science publishes under `Data/Rosette/<leg>/plots/`
+  (the 1-dbar profile is embedded in each file; no `.cnv` is shared), joined
+  to the leg's CTD logbook for station, time and position. MVP tows come from
+  `Data/MVP/<leg>/<tow>/*.m1`. Select casts from the list or by clicking
+  station markers on the map; *Profiles* overlays them per variable,
+  *Section* grids one variable against distance along the selected casts.
+  Parsing is cached under `db/casts/` and limited to 40 new casts per build so
+  the underway page keeps its cadence; the rest arrive on later runs.
+- **Calendar** — the ship's event log (`Data/EventLog/<leg>/Eventlog_<leg>.xls`)
+  as an agenda or timeline, with the operations schedule scraped from the
+  intranet (`UNDERWAY_SCHEDULE_URL`, default `http://10.0.0.2/Schedule.html`;
+  the last copy is cached in `db/schedule.json` for when the intranet is down).
+- **Table** — hourly or daily mean/min/max/count of every panel variable with
+  position and leg, sortable by any column, downloadable as CSV.
+
 ## Higher-resolution bathymetry (optional)
 
 `tools/make_gebco_tiles.sh` turns the GEBCO 2024 GeoTIFF release (4.4 GB from

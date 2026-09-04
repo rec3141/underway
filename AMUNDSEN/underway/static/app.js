@@ -243,14 +243,20 @@
     });
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const st = state.stations ? (M.stations || []).filter((s) => shownIds.has(s.leg)) : [];
+    const selected = window.UW?.selectedCastKeys?.() || new Set();
     if (st.length) traces.push({
       type: "scattermap", mode: "markers", name: "CTD stations", showlegend: false,
       lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
+      customdata: st.map((s) => `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`),
       text: st.map((s) => `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
         `<br>${s.time || ""}${s.type ? "<br>" + s.type : ""}${s.bottom_m != null ? `<br>bottom ${s.bottom_m} m` : ""}` +
         `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`),
-      marker: { size: 9, color: "rgba(255,255,255,.9)", opacity: .9 },
+      marker: { size: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? 14 : 9),
+                color: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? "#ffb454" : "rgba(255,255,255,.9)"),
+                opacity: .95 },
     });
+    // extra markers the cast tab asks for (MVP profiles, section path)
+    for (const t of (window.UW?.extraMapTraces?.() || [])) traces.push(t);
 
     const view = state.view || fitView(d.lat, d.lon);
     // With a GEBCO tile pyramid available the shaded raster is the bathymetry
@@ -274,6 +280,11 @@
       el.on("plotly_relayout", (ev) => {
         const c2 = ev["map.center"], z = ev["map.zoom"];
         if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
+      });
+      el.removeAllListeners?.("plotly_click");
+      el.on("plotly_click", (ev) => {
+        const p = ev.points?.[0];
+        if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
     });
 
@@ -473,9 +484,30 @@
     } catch { /* offline or mid-write; next tick */ }
   }
 
+  // ------------------------------------------------------------ tabs
+  // The map stays; the right-hand pane and the header controls swap.
+  function showTab(name) {
+    for (const b of $("#tabs").querySelectorAll("button")) b.classList.toggle("on", b.dataset.tab === name);
+    for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
+    $("#controls-underway").hidden = name !== "underway";
+    $("#maphint").hidden = name !== "casts";
+    store.set("tab", name);
+    window.UW?.onTab?.(name);
+    if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);
+  }
+  for (const b of $("#tabs").querySelectorAll("button")) b.onclick = () => showTab(b.dataset.tab);
+
+  // hooks for tabs.js
+  window.UW = Object.assign(window.UW || {}, {
+    get M() { return M; }, get state() { return state; }, SITE, THEME, CFG,
+    fmtUTC, fmtVal, dms, legById, minmax, store,
+    renderMap, showTab,
+  });
+
   (async () => {
     renderControls();
     renderProvenance();
+    showTab(store.get("tab", "underway"));
     await loadGeo();
     await loadWindow();
     setInterval(checkForUpdate, 60 * 1000);

@@ -1,0 +1,318 @@
+/* Casts, Calendar and Table panes. Loaded after app.js; talks to it through
+ * window.UW (state, manifest, helpers, and hooks the map calls back into). */
+(() => {
+  "use strict";
+  const UW = window.UW;
+  const $ = (s) => document.querySelector(s);
+  const { THEME, CFG, fmtUTC, fmtVal, dms, store } = UW;
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const PALETTE = ["#5cc8ff", "#ffb454", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
+  async function getJSON(url) { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error(`${r.status} ${url}`); return r.json(); }
+  const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
+
+  // ================================================================ casts
+  const casts = {
+    idx: null, loadedFor: null, cache: {},
+    sel: new Set(store.get("casts.sel", [])),
+    mode: store.get("casts.mode", "profiles"),
+    kind: store.get("casts.kind", "all"),
+    variable: store.get("casts.var", "Temperature"),
+    search: "",
+  };
+  const castById = (id) => casts.idx?.casts.find((c) => c.id === id);
+  const castLabel = (c) => `${c.kind === "MVP" ? "MVP " : "Cast "}${c.kind === "MVP" ? c.cast.split("/")[0] + "/" + c.cast.split("_").at(-1) : c.cast}${c.station ? " · " + c.station : ""}`;
+  const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) : "";
+
+  UW.selectedCastKeys = () => casts.sel;
+  UW.onStationClick = (key) => {
+    if (!casts.idx) return;
+    if (!castById(key)) return;
+    toggleCast(key);
+    if ($("#pane-casts").hidden) UW.showTab("casts");
+  };
+  UW.extraMapTraces = () => {
+    const out = [];
+    if (!casts.idx) return out;
+    const shown = casts.idx.casts.filter((c) => c.kind === "MVP" && c.lat != null && (casts.kind !== "CTD"));
+    if (shown.length && (casts.kind === "MVP" || casts.sel.size)) out.push({
+      type: "scattermap", mode: "markers", name: "MVP profiles", showlegend: false,
+      lat: shown.map((c) => c.lat), lon: shown.map((c) => c.lon), customdata: shown.map((c) => c.id), hoverinfo: "text",
+      text: shown.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>${c.max_p} dbar`),
+      marker: { size: shown.map((c) => casts.sel.has(c.id) ? 11 : 6), color: shown.map((c) => casts.sel.has(c.id) ? "#ffb454" : "rgba(126,231,135,.8)") },
+    });
+    const sel = orderedSelection().filter((c) => c.lat != null);
+    if (casts.mode === "section" && sel.length > 1) out.push({
+      type: "scattermap", mode: "lines", name: "section", showlegend: false, hoverinfo: "skip",
+      lat: sel.map((c) => c.lat), lon: sel.map((c) => c.lon), line: { width: 2, color: "#ffb454" },
+    });
+    return out;
+  };
+
+  function orderedSelection() {
+    return [...casts.sel].map(castById).filter(Boolean).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  }
+  function toggleCast(id) {
+    casts.sel.has(id) ? casts.sel.delete(id) : casts.sel.add(id);
+    store.set("casts.sel", [...casts.sel]);
+    renderCastList(); renderCastPlots(); UW.renderMap();
+  }
+
+  async function ensureCastIndex() {
+    const stamp = UW.M.generated_utc;
+    if (casts.idx && casts.loadedFor === stamp) return;
+    try { casts.idx = await getJSON(`${UW.M.casts.index}?v=${encodeURIComponent(stamp)}`); casts.loadedFor = stamp; }
+    catch { casts.idx = { casts: [], variables: [] }; }
+    const sel = $("#castvar"); sel.innerHTML = "";
+    for (const v of casts.idx.variables) { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); }
+    if (!casts.idx.variables.includes(casts.variable)) casts.variable = casts.idx.variables[0] || "Temperature";
+    sel.value = casts.variable;
+  }
+  async function castData(id) {
+    if (casts.cache[id]) return casts.cache[id];
+    const m = castById(id); if (!m) return null;
+    try { return (casts.cache[id] = await getJSON(`${m.file}?v=${encodeURIComponent(UW.M.generated_utc)}`)); } catch { return null; }
+  }
+
+  function renderCastList() {
+    const ul = $("#castlist"); if (!casts.idx) return;
+    const q = casts.search.toLowerCase();
+    const rows = casts.idx.casts
+      .filter((c) => casts.kind === "all" || c.kind === casts.kind)
+      .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q))
+      .sort((a, b) => (b.time || "").localeCompare(a.time || ""));
+    ul.innerHTML = rows.slice(0, 600).map((c) => `<li class="${casts.sel.has(c.id) ? "on" : ""}" data-id="${esc(c.id)}">
+        <input type="checkbox" ${casts.sel.has(c.id) ? "checked" : ""}>
+        <span class="kind ${c.kind}">${c.kind}</span>
+        <span class="name">${esc(castLabel(c))}</span>
+        <span class="when">${esc(castDate(c))}</span>
+        <span class="depth">${c.max_p != null ? c.max_p + " dbar" : ""}</span>
+        <span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></li>`).join("") +
+      (rows.length > 600 ? `<li class="more">${rows.length - 600} more — narrow the filter</li>` : "") +
+      (!rows.length ? '<li class="more">no casts match</li>' : "");
+    for (const li of ul.querySelectorAll("li[data-id]")) li.onclick = (e) => { e.preventDefault(); toggleCast(li.dataset.id); };
+    $("#castclear").textContent = casts.sel.size ? `clear (${casts.sel.size})` : "clear";
+  }
+
+  async function renderCastPlots() {
+    const host = $("#castplots");
+    const sel = orderedSelection();
+    $("#castvarwrap").hidden = casts.mode !== "section";
+    if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations on the map.</div>'; return; }
+    const data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
+    if (casts.mode === "profiles") renderProfiles(host, data); else renderSection(host, data);
+  }
+
+  function renderProfiles(host, data) {
+    const vars = [...new Set(data.flatMap((d) => Object.keys(d.vars)))];
+    host.innerHTML = vars.map((v) => `<div class="castplot card"><div class="head"><h3>${esc(v)}</h3><span class="unit">${esc(data.find((d) => d.units[v])?.units[v] || "")}</span></div><div class="plot" id="cp-${v.replace(/\W+/g, "_")}"></div></div>`).join("") +
+      `<div class="castlegend">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))} <small>${esc(castDate(d))}</small></span>`).join("")}</div>`;
+    for (const v of vars) {
+      const traces = data.map((d, i) => d.vars[v] ? {
+        type: "scatter", mode: "lines", name: castLabel(d), x: d.vars[v], y: d.p, connectgaps: false,
+        line: { width: 1.6, color: PALETTE[i % PALETTE.length] },
+        hovertemplate: `${esc(castLabel(d))}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{y} dbar<extra></extra>`,
+      } : null).filter(Boolean);
+      const layout = { ...THEME, margin: { l: 44, r: 8, t: 4, b: 30 }, showlegend: false, hovermode: "closest",
+        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, side: "bottom" },
+        yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "dbar", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 } } };
+      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG);
+    }
+  }
+
+  // interpolate a cast's variable onto a common pressure grid
+  function onGrid(d, v, grid) {
+    const p = d.p, x = d.vars[v]; const out = new Array(grid.length).fill(null);
+    if (!x) return out;
+    let j = 0;
+    for (let i = 0; i < grid.length; i++) {
+      const g = grid[i];
+      while (j < p.length - 1 && p[j + 1] < g) j++;
+      if (g < p[0] || g > p[p.length - 1]) continue;
+      const a = p[j], b = p[j + 1] ?? p[j], xa = x[j], xb = x[j + 1] ?? x[j];
+      if (xa == null || xb == null) continue;
+      out[i] = b === a ? xa : xa + (xb - xa) * (g - a) / (b - a);
+    }
+    return out;
+  }
+  const haversine = (a, b) => { const R = 6371, r = Math.PI / 180, dl = (b.lat - a.lat) * r, dn = (b.lon - a.lon) * r;
+    const h = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+
+  function renderSection(host, data) {
+    const v = casts.variable;
+    const withVar = data.filter((d) => d.vars[v]);
+    if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two casts with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
+    const maxP = Math.max(...withVar.map((d) => d.p[d.p.length - 1]));
+    const step = maxP > 1500 ? 5 : maxP > 400 ? 2 : 1;
+    const grid = []; for (let p = 0; p <= maxP; p += step) grid.push(p);
+    const x = [0];
+    for (let i = 1; i < withVar.length; i++) {
+      const a = withVar[i - 1], b = withVar[i];
+      x.push(x[i - 1] + (a.lat != null && b.lat != null ? haversine(a, b) : 1));
+    }
+    const z = grid.map((_, gi) => withVar.map((d) => onGrid(d, v, grid)[gi]));
+    const unit = withVar[0].units[v] || "";
+    host.innerHTML = `<div class="castplot card wide"><div class="head"><h3>${esc(v)} section</h3><span class="unit">${withVar.length} casts · ${x.at(-1).toFixed(0)} km · ${esc(unit)}</span></div><div class="plot tall" id="cs-plot"></div></div>` +
+      `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(castLabel(d))} <small>${esc(castDate(d))} · ${x[i].toFixed(0)} km</small></span>`).join("")}</div>`;
+    const traces = [
+      { type: "heatmap", x, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
+        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 10 }, outlinewidth: 0 },
+        hovertemplate: `%{x:.1f} km · %{y} dbar<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
+      { type: "scatter", mode: "markers+text", x, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
+        textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: 9, color: "#ffb454" }, hoverinfo: "skip", cliponaxis: false },
+    ];
+    const bottoms = withVar.map((d) => d.bottom_m ?? d.p[d.p.length - 1]);
+    traces.push({ type: "scatter", mode: "lines", x, y: bottoms, line: { color: "#2b3441", width: 2 }, fill: "tonexty", fillcolor: "rgba(43,52,65,.9)", hoverinfo: "skip", name: "bottom" });
+    traces.push({ type: "scatter", mode: "lines", x, y: bottoms.map(() => maxP + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    const layout = { ...THEME, margin: { l: 50, r: 8, t: 18, b: 34 }, showlegend: false,
+      xaxis: { ...THEME.xaxis, title: { text: "distance along section (km)", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 } },
+      yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "pressure (dbar)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxP + step, 0] } };
+    Plotly.react($("#cs-plot"), traces, layout, CFG);
+  }
+
+  function wireCasts() {
+    for (const b of $("#castmode").querySelectorAll("button")) b.onclick = () => {
+      casts.mode = b.dataset.m; store.set("casts.mode", casts.mode);
+      for (const x of $("#castmode").querySelectorAll("button")) x.classList.toggle("on", x === b);
+      renderCastPlots(); UW.renderMap();
+    };
+    for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
+    $("#castvar").onchange = (e) => { casts.variable = e.target.value; store.set("casts.var", casts.variable); renderCastPlots(); };
+    $("#castkind").value = casts.kind;
+    $("#castkind").onchange = (e) => { casts.kind = e.target.value; store.set("casts.kind", casts.kind); renderCastList(); UW.renderMap(); };
+    $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
+    $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
+  }
+
+  // ================================================================ calendar
+  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "" };
+  async function ensureCalendar() {
+    const stamp = UW.M.generated_utc;
+    if (cal.data && cal.loadedFor === stamp) return;
+    try { cal.data = await getJSON(`${UW.M.calendar.file}?v=${encodeURIComponent(stamp)}`); cal.loadedFor = stamp; }
+    catch { cal.data = { events: [], schedule: { rows: [] } }; }
+  }
+  function renderCalendar() {
+    const host = $("#calendar"); if (!cal.data) return;
+    const s = cal.data.schedule || {};
+    $("#calmeta").textContent = `${cal.data.events.length} logged events · schedule ${s.updated ? "updated " + s.updated : "unavailable"}${s.stale ? " (cached copy)" : ""}`;
+    const q = cal.search.toLowerCase();
+    const evs = cal.data.events.filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
+    if (cal.view === "timeline") return renderTimeline(host, evs, s);
+    const sched = (s.rows || []).map((r) => `<tr class="st-${esc((r.status || "").toLowerCase().replace(/\s+/g, "-"))}"><td>${esc(r.date)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td><span class="status">${esc(r.status)}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`).join("");
+    let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
+      (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
+      (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
+      `<p class="muted small">Source: ship intranet Schedule page · calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
+    // agenda: events grouped by UTC day, newest first
+    const byDay = new Map();
+    for (const e of evs) { const d = (e.time_utc || "").slice(0, 10); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(e); }
+    const days = [...byDay.keys()].sort().reverse().slice(0, 60);
+    html += `<section class="agenda">` + days.map((d) => `<div class="day"><h4>${esc(d)} <small>${byDay.get(d).length} events · ${esc(UW.legById(byDay.get(d)[0].leg)?.label || "")}</small></h4>` +
+      byDay.get(d).sort((a, b) => (b.time_utc || "").localeCompare(a.time_utc || "")).map((e) => `<div class="ev">
+          <span class="t">${esc((e.time_utc || "").slice(11, 16))}Z</span>
+          <span class="st">${esc(e.station || "")}</span>
+          <span class="what">${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</span>
+          <span class="pos muted">${e.lat != null && e.lon != null ? dms(+e.lat, +e.lon) : ""}${e.depth_m != null ? " · " + Math.round(+e.depth_m) + " m" : ""}</span>
+          ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`).join("") + `</div>`).join("") + `</section>`;
+    host.innerHTML = html;
+  }
+  function renderTimeline(host, evs, s) {
+    host.innerHTML = '<div class="castplot card wide"><div class="plot tall" id="cal-plot"></div></div>';
+    const now = Date.now();
+    const recent = evs.filter((e) => now - new Date(e.time_utc.replace(" ", "T") + (e.time_utc.includes("T") || e.time_utc.length < 19 ? "" : "Z")) < 14 * 86400e3);
+    const types = [...new Set(recent.map((e) => e.activity || "other"))].slice(0, 20);
+    const traces = types.map((t, i) => {
+      const es = recent.filter((e) => (e.activity || "other") === t);
+      return { type: "scatter", mode: "markers", name: t, x: es.map((e) => new Date(e.time_utc.replace(" ", "T") + "Z")), y: es.map(() => t),
+        text: es.map((e) => `${esc(e.station || "")} · ${esc(e.event || "")} ${esc(e.label || "")}`), hovertemplate: "%{x|%m-%d %H:%M}Z<br>%{text}<extra>" + esc(t) + "</extra>",
+        marker: { size: 8, color: PALETTE[i % PALETTE.length] } };
+    });
+    // scheduled operations as bars on their own row
+    const bars = (s.rows || []).map((r) => {
+      const m = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(r.date || ""); if (!m) return null;
+      const d0 = new Date(`20${m[3]}-${m[2]}-${m[1]}T${r.start || "00:00"}:00Z`); let d1 = new Date(`20${m[3]}-${m[2]}-${m[1]}T${r.end || "23:59"}:00Z`);
+      if (d1 < d0) d1 = new Date(d1.getTime() + 86400e3);
+      return { r, d0, d1 };
+    }).filter(Boolean);
+    if (bars.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: bars.map((b) => b.d0), x: bars.map((b) => b.d1 - b.d0), y: bars.map(() => "scheduled"),
+      text: bars.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})`), hovertemplate: "%{text}<extra></extra>", marker: { color: "rgba(255,180,84,.7)" }, width: .6 });
+    const layout = { ...THEME, margin: { l: 130, r: 10, t: 10, b: 40 }, showlegend: false, barmode: "overlay",
+      xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 10 } }, tickfont: { size: 10 } },
+      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 10 } },
+      shapes: [{ type: "line", xref: "x", x0: new Date(now), x1: new Date(now), yref: "paper", y0: 0, y1: 1, line: { color: "#7ee787", width: 1.5, dash: "dot" } }] };
+    Plotly.react($("#cal-plot"), traces, layout, CFG);
+  }
+  function wireCalendar() {
+    for (const b of $("#calview").querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.v === cal.view);
+      b.onclick = () => { cal.view = b.dataset.v; store.set("cal.view", cal.view); for (const x of $("#calview").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCalendar(); };
+    }
+    $("#calsearch").oninput = debounce((e) => { cal.search = e.target.value; renderCalendar(); }, 150);
+  }
+
+  // ================================================================ table
+  const tbl = { rule: store.get("tbl.rule", "1h"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
+  async function ensureAgg() {
+    const stamp = UW.M.generated_utc;
+    if (tbl.loadedFor !== stamp) { tbl.data = {}; tbl.loadedFor = stamp; }
+    if (!tbl.data[tbl.rule]) {
+      try { tbl.data[tbl.rule] = await getJSON(`${UW.M.aggregates[tbl.rule].file}?v=${encodeURIComponent(stamp)}`); } catch { tbl.data[tbl.rule] = { variables: [], rows: [] }; }
+    }
+  }
+  function currentRows() {
+    const d = tbl.data[tbl.rule]; if (!d) return [];
+    const q = tbl.search.toLowerCase();
+    let rows = d.rows.map((r) => ({ ...r, legLabel: UW.legById(UW.M.legs[r.leg]?.id)?.label || "" }));
+    if (q) rows = rows.filter((r) => `${fmtUTC(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
+    const k = tbl.sort.key, dir = tbl.sort.dir;
+    const val = (r) => k === "t" ? r.t : k === "leg" ? r.legLabel : k === "lat" || k === "lon" ? r[k] : (r[k] ? r[k][tbl.stat] : null);
+    rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
+    return rows;
+  }
+  function renderTable() {
+    const d = tbl.data[tbl.rule]; if (!d) return;
+    const rows = currentRows();
+    const stat = ["mean", "min", "max", "n"][tbl.stat];
+    const cols = [["t", "time (UTC)"], ["leg", "leg"], ["lat", "lat"], ["lon", "lon"], ...d.variables.map((v) => [v, v])];
+    const arrow = (k) => tbl.sort.key === k ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
+    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtUTC(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
+      d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
+    $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    $("#tblmeta").textContent = `${rows.length.toLocaleString()} rows · ${stat}${rows.length > 2000 ? " · showing first 2000" : ""}`;
+    for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
+      const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "t" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderTable();
+    };
+  }
+  function downloadCSV() {
+    const d = tbl.data[tbl.rule]; if (!d) return;
+    const stat = ["mean", "min", "max", "n"][tbl.stat];
+    const rows = currentRows();
+    const head = ["time_utc", "leg", "lat", "lon", ...d.variables.map((v) => `${v} (${stat})`)];
+    const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const lines = [head.map(q).join(",")].concat(rows.map((r) => [new Date(r.t).toISOString(), r.legLabel, r.lat, r.lon, ...d.variables.map((v) => r[v] ? r[v][tbl.stat] : "")].map(q).join(",")));
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `underway_${tbl.rule}_${stat}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  function wireTable() {
+    for (const b of $("#aggrule").querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.r === tbl.rule);
+      b.onclick = async () => { tbl.rule = b.dataset.r; store.set("tbl.rule", tbl.rule); for (const x of $("#aggrule").querySelectorAll("button")) x.classList.toggle("on", x === b); await ensureAgg(); renderTable(); };
+    }
+    $("#aggstat").value = String(tbl.stat);
+    $("#aggstat").onchange = (e) => { tbl.stat = +e.target.value; store.set("tbl.stat", tbl.stat); renderTable(); };
+    $("#tblsearch").oninput = debounce((e) => { tbl.search = e.target.value; renderTable(); }, 150);
+    $("#tblcsv").onclick = downloadCSV;
+  }
+
+  // ================================================================ glue
+  UW.onTab = async (name) => {
+    if (name === "casts") { await ensureCastIndex(); renderCastList(); renderCastPlots(); UW.renderMap(); }
+    if (name === "calendar") { await ensureCalendar(); renderCalendar(); }
+    if (name === "table") { await ensureAgg(); renderTable(); }
+  };
+  wireCasts(); wireCalendar(); wireTable();
+  const active = document.querySelector("#tabs button.on")?.dataset.tab;
+  if (active && active !== "underway") UW.onTab(active);
+})();

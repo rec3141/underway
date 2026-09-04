@@ -159,6 +159,32 @@ def _break_discontinuities(g: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def aggregate(a: Analysis, rule: str) -> dict:
+    """Mean/min/max/count of every panel variable per time bin, with the mean
+    position and the leg, over the whole record. Bins with no data are
+    dropped, so the table is only as long as the data."""
+    df = a.frame
+    names = [v.name for v in VARIABLES if v.name in df.columns and not v.derived or v.name == "Surprise (−log10 p)"]
+    names = [n for n in names if n in df.columns]
+    g = df[names + ["lat", "lon", "leg"]].resample(rule)
+    mean, mn, mx, cnt = g[names].mean(), g[names].min(), g[names].max(), g[names].count()
+    pos = g[["lat", "lon"]].mean()
+    leg = g["leg"].first()
+    keep = cnt.sum(axis=1) > 0
+    rows = []
+    for t in mean.index[keep]:
+        row = {"t": int(t.value // 10**6),          # Timestamp.value is always ns -> ms
+               "leg": None if pd.isna(leg[t]) else int(leg[t]),
+               "lat": None if pd.isna(pos.at[t, "lat"]) else round(float(pos.at[t, "lat"]), 5),
+               "lon": None if pd.isna(pos.at[t, "lon"]) else round(float(pos.at[t, "lon"]), 5)}
+        for n in names:
+            c = int(cnt.at[t, n])
+            row[n] = None if c == 0 else [round(float(mean.at[t, n]), 4), round(float(mn.at[t, n]), 4),
+                                          round(float(mx.at[t, n]), 4), c]
+        rows.append(row)
+    return {"rule": rule, "variables": names, "columns": ["mean", "min", "max", "n"], "rows": rows}
+
+
 def _limits(vals: list) -> list | None:
     arr = np.array([v for v in vals if v is not None], dtype=float)
     if arr.size == 0:
@@ -236,6 +262,29 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                              "start": payload.get("start"), "end": payload.get("end")})
         log.info("window %-4s %6d points", w.label, payload["n"])
 
+    # time-aggregated tables for the data tab
+    agg_meta = {}
+    for label, rule in (("1h", "1h"), ("1d", "1D")):
+        payload = aggregate(a, rule)
+        atomic_write(root / "data" / f"agg-{label}.json", json.dumps(payload, separators=(",", ":")))
+        agg_meta[label] = {"file": f"data/agg-{label}.json", "n": len(payload["rows"])}
+        log.info("aggregate %-3s %6d rows", label, len(payload["rows"]))
+
+    # casts and calendar are independent of the underway record; a failure in
+    # either must not take the dashboard down
+    from .casts import build_casts
+    from .calendar import build_calendar
+    try:
+        casts_idx = build_casts([leg for leg, _ in stores], root)
+    except Exception:                       # noqa: BLE001
+        log.exception("cast build failed")
+        casts_idx = {"casts": [], "variables": []}
+    try:
+        cal = build_calendar([leg for leg, _ in stores], root)
+    except Exception:                       # noqa: BLE001
+        log.exception("calendar build failed")
+        cal = {}
+
     last = a.frame[["lat", "lon"]].dropna()
     latest = None
     if not last.empty:
@@ -265,6 +314,9 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                   "inputs": sorted({str(p) for leg, _ in stores for p in leg.indirs})},
         "columns_seen": [{"display": d, "first_seen": f} for d, f in sorted(columns_seen.items(), key=lambda kv: kv[1])],
         "links": links,
+        "aggregates": agg_meta,
+        "casts": {"index": "data/casts/index.json", "n": len(casts_idx["casts"]), "variables": casts_idx["variables"]},
+        "calendar": {"file": "data/calendar.json", **cal},
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 
@@ -282,7 +334,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("app.js", "style.css"):
+    for name in ("app.js", "tabs.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     # a raster tile pyramid (tools/make_gebco_tiles.sh) lives in the web root
     # only — too large for the repository — and is used when present
