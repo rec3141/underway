@@ -27,16 +27,20 @@ flock -n 8 || { echo "mirror already running"; exit 0; }
 # rsync over a CIFS mount: size+mtime comparison, no checksums; whole files
 # (delta transfer only adds CPU here); modest timeouts so a dropped mount fails
 # fast instead of hanging the build behind it
-RS=(rsync -rt --whole-file --modify-window=2 --timeout=60 --contimeout=20 --prune-empty-dirs --info=stats1)
+RS=(rsync -rt --whole-file --modify-window=2 --timeout=60 --prune-empty-dirs --info=stats1)
 
 ts() { date '+%F %T'; }
 run() {   # run <label> <src> <dst> <filter...>
   local label=$1 src=$2 dst=$3; shift 3
   if [[ ! -d $src ]]; then echo "$(ts) $label: source missing ($src)" | tee -a "$LOG"; return 0; fi
   mkdir -p "$dst"
-  local out
-  out=$("${RS[@]}" "$@" "$src/" "$dst/" 2>&1) && echo "$(ts) $label: $(echo "$out" | grep -E 'Number of regular files transferred|Total transferred file size' | sed -E 's/ +/ /g' | tr '\n' ';')" | tee -a "$LOG" \
-    || echo "$(ts) $label: rsync exit $? — $(echo "$out" | tail -1)" | tee -a "$LOG"
+  local out rc=0
+  out=$("${RS[@]}" "$@" "$src/" "$dst/" 2>&1) || rc=$?
+  if [[ $rc -eq 0 ]]; then
+    echo "$(ts) $label: $(echo "$out" | grep -E 'Number of regular files transferred|Total transferred file size' | sed -E 's/ +/ /g' | tr '\n' ';')" | tee -a "$LOG"
+  else
+    echo "$(ts) $label: rsync exit $rc — $(echo "$out" | grep -v '^$' | tail -1)" | tee -a "$LOG"
+  fi
 }
 
 # --- Data share ---------------------------------------------------------------
