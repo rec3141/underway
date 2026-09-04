@@ -37,8 +37,9 @@ a:hover { text-decoration: underline; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
 /* brand left, tabs right, controls on their own full-width row: the same
    places on every tab, whatever each tab shows in the controls row */
-.top .brand { order: 1; }
-.top .tabs { order: 2; margin-left: auto; }
+.top .brand { order: 1; flex: 1 1 0; min-width: 160px; }        /* the title gives way (wraps) before the tabs drop a row */
+.top .tabs { order: 2; margin-left: auto; flex: 0 0 auto; }
+.tabs button { white-space: nowrap; }
 .top .controls { order: 3; flex: 1 0 100%; }
 .live { color: #7ee787; font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: .5px; }
 

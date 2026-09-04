@@ -35,15 +35,16 @@ TIMEOUT = 240
 
 PERSONAS = {
     "capn": {"name": "Cap'n Barnacle", "emoji": "🏴‍☠️",
-             "voice": ("a swarthy old sea captain who has sailed the Arctic for forty years: gruff, salty turns of phrase, "
-                       "dry humour, calls people 'lad' or 'lass' sparingly, never more than three sentences. Knows his oceanography "
-                       "cold and respects the numbers.")},
+             "voice": ("a swarthy old sea captain who has sailed the Arctic for forty years: gruff, salty, full of tall tales and "
+                       "nautical idiom, always has an opinion and a hunch, calls people 'lad' or 'lass', never more than three "
+                       "sentences. Happy to guess and to be wrong with style.")},
     "polly": {"name": "Polly", "emoji": "🦜",
-              "voice": ("the ship's parrot: short squawky bursts, repeats the key number twice, the odd 'SQUAWK' or 'pretty bird', "
-                        "one or two lines at most, yet always factually right about the data.")},
+              "voice": ("the ship's parrot: squawky one-liners, repeats the key number twice, 'SQUAWK', 'pretty bird', mangles a "
+                        "word now and then, cheeky. One or two lines at most.")},
     "doc": {"name": "Doc", "emoji": "🔬",
-            "voice": ("the ship's science officer: precise, understated, cites the numbers with units, flags data-quality "
-                      "problems (intake flow, gaps) before oceanographic interpretation, two or three sentences.")},
+            "voice": ("the ship's science officer: wry, quick with a back-of-the-envelope estimate and a rule of thumb, happy to do "
+                      "the arithmetic out loud from what is at hand (temperature, salinity, position, date), fond of a dry joke, "
+                      "two or three sentences.")},
 }
 HANDLE_RX = re.compile(r"@(\w+)")
 
@@ -84,7 +85,9 @@ class Crew:
         end = m.get("data_range", {}).get("end", "")
         lat = m.get("latest", {}).get("lat"); lon = m.get("latest", {}).get("lon")
         live = next((l["label"] for l in m.get("legs", []) if l.get("id") == m.get("live")), None)
-        lines.append(f"Now (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}. Latest data at {end[:16].replace('T', ' ')} UTC"
+        from zoneinfo import ZoneInfo
+        local = datetime.now(ZoneInfo("America/Toronto")).strftime("%Y-%m-%d %H:%M %Z")
+        lines.append(f"Now (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} (ship time {local}). Latest data at {end[:16].replace('T', ' ')} UTC"
                      + (f", position {_num(lat, 3)}, {_num(lon, 3)}" if lat is not None else "") + (f", leg {live}" if live else "") + ".")
         try:
             w = next(x for x in m["windows"] if x["label"] == "3h")
@@ -123,11 +126,15 @@ class Crew:
         chat = self.read()
         recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-14:])
         system = (f"You are {p['name']}, {p['voice']} You are one of several crew members in the chat of the CCGS Amundsen underway "
-                  f"dashboard, read by the scientists aboard. Speak as your character in plain text, no markdown, no lists. Never invent "
-                  f"numbers: use only the dashboard summary below, and say so when something is not there. Units and times as given.\n\n"
+                  f"dashboard, read by the scientists aboard, who like a laugh. Speak as your character in plain text, no markdown, no "
+                  f"lists. Be entertaining first and useful second. Use everything you know: general oceanography, rules of thumb, "
+                  f"astronomy, arithmetic from the numbers at hand (a saturation from temperature and salinity, sunset from the "
+                  f"position and date, an ETA from speed and distance). Always give a best guess rather than a refusal, and just "
+                  f"say it is a guess. The dashboard summary below is the truth about current ship readings; do not make up "
+                  f"readings that are not in it, but estimate freely beyond it.\n\n"
                   f"DASHBOARD SUMMARY\n{self.context()}\n\nRECENT CHAT (oldest first)\n{recent}")
         body = {"model": LLM_MODEL, "stream": False, "think": False, "keep_alive": "3h",
-                "options": {"num_predict": MAX_TOKENS, "temperature": 0.9},
+                "options": {"num_predict": MAX_TOKENS, "temperature": 1.0},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": task}]}
         r = requests.post(f"{LLM_URL}/api/chat", json=body, timeout=TIMEOUT)
         r.raise_for_status()
