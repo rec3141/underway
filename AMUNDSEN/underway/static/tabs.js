@@ -386,24 +386,28 @@
       ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
     // agenda: logged events and scheduled operations (current and former)
     // grouped by UTC day, newest first
+    // every source has its own time format (the event log writes 2026/09/03
+    // 11:23:12, the schedule ISO), so group and sort on instants
     const byDay = new Map();
-    const add = (d, x) => { if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(x); };
-    for (const e of evs) add((e.time_utc || "").slice(0, 10), { t: e.time_utc || "", e });
-    for (const r of scheduledRows(s)) if ((!q || JSON.stringify(r).toLowerCase().includes(q)) && (UW.inFilter(null, r.start_utc, f) || UW.inFilter(null, r.end_utc, f) || UW.tms(r.start_utc) > f.end)) add(r.start_utc.slice(0, 10), { t: r.start_utc, r });
+    const iso = (t) => isNaN(t) ? "" : new Date(t).toISOString();
+    const hm = (t) => iso(t).slice(11, 16);
+    const add = (t, x) => { const d = iso(t).slice(0, 10) || "undated"; if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ t: isNaN(t) ? 0 : t, ...x }); };
+    for (const e of evs) add(UW.tms(e.time_utc), { e });
+    for (const r of scheduledRows(s)) if ((!q || JSON.stringify(r).toLowerCase().includes(q)) && (UW.inFilter(null, r.start_utc, f) || UW.inFilter(null, r.end_utc, f) || UW.tms(r.start_utc) > f.end)) add(UW.tms(r.start_utc), { r });
     const days = [...byDay.keys()].sort().reverse().slice(0, 60);
     const evHtml = (e) => `<div class="ev" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
-          <span class="t">${esc((e.time_utc || "").slice(11, 16))}Z</span>
+          <span class="t">${hm(UW.tms(e.time_utc))}Z</span>
           <span class="st">${esc(e.station || "")}</span>
           <span class="what">${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</span>
           <span class="pos muted">${e.lat != null && e.lon != null ? dms(+e.lat, +e.lon) : ""}${e.depth_m != null ? " · " + Math.round(+e.depth_m) + " m" : ""}</span>
           ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`;
     const schedHtml = (r) => `<div class="ev sched ${r.former ? "former" : ""}">
-          <span class="t">${esc(r.start_utc.slice(11, 16))}Z</span>
+          <span class="t">${hm(UW.tms(r.start_utc))}Z</span>
           <span class="st">${esc(r.station || "")}</span>
           <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : "scheduled"}</span> <span class="status">${esc(r.status || "")}</span></span>
-          <span class="pos muted">${esc(r.start_utc.slice(11, 16))}–${esc(r.end_utc.slice(11, 16))}Z${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
+          <span class="pos muted">${hm(UW.tms(r.start_utc))}–${hm(UW.tms(r.end_utc))}Z${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
           ${r.comment ? `<span class="cm muted">${esc(r.comment)}</span>` : ""}</div>`;
-    html += `<section class="agenda">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t.localeCompare(a.t)); const first = items.find((x) => x.e)?.e;
+    html += `<section class="agenda">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t - a.t); const first = items.find((x) => x.e)?.e;
       return `<div class="day"><h4>${esc(d)} <small>${items.filter((x) => x.e).length} events · ${items.filter((x) => x.r).length} scheduled · ${esc(UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "")}</small></h4>` +
         items.map((x) => x.e ? evHtml(x.e) : schedHtml(x.r)).join("") + `</div>`; }).join("") + `</section>`;
     host.innerHTML = html;
@@ -427,7 +431,7 @@
     const f = UW.currentFilter();
     const rows = scheduledRows(s).map((r) => ({ r, d0: new Date(r.start_utc), d1: new Date(r.end_utc) })).filter((b) => b.d1 >= f.start);
     if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"),
-      text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${b.r.start_utc.slice(0, 16).replace("T", " ")}–${b.r.end_utc.slice(11, 16)}Z`),
+      text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${new Date(UW.tms(b.r.start_utc)).toISOString().slice(0, 16).replace("T", " ")}–${new Date(UW.tms(b.r.end_utc)).toISOString().slice(11, 16)}Z`),
       hovertemplate: "%{text}<extra></extra>", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .6 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span`, false).replace('class="panel card castplot', 'class="panel card castplot wide');
     const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
@@ -682,6 +686,12 @@
   // ================================================================ glue
   UW.onXMode = () => { if (!$("#pane-casts").hidden && casts.mode === "section") renderCastPlots(); };
   UW.onFilter = () => {
+    // a leg switched off takes its casts out of the selection
+    if (casts.idx) {
+      const f = UW.currentFilter();
+      const gone = [...casts.sel].filter((k) => { const c = castById(k); return c && !f.legs.has(c.leg); });
+      if (gone.length) { for (const k of gone) casts.sel.delete(k); store.set("casts.sel", [...casts.sel]); if (!$("#pane-casts").hidden) renderCastPlots(); UW.renderMap(); }
+    }
     if (!$("#pane-casts").hidden && casts.idx) renderCastList();
     if (!$("#pane-calendar").hidden && cal.data) renderCalendar();
     if (!$("#pane-table").hidden) renderTable();
