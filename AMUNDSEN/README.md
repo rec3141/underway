@@ -65,6 +65,29 @@ seconds.
 Stores live in `AMUNDSEN/db/<leg>.db` by default (`UNDERWAY_DB_DIR` overrides).
 They are derived data: delete them and the next build reloads everything.
 
+## Local mirror (recommended on the ship)
+
+Every access to the CIFS shares costs a network round trip — a `stat()`, an
+8 KB read, a tile write — and the build touches thousands of files. Running
+against a local mirror removes all of that:
+
+```sh
+tools/mirror-share.sh /data/ship          # rsync only what the dashboard reads
+UNDERWAY_LOCAL=1 update_underway_py.sh    # mirror, then build into /data/underway/www
+```
+
+With `UNDERWAY_LOCAL=1` (set as `Environment=` in `underway.service`) the
+wrapper runs the mirror first and builds from it with `UNDERWAY_DATA_ROOT` and
+`UNDERWAY_SHARE_ROOT` pointing into `/data/ship`; the web root moves to local
+disk (`UNDERWAY_WEBROOT`, default `/data/underway/www`) and the server serves
+that. The share is then read by one rsync pass per build and by nothing else,
+and `RequiresMountsFor` is no longer needed. The initial mirror is ~15 GB
+(mostly the per-cast plot HTML); afterwards a pass copies only new files.
+
+Raster tiles are never written to the share: `make_gebco_tiles.sh` writes to
+`UNDERWAY_TILES_DIR` (default `/data/gis/tiles`) and the server maps
+`/static/tiles/` onto it.
+
 ## Operation on the ship
 
 Two systemd units (the files are in `/etc/systemd/system/`):
