@@ -126,16 +126,17 @@
     store.set("hiddenLegs", [...state.hidden]);
     toast(`No shown leg falls in the ${f.label} span — showing ${inSpan.map((l) => l.label).join(", ")}`);
   }
-  // after a leg change: widen the span until the newest shown leg is in it
-  // (or the leg just switched on, when one is named)
+  // after a leg change: widen the span until it holds the whole of the leg
+  // just switched on, or, when legs were switched off, the whole of the
+  // newest leg still shown (a span that catches only a leg's last hours
+  // would look empty)
   function reconcileSpanToLegs(justShown) {
     const f = currentFilter();
-    const target = justShown ? legRange(justShown) : null;
     const shown = shownLegs();
     if (!shown.length) return false;
-    const reach = target ? target.end : Math.max(...shown.map((l) => legRange(l).end));
-    if (reach >= f.start && (!target || target.start <= f.end)) return false;
-    const need = target ? target.start : reach;
+    const newest = shown.reduce((a, b) => legRange(b).end > legRange(a).end ? b : a);
+    const need = legRange(justShown || newest).start;
+    if (need >= f.start) return false;
     const w = M.windows.find((x) => f.end - x.hours * 3600e3 <= need) || M.windows[M.windows.length - 1];
     if (w.label === state.win) return false;
     state.win = w.label; store.set("win", state.win);
@@ -513,10 +514,11 @@
       if (sc && d?.vars[`Surprise · ${sc}`]) { y = d.vars[`Surprise · ${sc}`]; title = `Surprise · ${sc}`; }
     }
     el.querySelector("h3").textContent = title;
-    const empty = (msg) => { Plotly.purge(plot); plot.className = "empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
+    // the div keeps its "plot" class while empty, so a later render finds it again
+    const empty = (msg) => { if (plot.data) Plotly.purge(plot); plot.className = "plot empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
     if (!v.resolved) return empty("source column not found in any leg");
     if (!d || !y || !y.some((x) => x != null)) return empty("no data in this span for the selected legs");
-    plot.className = "plot";
+    if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
     el.querySelector(".now").textContent = fmtVal(lastFinite(y), v.unit);
 
     const cv = VAR[state.colour];
@@ -589,11 +591,15 @@
     window.UW?.onFilter?.();
   }
 
+  let loadSeq = 0;
   async function loadWindow() {
     const w = M.windows.find((x) => x.label === state.win) || M.windows.find((x) => x.label === M.default_window) || M.windows[0];
     state.win = w.label;
     renderControls();
-    state.raw = await fetchJSON(`${w.file}?v=${encodeURIComponent(M.generated_utc)}`);
+    const seq = ++loadSeq;
+    const raw = await fetchJSON(`${w.file}?v=${encodeURIComponent(M.generated_utc)}`);
+    if (seq !== loadSeq) return;            // a newer request is in flight; let it land instead
+    state.raw = raw;
     applyAndRender();
   }
 
@@ -646,6 +652,25 @@
     get M() { return M; }, get state() { return state; }, SITE, THEME, CFG,
     fmtUTC, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms,
+  });
+
+  // ?win=2y&legs=2025_LEG_01,2026_LEG_03&tab=casts — a shareable view; the
+  // parameters override what the browser remembered
+  {
+    const q = new URLSearchParams(location.search);
+    if (q.get("win") && M.windows.some((w) => w.label === q.get("win"))) { state.win = q.get("win"); store.set("win", state.win); }
+    if (q.get("legs")) {
+      const want = q.get("legs") === "all" ? new Set(M.legs.map((l) => l.id)) : new Set(q.get("legs").split(","));
+      state.hidden = new Set(M.legs.map((l) => l.id).filter((id) => !want.has(id))); store.set("hiddenLegs", [...state.hidden]);
+    }
+    if (q.get("tab")) store.set("tab", q.get("tab"));
+  }
+  // a script error is shown rather than swallowed, so it can be reported
+  window.addEventListener("error", (e) => { try { toast(`Page error: ${e.message} (${(e.filename || "").split("/").pop()}:${e.lineno})`); } catch {} });
+  window.addEventListener("unhandledrejection", (e) => {
+    // Plotly's own promises reject harmlessly when a plot is replaced mid-draw
+    if (String(e.reason?.stack || "").includes("plotly")) return;
+    try { toast(`Page error: ${e.reason?.message || e.reason}`); } catch {}
   });
 
   (async () => {

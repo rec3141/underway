@@ -115,7 +115,6 @@
     try { casts.idx = await getJSON(`${UW.M.casts.index}?v=${encodeURIComponent(stamp)}`); casts.loadedFor = stamp; }
     catch { casts.idx = { casts: [], variables: [] }; }
     fillCastVars();
-    sel.value = casts.variable;
   }
   async function castData(id) {
     if (casts.cache[id]) return casts.cache[id];
