@@ -130,7 +130,20 @@
 window.__SITE__ = {{ site|tojson }};
 window.__MANIFEST__ = {{ m|tojson }};
 </script>
+<aside class="chat collapsed" id="chat" aria-label="ship chat">
+  <button class="chathead" id="chathead"><span class="dot" id="chatdot"></span><b>Chat</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
+  <div class="chatbody">
+    <div class="chatlog" id="chatlog"></div>
+    <form class="chatform" id="chatform" autocomplete="off">
+      <input id="chatname" placeholder="name" maxlength="24" title="your name, remembered on this device">
+      <input id="chattext" placeholder="message · Enter to send" maxlength="500">
+      <button type="submit" title="send">➤</button>
+    </form>
+  </div>
+</aside>
+
 <script src="static/app.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
+<script src="static/chat.js?v={{ site.asset_version }}"></script>
 </body>
 </html>
