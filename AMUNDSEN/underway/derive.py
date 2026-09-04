@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .config import (LINE_WARMING, POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
+from .config import (LINE_WARMING, LOW_FLOW_V, POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
                      Variable)
 from .surprise import surprise_scores
 
@@ -172,7 +172,7 @@ class Analysis:
 
 
 def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tuple[str, str]],
-                   feats: list[str], display: dict[str, str]) -> Analysis:
+                   feats: list[str], display: dict[str, str], tsg: pd.DataFrame | None = None) -> Analysis:
     if df.empty:
         raise SystemExit("no observations in store")
 
@@ -188,6 +188,10 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     sal_t, hull_t = (_first_match(pats, list(df.columns)) for pats in LINE_WARMING)
     if sal_t and hull_t:
         out["TSG line warming (°C)"] = df[sal_t] - df[hull_t]
+    flow = None
+    if tsg is not None and "flow" in tsg.columns:
+        flow = tsg["flow"]
+        out["TSG flow (V)"] = flow.reindex(df.index.floor("1min")).to_numpy()
 
     # elapsed time is filled per window at build time; keep a placeholder so
     # the column set is stable
@@ -200,6 +204,14 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     if len(feats) >= 2:
         minute = df[feats].resample("1min").median()
         minute = minute.dropna(how="all")
+        gated = 0
+        if flow is not None:
+            # a stopped or choked intake: the TSG features describe the line,
+            # not the sea, so they sit out of the model for those minutes
+            low = flow.reindex(minute.index) < LOW_FLOW_V
+            tsg_feats = [f for f in feats if f.startswith("tsg — ")]
+            gated = int(low.sum())
+            minute.loc[low, tsg_feats] = np.nan
         sc = surprise_scores(minute, SURPRISE)
         if sc is not None:
             # broadcast the minute scores back onto the raw cadence
@@ -209,7 +221,8 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
             scored = True
             note = ("each minute against exponentially weighted history at half-lives "
                     + ", ".join(l for l, _ in SURPRISE_SCALES) + " using "
-                    + ", ".join(display.get(f, f) for f in feats))
+                    + ", ".join(display.get(f, f) for f in feats)
+                    + (f"; TSG features left out of {gated} minutes with intake flow below {LOW_FLOW_V:g} V" if flow is not None else ""))
         else:
             note = "not enough data to score"
     else:

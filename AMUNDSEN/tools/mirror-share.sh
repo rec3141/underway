@@ -12,8 +12,8 @@
 # network I/O in bulk; every other access on the share costs a CIFS round trip
 # per call, which is what made per-file reads and stats so slow.
 #
-# Only what is needed is copied: ACSD day files, CTD logbooks and plots, the
-# SeaBird .cnv files, MVP .m1 profiles, and the event logs. Nothing is deleted
+# Only what is needed is copied: ACSD day files, TSG day files, CTD logbooks
+# and plots, the SeaBird .cnv files, MVP .m1 profiles, and the event logs. Nothing is deleted
 # from the mirror when it vanishes from the share; a file that disappears
 # upstream is usually a mount hiccup, not a retraction.
 set -euo pipefail
@@ -53,6 +53,8 @@ run "FULL_CSV"  "$SRC_DATA/FULL_CSV"             "$DEST/Data/FULL_CSV" \
     --include='*/' --include='ACSD_????????.csv' --exclude='*'
 run "EventLog"  "$SRC_DATA/EventLog"             "$DEST/Data/EventLog" \
     --include='*/' --include='Eventlog_*.xls' --include='Eventlog_*.xlsx' --exclude='*'
+run "TSG"       "$SRC_DATA/TSG"                  "$DEST/Data/TSG" \
+    --include='/*_LEG_*/' --include='/*_LEG_*/tsg_convdata_*.cnv' --exclude='*'
 if [[ $MODE == quick ]]; then echo "$(ts) quick mirror pass complete" | tee -a "$LOG"; exit 0; fi
 run "Rosette"   "$SRC_DATA/Rosette"              "$DEST/Data/Rosette" \
     --include='*/' --include='Logs/*CTD_logbook.csv' --include='plots/*_raw_data.html' --exclude='*'

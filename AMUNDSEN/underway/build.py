@@ -268,7 +268,13 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
 
     # 3. derive, then slice every window
     leg_codes = df.pop("leg")
-    a = build_analysis(df, res, pos_pairs, feats, union_keys)
+    from .tsg import minute_frame
+    try:
+        tsg = minute_frame([leg for leg, _ in stores])
+    except Exception:                       # noqa: BLE001 — the TSG files are extra, never required
+        log.exception("TSG files not read")
+        tsg = None
+    a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg)
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
     end = a.frame.index.max()
 
