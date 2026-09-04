@@ -113,9 +113,7 @@
     if (casts.idx && casts.loadedFor === stamp) return;
     try { casts.idx = await getJSON(`${UW.M.casts.index}?v=${encodeURIComponent(stamp)}`); casts.loadedFor = stamp; }
     catch { casts.idx = { casts: [], variables: [] }; }
-    const sel = $("#castvar"); sel.innerHTML = "";
-    for (const v of casts.idx.variables) { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); }
-    if (!casts.idx.variables.includes(casts.variable)) casts.variable = casts.idx.variables[0] || "Temperature";
+    fillCastVars();
     sel.value = casts.variable;
   }
   async function castData(id) {
@@ -124,6 +122,18 @@
     try { return (casts.cache[id] = await getJSON(`${m.file}?v=${encodeURIComponent(UW.M.generated_utc)}`)); } catch { return null; }
   }
 
+  // the variable menu offers what the selected casts actually carry (every
+  // variable in the index when nothing is selected); the choice survives
+  // when it is still available, else Temperature or the first
+  function fillCastVars() {
+    if (!casts.idx) return;
+    const chosen = [...casts.sel].map(castById).filter(Boolean);
+    const vars = chosen.length ? orderVars(new Set(chosen.flatMap((c) => c.vars || []))) : orderVars(casts.idx.variables);
+    const sel = $("#castvar"); sel.innerHTML = "";
+    for (const v of vars) { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); }
+    if (!vars.includes(casts.variable)) casts.variable = vars.includes("Temperature") ? "Temperature" : (vars[0] || "Temperature");
+    sel.value = casts.variable;
+  }
   function renderCastList() {
     const ul = $("#castlist"); if (!casts.idx) return;
     const q = casts.search.toLowerCase();
@@ -165,6 +175,7 @@
   }
 
   async function renderCastPlots() {
+    fillCastVars();
     const host = $("#castplots");
     const sel = orderedSelection();
     $("#castvarwrap").hidden = casts.mode !== "section";

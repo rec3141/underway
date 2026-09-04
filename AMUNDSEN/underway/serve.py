@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------- chat
-CHAT_DB = Path(os.environ.get("UNDERWAY_CHAT_DB", "/data/underway/chat.sqlite"))
+CHAT_DB = Path(os.environ.get("UNDERWAY_CHAT_DB", "/data/underway/chat/chat.sqlite"))
 CHAT_KEEP = 2000            # messages kept
 CHAT_PAGE = 100             # messages sent to a fresh page
 NAME_MAX, TEXT_MAX = 24, 500
