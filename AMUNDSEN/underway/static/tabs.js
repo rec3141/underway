@@ -591,18 +591,19 @@
     const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc((r.time || "").replace("T", " ").slice(0, 16)) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
-    const body = rows.map((r) => `<tr>${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
+    const body = rows.map((r) => `<tr class="${casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
-    $("#tblmeta").textContent = `${rows.length.toLocaleString()} stations · click a row to see it on the map and open its cast`;
+    const nsel = rows.filter((r) => casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
+    $("#tblmeta").textContent = `${rows.length.toLocaleString()} stations${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to see it on the map and select its cast`;
     for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
       const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "time" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderStations();
     };
     for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
       const r = rows[i];
       for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
-      tr.classList.add("on");
+      tr.classList.add("on", "sel");
       UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
-      UW.onStationClick?.(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`, { quiet: true });
+      UW.onStationClick?.(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`, { quiet: true }).then?.(() => renderStations());
     };
   }
   function currentRows() {

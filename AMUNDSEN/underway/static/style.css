@@ -311,6 +311,8 @@ tr.st-completed .status { color: var(--muted); }
 .tablewrap { overflow: auto; max-height: calc(100vh - 210px); margin-right: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }   /* its own scrollbar clears the pane's */
 #aggtable tbody tr { cursor: pointer; }
 #aggtable tbody tr.on td { background: rgba(92,200,255,.14); }
+#aggtable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }      /* selected for the Casts tab */
+#aggtable tbody tr.sel td { background: rgba(255,180,84,.08); }
 .castlist .kind.TM { background: #4a3a1e; color: #ffb454; }
 #aggtable { border-collapse: collapse; font-size: 12px; min-width: 100%; }
 #aggtable th { position: sticky; top: 0; background: var(--card-2); color: var(--muted); text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line); }
