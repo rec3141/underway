@@ -100,6 +100,11 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         else:
             agg[v.name] = "mean"
     g = df.resample(rule).agg(agg)
+    # A bin is labelled by the mean time of its samples, not the grid edge, so
+    # its mean position sits at the instant it represents (an hour bin labelled
+    # at its start would put a mid-transit position half an hour early and
+    # break the along-track spacing below).
+    tmean = pd.Series(df.index.as_unit("ns").asi8.astype("float64"), index=df.index).resample(rule).mean()
     # However coarse the time step, the track keeps at least one point every
     # MAP_KM_STEP km along the way: the first raw record in each distance
     # bucket joins the time bins, so a transit does not thin to a dotted line
@@ -116,6 +121,12 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
     empty = g.drop(columns=["leg"]).isna().all(axis=1)
     keep = ~empty | (empty & ~empty.shift(fill_value=False))
     g = g[keep]
+    tm = tmean.reindex(g.index)
+    stamped = pd.to_datetime(tm.to_numpy(), unit="ns")
+    if g.index.tz is not None:
+        stamped = stamped.tz_localize("UTC").tz_convert(g.index.tz)
+    g.index = pd.DatetimeIndex(stamped.where(tm.notna().to_numpy(), g.index), name=g.index.name)
+    g = g[~g.index.duplicated(keep="first")].sort_index()
     g = _break_discontinuities(g)
 
     t0 = g.index.min()
