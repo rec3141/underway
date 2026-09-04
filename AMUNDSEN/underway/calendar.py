@@ -61,24 +61,55 @@ def read_eventlog(leg: Leg) -> list[dict]:
 
 def fetch_schedule() -> dict:
     cache = DB_DIR / "schedule.json"
+    prev = json.loads(cache.read_text()) if cache.is_file() else None
     try:
         with urllib.request.urlopen(SCHEDULE_URL, timeout=15) as r:
             s = r.read().decode("utf-8", errors="replace")
         sched = parse_schedule(s)
         sched["fetched_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        # the latest change to the page, for the alert bar; carried forward
+        # until the next one
+        sched["update"] = _what_changed(prev, sched) or (prev or {}).get("update")
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps(sched))
     except Exception as e:                      # noqa: BLE001 — intranet down: serve the cached copy
         log.info("schedule not fetched (%s); using cache", e)
-        if cache.is_file():
-            sched = json.loads(cache.read_text())
-            sched["stale"] = True
+        if prev:
+            sched = dict(prev, stale=True)
         else:
             sched = {"rows": [], "whiteboard": "", "title": "", "updated": None, "stale": True}
     for r in sched["rows"]:
         r.update(_instants(r))
     sched["former"] = _remember(sched["rows"], sched.get("title", ""))
     return sched
+
+
+def _what_changed(prev: dict | None, new: dict) -> dict | None:
+    """A one-line description of how the page differs from the copy before."""
+    if prev is None:
+        return None
+    parts = []
+    if (new.get("whiteboard") or "") != (prev.get("whiteboard") or ""):
+        parts.append(f"Whiteboard: {new.get('whiteboard') or '(cleared)'}")
+    key = lambda r: (r.get("date"), r.get("start"), r.get("station"), r.get("operation"))
+    old_rows = {key(r): r for r in prev.get("rows", [])}
+    new_rows = {key(r): r for r in new.get("rows", [])}
+    changed = []
+    for k, r in new_rows.items():
+        o = old_rows.get(k)
+        if o is None:
+            changed.append(f"new: {r.get('station')} — {r.get('operation')} {r.get('date')} {r.get('start')}–{r.get('end')}")
+        elif (o.get("status"), o.get("end"), o.get("comment")) != (r.get("status"), r.get("end"), r.get("comment")):
+            changed.append(f"{r.get('station')} — {r.get('operation')}: {r.get('status')}")
+    for k, o in old_rows.items():
+        if k not in new_rows:
+            changed.append(f"removed: {o.get('station')} — {o.get('operation')} {o.get('date')}")
+    if changed:
+        parts.append("Schedule: " + "; ".join(changed[:6]) + (f" (+{len(changed) - 6} more)" if len(changed) > 6 else ""))
+    if not parts:
+        return None
+    return {"changed_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), "text": " · ".join(parts),
+            "kind": "whiteboard" if parts[0].startswith("Whiteboard") else "schedule"}
 
 
 def _instants(r: dict) -> dict:
@@ -147,13 +178,24 @@ def _num(s):
         return None
 
 
-def build_calendar(legs: list[Leg], root: Path) -> dict:
+def build_calendar(legs: list[Leg], root: Path, frame=None) -> dict:
     from .build import atomic_write
+    from . import gcal
     events = [e for leg in legs for e in read_eventlog(leg)]
     events.sort(key=lambda e: e.get("time_utc", ""))
     payload = {"events": events, "schedule": fetch_schedule(),
                "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    try:
+        payload["gcal"] = gcal.import_calendars()
+    except Exception:                       # noqa: BLE001 — the tab works without the feeds
+        log.exception("google calendar import failed")
+        payload["gcal"] = []
+    try:
+        payload["gcal_sync"] = gcal.sync(events, payload["schedule"], frame)
+    except Exception:                       # noqa: BLE001
+        log.exception("google calendar push failed")
     atomic_write(root / "data" / "calendar.json", json.dumps(payload, separators=(",", ":")))
     sched = payload["schedule"]
     log.info("calendar: %d events, %d scheduled operations (%d former)", len(events), len(sched.get("rows", [])), len(sched.get("former", [])))
-    return {"events": len(events), "schedule_rows": len(sched.get("rows", [])), "former": len(sched.get("former", []))}
+    return {"events": len(events), "schedule_rows": len(sched.get("rows", [])), "former": len(sched.get("former", [])),
+            "update": sched.get("update")}

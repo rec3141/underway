@@ -344,7 +344,7 @@
   }
 
   // ================================================================ calendar
-  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "" };
+  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", new Date().toISOString().slice(0, 7)) };
   async function ensureCalendar() {
     const stamp = UW.M.generated_utc;
     if (cal.data && cal.loadedFor === stamp) return;
@@ -358,6 +358,7 @@
     const q = cal.search.toLowerCase();
     const evs = cal.data.events.filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
     if (cal.view === "timeline") return renderTimeline(host, evs, s);
+    if (cal.view === "month") return renderMonth(host, q);
     const sched = (s.rows || []).map((r) => `<tr class="st-${esc((r.status || "").toLowerCase().replace(/\s+/g, "-"))}"><td>${esc(r.date)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td><span class="status">${esc(r.status)}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`).join("");
     let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
       (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
@@ -414,6 +415,51 @@
       shapes: [{ type: "line", xref: "x", x0: new Date(now), x1: new Date(now), yref: "paper", y0: 0, y1: 1, line: { color: "#7ee787", width: 1.5, dash: "dot" } }] };
     Plotly.react($("#cal-plot"), traces, layout, CFG);
     wireCastPanels(host, () => renderTimeline(host, evs, s));
+  }
+  // month grid of the Google calendars (imported at build time), one colour
+  // per calendar; the scheduled operations of the intranet page sit alongside
+  const GCAL_COLOUR = { schedule: "#5cc8ff", surprise: "#ffb454" };
+  function renderMonth(host, q) {
+    const feeds = cal.data.gcal || [];
+    const items = [];
+    for (const f of feeds) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
+    for (const r of scheduledRows(cal.data.schedule || {})) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`, cal: "intranet", label: "intranet schedule" });
+    const shown = items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
+    const first = new Date(cal.month + "-01T00:00:00Z");
+    const y = first.getUTCFullYear(), m = first.getUTCMonth();
+    const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const lead = (first.getUTCDay() + 6) % 7;                 // Monday first
+    const byDay = new Map();
+    for (const e of shown) {
+      const d0 = new Date(e.all_day ? e.start + "T00:00:00Z" : e.start), d1 = e.end ? new Date(e.all_day ? e.end + "T00:00:00Z" : e.end) : d0;
+      for (let d = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate())); d <= d1 && d - d0 < 62 * 86400e3; d = new Date(d.getTime() + 86400e3)) {
+        if (e.all_day && e.end && d >= d1) break;              // all-day ends are exclusive
+        const k = d.toISOString().slice(0, 10);
+        if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push({ e, cont: d > d0 && (d - d0) >= 86400e3 });
+      }
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push('<div class="mcell pad"></div>');
+    for (let d = 1; d <= days; d++) {
+      const k = `${cal.month}-${String(d).padStart(2, "0")}`;
+      const evs = (byDay.get(k) || []).sort((a, b) => a.e.start.localeCompare(b.e.start));
+      cells.push(`<div class="mcell ${k === today ? "today" : ""}"><div class="mday">${d}</div>` +
+        evs.slice(0, 6).map(({ e, cont }) => `<div class="mev" style="border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}
+${esc(e.summary)}
+${esc((e.description || "").slice(0, 300))}">` +
+          `<span class="mt">${cont || e.all_day ? "" : new Date(e.start).toISOString().slice(11, 16) + "Z"}</span> ${esc(e.summary || "")}</div>`).join("") +
+        (evs.length > 6 ? `<div class="mmore">+${evs.length - 6} more</div>` : "") + `</div>`);
+    }
+    const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+    host.innerHTML = `<section class="card block month">
+      <div class="mhead"><button id="mprev" title="previous month">‹</button><h3>${esc(label)}</h3><button id="mnext" title="next month">›</button><button id="mtoday">today</button>
+        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || "#8ea3ba"}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:#8ea3ba"></i>intranet schedule</span></div>
+      <div class="mgrid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>
+      <p class="muted small">Times UTC. Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
+    const shift = (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); };
+    $("#mprev").onclick = () => shift(-1); $("#mnext").onclick = () => shift(1);
+    $("#mtoday").onclick = () => { cal.month = today.slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); };
   }
   function wireCalendar() {
     for (const b of $("#calview").querySelectorAll("button")) {

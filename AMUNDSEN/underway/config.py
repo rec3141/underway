@@ -149,9 +149,9 @@ SURPRISE_NAME = "Surprise (−log10 p)"
 def surprise_scale_name(label: str) -> str:
     return f"Surprise · {label}"
 
-# one panel per scale, after the combined score; they start minimised
+# one variable per scale, after the combined score; the page shows a single
+# surprise panel and picks the scale that matches the span shown
 VARIABLES = VARIABLES[:1] + tuple(Variable(surprise_scale_name(l), "", (), derived=True) for l, _ in SURPRISE_SCALES) + VARIABLES[1:]
-DEFAULT_MINIMISED: tuple[str, ...] = tuple(surprise_scale_name(l) for l, _ in SURPRISE_SCALES)
 
 # ---------------------------------------------------------------- locations
 
@@ -162,6 +162,20 @@ DATA_ROOT = Path(os.environ.get("UNDERWAY_DATA_ROOT", "/mnt/ship/Data"))    # FU
 SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <year>/<leg>/ for archived seasons
 # per-leg SQLite stores; derived data, safe to delete
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))
+
+# ---------------------------------------------------------------- google calendar
+GCAL = {
+    "schedule": {"id": "d8d73fcd6bb2cf89d766d2d9606c40dc1810c5b8c8d7d52d68a2b370efd0aa5d@group.calendar.google.com",
+                 "label": "Amundsen Schedule", "colour": "#5cc8ff"},
+    "surprise": {"id": "7ae4b788832de21af8d8aea44eb379098a4f5e1fb2f7dc9262af18c380b62abb@group.calendar.google.com",
+                 "label": "Underway Updates", "colour": "#ffb454"},
+}
+GCAL_CREDS = Path(os.environ.get("UNDERWAY_GCAL_CREDS", "~/.config/underway/gcal-sa.json")).expanduser()  # service account key; never in the repo
+GCAL_SYNC_MINUTES = 10        # import and push at most this often
+GCAL_SINCE = "2026-01-01"     # event-log operations before this were pushed by the R scheduler
+GCAL_MAX_INSERTS = 60         # per run, so a backlog catches up over a few runs
+SURPRISE_ALERT_SCALE = "3 h"  # the scale watched for calendar alerts …
+SURPRISE_ALERT = 2.0          # … and the level above which an episode starts
 
 # ---------------------------------------------------------------- misc
 

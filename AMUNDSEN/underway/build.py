@@ -23,7 +23,8 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
-from .config import DEFAULT_MINIMISED, DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, VARIABLES, WINDOWS, Window
+from .config import (DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
+                     SURPRISE_SCALES, VARIABLES, WINDOWS, Window)
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -301,7 +302,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         log.exception("cast build failed")
         casts_idx = {"casts": [], "variables": []}
     try:
-        cal = build_calendar([leg for leg, _ in stores], root)
+        cal = build_calendar([leg for leg, _ in stores], root, frame=a.frame)
     except Exception:                       # noqa: BLE001
         log.exception("calendar build failed")
         cal = {}
@@ -327,8 +328,8 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             "coverage": {leg_id: cov[r.variable.name] for leg_id, cov in coverage.items()},
         } for r in res],
         "position_source": a.position_source,
-        "surprise": {"features": [union_keys.get(f, f) for f in a.surprise_features], "note": a.surprise_note},
-        "default_minimised": list(DEFAULT_MINIMISED),
+        "surprise": {"features": [union_keys.get(f, f) for f in a.surprise_features], "note": a.surprise_note,
+                     "scales": [list(x) for x in SURPRISE_SCALES], "alert": {"scale": SURPRISE_ALERT_SCALE, "level": SURPRISE_ALERT}},
         "stations": stations,
         "data_range": {"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
         "latest": latest,

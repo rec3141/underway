@@ -18,7 +18,7 @@
   <nav class="tabs" id="tabs" role="tablist">
     <button data-tab="underway" class="on" role="tab">Underway</button>
     <button data-tab="casts" role="tab">Casts</button>
-    <button data-tab="calendar" role="tab">Calendar</button>
+    <button data-tab="calendar" role="tab">Agenda</button>
     <button data-tab="table" role="tab">Table</button>
   </nav>
   <div class="controls" id="controls-underway">
@@ -45,6 +45,10 @@
     </label>
   </div>
 </header>
+<div class="alertbar" id="alert" hidden>
+  <span class="tag">schedule update</span><span id="alerttext"></span>
+  <button id="alertgo">open agenda</button><button id="alertclose" title="dismiss">✕</button>
+</div>
 
 <main>
   <section class="map card">
@@ -88,7 +92,7 @@
 
     <div class="pane" id="pane-calendar" hidden>
       <div class="pane-tools">
-        <div class="group seg" id="calview"><button data-v="agenda" class="on">Agenda</button><button data-v="timeline">Timeline</button></div>
+        <div class="group seg" id="calview"><button data-v="agenda" class="on">Agenda</button><button data-v="timeline">Timeline</button><button data-v="month">Calendar</button></div>
         <input type="search" id="calsearch" placeholder="filter events">
         <span class="muted" id="calmeta"></span>
       </div>

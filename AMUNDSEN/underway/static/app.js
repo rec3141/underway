@@ -32,6 +32,17 @@
   };
 
   const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)"]);
+  // the per-scale surprise series feed the one surprise panel, which shows
+  // the scale matching the span on display (holding at the longest scale)
+  const SURPRISE = "Surprise (−log10 p)";
+  for (const v of M.variables) if (v.name.startsWith("Surprise ·")) NOT_PANELS.add(v.name);
+  function surpriseScale() {
+    const scales = M.surprise?.scales || [];
+    const hours = (M.windows.find((w) => w.label === state.win) || {}).hours || 1;
+    let pick = scales[0];
+    for (const sc of scales) if (sc[1] <= hours * 60) pick = sc;
+    return pick ? pick[0] : null;
+  }
   let VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
 
   const THEME = {
@@ -422,7 +433,13 @@
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
-    const y = d?.vars[name];
+    let title = name;
+    let y = d?.vars[name];
+    if (name === SURPRISE) {
+      const sc = surpriseScale();
+      if (sc && d?.vars[`Surprise · ${sc}`]) { y = d.vars[`Surprise · ${sc}`]; title = `Surprise · ${sc}`; }
+    }
+    el.querySelector("h3").textContent = title;
     const empty = (msg) => { Plotly.purge(plot); plot.className = "empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
     if (!v.resolved) return empty("source column not found in any leg");
     if (!d || !y || !y.some((x) => x != null)) return empty("no data in this span for the selected legs");
@@ -516,9 +533,20 @@
       const m = await fetchJSON(`data/manifest.json?t=${Date.now()}`);
       if (m.generated_utc !== M.generated_utc) {
         M = m; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
-        renderProvenance(); await loadWindow();
+        renderProvenance(); await loadWindow(); renderAlert();
       } else renderStatus();
     } catch { /* offline or mid-write; next tick */ }
+  }
+
+  // the latest change to the intranet schedule or whiteboard, until dismissed
+  function renderAlert() {
+    const u = M.calendar?.update;
+    const bar = $("#alert");
+    if (!u || !u.text || store.get("alert.seen") === u.changed_utc) { bar.hidden = true; return; }
+    $("#alerttext").innerHTML = `<b>${fmtLocal(u.changed_utc)}</b> · ${u.text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))}`;
+    bar.hidden = false;
+    $("#alertclose").onclick = () => { store.set("alert.seen", u.changed_utc); bar.hidden = true; };
+    $("#alertgo").onclick = () => { showTab("calendar"); };
   }
 
   // ------------------------------------------------------------ tabs
@@ -545,14 +573,12 @@
     renderMap, showTab, focusMap, requestFit,
   });
 
-  for (const n of M.default_minimised || []) if (!(n in state.panel)) state.panel[n] = "min";
-
   (async () => {
     renderControls();
     renderProvenance();
     showTab(store.get("tab", "underway"));
     await loadGeo();
-    await loadWindow();
+    await loadWindow(); renderAlert();
     setInterval(checkForUpdate, 30 * 1000);
     window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
