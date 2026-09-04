@@ -20,8 +20,10 @@
     search: "",
   };
   const castById = (id) => casts.idx?.casts.find((c) => c.id === id);
-  const castLabel = (c) => `${c.kind === "MVP" ? "MVP " : "Cast "}${c.kind === "MVP" ? c.cast.split("/")[0] + "/" + c.cast.split("_").at(-1) : c.cast}${c.station ? " · " + c.station : ""}`;
-  const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) : "";
+  const castLabel = (c) => c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}` : `Cast ${c.cast}${c.station ? " · " + c.station : ""}`;
+  const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) + (c.time_end ? "–" + c.time_end.replace("T", " ").slice(11, 16) : "") : "";
+  // a tow bundle expands into its dips; a CTD cast is one profile
+  const profilesOf = (d) => d.profiles?.length ? d.profiles.map((p, i) => ({ ...p, units: d.units, label: `${castLabel(d)} #${i + 1}`, parent: d })) : [{ ...d, label: castLabel(d), parent: d }];
 
   UW.selectedCastKeys = () => casts.sel;
   UW.onStationClick = (key) => {
@@ -32,18 +34,32 @@
   };
   UW.extraMapTraces = () => {
     const out = [];
-    if (!casts.idx) return out;
-    const shown = casts.idx.casts.filter((c) => c.kind === "MVP" && c.lat != null && (casts.kind !== "CTD"));
-    if (shown.length && (casts.kind === "MVP" || casts.sel.size)) out.push({
-      type: "scattermap", mode: "markers", name: "MVP profiles", showlegend: false,
-      lat: shown.map((c) => c.lat), lon: shown.map((c) => c.lon), customdata: shown.map((c) => c.id), hoverinfo: "text",
-      text: shown.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>${c.max_p} dbar`),
-      marker: { size: shown.map((c) => casts.sel.has(c.id) ? 11 : 6), color: shown.map((c) => casts.sel.has(c.id) ? "#ffb454" : "rgba(126,231,135,.8)") },
-    });
+    if (!casts.idx || casts.kind === "CTD") return out;
+    // each MVP tow is one dataset: its track as a line, with a clickable
+    // marker at the start (the whole line also selects it)
+    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length);
+    const lat = [], lon = [], cd = [], txt = [];
+    for (const c of tows) {
+      for (const [la, lo] of c.track) { lat.push(la); lon.push(lo); cd.push(c.id); txt.push(`<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar`); }
+      lat.push(null); lon.push(null); cd.push(null); txt.push("");
+    }
+    if (tows.length) {
+      out.push({ type: "scattermap", mode: "lines", name: "MVP tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
+                 lat, lon, line: { width: 3, color: "rgba(126,231,135,.55)" } });
+      // selected tows drawn brighter on top
+      const sel = tows.filter((c) => casts.sel.has(c.id));
+      if (sel.length) out.push({ type: "scattermap", mode: "lines", name: "selected tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
+        lat: sel.flatMap((c) => [...c.track.map((t) => t[0]), null]), lon: sel.flatMap((c) => [...c.track.map((t) => t[1]), null]),
+        line: { width: 4, color: "#ffb454" } });
+      out.push({ type: "scattermap", mode: "markers", name: "MVP tow starts", showlegend: false, hoverinfo: "text",
+        lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
+        text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar · click to select`),
+        marker: { size: tows.map((c) => casts.sel.has(c.id) ? 13 : 9), color: tows.map((c) => casts.sel.has(c.id) ? "#ffb454" : "#7ee787"), symbol: "circle" } });
+    }
     const sel = orderedSelection().filter((c) => c.lat != null);
     if (casts.mode === "section" && sel.length > 1) out.push({
       type: "scattermap", mode: "lines", name: "section", showlegend: false, hoverinfo: "skip",
-      lat: sel.map((c) => c.lat), lon: sel.map((c) => c.lon), line: { width: 2, color: "#ffb454" },
+      lat: sel.map((c) => c.lat), lon: sel.map((c) => c.lon), line: { width: 2, color: "rgba(255,180,84,.6)" },
     });
     return out;
   };
@@ -97,21 +113,39 @@
     const host = $("#castplots");
     const sel = orderedSelection();
     $("#castvarwrap").hidden = casts.mode !== "section";
-    if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations on the map.</div>'; return; }
+    if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div>'; $("#castmeta").textContent = ""; return; }
     const data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
+    const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
+    $("#castmeta").textContent = `${data.length} selected · ${dips} profile${dips === 1 ? "" : "s"}`;
     if (casts.mode === "profiles") renderProfiles(host, data); else renderSection(host, data);
   }
 
+  // colour for dip i of n within a tow: a light-to-dark ramp of the tow's hue
+  function towShade(base, i, n) {
+    const t = n > 1 ? i / (n - 1) : 0;
+    const [r, g, b] = base.match(/\w\w/g).map((h) => parseInt(h, 16));
+    const k = 1 - 0.55 * t;
+    return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
+  }
+
   function renderProfiles(host, data) {
-    const vars = [...new Set(data.flatMap((d) => Object.keys(d.vars)))];
+    const vars = [...new Set(data.flatMap((d) => Object.keys(d.units)))];
     host.innerHTML = vars.map((v) => `<div class="castplot card"><div class="head"><h3>${esc(v)}</h3><span class="unit">${esc(data.find((d) => d.units[v])?.units[v] || "")}</span></div><div class="plot" id="cp-${v.replace(/\W+/g, "_")}"></div></div>`).join("") +
       `<div class="castlegend">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))} <small>${esc(castDate(d))}</small></span>`).join("")}</div>`;
     for (const v of vars) {
-      const traces = data.map((d, i) => d.vars[v] ? {
-        type: "scatter", mode: "lines", name: castLabel(d), x: d.vars[v], y: d.p, connectgaps: false,
-        line: { width: 1.6, color: PALETTE[i % PALETTE.length] },
-        hovertemplate: `${esc(castLabel(d))}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{y} dbar<extra></extra>`,
-      } : null).filter(Boolean);
+      const traces = [];
+      data.forEach((d, i) => {
+        const ps = profilesOf(d);
+        ps.forEach((p, j) => {
+          if (!p.vars[v]) return;
+          traces.push({
+            type: "scatter", mode: "lines", name: p.label, x: p.vars[v], y: p.p, connectgaps: false,
+            line: { width: ps.length > 1 ? 1 : 1.6, color: ps.length > 1 ? towShade(PALETTE[i % PALETTE.length], j, ps.length) : PALETTE[i % PALETTE.length] },
+            opacity: ps.length > 1 ? 0.8 : 1,
+            hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{y} dbar<extra></extra>`,
+          });
+        });
+      });
       const layout = { ...THEME, margin: { l: 44, r: 8, t: 4, b: 30 }, showlegend: false, hovermode: "closest",
         xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, side: "bottom" },
         yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "dbar", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 } } };
@@ -139,8 +173,9 @@
 
   function renderSection(host, data) {
     const v = casts.variable;
-    const withVar = data.filter((d) => d.vars[v]);
-    if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two casts with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
+    // tows contribute every dip; everything is ordered by time
+    const withVar = data.flatMap(profilesOf).filter((d) => d.vars[v]).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
     const maxP = Math.max(...withVar.map((d) => d.p[d.p.length - 1]));
     const step = maxP > 1500 ? 5 : maxP > 400 ? 2 : 1;
     const grid = []; for (let p = 0; p <= maxP; p += step) grid.push(p);
@@ -151,14 +186,16 @@
     }
     const z = grid.map((_, gi) => withVar.map((d) => onGrid(d, v, grid)[gi]));
     const unit = withVar[0].units[v] || "";
-    host.innerHTML = `<div class="castplot card wide"><div class="head"><h3>${esc(v)} section</h3><span class="unit">${withVar.length} casts · ${x.at(-1).toFixed(0)} km · ${esc(unit)}</span></div><div class="plot tall" id="cs-plot"></div></div>` +
-      `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(castLabel(d))} <small>${esc(castDate(d))} · ${x[i].toFixed(0)} km</small></span>`).join("")}</div>`;
+    const dense = withVar.length > 24;      // a tow: label only every few dips
+    host.innerHTML = `<div class="castplot card wide"><div class="head"><h3>${esc(v)} section</h3><span class="unit">${withVar.length} profiles · ${x.at(-1).toFixed(0)} km · ${esc(unit)}</span></div><div class="plot tall" id="cs-plot"></div></div>` +
+      (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(d.time ? d.time.replace("T", " ").slice(0, 16) : "")} · ${x[i].toFixed(0)} km</small></span>`).join("")}</div>`);
     const traces = [
       { type: "heatmap", x, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 10 }, outlinewidth: 0 },
         hovertemplate: `%{x:.1f} km · %{y} dbar<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
-      { type: "scatter", mode: "markers+text", x, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
-        textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: 9, color: "#ffb454" }, hoverinfo: "skip", cliponaxis: false },
+      { type: "scatter", mode: dense ? "markers" : "markers+text", x, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
+        textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
+        hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
     const bottoms = withVar.map((d) => d.bottom_m ?? d.p[d.p.length - 1]);
     traces.push({ type: "scatter", mode: "lines", x, y: bottoms, line: { color: "#2b3441", width: 2 }, fill: "tonexty", fillcolor: "rgba(43,52,65,.9)", hoverinfo: "skip", name: "bottom" });
@@ -177,8 +214,10 @@
     };
     for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
     $("#castvar").onchange = (e) => { casts.variable = e.target.value; store.set("casts.var", casts.variable); renderCastPlots(); };
-    $("#castkind").value = casts.kind;
-    $("#castkind").onchange = (e) => { casts.kind = e.target.value; store.set("casts.kind", casts.kind); renderCastList(); UW.renderMap(); };
+    for (const b of $("#castkind").querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.k === casts.kind);
+      b.onclick = () => { casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); UW.renderMap(); };
+    }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
   }

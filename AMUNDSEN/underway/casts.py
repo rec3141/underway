@@ -46,7 +46,8 @@ ROSETTE_VARS = {
 MVP_VARS = {"Temp": ("Temperature", "°C"), "Sal": ("Salinity", "PSU"), "Density": ("Sigma-t", "kg/m³"),
             "SV": ("Sound velocity", "m/s")}
 BIN_DBAR = 1.0
-MAX_NEW_PER_BUILD = 40        # new casts parsed per build; the rest wait for the next run
+MAX_NEW_PER_BUILD = 80        # new Rosette casts parsed per build; the rest wait for the next run
+MAX_NEW_MVP_PER_BUILD = 240   # MVP dips are ~1 MB text files, so many more fit in a build
 PARALLEL_READS = 8            # concurrent CIFS reads
 
 
@@ -65,15 +66,26 @@ class Cast:
     p: list = field(default_factory=list)
     vars: dict = field(default_factory=dict)
     units: dict = field(default_factory=dict)
+    # an MVP tow is one dataset made of many dips: each profile has its own
+    # time, position, pressure grid and variables, in tow order
+    profiles: list = field(default_factory=list)
+    time_end: str | None = None
+    lat_end: float | None = None
+    lon_end: float | None = None
 
     def meta(self) -> dict:
+        ps = self.profiles
         return {"id": self.id, "leg": self.leg, "kind": self.kind, "cast": self.cast, "time": self.time,
-                "lat": self.lat, "lon": self.lon, "station": self.station, "label": self.label,
-                "bottom_m": self.bottom_m, "max_p": max(self.p) if self.p else None,
-                "vars": list(self.vars), "file": f"data/casts/{self.leg}/{self.id.split(':')[-1]}.json"}
+                "time_end": self.time_end, "lat": self.lat, "lon": self.lon, "lat_end": self.lat_end, "lon_end": self.lon_end,
+                "station": self.station, "label": self.label, "bottom_m": self.bottom_m,
+                "max_p": (max(self.p) if self.p else None) if not ps else max((pr["p"][-1] for pr in ps if pr["p"]), default=None),
+                "n_profiles": len(ps) or None,
+                "track": [[pr["lat"], pr["lon"]] for pr in ps if pr.get("lat") is not None] if ps else None,
+                "vars": list(self.vars) if self.vars else sorted({v for pr in ps for v in pr["vars"]}),
+                "file": f"data/casts/{self.leg}/{self.id.split(':')[-1]}.json"}
 
     def payload(self) -> dict:
-        return {**self.meta(), "p": self.p, "vars": self.vars, "units": self.units}
+        return {**self.meta(), "p": self.p, "vars": self.vars, "units": self.units, "profiles": self.profiles}
 
 
 # ---------------------------------------------------------------- cache
@@ -83,6 +95,8 @@ def _cache_path(leg: str, key: str) -> Path:
 
 
 RECENT_DAYS = 3
+# bump when the parsed representation changes so old cache entries are redone
+CACHE_VERSION = 2
 
 
 def _cached(leg: str, key: str, sources: list[Path]):
@@ -97,6 +111,8 @@ def _cached(leg: str, key: str, sources: list[Path]):
         c = json.loads(p.read_text())
         cast = c["cast"]
     except (OSError, json.JSONDecodeError, KeyError):
+        return None
+    if c.get("version") != CACHE_VERSION:
         return None
     t = cast.get("time") or ""
     recent = True
@@ -120,7 +136,7 @@ def _store(leg: str, key: str, sources: list[Path], cast: dict) -> None:
     p = _cache_path(leg, key)
     p.parent.mkdir(parents=True, exist_ok=True)
     stamp = [[s.name, s.stat().st_size, int(s.stat().st_mtime)] for s in sources]
-    p.write_text(json.dumps({"stamp": stamp, "cast": cast}, separators=(",", ":")))
+    p.write_text(json.dumps({"version": CACHE_VERSION, "stamp": stamp, "cast": cast}, separators=(",", ":")))
 
 
 # ---------------------------------------------------------------- rosette
@@ -170,24 +186,118 @@ def read_logbook(path: Path | None) -> dict[str, dict]:
     return out
 
 
+# ---------------------------------------------------------------- seabird cnv
+
+CNV_DIR = DATA_ROOT / "external_proprietary" / "CTD"
+CNV_RE = re.compile(r"^CTD_(\d{4})_(\d{2})_(\d{3})\.cnv$", re.I)
+# SeaBird short names -> (display, unit); anything else in the file is ignored
+CNV_VARS = {
+    "tv290C": ("Temperature", "°C"), "t090C": ("Temperature", "°C"),
+    "sal00": ("Salinity", "PSU"), "sigma-t00": ("Sigma-t", "kg/m³"),
+    "sbeox0Mm/L": ("Oxygen", "µM"), "sbeox0ML/L": ("Oxygen saturation", "mL/L"),
+    "CStarTr0": ("Transmission", "%"), "flSP": ("Fluorescence", "µg/L"), "flECO-AFL": ("Fluorescence", "µg/L"),
+    "svCM": ("Sound velocity", "m/s"),
+}
+CNV_BAD = -9.99e-29
+
+
+def parse_cnv(path: Path) -> dict | None:
+    """Downcast of a SeaBird .cnv, binned to 1 dbar. Returns the fields of a
+    Cast minus id/leg/kind, or None if the file is unusable."""
+    names: dict[int, str] = {}
+    header: dict[str, str] = {}
+    rows: list[list[float]] = []
+    with path.open(encoding="latin-1", errors="replace") as fh:
+        for line in fh:
+            if line.startswith("#"):
+                m = re.match(r"#\s*name\s+(\d+)\s*=\s*([^:]+):", line)
+                if m:
+                    names[int(m.group(1))] = m.group(2).strip()
+                elif "=" in line:
+                    k, _, v = line[1:].partition("=")
+                    header[k.strip()] = v.strip()
+            elif line.startswith("*"):
+                if "=" in line:
+                    k, _, v = line[1:].partition("=")
+                    header[k.strip()] = v.strip()
+            else:
+                parts = line.split()
+                if len(parts) >= len(names):
+                    try:
+                        rows.append([float(x) for x in parts[:len(names)]])
+                    except ValueError:
+                        continue
+    if not rows or "prdM" not in names.values():
+        return None
+    arr = np.array(rows)
+    # SeaBird's bad-value flag is the specific number -9.990e-29 (a "<=" test
+    # would wipe every negative longitude)
+    arr[np.isclose(arr, CNV_BAD, rtol=1e-3, atol=0)] = np.nan
+    col = {n: i for i, n in names.items()}
+    pres = arr[:, col["prdM"]]
+    ok = np.isfinite(pres)
+    arr, pres = arr[ok], pres[ok]
+    if len(pres) < 10:
+        return None
+    # downcast: everything up to the deepest sample
+    bottom_i = int(np.nanargmax(pres))
+    down = arr[: bottom_i + 1]
+    dp = down[:, col["prdM"]]
+    bins = np.floor(dp / BIN_DBAR).astype(int)
+    levels = sorted(set(bins[dp >= 0.5]))
+    vars_: dict[str, list] = {}
+    units: dict[str, str] = {}
+    for short, (disp, unit) in CNV_VARS.items():
+        if short not in col or disp in vars_:
+            continue
+        v = down[:, col[short]]
+        vals = []
+        for b in levels:
+            sel = v[(bins == b) & np.isfinite(v)]
+            vals.append(round(float(sel.mean()), 4) if sel.size else None)
+        vars_[disp] = vals
+        units[disp] = unit
+    lat = float(np.nanmedian(arr[:, col["latitude"]])) if "latitude" in col else None
+    lon = float(np.nanmedian(arr[:, col["longitude"]])) if "longitude" in col else None
+    bottom = float(np.nanmax(arr[:, col["sfdSM"]])) if "sfdSM" in col and np.isfinite(arr[:, col["sfdSM"]]).any() else None
+    t = header.get("NMEA UTC (Time)") or header.get("start_time", "").split("[")[0].strip()
+    time = None
+    try:
+        from datetime import datetime
+        time = datetime.strptime(t, "%b %d %Y %H:%M:%S").isoformat()
+    except ValueError:
+        pass
+    return {"time": time, "lat": lat, "lon": lon, "bottom_m": bottom,
+            "p": [round((b + 0.5) * BIN_DBAR, 1) for b in levels], "vars": vars_, "units": units}
+
+
 def rosette_casts(leg: Leg) -> list[Cast]:
     plots = DATA_ROOT / "Rosette" / leg.id / "plots"
-    if not plots.is_dir():
-        return []
     files: dict[str, list[Path]] = {}
-    for p in plots.iterdir():
-        m = PLOT_RE.match(p.name)
-        if m and m.group(4) not in SKIP_PAIRS:
-            files.setdefault(m.group(3), []).append(p)
+    if plots.is_dir():
+        for p in plots.iterdir():
+            m = PLOT_RE.match(p.name)
+            if m and m.group(4) not in SKIP_PAIRS:
+                files.setdefault(m.group(3), []).append(p)
+    cnvs: dict[str, Path] = {}
+    if CNV_DIR.is_dir():
+        for p in CNV_DIR.iterdir():
+            m = CNV_RE.match(p.name)
+            if m and int(m.group(1)) == leg.year and int(m.group(2)) == leg.number:
+                cnvs[m.group(3)] = p
+    if not files and not cnvs:
+        return []
     logbook = read_logbook(leg.stations)
     casts, todo = [], []
-    for cast_no, paths in sorted(files.items()):
-        paths.sort()
-        cached = _cached(leg.id, f"CTD_{cast_no}", paths)
+    for cast_no in sorted(set(files) | set(cnvs)):
+        paths = sorted(files.get(cast_no, []))
+        cnv = cnvs.get(cast_no)
+        sources = ([cnv] if cnv else []) + paths
+        cached = _cached(leg.id, f"CTD_{cast_no}", sources)
         if cached:
             casts.append(Cast(**cached))
         else:
-            todo.append((cast_no, paths))
+            todo.append((cast_no, paths, cnv))
     # Each file costs seconds of CIFS latency, so new casts are parsed in
     # parallel and in batches: a build takes the first MAX_NEW_PER_BUILD and the
     # rest arrive on later runs, which keeps the underway page on its cadence.
@@ -195,17 +305,28 @@ def rosette_casts(leg: Leg) -> list[Cast]:
     if deferred:
         log.info("%s: %d casts deferred to later builds", leg.id, len(deferred))
     with ThreadPoolExecutor(max_workers=PARALLEL_READS) as ex:
-        for c in ex.map(lambda item: _parse_rosette_cast(leg, item[0], item[1], logbook.get(item[0], {})), batch):
+        for c in ex.map(lambda item: _parse_rosette_cast(leg, item[0], item[1], item[2], logbook.get(item[0], {})), batch):
             if c:
                 casts.append(c)
     casts.sort(key=lambda c: c.cast)
     return casts
 
 
-def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], lb: dict) -> Cast | None:
+def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | None, lb: dict) -> Cast | None:
+    """The .cnv is the profile when there is one; the plot files add the
+    variables the .cnv does not carry (CDOM, PAR, buoyancy, nitrates)."""
+    base = None
+    if cnv is not None:
+        try:
+            base = parse_cnv(cnv)
+        except (OSError, ValueError) as e:
+            log.warning("%s: cannot parse %s (%s)", leg.id, cnv.name, e)
     grid: dict[float, dict[str, float]] = {}
-    units: dict[str, str] = {}
+    units: dict[str, str] = dict(base["units"]) if base else {}
+    have = set(units)
     for p in paths:
+        if base and PLOT_RE.match(p.name).group(4) in ("Temperature_Salinity", "Oxygen_OxySat"):
+            continue                    # already covered by the .cnv
         try:
             traces = _plot_traces(p)
         except OSError as e:
@@ -213,14 +334,31 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], lb: dict) -> 
             continue
         for name, x, y in traces:
             disp, unit = ROSETTE_VARS.get(name, (name, ""))
+            if disp in have:
+                continue
             units[disp] = unit
             for xi, yi in zip(x, y):
                 if np.isfinite(xi) and np.isfinite(yi):
                     grid.setdefault(round(float(yi), 1), {})[disp] = float(xi)
-    if not grid:
-        return None
-    pres = sorted(grid)
-    vars_ = {v: [grid[pp].get(v) for pp in pres] for v in units}
+    if base:
+        pres = base["p"]
+        vars_ = dict(base["vars"])
+        # plot variables are binned to the same 1 dbar grid; align by nearest level
+        extra = [v for v in units if v not in vars_]
+        for v in extra:
+            vars_[v] = [None] * len(pres)
+        for pp, vals in grid.items():
+            i = int(round(pp - 0.5))          # plot levels are the bin centres (3.0, 4.0, ...)
+            j = min(range(len(pres)), key=lambda k: abs(pres[k] - pp)) if pres else None
+            if j is not None and abs(pres[j] - pp) <= BIN_DBAR:
+                for v in extra:
+                    if v in vals:
+                        vars_[v][j] = round(vals[v], 4)
+    else:
+        if not grid:
+            return None
+        pres = sorted(grid)
+        vars_ = {v: [None if grid[pp].get(v) is None else round(grid[pp][v], 4) for pp in pres] for v in units}
 
     def num(k):
         try:
@@ -228,12 +366,15 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], lb: dict) -> 
         except (KeyError, ValueError):
             return None
     c = Cast(id=f"{leg.id}:CTD_{cast_no}", leg=leg.id, kind="CTD", cast=cast_no,
-             time=lb.get("date_utc") or None, lat=num("latitude"), lon=num("longitude"),
-             station=lb.get("station", ""), label=lb.get("label", ""), bottom_m=num("bottom_m"),
-             p=[round(x, 1) for x in pres], vars={k: [None if v is None else round(v, 4) for v in vv] for k, vv in vars_.items()},
-             units=units)
-    _store(leg.id, f"CTD_{cast_no}", paths, c.__dict__)
-    log.info("%s: parsed rosette cast %s (%d levels, %d vars)", leg.id, cast_no, len(pres), len(units))
+             time=lb.get("date_utc") or (base or {}).get("time"),
+             lat=num("latitude") if num("latitude") is not None else (base or {}).get("lat"),
+             lon=num("longitude") if num("longitude") is not None else (base or {}).get("lon"),
+             station=lb.get("station", ""), label=lb.get("label", ""),
+             bottom_m=num("bottom_m") if num("bottom_m") is not None else (base or {}).get("bottom_m"),
+             p=[round(x, 1) for x in pres], vars=vars_, units=units)
+    _store(leg.id, f"CTD_{cast_no}", ([cnv] if cnv else []) + paths, c.__dict__)
+    log.info("%s: parsed rosette cast %s (%d levels, %d vars, %s)", leg.id, cast_no, len(pres), len(units),
+             "cnv+plots" if base and paths else "cnv" if base else "plots")
     return c
 
 
@@ -248,28 +389,42 @@ def _ddmm(s: str) -> float | None:
 
 
 def mvp_casts(leg: Leg) -> list[Cast]:
+    """One Cast per tow directory, holding every dip of the tow as a profile."""
     root = DATA_ROOT / "MVP" / leg.id
     if not root.is_dir():
         return []
-    casts, todo = [], []
+    dips: list[Cast] = []
+    todo: list[Path] = []
     for p in sorted(root.glob("*/*.m1")):
-        key = "MVP_" + p.stem
-        cached = _cached(leg.id, key, [p])
+        cached = _cached(leg.id, "MVP_" + p.stem, [p])
         if cached:
-            casts.append(Cast(**cached))
+            dips.append(Cast(**cached))
         else:
             todo.append(p)
-    batch, deferred = todo[:MAX_NEW_PER_BUILD], todo[MAX_NEW_PER_BUILD:]
+    batch, deferred = todo[:MAX_NEW_MVP_PER_BUILD], todo[MAX_NEW_MVP_PER_BUILD:]
     if deferred:
-        log.info("%s: %d MVP profiles deferred to later builds", leg.id, len(deferred))
+        log.info("%s: %d MVP dips deferred to later builds", leg.id, len(deferred))
     with ThreadPoolExecutor(max_workers=PARALLEL_READS) as ex:
         for c in ex.map(lambda p: _parse_mvp(leg, p), batch):
             if c:
-                casts.append(c)
-    casts.sort(key=lambda c: c.time or "")
-    if casts:
-        log.info("%s: %d MVP profiles", leg.id, len(casts))
-    return casts
+                dips.append(c)
+    tows: dict[str, list[Cast]] = {}
+    for d in dips:
+        tows.setdefault(d.station, []).append(d)
+    out = []
+    for tow, ds in sorted(tows.items()):
+        ds.sort(key=lambda c: c.time or "")
+        units = {}
+        for d in ds:
+            units.update(d.units)
+        first, last = ds[0], ds[-1]
+        out.append(Cast(id=f"{leg.id}:MVP_{tow}", leg=leg.id, kind="MVP", cast=tow, time=first.time, time_end=last.time,
+                        lat=first.lat, lon=first.lon, lat_end=last.lat, lon_end=last.lon, station=tow, label=f"{len(ds)} dips",
+                        bottom_m=max((d.bottom_m for d in ds if d.bottom_m is not None), default=None), units=units,
+                        profiles=[{"time": d.time, "lat": d.lat, "lon": d.lon, "bottom_m": d.bottom_m, "p": d.p, "vars": d.vars} for d in ds]))
+    if out:
+        log.info("%s: %d MVP tows (%d dips)", leg.id, len(out), len(dips))
+    return out
 
 
 def _parse_mvp(leg: Leg, p: Path) -> Cast | None:

@@ -166,8 +166,12 @@ main {
 .maphint { color: var(--accent-2); font-size: 12px; }
 
 /* casts */
-.cast-layout { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr); gap: 12px; align-items: start; }
+.cast-layout { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); gap: 12px; align-items: start; }
 @media (max-width: 1500px) { .cast-layout { grid-template-columns: 1fr; } }
+.pane-tools.compact { padding-bottom: 8px; gap: 6px 10px; }
+.pane-tools.compact input[type=search] { min-width: 0; flex: 1; }
+.seg.small button { padding: 3px 8px; font-size: 12px; }
+.castside, .castmain { min-width: 0; }
 .castlist { list-style: none; margin: 0; padding: 4px; max-height: 70vh; overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 .castlist li { display: grid; grid-template-columns: auto auto 1fr auto auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }
 .castlist li:hover { background: var(--card-2); }
