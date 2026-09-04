@@ -64,6 +64,7 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^tsg — hull temperature", r"^tsg — .*temperature", r"sea.*surface.*temp", r"hull temperature")),
     Variable("Salinity (PSU)", "PSU",
              (r"^tsg — salinity", r"salinity \(psu\)")),
+    Variable("TSG line warming (°C)", "°C", (), derived=True),
     Variable("Fluorescence (µg/L)", "µg/L",
              (r"^tsg — fluorescence", r"fluorescence"), log_ok=True),
     Variable("Oxygen (mL/L)", "mL/L",
@@ -93,6 +94,13 @@ POSITION_CANDIDATES: tuple[tuple[str, str], ...] = (
     (r"^gc — latitude", r"^gc — longitude"),
     (r"latitude", r"longitude"),
 )
+
+# Salinometer minus hull temperature: how much the sample warms on its way
+# through the ship. The FULL_CSV carries no TSG flow rate; a rising or
+# erratic warming is the proxy for a slowing or bubbly intake line.
+LINE_WARMING: tuple[tuple[str, ...], tuple[str, ...]] = ((r"^tsg — salinometer temperature",), (r"^tsg — hull temperature",))
+# Window-filled derived variables: computed per window, not in the record
+WINDOW_FILLED = ("Time elapsed (h)", "Distance travelled (km)")
 
 # Features feeding the surprise model, in the same resolution style.
 SURPRISE_FEATURES: tuple[tuple[str, ...], ...] = (

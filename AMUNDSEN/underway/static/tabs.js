@@ -344,7 +344,8 @@
   }
 
   // ================================================================ calendar
-  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", new Date().toISOString().slice(0, 7)) };
+  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", new Date().toISOString().slice(0, 7)),
+    span: store.get("cal.span", "days"), day: store.get("cal.day", new Date().toISOString().slice(0, 10)) };
   async function ensureCalendar() {
     const stamp = UW.M.generated_utc;
     if (cal.data && cal.loadedFor === stamp) return;
@@ -416,50 +417,128 @@
     Plotly.react($("#cal-plot"), traces, layout, CFG);
     wireCastPanels(host, () => renderTimeline(host, evs, s));
   }
-  // month grid of the Google calendars (imported at build time), one colour
-  // per calendar; the scheduled operations of the intranet page sit alongside
-  const GCAL_COLOUR = { schedule: "#5cc8ff", surprise: "#ffb454" };
-  function renderMonth(host, q) {
-    const feeds = cal.data.gcal || [];
+  // Calendar view: a month grid or three days centred on a day, from the
+  // Google calendars (imported at build time) and the intranet schedule.
+  // Click an entry for its details.
+  const GCAL_COLOUR = { schedule: "#5cc8ff", surprise: "#ffb454", intranet: "#8ea3ba" };
+  function calendarItems(q) {
     const items = [];
-    for (const f of feeds) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
-    for (const r of scheduledRows(cal.data.schedule || {})) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`, cal: "intranet", label: "intranet schedule" });
-    const shown = items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
+    for (const f of cal.data.gcal || []) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
+    for (const r of scheduledRows(cal.data.schedule || {})) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
+      description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule" });
+    items.forEach((e, i) => { e.id = i; });
+    return items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
+  }
+  const dayKey = (d) => d.toISOString().slice(0, 10);
+  const evStart = (e) => new Date(e.all_day ? e.start + "T00:00:00Z" : e.start);
+  const evEnd = (e) => e.end ? new Date(e.all_day ? e.end + "T00:00:00Z" : e.end) : evStart(e);
+  function entryHtml(e, cont) {
+    return `<div class="mev" data-id="${e.id}" style="border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
+      `<span class="mt">${cont || e.all_day ? "" : evStart(e).toISOString().slice(11, 16) + "Z"}</span> ${esc(e.summary || "")}</div>`;
+  }
+  function detailHtml(e) {
+    const t0 = evStart(e), t1 = evEnd(e);
+    const when = e.all_day ? `${e.start}${e.end && e.end !== e.start ? " → " + e.end : ""} (all day)` :
+      `${t0.toISOString().slice(0, 16).replace("T", " ")}Z → ${t1.toISOString().slice(0, 16).replace("T", " ")}Z · ${((t1 - t0) / 3600e3).toFixed(1)} h`;
+    const pos = /Position:\s*([\d.]+)°([NS]),\s*([\d.]+)°([EW])/.exec(e.description || "");
+    return `<div class="mdetail"><button class="mclose" title="close">✕</button>
+      <div class="mdlabel" style="color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}">${esc(e.label)}</div>
+      <h4>${esc(e.summary || "")}</h4>
+      <div class="mdwhen">${esc(when)}</div>
+      ${e.description ? `<pre class="mddesc">${esc(e.description)}</pre>` : ""}
+      ${pos ? `<button class="mdmap">show on map</button>` : ""}</div>`;
+  }
+  function wireEntries(host, items) {
+    const byId = new Map(items.map((e) => [e.id, e]));
+    const box = host.querySelector("#mdetailbox");
+    const show = (e) => {
+      box.innerHTML = detailHtml(e); box.hidden = false;
+      for (const x of host.querySelectorAll(".mev.on")) x.classList.remove("on");
+      host.querySelector(`.mev[data-id="${e.id}"]`)?.classList.add("on");
+      box.querySelector(".mclose").onclick = () => { box.hidden = true; for (const x of host.querySelectorAll(".mev.on")) x.classList.remove("on"); };
+      const mb = box.querySelector(".mdmap");
+      if (mb) mb.onclick = () => { const m = /Position:\s*([\d.]+)°([NS]),\s*([\d.]+)°([EW])/.exec(e.description);
+        UW.focusMap((m[2] === "S" ? -1 : 1) * +m[1], (m[4] === "W" ? -1 : 1) * +m[3], e.summary); };
+    };
+    for (const el of host.querySelectorAll(".mev")) el.onclick = () => show(byId.get(+el.dataset.id));
+  }
+  function calFrame(host, title, body, items, navShift) {
+    const feeds = cal.data.gcal || [];
+    host.innerHTML = `<section class="card block month">
+      <div class="mhead"><div class="group seg small" id="calspan"><button data-s="days" ${cal.span === "days" ? 'class="on"' : ""}>3 days</button><button data-s="month" ${cal.span === "month" ? 'class="on"' : ""}>Month</button></div>
+        <button id="mprev" title="previous">‹</button><h3>${esc(title)}</h3><button id="mnext" title="next">›</button><button id="mtoday">today</button>
+        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || "#8ea3ba"}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:#8ea3ba"></i>intranet schedule</span></div>
+      <div id="mdetailbox" hidden></div>
+      ${body}
+      <p class="muted small">Times UTC. Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
+    for (const b of host.querySelectorAll("#calspan button")) b.onclick = () => { cal.span = b.dataset.s; store.set("cal.span", cal.span); renderCalendar(); };
+    $("#mprev").onclick = () => navShift(-1); $("#mnext").onclick = () => navShift(1);
+    $("#mtoday").onclick = () => { cal.day = dayKey(new Date()); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); };
+    wireEntries(host, items);
+  }
+  function renderMonth(host, q) {
+    if (cal.span === "days") return renderDays(host, q);
+    const items = calendarItems(q);
     const first = new Date(cal.month + "-01T00:00:00Z");
     const y = first.getUTCFullYear(), m = first.getUTCMonth();
     const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
     const lead = (first.getUTCDay() + 6) % 7;                 // Monday first
     const byDay = new Map();
-    for (const e of shown) {
-      const d0 = new Date(e.all_day ? e.start + "T00:00:00Z" : e.start), d1 = e.end ? new Date(e.all_day ? e.end + "T00:00:00Z" : e.end) : d0;
+    for (const e of items) {
+      const d0 = evStart(e), d1 = evEnd(e);
       for (let d = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate())); d <= d1 && d - d0 < 62 * 86400e3; d = new Date(d.getTime() + 86400e3)) {
         if (e.all_day && e.end && d >= d1) break;              // all-day ends are exclusive
-        const k = d.toISOString().slice(0, 10);
-        if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push({ e, cont: d > d0 && (d - d0) >= 86400e3 });
+        const k = dayKey(d);
+        if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push({ e, cont: (d - d0) >= 86400e3 });
       }
     }
-    const today = new Date().toISOString().slice(0, 10);
+    const today = dayKey(new Date());
     const cells = [];
     for (let i = 0; i < lead; i++) cells.push('<div class="mcell pad"></div>');
     for (let d = 1; d <= days; d++) {
       const k = `${cal.month}-${String(d).padStart(2, "0")}`;
       const evs = (byDay.get(k) || []).sort((a, b) => a.e.start.localeCompare(b.e.start));
-      cells.push(`<div class="mcell ${k === today ? "today" : ""}"><div class="mday">${d}</div>` +
-        evs.slice(0, 6).map(({ e, cont }) => `<div class="mev" style="border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}
-${esc(e.summary)}
-${esc((e.description || "").slice(0, 300))}">` +
-          `<span class="mt">${cont || e.all_day ? "" : new Date(e.start).toISOString().slice(11, 16) + "Z"}</span> ${esc(e.summary || "")}</div>`).join("") +
+      cells.push(`<div class="mcell ${k === today ? "today" : ""}" data-day="${k}"><div class="mday">${d}</div>` +
+        evs.slice(0, 6).map(({ e, cont }) => entryHtml(e, cont)).join("") +
         (evs.length > 6 ? `<div class="mmore">+${evs.length - 6} more</div>` : "") + `</div>`);
     }
     const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
-    host.innerHTML = `<section class="card block month">
-      <div class="mhead"><button id="mprev" title="previous month">‹</button><h3>${esc(label)}</h3><button id="mnext" title="next month">›</button><button id="mtoday">today</button>
-        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || "#8ea3ba"}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:#8ea3ba"></i>intranet schedule</span></div>
-      <div class="mgrid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>
-      <p class="muted small">Times UTC. Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
-    const shift = (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); };
-    $("#mprev").onclick = () => shift(-1); $("#mnext").onclick = () => shift(1);
-    $("#mtoday").onclick = () => { cal.month = today.slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); };
+    calFrame(host, label, `<div class="mgrid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>`, items,
+      (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); });
+    // a day number opens that day in the 3-day view
+    for (const c of host.querySelectorAll(".mcell[data-day] .mday")) c.onclick = () => { cal.day = c.parentElement.dataset.day; cal.span = "days"; store.set("cal.day", cal.day); store.set("cal.span", "days"); renderCalendar(); };
+  }
+  // three days centred on cal.day, with a time axis; timed entries are
+  // blocks, all-day ones sit at the top
+  function renderDays(host, q) {
+    const items = calendarItems(q);
+    const centre = new Date(cal.day + "T00:00:00Z");
+    const days = [-1, 0, 1].map((n) => new Date(centre.getTime() + n * 86400e3));
+    const today = dayKey(new Date());
+    const now = new Date();
+    const cols = days.map((d) => {
+      const k = dayKey(d), d0 = d, d1 = new Date(d.getTime() + 86400e3);
+      const here = items.filter((e) => evStart(e) < d1 && evEnd(e) > d0 || (e.all_day && e.start === k));
+      const allDay = here.filter((e) => e.all_day), timed = here.filter((e) => !e.all_day);
+      // lay overlapping blocks side by side
+      const sorted = timed.sort((a, b) => a.start.localeCompare(b.start));
+      const lanes = [];
+      for (const e of sorted) { let l = 0; while (lanes[l] && lanes[l] > evStart(e)) l++; lanes[l] = evEnd(e); e._lane = l; }
+      const nl = Math.max(1, lanes.length);
+      const blocks = sorted.map((e) => {
+        const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(24, (evEnd(e) - d0) / 3600e3);
+        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(1.4, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
+          `<span class="mt">${evStart(e).toISOString().slice(11, 16)}Z</span> ${esc(e.summary || "")}</div>`;
+      }).join("");
+      const nowLine = k === today ? `<div class="dnow" style="top:${((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 100).toFixed(2)}%"></div>` : "";
+      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}</div>
+        <div class="dallday">${allDay.map((e) => entryHtml(e, false)).join("")}</div>
+        <div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhour" style="top:${(h / 24 * 100).toFixed(2)}%"></div>`).join("")}${blocks}${nowLine}</div></div>`;
+    }).join("");
+    const axis = `<div class="daxis"><div class="dhead"></div><div class="dallday"></div><div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhl" style="top:${(h / 24 * 100).toFixed(2)}%">${String(h).padStart(2, "0")}</div>`).join("")}</div></div>`;
+    const label = `${days[0].toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${days[2].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
+    calFrame(host, label, `<div class="dgrid">${axis}${cols}</div>`, items,
+      (n) => { cal.day = dayKey(new Date(centre.getTime() + n * 86400e3)); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); });
   }
   function wireCalendar() {
     for (const b of $("#calview").querySelectorAll("button")) {

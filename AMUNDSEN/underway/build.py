@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
 from .config import (DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
-                     SURPRISE_SCALES, VARIABLES, WINDOWS, Window)
+                     SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -92,7 +92,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
     rule = f"{w.step_s}s"
     agg: dict[str, object] = {"lat": "mean", "lon": "mean", "dist_km": "max", "leg": "first"}
     for v in VARIABLES:
-        if v.name not in df.columns or (v.derived and not v.name.startswith("Surprise")):
+        if v.name not in df.columns or v.name in WINDOW_FILLED:
             continue
         if v.name.startswith("Surprise"):
             agg[v.name] = "max"                     # keep spikes visible when binning
@@ -186,7 +186,7 @@ def aggregate(a: Analysis, rule: str) -> dict:
     position and the leg, over the whole record. Bins with no data are
     dropped, so the table is only as long as the data."""
     df = a.frame
-    names = [v.name for v in VARIABLES if v.name in df.columns and (not v.derived or v.name.startswith("Surprise"))]
+    names = [v.name for v in VARIABLES if v.name in df.columns and v.name not in WINDOW_FILLED]
     names = [n for n in names if n in df.columns]
     g = df[names + ["lat", "lon", "leg"]].resample(rule)
     mean, mn, mx, cnt = g[names].mean(), g[names].min(), g[names].max(), g[names].count()

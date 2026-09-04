@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .config import (POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
+from .config import (LINE_WARMING, POSITION_CANDIDATES, SURPRISE, SURPRISE_FEATURES, SURPRISE_SCALES, VARIABLES,
                      Variable)
 from .surprise import surprise_scores
 
@@ -78,6 +78,7 @@ def needed_keys(keys: list[str], display: dict[str, str]) -> tuple[list[str], li
     pos = resolve_position(keys)
     feats = resolve_features(keys)
     want = {r.key for r in res if r.key} | {k for pair in pos for k in pair} | set(feats)
+    want |= {k for k in (_first_match(pats, keys) for pats in LINE_WARMING) if k}
     return sorted(want), res, pos, feats
 
 
@@ -183,6 +184,10 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     for r in res:
         if r.key:
             out[r.variable.name] = df[r.key]
+
+    sal_t, hull_t = (_first_match(pats, list(df.columns)) for pats in LINE_WARMING)
+    if sal_t and hull_t:
+        out["TSG line warming (°C)"] = df[sal_t] - df[hull_t]
 
     # elapsed time is filled per window at build time; keep a placeholder so
     # the column set is stable
