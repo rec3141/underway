@@ -371,8 +371,11 @@
     const cv = VAR[state.colour];
     const c = d.vars[state.colour] || [];
     const lim = d.limits[state.colour] || minmax(c);
+    // SVG, not WebGL: a dozen scattergl panels plus the map exceed the
+    // browser's WebGL context limit (Safari's is 8) and the map is what gets
+    // dropped. Panels never carry more than a few thousand points.
     const trace = {
-      x: xvals(d), y, type: "scattergl", mode: v.circular ? "markers" : "lines+markers", name,
+      x: xvals(d), y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
       marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false },
       text: d.leg.map((i) => legByIndex(i)?.label || ""),

@@ -22,15 +22,23 @@ underway/            the Python package
   templates/         index.html.j2
   static/            app.js, style.css, plotly.min.js, geo/*.geojson
 update_underway_py.sh    systemd-facing wrapper: build into the web root
-underway_dashboard_v6.R  the previous R implementation, kept for reference
-scheduler*.R             separate: event log -> Google Calendar sync
+pyproject.toml           package metadata; `pip install -e .` gives an `underway` command
+deprecated/              the previous R implementation and its wrappers, kept for reference
+scheduler/               separate tool: event log -> Google Calendar sync (R)
 ```
 
 ## Requirements
 
-- Python 3.12 with `pandas`, `numpy`, `jinja2`, `plotly` (only for its bundled
-  `plotly.min.js`; a copy is committed in `static/`). On the ship workstation
-  this is `/opt/miniforge3/bin/python3`; the system Python lacks pandas.
+- Python ≥ 3.11 with `pandas`, `numpy`, `jinja2` — `pip install -e .` from this
+  directory installs them and an `underway` console command. `plotly` is not
+  needed at run time; its `plotly.min.js` is committed under `static/`
+  (refresh it from a plotly install with the `assets` extra). On the ship
+  workstation the interpreter with the stack is `/opt/miniforge3/bin/python3`.
+- Paths: the data roots and the store directory default to the ship's layout
+  and can be overridden with `UNDERWAY_DATA_ROOT`, `UNDERWAY_SHARE_ROOT` and
+  `UNDERWAY_DB_DIR`. Another ship or system would replace `legs.discover()`
+  and the header parsing in `ingest.parse_file()`; everything downstream works
+  on canonical column keys and is system-agnostic.
 - The shares mounted: `//10.0.0.10/Data` at `/mnt/ship/Data` and
   `//10.0.0.10/Share` at `/mnt/ship/Share` (see *Mounting* below).
 - No internet at run time. The basemap is Natural Earth 10 m GeoJSON clipped to

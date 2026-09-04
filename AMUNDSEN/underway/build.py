@@ -278,8 +278,16 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             if not dest.exists() or dest.stat().st_size != f.stat().st_size or dest.stat().st_mtime < f.stat().st_mtime:
                 shutil.copy2(f, dest)
     geo_layers = sorted(p.name for p in (PKG / "static" / "geo").glob("*.geojson")) if (PKG / "static" / "geo").is_dir() else []
+    # asset URLs carry a content hash so browsers pick up a new app.js/style.css
+    # immediately instead of serving a heuristically cached one
+    import hashlib
+    h = hashlib.sha1()
+    for name in ("app.js", "style.css"):
+        h.update((PKG / "static" / name).read_bytes())
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
-            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers}
+            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers,
+            "asset_version": h.hexdigest()[:10],
+            "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}
     env = Environment(loader=FileSystemLoader(str(PKG / "templates")), autoescape=True)
     atomic_write(root / "index.html", env.get_template("index.html.j2").render(site=site, m=manifest))
 

@@ -20,8 +20,15 @@ class Handler(SimpleHTTPRequestHandler):
             log.info("%s %s", self.address_string(), fmt % args)
 
     def end_headers(self):
-        if self.path.startswith("/data/") or self.path.endswith((".json", ".html")):
-            self.send_header("Cache-Control", "no-store")
+        p = self.path.split("?")[0]
+        if p.startswith("/data/") or p.endswith(".json"):
+            self.send_header("Cache-Control", "no-store")            # rebuilt every few minutes
+        elif p == "/" or p.endswith(".html"):
+            self.send_header("Cache-Control", "no-cache")            # revalidate; carries the asset versions
+        elif p.startswith("/static/geo/") or p.endswith("plotly.min.js"):
+            self.send_header("Cache-Control", "public, max-age=604800")   # big, rarely change, versioned URL
+        else:
+            self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
 

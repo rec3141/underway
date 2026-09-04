@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "underway-amundsen"
+version = "2.0.0"
+description = "Underway data dashboard for the CCGS Amundsen (ACSD daily CSV files)"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "R. Eric Collins" }]
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+# only for refreshing the bundled static/plotly.min.js; the dashboard itself
+# needs no plotly at run time
+assets = ["plotly>=6"]
+
+[project.scripts]
+underway = "underway.cli:main"
+
+[tool.setuptools]
+packages = ["underway"]
+
+[tool.setuptools.package-data]
+underway = ["templates/*.j2", "static/*", "static/geo/*"]
