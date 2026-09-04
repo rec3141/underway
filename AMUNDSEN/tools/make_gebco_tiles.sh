@@ -46,22 +46,27 @@ gdalwarp -q -t_srs EPSG:3857 -r bilinear -multi -co COMPRESS=DEFLATE -co TILED=Y
 
 # depth ramp: pale shelf to dark abyss; anything at or above sea level transparent
 cat > "$WORK/ramp.txt" <<'EOF'
--6000  4 12 26
--4000  8 24 48
--3000  13 39 68
--2000  20 58 92
--1000  30 80 118
--500   44 100 140
--200   66 128 165
--100   90 152 184
--50    118 176 200
-0      150 196 214
+-6000  6 14 34
+-4000  10 26 58
+-3000  16 40 82
+-2500  22 52 100
+-2000  28 66 118
+-1500  36 82 136
+-1000  46 100 154
+-750   58 116 168
+-500   72 132 180
+-300   90 150 192
+-200   108 166 202
+-100   130 182 212
+-50    152 198 222
+-20    176 212 230
+0      196 224 236
 1      0 0 0 0
 9000   0 0 0 0
 EOF
 echo "colour relief + hillshade"
 gdaldem color-relief -q -alpha "$WORK/region_3857.tif" "$WORK/ramp.txt" "$WORK/color.tif"
-gdaldem hillshade -q -z 0.02 -az 315 -alt 45 -compute_edges "$WORK/region_3857.tif" "$WORK/shade.tif"
+gdaldem hillshade -q -z 2.5 -az 315 -alt 40 -compute_edges "$WORK/region_3857.tif" "$WORK/shade.tif"
 
 # blend: multiply the colour by the hillshade (0.55..1.0) so slopes read.
 # The system interpreter is the one with GDAL's Python bindings (python3-gdal).
@@ -71,7 +76,7 @@ from osgeo import gdal
 w = sys.argv[1]
 c = gdal.Open(f"{w}/color.tif"); s = gdal.Open(f"{w}/shade.tif")
 sh = s.GetRasterBand(1).ReadAsArray().astype(np.float32) / 255.0
-k = 0.55 + 0.45 * sh
+k = 0.45 + 0.65 * sh          # 0.45..1.1: shadows darken, lit slopes brighten a little
 drv = gdal.GetDriverByName("GTiff")
 out = drv.Create(f"{w}/shaded.tif", c.RasterXSize, c.RasterYSize, 4, gdal.GDT_Byte,
                  ["COMPRESS=DEFLATE", "TILED=YES", "PHOTOMETRIC=RGB", "ALPHA=YES"])

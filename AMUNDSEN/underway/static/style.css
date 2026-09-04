@@ -169,14 +169,15 @@ main {
 .maphint { color: var(--accent-2); font-size: 12px; }
 
 /* casts */
-.cast-layout { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); gap: 12px; align-items: start; }
-@media (max-width: 1500px) { .cast-layout { grid-template-columns: 1fr; } }
+/* selector above the figures */
+.cast-layout { display: flex; flex-direction: column; gap: 12px; }
 .pane-tools.compact { padding-bottom: 8px; gap: 6px 10px; }
 .pane-tools.compact input[type=search] { min-width: 0; flex: 1; }
 .seg.small button { padding: 3px 8px; font-size: 12px; }
 .castside, .castmain { min-width: 0; }
-/* the pane is the only scroller: no nested scroll regions, so no doubled bars */
-.castlist { list-style: none; margin: 0; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+/* the list sits above the figures, so it keeps its own bounded scroll (inside
+   the card, away from the pane's bar at the right edge) */
+.castlist { list-style: none; margin: 0; padding: 4px; max-height: 40vh; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 /* two-line rows: [toggle] [box] [badge] name        then   date · depth · leg */
 .castlist li { display: grid; grid-template-columns: 18px auto auto minmax(0, 1fr); grid-template-areas: "tog box kind name" ". . . meta"; column-gap: 8px; row-gap: 1px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }
 .castlist li .tog { grid-area: tog; } .castlist li input { grid-area: box; } .castlist li .kind { grid-area: kind; }
@@ -191,8 +192,8 @@ main {
 .castlist li.on { background: rgba(92,200,255,.12); }
 .castlist li.part { background: rgba(255,180,84,.10); }
 .castlist li.dip { padding-left: 26px; font-size: 12px; opacity: .9; }
-.castside .pane-tools.compact { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; }
-.castside .pane-tools.compact input[type=search] { grid-column: 1 / -1; width: 100%; }
+.castside .pane-tools.compact { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.castside .pane-tools.compact input[type=search] { flex: 1 1 260px; }
 .castlist .tog { width: 18px; height: 18px; padding: 0; background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; }
 .castlist .tog:hover { color: var(--fg); }
 .castlist .kind.dip { background: transparent; color: var(--muted); font-weight: 600; }
