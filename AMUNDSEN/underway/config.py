@@ -155,5 +155,6 @@ DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents
 # ---------------------------------------------------------------- misc
 
 LOCAL_TZ = "America/Toronto"
+MAP_KM_STEP = 5.0     # the track never thins to fewer than one point per this many km
 QUANTILE_LIMITS = (0.05, 0.95)      # colour scales clamp to these to survive outliers
 FILE_PATTERN = re.compile(r"^ACSD_(\d{8})\.csv$")

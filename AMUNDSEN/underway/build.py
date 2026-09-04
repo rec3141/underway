@@ -23,7 +23,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
-from .config import DEFAULT_WINDOW, LOCAL_TZ, QUANTILE_LIMITS, VARIABLES, WINDOWS, Window
+from .config import DEFAULT_WINDOW, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, VARIABLES, WINDOWS, Window
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -100,6 +100,16 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         else:
             agg[v.name] = "mean"
     g = df.resample(rule).agg(agg)
+    # However coarse the time step, the track keeps at least one point every
+    # MAP_KM_STEP km along the way: the first raw record in each distance
+    # bucket joins the time bins, so a transit does not thin to a dotted line
+    # at the long spans.
+    if w.step_s >= 600 and "dist_km" in df.columns:
+        bucket = np.floor(df["dist_km"].ffill() / MAP_KM_STEP)
+        extra = df.loc[bucket.diff().fillna(1) != 0, list(agg.keys())]
+        extra = extra[~extra.index.isin(g.index)]
+        if len(extra):
+            g = pd.concat([g, extra]).sort_index()
     # An empty bin becomes a null, which breaks the plotted line. One null per
     # gap is enough for that, so long runs of empty bins (a port call, the
     # months between seasons) collapse to a single row rather than a grid.
