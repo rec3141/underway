@@ -121,6 +121,22 @@ empirical p-value against the learning set; the score is Σ −log10 p, so 3 is
 roughly "one in a thousand across the three tests". Larger is more surprising.
 Configure in `config.SURPRISE`.
 
+## Higher-resolution bathymetry (optional)
+
+`tools/make_gebco_tiles.sh` turns the GEBCO 2024 GeoTIFF release (4.4 GB from
+BODC/CEDA) into a shaded-bathymetry Web Mercator tile pyramid:
+
+```sh
+tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
+    "$WEBROOT/static/tiles/gebco" -150 45 -15 86 2-9
+```
+
+When `static/tiles/gebco/` exists under the web root the map draws it beneath
+the vector layers instead of the Natural Earth depth bands. The pyramid is
+served with a week-long cache and is **not** committed (hundreds of MB);
+regenerate it on a new machine. Needs GDAL with Python bindings
+(`gdal-bin python3-gdal` on Ubuntu).
+
 ## Front end notes
 
 - Plotly's toolbar is off. Drag pans, the wheel zooms, double-click resets, ⟲
