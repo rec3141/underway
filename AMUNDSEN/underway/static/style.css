@@ -92,6 +92,12 @@ select {
 .alertbar button { background: transparent; color: var(--fg); border: 1px solid var(--accent-2); border-radius: 6px; padding: 3px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
 .alertbar #alertclose { border-color: var(--line); color: var(--muted); padding: 3px 8px; }
 
+/* toast: a brief note when legs and span nudge each other */
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 60; max-width: min(90vw, 560px);
+  background: var(--card-2); color: var(--fg); border: 1px solid var(--accent-2); border-radius: 8px; padding: 8px 14px; font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
 /* ---------------------------------------------------------------- layout */
 main {
   flex: 1 1 auto; min-height: 0;

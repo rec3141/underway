@@ -105,6 +105,43 @@
     const end = Date.parse(M.data_range.end);
     return { legs: new Set(shownLegs().map((l) => l.id)), start: end - (w?.hours || 1) * 3600e3, end, label: w?.label };
   }
+  // Legs and span keep each other honest: a span with none of the shown legs
+  // in it turns those legs on, and showing a leg the span cannot reach widens
+  // the span to the smallest one that does. Each such nudge gets a toast.
+  const legRange = (l) => ({ start: Date.parse(`${l.first_date.slice(0, 4)}-${l.first_date.slice(4, 6)}-${l.first_date.slice(6, 8)}T00:00:00Z`),
+                             end: Date.parse(`${l.last_date.slice(0, 4)}-${l.last_date.slice(4, 6)}-${l.last_date.slice(6, 8)}T23:59:59Z`) });
+  const legsInSpan = (f) => M.legs.filter((l) => { const r = legRange(l); return r.end >= f.start && r.start <= f.end; });
+  function toast(text) {
+    let t = $("#toast");
+    if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+    t.textContent = text; t.hidden = false; t.classList.add("show");
+    clearTimeout(toast._h); toast._h = setTimeout(() => { t.classList.remove("show"); }, 5000);
+  }
+  // after a span change: make sure something shown falls inside it
+  function reconcileLegsToSpan() {
+    const f = currentFilter();
+    const inSpan = legsInSpan(f);
+    if (!inSpan.length || inSpan.some((l) => f.legs.has(l.id))) return;
+    for (const l of inSpan) state.hidden.delete(l.id);
+    store.set("hiddenLegs", [...state.hidden]);
+    toast(`No shown leg falls in the ${f.label} span — showing ${inSpan.map((l) => l.label).join(", ")}`);
+  }
+  // after a leg change: widen the span until the newest shown leg is in it
+  // (or the leg just switched on, when one is named)
+  function reconcileSpanToLegs(justShown) {
+    const f = currentFilter();
+    const target = justShown ? legRange(justShown) : null;
+    const shown = shownLegs();
+    if (!shown.length) return false;
+    const reach = target ? target.end : Math.max(...shown.map((l) => legRange(l).end));
+    if (reach >= f.start && (!target || target.start <= f.end)) return false;
+    const need = target ? target.start : reach;
+    const w = M.windows.find((x) => f.end - x.hours * 3600e3 <= need) || M.windows[M.windows.length - 1];
+    if (w.label === state.win) return false;
+    state.win = w.label; store.set("win", state.win);
+    toast(`Span widened to ${w.label} to reach ${justShown ? justShown.label : "the shown legs"}`);
+    return true;
+  }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
     const t = tms(time);
@@ -150,14 +187,15 @@
       li.querySelector("input").onchange = (e) => {
         e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
         store.set("hiddenLegs", [...state.hidden]);
-        state.view = null;
-        applyAndRender();
+        requestFit();
+        if (reconcileSpanToLegs(e.target.checked ? l : null)) loadWindow(); else applyAndRender();
       };
       ul.appendChild(li);
     }
     $("#legsummary").textContent = `Legs · ${shownLegs().length}/${M.legs.length}`;
     $("#legfoot").textContent = `${inWindow.size} leg${inWindow.size === 1 ? "" : "s"} fall within the current span`;
     $("#legall").onclick = (e) => { e.preventDefault(); state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); applyAndRender(); };
+    // (showing every leg never empties the span, so no reconciling needed)
     $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); applyAndRender(); };
   }
 
@@ -185,7 +223,7 @@
     r.value = idx;
     $("#spanlabel").textContent = labels[idx];
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
-    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); requestFit(); loadWindow(); };
+    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); requestFit(); reconcileLegsToSpan(); loadWindow(); };
 
     // every Time/Distance pill (the underway pane's and the cast section's) shows and sets the same mode
     for (const b of document.querySelectorAll(".xmode button")) {
