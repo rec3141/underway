@@ -56,12 +56,13 @@
   // Shift+scroll zooms the x axis alone, Ctrl+scroll the y axis alone, about
   // the cursor; a plain scroll keeps Plotly's zoom of both. Listens in the
   // capture phase so Plotly's own wheel handler never sees the modified event.
-  function axisZoom(gd) {
+  function axisZoom(gd, opts = {}) {
     if (gd._axisZoom) return;
     gd._axisZoom = true;
+    const allowX = opts.x !== false, allowY = opts.y !== false;
     gd.addEventListener("wheel", (ev) => {
       const fl = gd._fullLayout;
-      if (!(ev.shiftKey || ev.ctrlKey) || !fl || !fl.xaxis || !fl.yaxis) return;
+      if (!((ev.shiftKey && allowX) || (ev.ctrlKey && allowY)) || !fl || !fl.xaxis || !fl.yaxis) return;
       ev.preventDefault(); ev.stopPropagation();
       const rect = gd.getBoundingClientRect();
       const ax = ev.shiftKey ? fl.xaxis : fl.yaxis;

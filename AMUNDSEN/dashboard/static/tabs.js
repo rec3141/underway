@@ -182,7 +182,7 @@
   // one selected cast from the archive. Both draw the chosen variables over
   // depth on their own x axes (bottom, top, then outwards).
   const live = { vars: store.get("casts.live.vars", ["temperature", "salinity"]), which: "current", data: null, timer: null, showCfg: false };
-  const single = { vars: store.get("casts.single.vars", ["Temperature", "Salinity"]), id: null };
+  const single = { vars: store.get("casts.single.vars", ["Temperature", "Salinity"]), id: null, dip: null };
   const LIVE_SKIP = new Set(["scan", "time", "t", "pressure", "prdm", "prm", "pr", "p", "depth", "depsm", "depth_m"]);
   const liveVisible = () => casts.mode === "live" && !$("#pane-casts").hidden;
 
@@ -190,11 +190,16 @@
   function drawOverlay(body, plotId, title, spec, chosen) {
     if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false).replace('class="panel card castplot', 'class="panel card castplot wide tall');
     const vars = chosen.filter((v) => spec.vars[v]);
-    const traces = [], layout = { ...CAST_LAYOUT, hovermode: "closest", margin: { l: 56, r: 16, t: 40, b: 44 }, showlegend: false };
-    const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2), step = 0.09;
+    const gdEl = $(`#${plotId}`);
+    // each extra axis needs ~58 px of ticks and title: the plot area gives up
+    // that much per axis and the margins hold the outermost ones
+    const H = Math.max(360, gdEl.clientHeight || 500), step = 58 / H;
+    const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
+    const traces = [], layout = { ...CAST_LAYOUT, hovermode: "closest", margin: { l: 56, r: 16, t: 58, b: 58 }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
-    layout.yaxis = { ...THEME.yaxis, domain: [y0, y1], autorange: false, range: [maxD * 1.04, 0], title: { text: "depth (m)", font: { size: 12 } }, tickfont: { size: 12 } };
+    layout.yaxis = depthAxis(maxD * 1.04, { domain: [y0, y1] });
+    const yv = spec.depth.map(yT);
     vars.forEach((v, i) => {
       const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = PALETTE[i % PALETTE.length];
       const bottom = i % 2 === 0, k = Math.floor(i / 2);
@@ -202,17 +207,17 @@
       layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: 12, color } }, tickfont: { size: 11, color }, side: bottom ? "bottom" : "top",
         ...(i === 0 ? { anchor: "y" } : { overlaying: "x", anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) }) };
       const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v}${dash ? " up" : ""}`, xaxis: ax, yaxis: "y",
-        x: spec.vars[v].slice(from, to), y: spec.depth.slice(from, to), connectgaps: false, line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
-        hovertemplate: `${esc(v)} %{x:.3~f}${esc(unit)}<br>%{y:.1f} m<extra>${dash ? "up" : ""}</extra>` });
+        x: spec.vars[v].slice(from, to), y: yv.slice(from, to), customdata: spec.depth.slice(from, to), connectgaps: false, line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
+        hovertemplate: `${esc(v)} %{x:.3~f}${esc(unit)}<br>%{customdata:.1f} m<extra>${dash ? "up" : ""}</extra>` });
       if (spec.splitAt != null && spec.splitAt < spec.depth.length - 1) { seg(0, spec.splitAt + 1, false); seg(spec.splitAt, spec.depth.length, true); }
       else seg(0, spec.depth.length, false);
     });
     if (spec.nowDepth != null && vars.length) {
       const li = spec.depth.length - 1;
-      traces.push({ type: "scatter", mode: "markers", xaxis: "x", yaxis: "y", x: [spec.vars[vars[0]][li]], y: [spec.nowDepth], marker: { size: 11, color: "#ffb454", symbol: "diamond" }, hoverinfo: "skip", name: "now" });
+      traces.push({ type: "scatter", mode: "markers", xaxis: "x", yaxis: "y", x: [spec.vars[vars[0]][li]], y: [yT(spec.nowDepth)], marker: { size: 11, color: "#ffb454", symbol: "diamond" }, hoverinfo: "skip", name: "now" });
     }
     if (!vars.length) { body.innerHTML = '<div class="empty">Tick at least one variable above.</div>'; return; }
-    Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
+    Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd, { x: false }));
     const sub = body.querySelector(`#${plotId}`)?.closest(".castplot")?.querySelector(".now");
     if (sub) sub.textContent = spec.sub || "";
   }
@@ -281,14 +286,19 @@
     const pick = data.find((d) => d.id === single.id) || data[data.length - 1];
     if (!pick) { host.innerHTML = '<div class="empty">Select a cast from the list or the map.</div>'; return; }
     single.id = pick.id;
-    const prof = profilesOf(pick)[0];
+    const profs = profilesOf(pick);                        // a tow's selected dips, or the one profile
+    const prof = profs.find((p) => p.index === single.dip) || profs[0];
     const vars = orderVars(Object.keys(prof.vars));
     host.innerHTML = `<div class="livebar"><div class="livevars">${varChips(vars, single.vars, "singlevar")}</div>
-      ${data.length > 1 ? `<div class="livevars"><span class="muted">cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}</div><div id="singlebody"></div>`;
+      ${data.length > 1 ? `<div class="livevars"><span class="muted">cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
+      ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div><div id="singlebody"></div>`;
     for (const b of host.querySelectorAll(".singlevar")) b.onclick = () => { single.vars = single.vars.includes(b.dataset.v) ? single.vars.filter((x) => x !== b.dataset.v) : [...single.vars, b.dataset.v]; store.set("casts.single.vars", single.vars); renderSingle(host, data); };
-    for (const b of host.querySelectorAll("[data-id]")) b.onclick = () => { single.id = b.dataset.id; renderSingle(host, data); };
-    drawOverlay(host.querySelector("#singlebody"), "single-plot", castLabel(pick), { depth: depths(prof), vars: prof.vars, units: pick.units || {}, splitAt: null, nowDepth: null,
-      sub: `${castDate(pick)}${pick.bottom_m ? ` · bottom ${Math.round(pick.bottom_m)} m` : ""}` }, single.vars);
+    for (const b of host.querySelectorAll("[data-id]")) b.onclick = () => { single.id = b.dataset.id; single.dip = null; renderSingle(host, data); };
+    for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
+    const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
+    drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? `${castLabel(pick)} · dip #${prof.index + 1}` : castLabel(pick),
+      { depth: depths(prof), vars: prof.vars, units: pick.units || {}, splitAt: null, nowDepth: null,
+        sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, single.vars);
     wireCastPanels(host, () => renderSingle(host, data));
   }
 
@@ -322,6 +332,18 @@
     return (((-1.82e-15 * p + 2.279e-10) * p - 2.2512e-5) * p + 9.72659) * p / g;
   }
   const depths = (prof) => prof.p.map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));
+  // Depth axes are linear or compressed (square root of depth, so the upper
+  // water column gets room); the switch is shared by every cast view. yT maps
+  // a depth onto the axis, depthAxis labels it in metres.
+  casts.dscale = store.get("casts.dscale", "linear");
+  const yT = (d) => d == null ? null : casts.dscale === "sqrt" ? Math.sqrt(Math.max(0, d)) : d;
+  const DEPTH_TICKS = [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
+  function depthAxis(maxD, extra = {}) {
+    const ax = { ...THEME.yaxis, title: { text: casts.dscale === "sqrt" ? "depth (m, compressed)" : "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
+      autorange: false, range: [yT(maxD), 0], ...extra };
+    if (casts.dscale === "sqrt") { const t = DEPTH_TICKS.filter((d) => d <= maxD); ax.tickvals = t.map(yT); ax.ticktext = t.map(String); }
+    return ax;
+  }
   const maxDepth = (c) => c.max_p != null ? `${Math.round(depthFrom(c.max_p, c.lat))} m` : "";
   // Temperature, salinity and density lead; the rest in a stable order
   const VAR_ORDER = ["Temperature", "Salinity", "Sigma-t", "Oxygen", "Oxygen saturation", "Fluorescence", "CDOM", "PAR", "Transmission", "Buoyancy frequency", "Sound velocity"];
@@ -382,16 +404,16 @@
         ps.forEach((p, j) => {
           if (!p.vars[v]) return;
           traces.push({
-            type: "scatter", mode: "lines", name: p.label, x: p.vars[v], y: depths(p), connectgaps: false,
+            type: "scatter", mode: "lines", name: p.label, x: p.vars[v], y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
             line: { width: ps.length > 1 ? 1 : 1.6, color: ps.length > 1 ? towShade(PALETTE[i % PALETTE.length], j, ps.length) : PALETTE[i % PALETTE.length] },
             opacity: ps.length > 1 ? 0.8 : 1,
-            hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{y:.0f} m<extra></extra>`,
+            hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{customdata:.0f} m<extra></extra>`,
           });
         });
       });
       const layout = { ...CAST_LAYOUT, hovermode: "closest",
         xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 } },
-        yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 } } };
+        yaxis: depthAxis(Math.max(1, ...data.flatMap((d) => profilesOf(d).flatMap((p) => p.vars[v] ? depths(p) : []))) * 1.02) };
       Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     }
     wireCastPanels(host, () => renderProfiles(host, data), all);
@@ -460,9 +482,9 @@
     host.innerHTML = castPanelHtml("cs-plot", `${v} section`, `${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${unit}`, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
       (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span>`).join("")}</div>`);
     const traces = [
-      { type: "heatmap", x: xPlot, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
+      { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 12 }, outlinewidth: 0 },
-        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
+        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
         hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
@@ -474,14 +496,14 @@
     // profiles, clipped to the frame
     const sounded = withVar.map((d) => d.bottom_m > 0);
     const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
-    traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => maxD + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
-    traces.push({ type: "scatter", mode: "lines+markers", x: xPts, y: bottoms, name: "bottom",
+    traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => yT(maxD + step)), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+    traces.push({ type: "scatter", mode: "lines+markers", x: xPts, y: bottoms.map(yT), name: "bottom",
       line: { color: "#3b4658", width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)",
       marker: { size: sounded.map((b) => b ? 5 : 0), color: "#8ea3ba", symbol: "diamond" },
       hovertext: withVar.map((d, i) => sounded[i] ? `${d.label}<br>bottom ${Math.round(d.bottom_m)} m` : `${d.label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
     const layout = { ...CAST_LAYOUT, margin: { l: 54, r: 8, t: 18, b: 40 },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 }, type: byTime ? "date" : "linear" },
-      yaxis: { ...THEME.yaxis, autorange: false, title: { text: "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 }, range: [maxD + step, 0] } };
+      yaxis: depthAxis(maxD + step) };
     Plotly.react($("#cs-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
   }
@@ -497,6 +519,10 @@
     for (const b of $("#castkind").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.k === casts.kind);
       b.onclick = () => { casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); UW.renderMap(); };
+    }
+    for (const b of $("#castdepth").querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.d === casts.dscale);
+      b.onclick = () => { casts.dscale = b.dataset.d; store.set("casts.dscale", casts.dscale); for (const x of $("#castdepth").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastPlots(); };
     }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
