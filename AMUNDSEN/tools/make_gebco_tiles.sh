@@ -20,7 +20,20 @@ ZOOMS=${7:-2-9}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/gebco.XXXXXX"); trap 'rm -rf "$WORK"' EXIT
 export GDAL_CACHEMAX=2048 GDAL_NUM_THREADS=ALL_CPUS
 
-echo "unpacking"; unzip -q -o "$ZIP" '*.tif' -d "$WORK/src"
+# the release is eight 90x90-degree tiles; only unpack the ones the box touches
+echo "unpacking"
+pat=()
+for hemi in "n90.0_s0.0" "n0.0_s-90.0"; do
+  [[ $hemi == n90* && ${BBOX[3]%.*} -le 0 ]] && continue
+  [[ $hemi == n0.0* && ${BBOX[1]%.*} -ge 0 ]] && continue
+  for lonband in "w-180.0_e-90.0" "w-90.0_e0.0" "w0.0_e90.0" "w90.0_e180.0"; do
+    w=${lonband#w}; w=${w%%_*}; e=${lonband##*_e}
+    (( $(printf '%.0f' "${BBOX[2]}") <= ${w%.*} || $(printf '%.0f' "${BBOX[0]}") >= ${e%.*} )) && continue
+    pat+=("*_${hemi}_${lonband}.tif")
+  done
+done
+unzip -q -o "$ZIP" "${pat[@]}" -d "$WORK/src"
+echo "  tiles: $(ls "$WORK/src" | tr '\n' ' ')"
 gdalbuildvrt -q "$WORK/global.vrt" "$WORK"/src/*.tif
 
 echo "clipping to lon ${BBOX[0]}..${BBOX[2]}, lat ${BBOX[1]}..${BBOX[3]}"
