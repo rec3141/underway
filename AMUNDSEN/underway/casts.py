@@ -25,6 +25,7 @@ import csv
 import json
 import logging
 import re
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -401,6 +402,35 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | N
 
 # ---------------------------------------------------------------- mvp
 
+def _no_fix(lat, lon) -> bool:
+    """The MVP deck unit writes 45 00.000 N, 000 00.000 E while it has no GPS fix."""
+    return lat is not None and lon is not None and abs(lat - 45.0) < 1e-6 and abs(lon) < 1e-6
+
+
+def _fill_positions(ds: list) -> None:
+    """Give dips without a fix a position interpolated (by time) between the
+    nearest dips of the tow that have one; ends take the nearest fix."""
+    for d in ds:
+        if _no_fix(d.lat, d.lon):
+            d.lat = d.lon = None
+    idx = [i for i, d in enumerate(ds) if d.lat is not None and d.lon is not None]
+    if not idx or len(idx) == len(ds):
+        return
+    t = [datetime.fromisoformat(d.time).timestamp() if d.time else i for i, d in enumerate(ds)]
+    for i, d in enumerate(ds):
+        if d.lat is not None:
+            continue
+        before = [j for j in idx if j < i]; after = [j for j in idx if j > i]
+        if before and after:
+            a, b = before[-1], after[0]
+            f = (t[i] - t[a]) / (t[b] - t[a]) if t[b] != t[a] else 0.5
+            d.lat = round(ds[a].lat + (ds[b].lat - ds[a].lat) * f, 6)
+            d.lon = round(ds[a].lon + (ds[b].lon - ds[a].lon) * f, 6)
+        else:
+            n = ds[before[-1] if before else after[0]]
+            d.lat, d.lon = n.lat, n.lon
+
+
 def _ddmm(s: str) -> float | None:
     m = re.match(r"\s*(\d+)(\d{2}\.\d+)\s*,\s*([NSEW])", s)
     if not m:
@@ -435,6 +465,7 @@ def mvp_casts(leg: Leg) -> list[Cast]:
     out = []
     for tow, ds in sorted(tows.items()):
         ds.sort(key=lambda c: c.time or "")
+        _fill_positions(ds)
         units = {}
         for d in ds:
             units.update(d.units)
@@ -498,6 +529,8 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
         units[disp] = unit
     lat = next((_ddmm(v) for k, v in hdr.items() if k.startswith("LAT")), None)
     lon = next((_ddmm(v) for k, v in hdr.items() if k.startswith("LON")), None)
+    if _no_fix(lat, lon):
+        lat = lon = None
     date = hdr.get("Date (dd/mm/yyyy)", ""); tm = hdr.get("Time (hh|mm|ss.s)", "")
     time = None
     m = re.match(r"(\d{2})/(\d{2})/(\d{4})", date)

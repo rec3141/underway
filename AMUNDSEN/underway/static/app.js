@@ -507,6 +507,7 @@
   function showTab(name) {
     for (const b of $("#tabs").querySelectorAll("button")) b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
+    document.querySelector("main").className = "tab-" + name;
     // the underway controls stay for the cast tab too: its section view
     // follows the Time/Distance switch
     $("#controls-underway").hidden = !(name === "underway" || name === "casts");
