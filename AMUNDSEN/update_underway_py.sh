@@ -1,14 +1,27 @@
 #!/usr/bin/env bash
-# Regenerate the live leg of the underway dashboard, in place in the web root.
+# Regenerate the underway dashboard.
+#
+# Two modes, chosen by UNDERWAY_LOCAL (set in the systemd unit's Environment=):
+#   unset  — read the CIFS shares directly and write into the web root on the
+#            Share drive (the original arrangement)
+#   1      — first mirror the shares onto local disk with tools/mirror-share.sh,
+#            then build from the mirror into a local web root. Every read and
+#            write is then local; the share is touched only by one rsync pass.
 #
 # Ingest is incremental and every file is written atomically, so the builder
-# works directly on the published directory: no staging copy, no rsync, and a
-# leg processed on request from the page is left alone.
+# works directly on the published directory: no staging copy.
 set -euo pipefail
 
-WEBROOT="/mnt/ship/Share/2026/2026_LEG_03/Collins/underway_dashboard"
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"    # the AMUNDSEN directory this script lives in
 PYTHON="/opt/miniforge3/bin/python3"                    # the interpreter with pandas/plotly
+
+if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
+    MIRROR=${UNDERWAY_MIRROR:-/data/ship}
+    WEBROOT=${UNDERWAY_WEBROOT:-/data/underway/www}
+    export UNDERWAY_DATA_ROOT="$MIRROR/Data" UNDERWAY_SHARE_ROOT="$MIRROR/Share"
+else
+    WEBROOT=${UNDERWAY_WEBROOT:-/mnt/ship/Share/2026/2026_LEG_03/Collins/underway_dashboard}
+fi
 
 # one run at a time; the timer fires every 10 minutes regardless
 mkdir -p "$PROJECT/cache"
@@ -18,8 +31,12 @@ flock -n 9 || { echo "Another run is in progress; exiting."; exit 0; }
 umask 002
 export TZ=America/Toronto
 
+if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
+    # a failed mirror pass is not fatal: the build proceeds on what is mirrored
+    "$PROJECT/tools/mirror-share.sh" "$MIRROR" || echo "mirror pass had errors; building from the existing mirror"
+fi
+
 cd "$PROJECT"
-# every leg is ingested (incrementally) and the dashboard is built from all of them
 nice -n 19 ionice -c3 "$PYTHON" -m underway build --root "$WEBROOT" \
     --title "CCGS Amundsen — Underway" \
     --link "Event log & schedule calendar|https://calendar.google.com/calendar/embed?src=7ae4b788832de21af8d8aea44eb379098a4f5e1fb2f7dc9262af18c380b62abb%40group.calendar.google.com&ctz=America%2FToronto" \

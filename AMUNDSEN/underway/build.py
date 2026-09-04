@@ -336,9 +336,11 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     h = hashlib.sha1()
     for name in ("app.js", "tabs.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
-    # a raster tile pyramid (tools/make_gebco_tiles.sh) lives in the web root
-    # only — too large for the repository — and is used when present
-    tiles = root / "static" / "tiles" / "gebco"
+    # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
+    # too many files for the share or the repository — and the server maps
+    # /static/tiles/ onto it; it is used when present
+    from .serve import TILES_DIR
+    tiles = TILES_DIR / "gebco"
     raster = None
     if tiles.is_dir():
         zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
