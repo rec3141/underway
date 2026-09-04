@@ -76,8 +76,12 @@
 
   // ------------------------------------------------------------ helpers
   const fmtUTC = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 16) + "Z";
-  const fmtLocal = (iso) => new Date(iso).toLocaleString(undefined, { timeZone: SITE.local_tz,
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  // dates are YYYY-MM-DD throughout; fmtLocal gives ship time ("2026-09-04 15:36")
+  const fmtLocal = (iso) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: SITE.local_tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })
+      .formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour === "24" ? "00" : parts.hour}:${parts.minute}`;
+  };
   const ago = (iso) => {
     const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
     if (s < 90) return `${Math.round(s)} s ago`;
@@ -180,7 +184,7 @@
     for (const l of [...M.legs].sort((a, b) => (b.year * 100 + b.number) - (a.year * 100 + a.number))) {
       const li = document.createElement("li");
       const span = l.first_date && l.last_date
-        ? `${l.first_date.slice(4, 6)}/${l.first_date.slice(6)} – ${l.last_date.slice(4, 6)}/${l.last_date.slice(6)}` : "";
+        ? `${l.first_date.slice(4, 6)}-${l.first_date.slice(6)} – ${l.last_date.slice(4, 6)}-${l.last_date.slice(6)}` : "";
       li.innerHTML = `<label class="${inWindow.has(l.index) ? "" : "outside"}"><input type="checkbox" ${state.hidden.has(l.id) ? "" : "checked"}>
         <span class="name">${l.label}</span>${l.live ? '<span class="live">live</span>' : ""}
         <span class="span">${span}</span><span class="n">${l.files} d</span>
