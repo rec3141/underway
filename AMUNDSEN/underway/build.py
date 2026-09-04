@@ -345,7 +345,10 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     if tiles.is_dir():
         zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
         if zooms:
-            raster = {"url": "static/tiles/gebco/{z}/{x}/{y}.png", "minzoom": zooms[0], "maxzoom": zooms[-1],
+            # tiles are cached for a week; the pyramid's own mtime versions the
+            # URL so a re-render is picked up by browsers immediately
+            v = int(tiles.stat().st_mtime)
+            raster = {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "minzoom": zooms[0], "maxzoom": zooms[-1],
                       "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster,
