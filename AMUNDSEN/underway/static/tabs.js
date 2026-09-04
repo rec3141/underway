@@ -19,13 +19,25 @@
     variable: store.get("casts.var", "Temperature"),
     search: "",
   };
-  const castById = (id) => casts.idx?.casts.find((c) => c.id === id);
-  const castLabel = (c) => c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}` : `Cast ${c.cast}${c.station ? " · " + c.station : ""}`;
+  // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
+  const parentId = (id) => id.split("#")[0];
+  const castById = (id) => casts.idx?.casts.find((c) => c.id === parentId(id));
+  const dipSel = (towId) => [...casts.sel].filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
+  casts.open = new Set(store.get("casts.open", []));
+  const castLabel = (c) => c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}`
+    : `${c.kind === "TM" ? "TM cast" : "Cast"} ${c.cast}${c.station ? " · " + c.station : ""}`;
   const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) + (c.time_end ? "–" + c.time_end.replace("T", " ").slice(11, 16) : "") : "";
-  // a tow bundle expands into its dips; a CTD cast is one profile
-  const profilesOf = (d) => d.profiles?.length ? d.profiles.map((p, i) => ({ ...p, units: d.units, label: `${castLabel(d)} #${i + 1}`, parent: d })) : [{ ...d, label: castLabel(d), parent: d }];
+  // a tow bundle expands into its dips — only the selected ones when dips were
+  // picked individually, all of them when the tow was selected as a whole; a
+  // CTD cast is one profile
+  const profilesOf = (d) => {
+    if (!d.profiles?.length) return [{ ...d, label: castLabel(d), parent: d }];
+    const picked = new Set(dipSel(d.id));
+    return d.profiles.map((p, i) => ({ ...p, units: d.units, label: `${castLabel(d)} #${i + 1}`, parent: d, index: i }))
+      .filter((p) => !picked.size || picked.has(p.index));
+  };
 
-  UW.selectedCastKeys = () => casts.sel;
+  UW.selectedCastKeys = () => new Set([...casts.sel].map(parentId));
   UW.onStationClick = (key) => {
     if (!casts.idx) return;
     if (!castById(key)) return;
@@ -46,15 +58,19 @@
     if (tows.length) {
       out.push({ type: "scattermap", mode: "lines", name: "MVP tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
                  lat, lon, line: { width: 3, color: "rgba(126,231,135,.55)" } });
-      // selected tows drawn brighter on top
+      // selected tows drawn brighter on top; individually picked dips as dots
       const sel = tows.filter((c) => casts.sel.has(c.id));
       if (sel.length) out.push({ type: "scattermap", mode: "lines", name: "selected tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
         lat: sel.flatMap((c) => [...c.track.map((t) => t[0]), null]), lon: sel.flatMap((c) => [...c.track.map((t) => t[1]), null]),
         line: { width: 4, color: "#ffb454" } });
+      const dips = tows.flatMap((c) => dipSel(c.id).map((i) => ({ c, i })));
+      if (dips.length) out.push({ type: "scattermap", mode: "markers", name: "selected dips", showlegend: false, hoverinfo: "text",
+        lat: dips.map(({ c, i }) => c.track[i]?.[0]), lon: dips.map(({ c, i }) => c.track[i]?.[1]),
+        text: dips.map(({ c, i }) => `${castLabel(c)} · dip ${i + 1}`), marker: { size: 9, color: "#ffb454" } });
       out.push({ type: "scattermap", mode: "markers", name: "MVP tow starts", showlegend: false, hoverinfo: "text",
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
-        text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar · click to select`),
-        marker: { size: tows.map((c) => casts.sel.has(c.id) ? 13 : 9), color: tows.map((c) => casts.sel.has(c.id) ? "#ffb454" : "#7ee787"), symbol: "circle" } });
+        text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${c.max_p} dbar · click to select the tow`),
+        marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? "#ffb454" : "#7ee787"), symbol: "circle" } });
     }
     const sel = orderedSelection().filter((c) => c.lat != null);
     if (casts.mode === "section" && sel.length > 1) out.push({
@@ -65,10 +81,22 @@
   };
 
   function orderedSelection() {
-    return [...casts.sel].map(castById).filter(Boolean).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    const seen = new Set();
+    return [...casts.sel].map(castById).filter((c) => c && !seen.has(c.id) && seen.add(c.id))
+      .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   }
+  const isSelected = (c) => casts.sel.has(c.id) || dipSel(c.id).length > 0;
   function toggleCast(id) {
-    casts.sel.has(id) ? casts.sel.delete(id) : casts.sel.add(id);
+    if (id.includes("#")) {
+      // a dip: selecting one turns a whole-tow selection into a dip selection
+      const tow = parentId(id);
+      casts.sel.delete(tow);
+      casts.sel.has(id) ? casts.sel.delete(id) : casts.sel.add(id);
+    } else {
+      const wasOn = isSelected(castById(id) || { id });
+      for (const s of [...casts.sel]) if (parentId(s) === id) casts.sel.delete(s);
+      if (!wasOn) casts.sel.add(id);
+    }
     store.set("casts.sel", [...casts.sel]);
     renderCastList(); renderCastPlots(); UW.renderMap();
   }
@@ -96,17 +124,39 @@
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
       .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q))
       .sort((a, b) => (b.time || "").localeCompare(a.time || ""));
-    ul.innerHTML = rows.slice(0, 600).map((c) => `<li class="${casts.sel.has(c.id) ? "on" : ""}" data-id="${esc(c.id)}">
-        <input type="checkbox" ${casts.sel.has(c.id) ? "checked" : ""}>
-        <span class="kind ${c.kind}">${c.kind}</span>
-        <span class="name">${esc(castLabel(c))}</span>
+    const row = (c) => {
+      const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
+      const isTow = c.kind === "MVP" && c.n_profiles;
+      const state = whole ? "on" : part ? "part" : "";
+      let html = `<li class="${state}" data-id="${esc(c.id)}">
+        ${isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : '<span class="tog"></span>'}
+        <input type="checkbox" ${whole ? "checked" : ""} ${part ? 'class="partial"' : ""} title="${isTow ? "whole tow" : "select"}">
+        <span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span>
+        <span class="name">${esc(castLabel(c))}${part ? ` <small>${dips.length}/${c.n_profiles} dips</small>` : ""}</span>
         <span class="when">${esc(castDate(c))}</span>
         <span class="depth">${c.max_p != null ? c.max_p + " dbar" : ""}</span>
-        <span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></li>`).join("") +
-      (rows.length > 600 ? `<li class="more">${rows.length - 600} more — narrow the filter</li>` : "") +
-      (!rows.length ? '<li class="more">no casts match</li>' : "");
-    for (const li of ul.querySelectorAll("li[data-id]")) li.onclick = (e) => { e.preventDefault(); toggleCast(li.dataset.id); };
-    $("#castclear").textContent = casts.sel.size ? `clear (${casts.sel.size})` : "clear";
+        <span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></li>`;
+      if (isTow && casts.open.has(c.id)) {
+        const picked = new Set(dips);
+        html += c.track.map((t, i) => `<li class="dip ${picked.has(i) ? "on" : ""}" data-id="${esc(c.id)}#${i}">
+          <span class="tog"></span><input type="checkbox" ${picked.has(i) ? "checked" : ""}>
+          <span class="kind dip">#${i + 1}</span><span class="name">dip ${i + 1}</span>
+          <span class="when">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</span><span class="depth"></span><span class="leg"></span></li>`).join("");
+      }
+      return html;
+    };
+    ul.innerHTML = rows.map(row).join("") + (!rows.length ? '<li class="more">no casts match</li>' : "");
+    for (const li of ul.querySelectorAll("li[data-id]")) li.onclick = (e) => {
+      if (e.target.closest(".tog")) return;
+      e.preventDefault(); toggleCast(li.dataset.id);
+    };
+    for (const b of ul.querySelectorAll("button.tog")) b.onclick = (e) => {
+      e.stopPropagation();
+      const id = b.dataset.tow; casts.open.has(id) ? casts.open.delete(id) : casts.open.add(id);
+      store.set("casts.open", [...casts.open]); renderCastList();
+    };
+    const nsel = new Set([...casts.sel].map(parentId)).size;
+    $("#castclear").textContent = nsel ? `clear (${nsel})` : "clear";
   }
 
   async function renderCastPlots() {
@@ -179,20 +229,26 @@
     const maxP = Math.max(...withVar.map((d) => d.p[d.p.length - 1]));
     const step = maxP > 1500 ? 5 : maxP > 400 ? 2 : 1;
     const grid = []; for (let p = 0; p <= maxP; p += step) grid.push(p);
-    const x = [0];
+    // x follows the header's Time/Distance switch: distance is cumulative
+    // along the profiles in time order, time is each profile's own
+    const byTime = UW.state.xmode === "time";
+    const km = [0];
     for (let i = 1; i < withVar.length; i++) {
       const a = withVar[i - 1], b = withVar[i];
-      x.push(x[i - 1] + (a.lat != null && b.lat != null ? haversine(a, b) : 1));
+      km.push(km[i - 1] + (a.lat != null && b.lat != null ? haversine(a, b) : 1));
     }
+    const x = byTime ? withVar.map((d, i) => d.time ? new Date(d.time + (d.time.endsWith("Z") ? "" : "Z")) : new Date(i)) : km;
+    const xTitle = byTime ? "time (UTC)" : "distance along section (km)";
+    const xFmt = (i) => byTime ? (withVar[i].time || "").replace("T", " ").slice(0, 16) : `${km[i].toFixed(0)} km`;
     const z = grid.map((_, gi) => withVar.map((d) => onGrid(d, v, grid)[gi]));
     const unit = withVar[0].units[v] || "";
     const dense = withVar.length > 24;      // a tow: label only every few dips
-    host.innerHTML = `<div class="castplot card wide"><div class="head"><h3>${esc(v)} section</h3><span class="unit">${withVar.length} profiles · ${x.at(-1).toFixed(0)} km · ${esc(unit)}</span></div><div class="plot tall" id="cs-plot"></div></div>` +
-      (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(d.time ? d.time.replace("T", " ").slice(0, 16) : "")} · ${x[i].toFixed(0)} km</small></span>`).join("")}</div>`);
+    host.innerHTML = `<div class="castplot card wide"><div class="head"><h3>${esc(v)} section</h3><span class="unit">${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${esc(unit)}</span></div><div class="plot tall" id="cs-plot"></div></div>` +
+      (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span>`).join("")}</div>`);
     const traces = [
-      { type: "heatmap", x, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: "best",
+      { type: "heatmap", x, y: grid, z, colorscale: "Viridis", connectgaps: false, zsmooth: byTime ? false : "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 10 }, outlinewidth: 0 },
-        hovertemplate: `%{x:.1f} km · %{y} dbar<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
+        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{y} dbar<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
         hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
@@ -201,7 +257,7 @@
     traces.push({ type: "scatter", mode: "lines", x, y: bottoms, line: { color: "#2b3441", width: 2 }, fill: "tonexty", fillcolor: "rgba(43,52,65,.9)", hoverinfo: "skip", name: "bottom" });
     traces.push({ type: "scatter", mode: "lines", x, y: bottoms.map(() => maxP + step), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
     const layout = { ...THEME, margin: { l: 50, r: 8, t: 18, b: 34 }, showlegend: false,
-      xaxis: { ...THEME.xaxis, title: { text: "distance along section (km)", font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 } },
+      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 10 }, standoff: 4 }, tickfont: { size: 10 }, type: byTime ? "date" : "linear" },
       yaxis: { ...THEME.yaxis, autorange: "reversed", title: { text: "pressure (dbar)", font: { size: 10 }, standoff: 2 }, tickfont: { size: 10 }, range: [maxP + step, 0] } };
     Plotly.react($("#cs-plot"), traces, layout, CFG);
   }
@@ -346,6 +402,7 @@
   }
 
   // ================================================================ glue
+  UW.onXMode = () => { if (!$("#pane-casts").hidden && casts.mode === "section") renderCastPlots(); };
   UW.onTab = async (name) => {
     if (name === "casts") { await ensureCastIndex(); renderCastList(); renderCastPlots(); UW.renderMap(); }
     if (name === "calendar") { await ensureCalendar(); renderCalendar(); }

@@ -143,7 +143,7 @@
 
     for (const b of $("#xmode").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.x === state.xmode);
-      b.onclick = () => { state.xmode = b.dataset.x; store.set("xmode", state.xmode); renderControls(); renderPanels(); };
+      b.onclick = () => { state.xmode = b.dataset.x; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
     }
     const sel = $("#colour");
     sel.innerHTML = "";
@@ -227,14 +227,17 @@
       `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtUTC(ms)}<br>${state.colour}: <b>${fmtVal(c[i], v?.unit)}</b>` +
       `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track`);
 
-    const traces = [{
+    // draw order is click order: MVP tows from the cast tab go under the
+    // track, and the station markers stay on top so they get the clicks
+    const traces = [...(window.UW?.extraMapTraces?.() || [])];
+    traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
       marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: true,
                 colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
                   tickfont: { size: 10 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
-    }];
+    });
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     if (li >= 0) traces.push({
       type: "scattermap", mode: "markers", name: "latest", showlegend: false,
@@ -255,8 +258,6 @@
                 color: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? "#ffb454" : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
-    // extra markers the cast tab asks for (MVP profiles, section path)
-    for (const t of (window.UW?.extraMapTraces?.() || [])) traces.push(t);
 
     const view = state.view || fitView(d.lat, d.lon);
     // With a GEBCO tile pyramid available the shaded raster is the bathymetry
@@ -489,7 +490,10 @@
   function showTab(name) {
     for (const b of $("#tabs").querySelectorAll("button")) b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
-    $("#controls-underway").hidden = name !== "underway";
+    // the underway controls stay for the cast tab too: its section view
+    // follows the Time/Distance switch
+    $("#controls-underway").hidden = !(name === "underway" || name === "casts");
+    for (const el of $("#controls-underway").querySelectorAll(".legmenu, .span, .select")) el.hidden = name === "casts";
     $("#maphint").hidden = name !== "casts";
     store.set("tab", name);
     window.UW?.onTab?.(name);

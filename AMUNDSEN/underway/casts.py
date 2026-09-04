@@ -2,17 +2,20 @@
 
 Two sources:
 
-* Rosette casts. Amundsen Science publishes each cast as five Plotly HTML
-  files under ``Data/Rosette/<leg>/plots/`` (Temperature/Salinity,
-  Oxygen/OxySat, Fluorescence/Transmission, Cdom/Par, Buoyancy/Sigma-t), with
-  the 1-dbar binned profile embedded as base64 float arrays. No .cnv is
-  shared, so the plots are the profile source. Position, time and station
-  come from the leg's CTD logbook.
+* Rosette casts. The profile is the SeaBird ``.cnv`` in
+  ``Data/external_proprietary/CTD/`` when one exists (downcast, 1-dbar bins).
+  Amundsen Science also publishes each cast as Plotly HTML files under
+  ``Data/Rosette/<leg>/plots/`` with the binned profile embedded as base64
+  float arrays; those supply the variables the ``.cnv`` lacks and are the only
+  source for legs without ``.cnv`` files. The filename names the rosette
+  (Classic or TM). Station, label and time come from the leg's CTD logbook.
 * MVP (Moving Vessel Profiler) tows: ``Data/MVP/<leg>/<tow>/*.m1``, an AML
-  CTD text format with the fix in the header and one row per sample.
+  CTD text format with the fix in the header and one row per sample. A tow
+  directory becomes one dataset holding every dip.
 
-Each 5 MB plot file is parsed once and cached as JSON under ``DB_DIR/casts``,
-keyed by size and mtime, so a rebuild only touches new casts.
+Parsed casts are cached as JSON under ``DB_DIR/casts`` so a rebuild only
+touches new ones. Every file on the share is read in a single call: CIFS
+charges a network round trip per read, and the SBE 9 files are 21 MB.
 """
 
 from __future__ import annotations
@@ -33,7 +36,9 @@ from .legs import Leg
 
 log = logging.getLogger(__name__)
 
-PLOT_RE = re.compile(r"^CTD_(\d{4})_(\d{2})_(\d{3})_(?:[A-Za-z]+)_(.+)_raw_data\.html$")
+# group 4 is the rosette: Classic (the main SBE 9 rosette) or TM (trace-metal)
+PLOT_RE = re.compile(r"^CTD_(\d{4})_(\d{2})_(\d{3})_([A-Za-z]+)_(.+)_raw_data\.html$")
+ROSETTE_KIND = {"classic": "CTD", "tm": "TM"}
 SKIP_PAIRS = {"TS_diagram"}
 # display name, unit, and how the plots label the trace
 ROSETTE_VARS = {
@@ -96,7 +101,7 @@ def _cache_path(leg: str, key: str) -> Path:
 
 RECENT_DAYS = 3
 # bump when the parsed representation changes so old cache entries are redone
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 
 def _cached(leg: str, key: str, sources: list[Path]):
@@ -190,12 +195,16 @@ def read_logbook(path: Path | None) -> dict[str, dict]:
 
 CNV_DIR = DATA_ROOT / "external_proprietary" / "CTD"
 CNV_RE = re.compile(r"^CTD_(\d{4})_(\d{2})_(\d{3})\.cnv$", re.I)
-# SeaBird short names -> (display, unit); anything else in the file is ignored
+# SeaBird short names -> (display, unit), in order of preference where two
+# names map to one variable (the SBE 9 rosette CTD writes prDM/t090C, the
+# SBE 19plus writes prdM/tv290C). Anything else in the file is ignored.
+CNV_PRESSURE = ("prDM", "prdM", "prSM", "prM")
 CNV_VARS = {
-    "tv290C": ("Temperature", "°C"), "t090C": ("Temperature", "°C"),
+    "t090C": ("Temperature", "°C"), "tv290C": ("Temperature", "°C"),
     "sal00": ("Salinity", "PSU"), "sigma-t00": ("Sigma-t", "kg/m³"),
-    "sbeox0Mm/L": ("Oxygen", "µM"), "sbeox0ML/L": ("Oxygen saturation", "mL/L"),
+    "sbeox0Mm/L": ("Oxygen", "µM"), "oxsatML/L": ("Oxygen saturation", "mL/L"), "sbeox0ML/L": ("Oxygen (mL/L)", "mL/L"),
     "CStarTr0": ("Transmission", "%"), "flSP": ("Fluorescence", "µg/L"), "flECO-AFL": ("Fluorescence", "µg/L"),
+    "wetCDOM": ("CDOM", "mg/m³"), "par": ("PAR", "µE/s/m²"), "upoly0": ("SUNA nitrate (raw)", "µM"),
     "svCM": ("Sound velocity", "m/s"),
 }
 CNV_BAD = -9.99e-29
@@ -206,9 +215,12 @@ def parse_cnv(path: Path) -> dict | None:
     Cast minus id/leg/kind, or None if the file is unusable."""
     names: dict[int, str] = {}
     header: dict[str, str] = {}
-    rows: list[list[float]] = []
-    with path.open(encoding="latin-1", errors="replace") as fh:
-        for line in fh:
+    data_lines: list[str] = []
+    # one read: iterating a file object fetches 8 KB per network round trip,
+    # which turns a 21 MB SBE 9 file into two minutes of CIFS latency
+    text = path.read_bytes().decode("latin-1", errors="replace")
+    if True:
+        for line in text.splitlines(keepends=True):
             if line.startswith("#"):
                 m = re.match(r"#\s*name\s+(\d+)\s*=\s*([^:]+):", line)
                 if m:
@@ -221,20 +233,25 @@ def parse_cnv(path: Path) -> dict | None:
                     k, _, v = line[1:].partition("=")
                     header[k.strip()] = v.strip()
             else:
-                parts = line.split()
-                if len(parts) >= len(names):
-                    try:
-                        rows.append([float(x) for x in parts[:len(names)]])
-                    except ValueError:
-                        continue
-    if not rows or "prdM" not in names.values():
+                data_lines.append(line)
+    col = {n: i for i, n in names.items()}
+    pcol = next((n for n in CNV_PRESSURE if n in col), None)
+    if not data_lines or pcol is None:
+        log.debug("%s: no pressure column among %s", path.name, list(col)[:8])
         return None
-    arr = np.array(rows)
+    # an SBE 9 file has ~65k rows of 30 columns; the C parser does this in
+    # well under a second where a Python float() loop takes minutes
+    import io
+    import pandas as pd
+    arr = pd.read_csv(io.StringIO("".join(data_lines)), sep=r"\s+", header=None, engine="c",
+                      dtype=float, na_values=[], on_bad_lines="skip").to_numpy(dtype=float)
+    if arr.shape[1] < len(names):
+        return None
+    arr = arr[:, :len(names)]
     # SeaBird's bad-value flag is the specific number -9.990e-29 (a "<=" test
     # would wipe every negative longitude)
     arr[np.isclose(arr, CNV_BAD, rtol=1e-3, atol=0)] = np.nan
-    col = {n: i for i, n in names.items()}
-    pres = arr[:, col["prdM"]]
+    pres = arr[:, col[pcol]]
     ok = np.isfinite(pres)
     arr, pres = arr[ok], pres[ok]
     if len(pres) < 10:
@@ -242,7 +259,7 @@ def parse_cnv(path: Path) -> dict | None:
     # downcast: everything up to the deepest sample
     bottom_i = int(np.nanargmax(pres))
     down = arr[: bottom_i + 1]
-    dp = down[:, col["prdM"]]
+    dp = down[:, col[pcol]]
     bins = np.floor(dp / BIN_DBAR).astype(int)
     levels = sorted(set(bins[dp >= 0.5]))
     vars_: dict[str, list] = {}
@@ -274,11 +291,13 @@ def parse_cnv(path: Path) -> dict | None:
 def rosette_casts(leg: Leg) -> list[Cast]:
     plots = DATA_ROOT / "Rosette" / leg.id / "plots"
     files: dict[str, list[Path]] = {}
+    rosette: dict[str, str] = {}
     if plots.is_dir():
         for p in plots.iterdir():
             m = PLOT_RE.match(p.name)
-            if m and m.group(4) not in SKIP_PAIRS:
+            if m and m.group(5) not in SKIP_PAIRS:
                 files.setdefault(m.group(3), []).append(p)
+                rosette[m.group(3)] = m.group(4)
     cnvs: dict[str, Path] = {}
     if CNV_DIR.is_dir():
         for p in CNV_DIR.iterdir():
@@ -297,7 +316,7 @@ def rosette_casts(leg: Leg) -> list[Cast]:
         if cached:
             casts.append(Cast(**cached))
         else:
-            todo.append((cast_no, paths, cnv))
+            todo.append((cast_no, paths, cnv, rosette.get(cast_no, "")))
     # Each file costs seconds of CIFS latency, so new casts are parsed in
     # parallel and in batches: a build takes the first MAX_NEW_PER_BUILD and the
     # rest arrive on later runs, which keeps the underway page on its cadence.
@@ -305,16 +324,18 @@ def rosette_casts(leg: Leg) -> list[Cast]:
     if deferred:
         log.info("%s: %d casts deferred to later builds", leg.id, len(deferred))
     with ThreadPoolExecutor(max_workers=PARALLEL_READS) as ex:
-        for c in ex.map(lambda item: _parse_rosette_cast(leg, item[0], item[1], item[2], logbook.get(item[0], {})), batch):
+        for c in ex.map(lambda item: _parse_rosette_cast(leg, item[0], item[1], item[2], logbook.get(item[0], {}), item[3]), batch):
             if c:
                 casts.append(c)
     casts.sort(key=lambda c: c.cast)
     return casts
 
 
-def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | None, lb: dict) -> Cast | None:
+def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | None, lb: dict, rosette: str = "") -> Cast | None:
     """The .cnv is the profile when there is one; the plot files add the
     variables the .cnv does not carry (CDOM, PAR, buoyancy, nitrates)."""
+    # which rosette: from the plot filenames, else the logbook's type_cast
+    kind = ROSETTE_KIND.get(rosette.lower()) or ROSETTE_KIND.get(lb.get("type_cast", "").lower(), "CTD")
     base = None
     if cnv is not None:
         try:
@@ -325,7 +346,7 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | N
     units: dict[str, str] = dict(base["units"]) if base else {}
     have = set(units)
     for p in paths:
-        if base and PLOT_RE.match(p.name).group(4) in ("Temperature_Salinity", "Oxygen_OxySat"):
+        if base and PLOT_RE.match(p.name).group(5) in ("Temperature_Salinity", "Oxygen_OxySat"):
             continue                    # already covered by the .cnv
         try:
             traces = _plot_traces(p)
@@ -365,7 +386,7 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | N
             return float(lb[k])
         except (KeyError, ValueError):
             return None
-    c = Cast(id=f"{leg.id}:CTD_{cast_no}", leg=leg.id, kind="CTD", cast=cast_no,
+    c = Cast(id=f"{leg.id}:CTD_{cast_no}", leg=leg.id, kind=kind, cast=cast_no,
              time=lb.get("date_utc") or (base or {}).get("time"),
              lat=num("latitude") if num("latitude") is not None else (base or {}).get("lat"),
              lon=num("longitude") if num("longitude") is not None else (base or {}).get("lon"),
@@ -430,7 +451,7 @@ def mvp_casts(leg: Leg) -> list[Cast]:
 def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
     key = "MVP_" + p.stem
     try:
-        lines = p.read_text(encoding="latin-1", errors="replace").splitlines()
+        lines = p.read_bytes().decode("latin-1", errors="replace").splitlines()   # one CIFS read, see parse_cnv
     except OSError:
         return None
     hdr = {}
@@ -511,6 +532,6 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
     index.sort(key=lambda m: (m["time"] or "", m["id"]))
     idx = {"casts": index, "variables": sorted({v for m in index for v in m["vars"]})}
     atomic_write(root / "data" / "casts" / "index.json", json.dumps(idx, separators=(",", ":")))
-    log.info("casts: %d (%d CTD, %d MVP)", len(index), sum(m["kind"] == "CTD" for m in index),
-             sum(m["kind"] == "MVP" for m in index))
+    log.info("casts: %d (%d rosette, %d TM, %d MVP tows)", len(index), sum(m["kind"] == "CTD" for m in index),
+             sum(m["kind"] == "TM" for m in index), sum(m["kind"] == "MVP" for m in index))
     return idx
