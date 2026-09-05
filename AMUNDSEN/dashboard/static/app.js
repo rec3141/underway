@@ -381,6 +381,19 @@
       marker: { size: 6, color: "#f2cc60", opacity: .9 },
     };
   }
+  // Labels follow the zoom: Plotly only reports user zooms as relayout events
+  // (not programmatic ones), so a light poll of the map's zoom covers both.
+  let lastLabelZoom = null;
+  setInterval(() => {
+    const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
+    if (z == null || !state.communities) return;
+    const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
+    if (bucket === lastLabelZoom) return;
+    lastLabelZoom = bucket;
+    const idx = el.data ? el.data.findIndex((t) => t.name === "communities") : -1;
+    const nt = communityTrace(z);
+    if (idx >= 0 && nt) Plotly.restyle(el, { text: [nt.text] }, [idx]);
+  }, 1500);
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   function renderMap() {
@@ -468,10 +481,6 @@
         if (state.fitPending) return;
         const c2 = ev["map.center"], z = ev["map.zoom"];
         if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
-        if (z != null && ct) {                                  // relabel the settlements for the new zoom
-          const nt = communityTrace(z), idx = el.data.indexOf(el.data.find((t) => t.name === "communities"));
-          if (nt && idx >= 0 && JSON.stringify(nt.text) !== JSON.stringify(el.data[idx].text)) Plotly.restyle(el, { text: [nt.text] }, [idx]);
-        }
       });
       el.removeAllListeners?.("plotly_click");
       el.on("plotly_click", (ev) => {
