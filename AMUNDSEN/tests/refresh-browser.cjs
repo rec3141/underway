@@ -19,12 +19,13 @@ const failures=new Set(['/data/manifest.json','/data/w-1h.json']), requests=[];
 const hold=new Set(), held=[];
 const leg='2026_LEG_03', t=Date.parse('2026-09-04T12:00:00Z');
 const stamp = () => `2026-09-04T12:00:0${generation}Z`;
+const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc:new Date(t+60000).toISOString(),activity:'TSG pump',event:'Pump off / low intake flow',comment:'Intake flow below 0.5 V'};
 function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
-    variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,coverage:{[leg]:true},source:'TSG'}],
+    variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'}],
     surprise:{scales:[],note:''},stations:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
     data_range:{start:new Date(t-10000).toISOString(),end:new Date(t+10000).toISOString()},
     latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json'},
@@ -33,8 +34,8 @@ function manifest() {
 }
 function dataset(p) {
   if(p==='/data/manifest.json') return manifest();
-  if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],vars:{'SST (°C)':[generation,generation]},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
-  if(p==='/data/calendar.json') return {events:[{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],schedule:{rows:[]}};
+  if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation]},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
+  if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
   if(p.startsWith('/data/agg-')) return {variables:['SST (°C)'],rows:[{t,leg:0,lat:76,lon:-78,'SST (°C)':[generation,generation,generation,2]}]};
   const cast={id:`${leg}:CTD_001`,leg,kind:'CTD',cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78,p:[1,2],units:{Temperature:'°C'},vars:{Temperature:[generation,generation]}};
   if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:[{...cast,vars:['Temperature'],file:'data/casts/cast.json'}]};
@@ -201,6 +202,19 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate('document.querySelector("#livecfgclose").click()');
     }
     console.log('PASS mobile navigation, Agenda, leg menu and live settings fit 320/390/768px; phone touch targets are enlarged');
+    await evaluate('window.UW.state.raw.pump_low=[false,true];window.UW.showTab("underway");window.UW.renderMap()');
+    await until('document.querySelector(".panel .plot")?.data?.length===3');
+    assert.equal(await evaluate('document.querySelector(".panel .plot").data[1].y[1]'),null);
+    assert.equal(await evaluate('document.querySelector(".panel .plot").data[2].marker.color'),'#7d8895');
+    assert.equal(await evaluate('document.querySelector(".panel .plot").data[2].y[1]'),6);
+    await until('document.querySelector("#map").data?.some(t=>t.name==="pump off")');
+    await evaluate('window.UW.showTab("calendar")');
+    await until('document.querySelector("#calendar").textContent.includes("Pump off / low intake flow")');
+    await evaluate('document.querySelector("#calview [data-v=month]").click()');
+    await until('document.querySelector("#calspan")');
+    await evaluate('document.querySelector("#calspan [data-s=month]").click()');
+    await until('document.querySelector(".mev")?.textContent.includes("Pump off / low intake flow")');
+    console.log('PASS pump episodes appear in Agenda/calendar; affected TSG panel and map samples are grey with values retained');
     const errors=await evaluate('window.__errors');
     if(errors.length) console.error(stderr.slice(0,4000),await evaluate('window.__mapErrors'));
     assert.deepEqual(errors,[]);

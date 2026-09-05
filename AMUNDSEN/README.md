@@ -13,6 +13,20 @@ The “live” leg is the discovered leg with the latest date in its
 `ACSD_YYYYMMDD.csv` filenames, breaking ties by year and leg number. File
 copy/modification times do not affect that selection. This marks the latest
 available leg, not a guarantee of fresh data or a working live CTD feed.
+TSG intake flow below the 0.5 V cutoff (`LOW_FLOW_V`) marks a pump-off
+episode. Each episode is an event in Agenda, Timeline and Calendar and is
+queued on the **Underway Updates** Google calendar; it is a low-flow
+indicator, not proof that pump power is off. Missing flow telemetry and leg
+boundaries split episodes rather than implying a continuous stop. An ongoing
+episode extends with each build.
+
+A window bin is flagged (`pump_low`) if any of its minutes had low flow, and
+so are its two neighbours while the line flushes. On the TSG-sourced panels
+(`tsg=True` in `config.py`) and on the map track coloured by a TSG variable
+the flagged bins draw grey with a hover note, and the y-ranges and colour
+limits are set by the unflagged bins only. Values are kept, not removed or
+corrected; table/CSV statistics are unchanged. No flow telemetry means no
+flag. A data rebuild is required after installing this change.
 
 ```
 dashboard/           the Python package
