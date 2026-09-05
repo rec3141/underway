@@ -172,11 +172,14 @@
     const vars = Object.fromEntries(Object.entries(raw.vars).map(([k, v]) => [k, nul(v)]));
     const shown = mask.filter(Boolean).length;
     return { ...raw, lat: nul(raw.lat), lon: nul(raw.lon), dist_km: nul(raw.dist_km), vars, shown,
-             limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v)])) };
+             limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? vars["TSG flow (V)"] : null)])) };
   }
 
-  function quantileLimits(vals) {
-    const a = vals.filter((x) => x != null).sort((x, y) => x - y);
+  // colour limits as the build computes them; the TSG variables' from the
+  // bins with the intake pump running (see pumpedRange)
+  function quantileLimits(vals, flow) {
+    const thr = SITE.low_flow_v ?? 0.5;
+    const a = vals.filter((x, i) => x != null && !(flow && flow[i] != null && flow[i] < thr)).sort((x, y) => x - y);
     if (a.length < 2) return null;
     const q = (p) => a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))];
     let lo = q(0.05), hi = q(0.95);
@@ -422,13 +425,31 @@
   // the ship glyph is drawn bow-right (east); turn it to the heading on the
   // MapLibre layer (Plotly's map symbols carry no angle), whenever it drifts —
   // the first draw's layer may not exist yet when react() resolves
+  const shipRotate = () => Math.round(((state.shipHeading - 90) % 360 + 360) % 360);
+  // Plotly drops and re-adds its layers on every react, which would show the
+  // glyph pointing east for a frame: the rotation is written into the layer
+  // definition on its way into MapLibre (the trace carries a fixed uid, so
+  // the layer id is known)
+  function hookShipLayer(map) {
+    if (map._shipHooked) return;
+    map._shipHooked = true;
+    const add = map.addLayer.bind(map);
+    map.addLayer = (layer, before) => {
+      if (layer?.id === "plotly-trace-layer-latest-symbol" && state.shipHeading != null) {
+        layer.layout = { ...(layer.layout || {}), "icon-rotate": shipRotate(), "icon-rotation-alignment": "map" };
+      }
+      return add(layer, before);
+    };
+  }
   function aimShip() {
     const el = $("#map"); const sp = el?._fullLayout?.map?._subplot;
-    if (!sp?.map || state.shipHeading == null) return;
+    if (!sp?.map) return;
+    hookShipLayer(sp.map);
+    if (state.shipHeading == null) return;
     const lt = el._fullData?.find((t) => t.name === "latest");
     const layer = lt && sp.traceHash?.[lt.uid]?.layerIds?.symbol;
     if (!layer || !sp.map.getLayer(layer)) return;
-    const want = Math.round(((state.shipHeading - 90) % 360 + 360) % 360);
+    const want = shipRotate();
     if (sp.map.getLayoutProperty(layer, "icon-rotate") !== want) {
       sp.map.setLayoutProperty(layer, "icon-rotate", want);
       sp.map.setLayoutProperty(layer, "icon-rotation-alignment", "map");
@@ -488,7 +509,7 @@
     const heading = M.latest?.heading ?? null;
     state.shipHeading = heading;
     if (li >= 0) traces.push({
-      type: "scattermap", mode: "markers", name: "latest", showlegend: false,
+      type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
       lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text",
       text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}`],
       marker: heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
@@ -668,11 +689,18 @@
       Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { xSyncing = false; });
     });
   }
-  // the y-range of the intake flow comes from the minutes the pump was
-  // running: a stopped pump reads near 0 V and would flatten the rest
-  function flowRange(y) {
-    const on = y.filter((v) => v != null && v >= (SITE.low_flow_v ?? 0.5));
-    if (on.length < 2) return null;
+  // The y-range of a TSG variable comes from the bins with the intake pump
+  // running: a stopped pump reads the stagnant line (fresh, warm, near 0 V
+  // of flow) and would set the scale for everything else. The pump-off
+  // points still plot, off the bottom or top of the axis. Null when nothing
+  // is gated, so the axis autoranges as usual.
+  function pumpedRange(name, y, d) {
+    const flow = VAR[name]?.tsg ? d.vars["TSG flow (V)"] : null;
+    if (!flow) return null;
+    const thr = SITE.low_flow_v ?? 0.5;
+    const on = [], all = [];
+    y.forEach((q, i) => { if (q == null) return; all.push(q); if (!(flow[i] != null && flow[i] < thr)) on.push(q); });
+    if (on.length < 2 || on.length === all.length) return null;
     const [lo, hi] = minmax(on), pad = Math.max((hi - lo) * 0.08, 0.01);
     return [lo - pad, hi + pad];
   }
@@ -725,8 +753,8 @@
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
-    if (name === "TSG flow (V)" && !useLog) {
-      const r = flowRange(y);
+    if (!useLog && !v.circular) {
+      const r = pumpedRange(name, y, d);
       if (r) layout.yaxis.range = r;
     }
     if (name.startsWith("Surprise")) {

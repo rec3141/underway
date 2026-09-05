@@ -47,6 +47,7 @@ class Variable:
     derived: bool = False           # computed rather than read from a column
     log_ok: bool = False            # offer a log10 toggle (spiky, positive data)
     circular: bool = False          # degrees on a compass; plotted as points, not lines
+    tsg: bool = False               # read off the TSG line: meaningless while the intake pump is off
     cmap: str = "Viridis"
 
     def resolve(self, keys: list[str]) -> str | None:
@@ -61,15 +62,15 @@ class Variable:
 VARIABLES: tuple[Variable, ...] = (
     Variable("Surprise (−log10 p)", "", (), derived=True, cmap="Magma"),
     Variable("SST (°C)", "°C",
-             (r"^tsg — hull temperature", r"^tsg — .*temperature", r"sea.*surface.*temp", r"hull temperature")),
+             (r"^tsg — hull temperature", r"^tsg — .*temperature", r"sea.*surface.*temp", r"hull temperature"), tsg=True),
     Variable("Salinity (PSU)", "PSU",
-             (r"^tsg — salinity", r"salinity \(psu\)")),
-    Variable("TSG line warming (°C)", "°C", (), derived=True),
-    Variable("TSG flow (V)", "V", (), derived=True),
+             (r"^tsg — salinity", r"salinity \(psu\)"), tsg=True),
+    Variable("TSG line warming (°C)", "°C", (), derived=True, tsg=True),
+    Variable("TSG flow (V)", "V", (), derived=True, tsg=True),
     Variable("Fluorescence (µg/L)", "µg/L",
-             (r"^tsg — fluorescence", r"fluorescence"), log_ok=True),
+             (r"^tsg — fluorescence", r"fluorescence"), log_ok=True, tsg=True),
     Variable("Oxygen (mL/L)", "mL/L",
-             (r"^tsg — oxygen", r"oxygene?")),
+             (r"^tsg — oxygen", r"oxygene?"), tsg=True),
     Variable("Short-wave radiation (W/m²)", "W/m²",
              (r"^ats_portside — short wave", r"^ats_starboard — short wave", r"short wave radiation")),
     Variable("Bottom depth (m)", "m",

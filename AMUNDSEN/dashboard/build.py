@@ -161,6 +161,19 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         elif v.name in g.columns:
             vars_out[v.name] = col(g[v.name], 4)
 
+    # colour scales and axes of the TSG variables are set by the bins with the
+    # intake pump running: a stopped pump reads the stagnant line, not the sea
+    flow = vars_out.get("TSG flow (V)")
+    low = [f is not None and f < LOW_FLOW_V for f in flow] if flow else None
+    tsg_vars = {v.name for v in VARIABLES if v.tsg}
+
+    def limits(name: str, vals: list) -> list | None:
+        if low and name in tsg_vars:
+            pumped = [x for x, l in zip(vals, low) if not l]
+            if len(pumped) >= 2:
+                vals = pumped
+        return _limits(vals)
+
     return {
         "label": w.label, "step_s": w.step_s, "hours": w.hours, "n": int(len(g)),
         "start": t0.isoformat(), "end": g.index.max().isoformat(),
@@ -169,7 +182,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         "dist_km": col(dist_rel, 3),
         "leg": [None if (x is None or not np.isfinite(x)) else int(x) for x in g["leg"].to_numpy()],
         "vars": vars_out,
-        "limits": {name: _limits(vals) for name, vals in vars_out.items()},
+        "limits": {name: limits(name, vals) for name, vals in vars_out.items()},
     }
 
 
@@ -344,7 +357,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "live": next((leg.id for leg, _ in stores if leg.live), None),
         "variables": [{
             "name": r.variable.name, "unit": r.variable.unit, "derived": r.variable.derived,
-            "log_ok": r.variable.log_ok, "circular": r.variable.circular, "cmap": r.variable.cmap,
+            "log_ok": r.variable.log_ok, "circular": r.variable.circular, "tsg": r.variable.tsg, "cmap": r.variable.cmap,
             "resolved": r.resolved, "source": r.display,
             "coverage": {leg_id: cov[r.variable.name] for leg_id, cov in coverage.items()},
         } for r in res],
