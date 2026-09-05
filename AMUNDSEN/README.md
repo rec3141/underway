@@ -9,6 +9,11 @@ variable, and a "surprise" panel that flags minutes that look unusual against
 the previous 48 hours. A span slider reaches from the last hour back across
 every leg on the share, and a leg list filters what is shown.
 
+The “live” leg is the discovered leg with the latest date in its
+`ACSD_YYYYMMDD.csv` filenames, breaking ties by year and leg number. File
+copy/modification times do not affect that selection. This marks the latest
+available leg, not a guarantee of fresh data or a working live CTD feed.
+
 ```
 dashboard/           the Python package
   config.py          variables, windows, data roots — the file to edit

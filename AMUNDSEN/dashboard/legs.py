@@ -129,5 +129,7 @@ def discover() -> list[Leg]:
             f"{SHARE_ROOT}). An empty mount point looks exactly like this."
         )
 
-        max(out, key=lambda l: l.newest_mtime).live = True
+    # Observation dates, not copy/reprocessing times, identify the latest leg.
+    # A shared boundary day belongs to the later leg for this display marker.
+    max(out, key=lambda l: (l.last_date or "", l.year, l.number)).live = True
     return out
