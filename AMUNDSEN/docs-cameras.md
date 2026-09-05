@@ -124,6 +124,16 @@ For supervised evaluation, split by scene/day, not adjacent tiles. Eric's five
 scene estimates (0,30,95,100,100%) are approximate scene references and must
 not be assigned to every tile as if they were tile-level labels.
 
+Use `--brightness-weight 0.5 --labels /path/to/ice-texture-labels.json`
+to explore texture plus luminance while preserving prior labels by source
+file and exact tile bounds. Brightness includes mean, spread and five
+quantiles on unnormalized grayscale pixels. Each feature is standardized;
+the brightness block is dimension-balanced against the texture block before
+applying its explicit weight (0 = texture only). New cluster numbers do not
+inherit old group names. The previous-label filter helps inspect how an old
+ambiguous group splits. Labels such as “probable” or “mixed” remain uncertain,
+not hard ice/water truth. Exposure and glare can confound brightness.
+
 ### Local vision review
 
 `tools/ice-vision-review.py --input /path/to/tiles.json --output /path/to/review
@@ -136,6 +146,9 @@ timing and completion status in `results.json`. Expert labels are not sent.
 These are pretrained-model suggestions, not a trained ice model. The small
 reference set cannot establish general accuracy. Check `finish_reason` for
 truncation and review dark/new ice particularly carefully.
+`--max-tokens 6000` raises the completion budget; load enough context for both
+image/prompt and output (the pilot uses 16384). Budget and completion status
+are recorded in the result. No-thinking hints depend on runtime support.
 
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,
 sampling, corrupt-image recovery, real ffmpeg encoding (when available), a

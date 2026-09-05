@@ -15,11 +15,14 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--model', default='ice-vision')
     p.add_argument('--limit', type=int, default=5)
+    p.add_argument('--max-tokens', type=int, default=1200)
     p.add_argument('--no-thinking', action='store_true')
     p.add_argument('--render-only', action='store_true', help='Rebuild HTML from existing results without inference')
     args = p.parse_args()
     if not 1 <= args.limit <= 100:
         p.error('limit must be 1..100')
+    if not 128 <= args.max_tokens <= 12000:
+        p.error('max tokens must be 128..12000')
     scenes = json.loads(args.input.read_text())['scenes'][:args.limit]
     args.output.mkdir(parents=True,exist_ok=True)
     rows = json.loads((args.output/'results.json').read_text()) if args.render_only else []
@@ -28,7 +31,7 @@ def main():
     for scene in ([] if args.render_only else scenes):
         start = time.monotonic()
         prompt = PROMPT + ('\n/no_think' if args.no_thinking else '')
-        payload = {'model':args.model,'temperature':0,'max_tokens':1200,
+        payload = {'model':args.model,'temperature':0,'max_tokens':args.max_tokens,
                    'messages':[{'role':'user','content':[
                        {'type':'text','text':prompt},
                        {'type':'image_url','image_url':{'url':scene['image']}}]}]}
@@ -36,12 +39,12 @@ def main():
             payload['chat_template_kwargs'] = {'enable_thinking':False}
         request = urllib.request.Request('http://127.0.0.1:1234/v1/chat/completions',
                                          data=json.dumps(payload).encode(),headers={'Content-Type':'application/json'})
-        with client.open(request,timeout=180) as response:
+        with client.open(request,timeout=600) as response:
             result = json.load(response)
         choice = result['choices'][0]
         row = {**scene,'model':args.model,'prompt':prompt,'response':choice['message']['content'] or '',
                'finish_reason':choice.get('finish_reason'),'elapsed_s':round(time.monotonic()-start,2),
-               'usage':result.get('usage')}
+               'usage':result.get('usage'),'max_tokens':args.max_tokens}
         rows.append(row)
         (args.output/'results.json').write_text(json.dumps(rows,indent=2))
         print(f"Scene {scene['scene']}: {row['elapsed_s']}s\n{row['response']}\n",flush=True)

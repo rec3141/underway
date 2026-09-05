@@ -38,6 +38,11 @@ def jpeg(image):
     return 'data:image/jpeg;base64,'+base64.b64encode(buf.getvalue()).decode()
 
 
+def brightness(image):
+    a = np.asarray(image.convert('L'), dtype=float)/255
+    return [float(a.mean()),float(a.std()),*np.quantile(a,[.05,.25,.5,.75,.95]).tolist()]
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--source', type=Path, required=True)
@@ -47,10 +52,19 @@ def main():
     p.add_argument('--clusters', type=int, default=8)
     p.add_argument('--sample-leg', action='store_true', help='Add two time-spaced camera-3 scenes per day')
     p.add_argument('--max-tiles-per-scene', type=int, default=24)
+    p.add_argument('--brightness-weight', type=float, default=0,
+                   help='Relative block weight after standardization; 0 retains texture-only')
+    p.add_argument('--labels', type=Path, help='Previous exported group labels, matched by source file and tile box')
     args = p.parse_args()
     if not 32 <= args.tile <= 512:
         p.error('tile must be 32..512')
-    records, features, scenes = [], [], []
+    if not np.isfinite(args.brightness_weight) or not 0<=args.brightness_weight<=5:
+        p.error('brightness weight must be 0..5')
+    records, features, scenes, levels = [], [], [], []
+    previous = json.loads(args.labels.read_text()) if args.labels else {}
+    prior = {(r['file'],tuple(r['box'])):{'previous_group':r['cluster'],
+             'previous_label':previous.get('group_names',{}).get(str(r['cluster']), '')}
+             for r in previous.get('tiles',[])}
     entries = json.loads(args.config.read_text())
     if args.max_tiles_per_scene < 1:
         p.error('max tiles per scene must be positive')
@@ -85,12 +99,19 @@ def main():
         for x,y in positions:
                 tile = crop.crop((x,y,x+args.tile,y+args.tile))
                 features.append(texture(tile))
+                levels.append(brightness(tile))
                 records.append({'id':len(records),'scene':scene,'file':entry['file'],
                                 'box':[x0+x,y0+y,x0+x+args.tile,y0+y+args.tile],
-                                'image':jpeg(tile)})
+                                'brightness_mean':levels[-1][0], 'image':jpeg(tile),
+                                **prior.get((entry['file'],(x0+x,y0+y,x0+x+args.tile,y0+y+args.tile)),{})})
     if len(records)<4 or not 2<=args.clusters<len(records):
         raise ValueError('Need at least four tiles and 2 <= clusters < tile count')
     values = StandardScaler().fit_transform(features)
+    if args.brightness_weight:
+        # Equalize block dimensionality so seven brightness features are not
+        # drowned out by eighty texture features. Weight is explicit in metadata.
+        light = StandardScaler().fit_transform(levels)
+        values = np.column_stack((values,light*args.brightness_weight*np.sqrt(values.shape[1]/light.shape[1])))
     labels = KMeans(n_clusters=args.clusters,random_state=42,n_init=20).fit_predict(values)
     perplexity = min(30., (len(records)-1)/3)
     coords = TSNE(n_components=2,perplexity=perplexity,random_state=42,
@@ -98,7 +119,8 @@ def main():
     for row, label, point in zip(records,labels,coords):
         row.update(cluster=int(label),x=float(point[0]),y=float(point[1]))
     data = {'tiles':records,'scenes':scenes,'tile_size':args.tile,'perplexity':perplexity,
-            'seed':42,'clusters':args.clusters, 'sample_leg':args.sample_leg}
+            'seed':42,'clusters':args.clusters, 'sample_leg':args.sample_leg,
+            'brightness_weight':args.brightness_weight,'previous_group_names':previous.get('group_names',{})}
     args.output.mkdir(parents=True,exist_ok=True)
     (args.output/'tiles.json').write_text(json.dumps(data))
     html = TEMPLATE.replace('DATA_HERE',json.dumps(data).replace('<','\\u003c'))
@@ -115,21 +137,25 @@ canvas{width:100%;max-width:900px;background:#fff;touch-action:manipulation}img{
 <p>Native-pixel tiles from sea crops. Partial edge tiles omitted. All five reference scenes included.
 Leg sampling adds two time-spaced scenes per day and caps tiles per scene. The reused crop needs review for ship, sky, land and poor visibility; no automatic quality exclusions.</p>
 <p>t-SNE is a similarity visualization, not a concentration estimate. Groups use k-means on standardized texture features, <b>not on t-SNE coordinates</b>.
-No RGB or mean-brightness features; contrast-normalized gradients, scale statistics and spatial differences can still reflect glare, perspective and camera artifacts.
+Texture uses contrast-normalized gradients, scale statistics and spatial differences. Optional brightness uses mean, spread and quantiles.
+Both can reflect glare, exposure, perspective and camera artifacts. <span id="settings"></span>
 Spacing, island size and group numbers have no physical meaning. Seed 42; groups are exploratory.</p>
 <label>Colour by <select id="colour"><option value="cluster">Texture group</option><option value="scene">Source scene</option></select></label>
 <label>Show <select id="filter"><option value="all">All groups</option></select></label>
+<label>Previous label <select id="prior"><option value="all">All previous groups</option></select></label>
 <canvas id="plot" width="900" height="600"></canvas><div id="detail">Click a point or tile to inspect it.</div>
 <p><label>Group name <input id="name" placeholder="Select a group first"></label><button id="save">Assign name</button><button id="export">Download labels</button>
 Names stay in this page until exported; reload clears them.</p><div id="tiles" class="tiles"></div><h2>Source crops</h2><div id="scenes"></div>
 <script>const data=DATA_HERE, names={}, palette=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#008b8b','#b27800','#666666','#d050a0','#668000'];
 const by=id=>document.getElementById(id), c=by('plot'),ctx=c.getContext('2d');
+by('settings').textContent='Brightness block weight: '+(data.brightness_weight||0)+'. Previous labels are retained per tile, not assigned to new groups.';
+for(const [group,label] of Object.entries(data.previous_group_names||{})){let o=document.createElement('option');o.value=group;o.textContent=group+': '+label;by('prior').append(o)}
 for(let i=0;i<data.clusters;i++){let o=document.createElement('option');o.value=i;o.textContent='Group '+i;by('filter').append(o)}
 const xs=data.tiles.map(t=>t.x),ys=data.tiles.map(t=>t.y), xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
 for(const t of data.tiles){t.px=20+860*(t.x-xmin)/(xmax-xmin||1);t.py=20+560*(t.y-ymin)/(ymax-ymin||1)}
-function shown(){return data.tiles.filter(t=>by('filter').value==='all'||t.cluster===+by('filter').value)}
+function shown(){return data.tiles.filter(t=>(by('filter').value==='all'||t.cluster===+by('filter').value)&&(by('prior').value==='all'||t.previous_group===+by('prior').value))}
 function inspect(t){by('detail').replaceChildren();let im=new Image();im.src=t.image;im.width=200;by('detail').append(im,document.createElement('br'),
-document.createTextNode(`Tile ${t.id} · scene ${t.scene} · group ${t.cluster} · ${names[t.cluster]||'unnamed'} · source box ${t.box.join(', ')} · ${t.file}`))}
+document.createTextNode(`Tile ${t.id} · scene ${t.scene} · group ${t.cluster} · ${names[t.cluster]||'unnamed'} · previous: ${t.previous_label||'unlabelled'} · brightness ${(t.brightness_mean*255).toFixed(0)}/255 · source box ${t.box.join(', ')} · ${t.file}`))}
 function draw(){ctx.clearRect(0,0,900,600);by('tiles').replaceChildren();for(const t of shown()){
 const category=by('colour').value==='scene'?t.scene-1:t.cluster;
 ctx.fillStyle=category<palette.length?palette[category]:`hsl(${category*137.508%360} 65% 40%)`;ctx.beginPath();ctx.arc(t.px,t.py,5,0,7);ctx.fill();
@@ -137,6 +163,7 @@ let d=document.createElement('div');d.className='tile';let im=new Image();im.src
 c.onclick=e=>{let r=c.getBoundingClientRect(),x=(e.clientX-r.left)*900/r.width,y=(e.clientY-r.top)*600/r.height;
 let t=shown().reduce((a,b)=>!a||Math.hypot(b.px-x,b.py-y)<Math.hypot(a.px-x,a.py-y)?b:a,null);if(t)inspect(t)};
 by('filter').onchange=()=>{by('name').value=names[by('filter').value]||'';draw()};by('colour').onchange=draw;
+by('prior').onchange=draw;
 by('save').onclick=()=>{if(by('filter').value==='all'){alert('Select a group first');return}names[by('filter').value]=by('name').value;};
 by('export').onclick=()=>{let blob=new Blob([JSON.stringify({group_names:names,seed:data.seed,tile_size:data.tile_size,
 tiles:data.tiles.map(({image,px,py,...t})=>t)},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ice-texture-labels.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
