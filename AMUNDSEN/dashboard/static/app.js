@@ -464,10 +464,12 @@
                   tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
+    // the ship herself at the latest position: the sprite's red-and-white
+    // Amundsen glyph, so she never reads as a selected station
     if (li >= 0) traces.push({
       type: "scattermap", mode: "markers", name: "latest", showlegend: false,
-      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`latest · ${fmtUTC(d.t[li])}`],
-      marker: { size: 16, color: "#ffb454", opacity: .95 },
+      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])}`],
+      marker: { symbol: "ship", size: 11, opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces);
     const shownIds = new Set(shownLegs().map((l) => l.id));
