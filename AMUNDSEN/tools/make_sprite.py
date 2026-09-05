@@ -4,8 +4,8 @@
 MapLibre draws non-circle markers from a sprite sheet, so the square used for
 communities and the coloured triangles used for event-log entries live here.
 Icons at 1x: "square-15" (off-white, 12 px), "tri-0-15" … "tri-9-15" (12 px, the
-event palette) and "ship-15" (26×14 px, the Amundsen in Coast Guard red and
-white, bow to the right, for the latest position). Plotly requests sprite icons
+event palette) and "ship-15" (28×12 px, the Amundsen seen from above in Coast Guard red
+and white, bow to the right, turned to the heading on the map). Plotly requests sprite icons
 as "<marker.symbol>-15". Re-run after changing the palette; the dashboard's map style points
 its `sprite` at these files.
 """
@@ -19,20 +19,21 @@ PALETTE = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e
 ICON = 12
 
 
-SHIP_W, SHIP_H = 26, 14          # the ship glyph at 1x: red hull, white house, bow to the right
+SHIP_W, SHIP_H = 28, 12          # the ship glyph at 1x: plan view, red hull, white house, bow to the right
 HULL, HOUSE, OUTLINE = "#d52b1e", "#f4f4f4", "#0b1620"    # Canadian Coast Guard red and white
 
 
 def ship(d: ImageDraw.ImageDraw, x0: int, scale: int) -> None:
+    """Seen from above so it can be turned to the heading: a rounded stern at
+    the left, straight sides, a pointed bow at the right; the superstructure
+    sits just aft of midships, the icebreaking bow is left clear."""
     k = scale
-    # hull: flat stern at left, raked bow at right, waterline along the bottom
-    d.polygon([(x0 + 1 * k, 8 * k), (x0 + 21 * k, 8 * k), (x0 + 25 * k, 10 * k), (x0 + 22 * k, 13 * k), (x0 + 2 * k, 13 * k)],
-              fill=HULL, outline=OUTLINE, width=k)
-    # superstructure and funnel
-    d.rectangle([x0 + 6 * k, 3 * k, x0 + 15 * k, 8 * k], fill=HOUSE, outline=OUTLINE, width=k)
-    d.rectangle([x0 + 8 * k, 1 * k, x0 + 11 * k, 3 * k], fill=HOUSE, outline=OUTLINE, width=k)
-    # the CCG diagonal stripe near the bow
-    d.line([(x0 + 17 * k, 8 * k), (x0 + 19 * k, 12 * k)], fill=HOUSE, width=k)
+    cy = SHIP_H * k / 2
+    hull = [(x0 + 3 * k, cy - 4 * k), (x0 + 18 * k, cy - 4 * k), (x0 + 27 * k, cy), (x0 + 18 * k, cy + 4 * k), (x0 + 3 * k, cy + 4 * k),
+            (x0 + 1 * k, cy + 2 * k), (x0 + 1 * k, cy - 2 * k)]
+    d.polygon(hull, fill=HULL, outline=OUTLINE, width=k)
+    d.rectangle([x0 + 7 * k, cy - 2 * k, x0 + 15 * k, cy + 2 * k], fill=HOUSE, outline=OUTLINE, width=k)   # house
+    d.line([(x0 + 20 * k, cy - 3 * k), (x0 + 22 * k, cy + 3 * k)], fill=HOUSE, width=k)                     # the CCG stripe
 
 
 def sheet(scale: int):
