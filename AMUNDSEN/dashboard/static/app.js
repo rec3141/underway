@@ -509,6 +509,14 @@
                 colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
                   tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
+    // coloured by a TSG variable, the track goes grey where the pump was off
+    const lowMap = v?.tsg ? pumpLow(d) : null;
+    if (state.track && lowMap && lowMap.some(Boolean)) traces.push({
+      type: "scattermap", mode: "markers", name: "pump off", showlegend: false,
+      lat: d.lat.map((q, i) => (lowMap[i] ? q : null)), lon: d.lon.map((q, i) => (lowMap[i] ? q : null)),
+      text: hover.map((h, i) => (lowMap[i] ? h + "<br><i>intake pump off</i>" : "")), hoverinfo: "text",
+      marker: { size: 6, color: "#7d8895", opacity: .8 },
+    });
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     // the ship herself at the latest position: the sprite's red-and-white
     // Amundsen glyph turned to the heading the build averaged over the last
@@ -741,13 +749,29 @@
     // SVG, not WebGL: a dozen scattergl panels plus the map exceed the
     // browser's WebGL context limit (Safari's is 8) and the map is what gets
     // dropped. Panels never carry more than a few thousand points.
+    // a TSG variable while the pump is stopped describes the line, not the
+    // sea: those points go grey, in a trace of their own over the same line
+    const low = v.tsg ? pumpLow(d) : null;
+    const gated = !!low && low.some((l, i) => l && y[i] != null);
+    const x = xvals(d), legText = d.leg.map((i) => legByIndex(i)?.label || "");
     const trace = {
-      x: xvals(d), y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
+      x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
       marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false },
-      text: d.leg.map((i) => legByIndex(i)?.label || ""),
+      text: legText,
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
+    const traces = [trace];
+    if (gated) {
+      // the line runs through every point; the coloured markers sit on the
+      // pumped ones, the grey markers on the rest
+      trace.mode = "markers";
+      traces.unshift({ x, y, type: "scatter", mode: "lines", hoverinfo: "skip", connectgaps: false,
+                       line: { width: 1, color: "rgba(160,180,200,.45)" } });
+      traces.push({ x, y: y.map((q, i) => (low[i] ? q : null)), type: "scatter", mode: "markers", name: "pump off",
+                    marker: { size: 3.5, color: "#7d8895", opacity: .55 }, text: legText,
+                    hovertemplate: `%{y:.3~f} ${v.unit} · <i>intake pump off</i><br>%{x}<br>%{text}<extra></extra>` });
+    }
     const useLog = !!state.log[name] && y.some((q) => q > 0);
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
@@ -771,7 +795,7 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, [trace], layout, CFG).then(() => { axisZoom(plot); linkX(plot); });
+    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot); });
   }
 
   function renderPanels() {
