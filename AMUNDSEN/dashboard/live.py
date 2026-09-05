@@ -10,8 +10,9 @@ last raw packets are kept so an unknown feed can be read off the page.
 Configuration is applied only after a replacement socket binds successfully.
 Changing the port or column order ends the current cast; the next in-water
 scan starts a new one. Saved casts retain their original column definitions.
-Scans accept comma-, semicolon- or whitespace-separated finite numbers;
-malformed lines remain visible in raw packets but are not plotted.
+Scans accept comma-, semicolon- or whitespace-separated fields; a field that
+is not a finite number (a flag, a date) is kept as a gap so the other columns
+stay aligned, and a scan whose pressure field does not parse is dropped.
 
 Nothing here is required for the rest of the dashboard: with no feed the
 endpoint simply reports that it is listening (or off, port 0).
@@ -150,10 +151,14 @@ class LiveCTD:
                     # into the wrong columns (particularly the pressure column).
                     fields = [field for part in re.split(r"[,;]", line.strip())
                               for field in (part.split() or [""])]
-                    if not fields or not all(NUM.fullmatch(x) for x in fields):
+                    if not fields:
                         continue
-                    vals = [float(x) for x in fields]
-                    if len(vals) >= 2 and all(math.isfinite(x) for x in vals):
+                    # a field that is not a finite number (a flag, a date) becomes
+                    # None so the others keep their columns; the pressure field
+                    # itself must parse or the scan is dropped
+                    vals = [float(x) if NUM.fullmatch(x) and math.isfinite(float(x)) else None for x in fields]
+                    pi = self.pcol
+                    if len(vals) >= 2 and 0 <= pi < len(vals) and vals[pi] is not None:
                         self._scan(now, vals)
             self._tick(now)
 

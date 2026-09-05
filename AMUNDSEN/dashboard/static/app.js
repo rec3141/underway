@@ -29,6 +29,7 @@
     xmode: store.get("xmode", "time"),
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
+    track: store.get("track", true),                    // the ship's track on the map
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
     communities: store.get("communities", true),        // settlements on the map
@@ -254,6 +255,8 @@
     sel.value = state.colour;
     sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
 
+    $("#track").checked = state.track;
+    $("#track").onchange = (e) => { state.track = e.target.checked; store.set("track", state.track); renderMap(); };
     $("#stations").checked = state.stations;
     $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
     $("#events").checked = state.events;
@@ -302,7 +305,12 @@
   function mapStyle(withRaster) {
     // Plotly can drop an empty `sources` object on a subsequent react(),
     // which MapLibre rejects on installations without raster tiles.
+    const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const style = { version: 8, sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
+                    sprite: base0 + "static/geo/sprite",           // square + coloured triangles (tools/make_sprite.py)
+                    // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
+                    // Open Sans Regular PBFs are served locally so it works offline
+                    glyphs: base0 + "static/geo/glyphs/{fontstack}/{range}.pbf",
                     layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
     if (withRaster && SITE.raster) {
       const base = location.origin + location.pathname.replace(/[^/]*$/, "");
@@ -364,7 +372,7 @@
     for (const e of ok) { const k = `${(+e.lat).toFixed(4)},${(+e.lon).toFixed(4)}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const acts = [...new Set(ok.map((e) => e.activity || "other"))];
-    const colour = (a) => PALETTE_EV[acts.indexOf(a) % PALETTE_EV.length];
+    const colour = (a) => acts.indexOf(a) % PALETTE_EV.length;         // index into the sprite's tri-N icons
     const pts = [...groups.values()].map((es) => {
       es.sort((a, b) => tms(b.time_utc) - tms(a.time_utc));
       const lines = es.slice(0, 10).map((e) => `${fmtUTC(tms(e.time_utc))} · <b>${esc(e.station || "")}</b> ${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? " <i>" + esc(e.label) + "</i>" : ""}${e.comment ? "<br>&nbsp;&nbsp;" + esc(e.comment) : ""}`);
@@ -374,7 +382,8 @@
     return [{
       type: "scattermap", mode: "markers", name: "event log", showlegend: false, hoverinfo: "text",
       lat: pts.map((p) => p.lat), lon: pts.map((p) => p.lon), text: pts.map((p) => p.text),
-      marker: { size: pts.map((p) => Math.min(14, 7 + 2 * Math.log2(p.n))), color: pts.map((p) => p.colour), opacity: .85 },
+      // sprite icons: marker.size / 10 is the icon scale of a 12 px triangle
+      marker: { symbol: pts.map((p) => `tri-${p.colour}`), size: pts.map((p) => Math.min(14, 7 + 2 * Math.log2(p.n))), opacity: .9 },
     }];
   }
   const PALETTE_EV = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce", "#ffb454"];
@@ -391,8 +400,9 @@
       lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon),
       text: cs.map((c) => (c.pop >= minPop || (c.code === "PPLA" && zoom >= 2.5)) ? c.name : ""),
       hovertext: cs.map((c) => `<b>${esc(c.name)}</b>${c.alt?.length ? " · " + esc(c.alt.join(" · ")) : ""}<br>${esc(c.region)}, ${c.cc === "GL" ? "Greenland" : "Canada"}${c.pop ? ` · pop. ${c.pop.toLocaleString()}` : ""}`),
-      textposition: "top right", textfont: { size: 11, color: "#f2e7c9" },
-      marker: { size: 6, color: "#f2cc60", opacity: .9 },
+      textposition: "top right", textfont: { size: 11, color: "#f2e7c9", family: "Open Sans Regular" },
+      // sprite "square"; icon scale = size / 10, so this runs ~7 px (a hamlet) to ~15 px (Nuuk, Iqaluit)
+      marker: { symbol: "square", size: cs.map((c) => 4 + 2 * Math.log10((c.pop || 0) + 10)), opacity: .9 },
     };
   }
   // Labels follow the zoom: Plotly only reports user zooms as relayout events
@@ -432,7 +442,7 @@
     const ct = communityTrace((state.view || fitView(d.lat, d.lon)).zoom);
     if (ct) traces.push(ct);
     traces.push(...eventTraces(f0));
-    traces.push({
+    if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
