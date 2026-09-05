@@ -199,6 +199,11 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     if tsg is not None and "flow" in tsg.columns:
         flow = tsg["flow"]
         out["TSG flow (V)"] = flow.reindex(df.index.floor("1min")).to_numpy()
+        # pump status per minute, so a window bin can be marked as soon as one
+        # of its minutes had the intake stopped (a bin mean of the voltage
+        # straddling the switch-off would still look like a running pump)
+        low = (flow < LOW_FLOW_V).astype(float).where(flow.notna())
+        out["pump_low"] = low.reindex(df.index.floor("1min")).to_numpy()
 
     # elapsed time is filled per window at build time; keep a placeholder so
     # the column set is stable

@@ -172,14 +172,23 @@
     const vars = Object.fromEntries(Object.entries(raw.vars).map(([k, v]) => [k, nul(v)]));
     const shown = mask.filter(Boolean).length;
     return { ...raw, lat: nul(raw.lat), lon: nul(raw.lon), dist_km: nul(raw.dist_km), vars, shown,
-             limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? vars["TSG flow (V)"] : null)])) };
+             limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(raw) : null)])) };
   }
 
+  // Per bin, whether the intake pump was stopped: the build's flag (any
+  // stopped minute in the bin, spread to the neighbours) when it is there,
+  // else the bin-mean flow against the threshold.
+  function pumpLow(d) {
+    if (d.pump_low) return d.pump_low;
+    const flow = d.vars["TSG flow (V)"];
+    if (!flow) return null;
+    const thr = SITE.low_flow_v ?? 0.5;
+    return flow.map((f) => f != null && f < thr);
+  }
   // colour limits as the build computes them; the TSG variables' from the
   // bins with the intake pump running (see pumpedRange)
-  function quantileLimits(vals, flow) {
-    const thr = SITE.low_flow_v ?? 0.5;
-    const a = vals.filter((x, i) => x != null && !(flow && flow[i] != null && flow[i] < thr)).sort((x, y) => x - y);
+  function quantileLimits(vals, low) {
+    const a = vals.filter((x, i) => x != null && !(low && low[i])).sort((x, y) => x - y);
     if (a.length < 2) return null;
     const q = (p) => a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))];
     let lo = q(0.05), hi = q(0.95);
@@ -695,11 +704,10 @@
   // points still plot, off the bottom or top of the axis. Null when nothing
   // is gated, so the axis autoranges as usual.
   function pumpedRange(name, y, d) {
-    const flow = VAR[name]?.tsg ? d.vars["TSG flow (V)"] : null;
-    if (!flow) return null;
-    const thr = SITE.low_flow_v ?? 0.5;
+    const low = VAR[name]?.tsg ? pumpLow(d) : null;
+    if (!low) return null;
     const on = [], all = [];
-    y.forEach((q, i) => { if (q == null) return; all.push(q); if (!(flow[i] != null && flow[i] < thr)) on.push(q); });
+    y.forEach((q, i) => { if (q == null) return; all.push(q); if (!low[i]) on.push(q); });
     if (on.length < 2 || on.length === all.length) return null;
     const [lo, hi] = minmax(on), pad = Math.max((hi - lo) * 0.08, 0.01);
     return [lo - pad, hi + pad];

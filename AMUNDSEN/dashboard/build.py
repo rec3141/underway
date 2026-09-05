@@ -105,6 +105,8 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
 
     rule = f"{w.step_s}s"
     agg: dict[str, object] = {"lat": "mean", "lon": "mean", "dist_km": "max", "leg": "first"}
+    if "pump_low" in df.columns:
+        agg["pump_low"] = "max"                     # one stopped minute marks the bin
     for v in VARIABLES:
         if v.name not in df.columns or v.name in WINDOW_FILLED:
             continue
@@ -161,10 +163,15 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         elif v.name in g.columns:
             vars_out[v.name] = col(g[v.name], 4)
 
-    # colour scales and axes of the TSG variables are set by the bins with the
-    # intake pump running: a stopped pump reads the stagnant line, not the sea
-    flow = vars_out.get("TSG flow (V)")
-    low = [f is not None and f < LOW_FLOW_V for f in flow] if flow else None
+    # Colour scales and axes of the TSG variables are set by the bins with the
+    # intake pump running: a stopped pump reads the stagnant line, not the sea.
+    # A bin counts as stopped if any of its minutes was, and so do its two
+    # neighbours: the line takes a while to flush once the pump is back on.
+    low = None
+    if "pump_low" in g.columns:
+        raw_low = [bool(x >= 0.5) if np.isfinite(x) else None for x in g["pump_low"].to_numpy(dtype=float)]
+        low = [bool(raw_low[i]) or bool(i > 0 and raw_low[i - 1]) or bool(i + 1 < len(raw_low) and raw_low[i + 1])
+               for i in range(len(raw_low))]
     tsg_vars = {v.name for v in VARIABLES if v.tsg}
 
     def limits(name: str, vals: list) -> list | None:
@@ -182,6 +189,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         "dist_km": col(dist_rel, 3),
         "leg": [None if (x is None or not np.isfinite(x)) else int(x) for x in g["leg"].to_numpy()],
         "vars": vars_out,
+        "pump_low": low,
         "limits": {name: limits(name, vals) for name, vals in vars_out.items()},
     }
 
