@@ -1,6 +1,7 @@
 """Bounded, local-only exploratory review; labels never enter model prompts."""
 import argparse
 import concurrent.futures
+from collections import deque
 import html
 import importlib.util
 import json
@@ -48,19 +49,36 @@ def request(images, prompt):
         return json.load(response)
 
 
-def limit_qwen_cpu():
+class RunningTemperature:
+    """Time-weighted trailing mean; startup uses observed time, never zero padding."""
+    def __init__(self, seconds=120):
+        self.seconds=seconds;self.samples=deque()
+
+    def add(self, now, value):
+        self.samples.append((now,value))
+        cutoff=now-self.seconds
+        while len(self.samples)>1 and self.samples[1][0]<=cutoff:self.samples.popleft()
+        start=max(cutoff,self.samples[0][0]);total=0
+        for (t,v),(end,_) in zip(self.samples,list(self.samples)[1:]):
+            total+=v*max(0,end-max(t,start))
+        return total/(now-start) if now>start else value
+
+
+def limit_qwen_cpu(proc_root=None):
     """Linux-only: constrain the exact LM Studio Qwen backend, not Gemma."""
     if not hasattr(os,'sched_setaffinity'): return
     cpus=set(sorted(os.sched_getaffinity(0))[:4])
     matched=False
-    for proc in Path('/proc').glob('[0-9]*'):
+    for proc in (proc_root or Path('/proc')).glob('[0-9]*'):
         try:
             cmd=(proc/'cmdline').read_bytes().split(b'\0')
             if not cmd or b'/.lmstudio/extensions/backends/' not in cmd[0]: continue
             if b'/data/scratch/models/lmstudio-community/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf' not in cmd: continue
-            for task in (proc/'task').iterdir(): os.sched_setaffinity(int(task.name),cpus)
-            matched=True
-        except ProcessLookupError: continue
+            for task in (proc/'task').iterdir():
+                try:
+                    os.sched_setaffinity(int(task.name),cpus);matched=True
+                except (ProcessLookupError,FileNotFoundError):continue
+        except (ProcessLookupError,FileNotFoundError,PermissionError): continue
     if not matched: raise RuntimeError('Could not identify Qwen backend for CPU limit')
 
 
@@ -71,6 +89,10 @@ def atomic(path, value):
 def render(out, rows):
     if (out/'embedding.json').exists():
         module('region_explorer','ice-region-explorer.py').render(out, rows)
+    elif (out/'linked-explorers.json').exists():
+        explorer=module('region_explorer','ice-region-explorer.py')
+        for folder in json.loads((out/'linked-explorers.json').read_text()):
+            explorer.render(Path(folder),rows,follow_links=False)
     page = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Overnight ice experiments</title><style>body{font:16px system-ui;max-width:1200px;margin:auto;padding:20px}img{max-width:48%;max-height:500px}pre{white-space:pre-wrap}article{border-top:1px solid;padding:20px 0}</style><h1>Blind local Qwen experiments</h1><p>Unvalidated exploratory predictions. Human labels were withheld from prompts. Cluster descriptions are weak labels, not individual coupon truth. Region predictions use image-plane area, not perspective-corrected concentration. Refresh for new results.</p>'
     page += f'<p>{len(rows)} completed requests.</p>'
     for r in rows:
@@ -140,17 +162,20 @@ def main():
     expected=STRUCTURED_PROMPT if a.structured else None
     if rows and (not a.structured or any(r['prompt']!=expected for r in rows)):
         raise ValueError('Output already has incompatible results; use a new directory')
-    done={r['id'] for r in rows}
+    done={r['id'] for r in rows if r.get('finish_reason')=='stop' and r.get('response','').strip()}
     render(out, rows)
     deadline = time.monotonic()+a.hours*3600
     loaded = False; trips = 0; errors = 0; force_cool=False
+    cpu_window=RunningTemperature();cpu_average=0
     def unload():
         nonlocal loaded
         subprocess.run([LMS,'unload',MODEL], timeout=45, check=False); loaded=False
     def sample():
+        nonlocal cpu_average
         values = monitor.temperatures()
+        cpu_average=cpu_window.add(time.monotonic(),values[0])
         with (out/'telemetry.csv').open('a') as f:
-            f.write(datetime.now(timezone.utc).isoformat()+','+','.join(map(str,values))+'\n')
+            f.write(datetime.now(timezone.utc).isoformat()+','+','.join(map(str,values))+f',{cpu_average}\n')
         return values
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
@@ -165,7 +190,7 @@ def main():
                 atomic(out/'prepared-example.json', json.dumps(job)); return
             if time.monotonic() >= deadline: break
             cpu,gpu,*_ = sample()
-            if force_cool or cpu >= 88 or gpu >= 78:
+            if force_cool or cpu_average >= 95 or cpu >= 100 or gpu >= 78:
                 if loaded: unload()
                 cooling_start = time.monotonic()
                 while cpu > 75 or gpu > 65:
@@ -183,9 +208,9 @@ def main():
             interrupted=False
             while not future.done():
                 cpu,gpu,*_=sample()
-                if cpu >= 95 or gpu >= 83 or time.monotonic() >= deadline:
+                if cpu_average >= 95 or cpu >= 100 or gpu >= 83 or time.monotonic() >= deadline:
                     unload(); interrupted=True; trips+=1; force_cool=True
-                    print('Interrupted for temperature/deadline',cpu,gpu,flush=True)
+                    print('Interrupted for temperature/deadline; CPU instantaneous/120s mean/GPU',cpu,cpu_average,gpu,flush=True)
                     break
                 time.sleep(3)
             try:

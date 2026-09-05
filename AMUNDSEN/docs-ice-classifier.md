@@ -125,3 +125,26 @@ lasso selection and additive human label sets. Human label exports are keyed by
 source file and exact region geometry, and can be imported into the duplicate.
 Autosave is browser-local and export remains the portable backup. The temperature
 page tool samples every 30 seconds through a user timer, with seven-day retention.
+
+## Tree proofsheet workflow
+
+`ice-tree-review.py --portal PORTAL` adds `tree-review.html`, initially cut into
+16 actual Ward subtrees of the t-SNE hierarchy. Each proofsheet includes every
+remaining photo in the current node (lazy-loaded thumbnails, no sampling).
+Down replaces that node with its immediate children and opens the first pending
+child. Up replaces overlapping pending siblings with their parent while excluding
+all previously labeled photos. Left/right move among pending subsets without
+labeling. L opens a label dialog; Enter applies the label to the entire displayed
+batch and advances. Undo restores the last labeled batch and prior navigation.
+Labels/progress autosave in browser storage; export/import provides portable
+labels compatible with the projection portal. This page deliberately never
+auto-refreshes while labeling. Qwen stays stopped until explicitly resumed.
+
+The Qwen worker now tolerates disappearing `/proc` entries and threads while
+setting CPU affinity. Its CPU cooldown threshold is **95°C averaged over the
+trailing 120 seconds**, time weighted; startup uses available observed duration
+without zero-padding. An instantaneous 100°C emergency cutoff remains. GPU limits
+are unchanged. Cooling still waits for instantaneous CPU <=75°C / GPU <=65°C.
+The worker logs the CPU average as an additional telemetry column and retries
+empty/truncated responses on resume. Other CPU-only projection workers retain
+their existing conservative instantaneous pause thresholds.
