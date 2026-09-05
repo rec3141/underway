@@ -34,14 +34,18 @@ def main():
     p.add_argument('--source',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--angle',type=float,default=-55)
+    p.add_argument('--scenes', default='7,11,18,23,38,40', help='Comma-separated scene numbers')
     args=p.parse_args()
     data=json.loads(args.input.read_text())
-    selected=[s for s in data['scenes'] if s['scene'] in (7,11,18,23,38,40)]
+    wanted={int(s) for s in args.scenes.split(',')}
+    selected=[s for s in data['scenes'] if s['scene'] in wanted]
+    if {s['scene'] for s in selected}!=wanted:
+        p.error('Requested scene missing from input')
     args.output.mkdir(parents=True,exist_ok=True)
     page='''<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Boat-aligned crop trial</title>
 <style>body{font:17px system-ui;background:#17212b;color:#eee;margin:20px}.pair{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}svg,img{width:100%}article{border-top:1px solid #aaa;padding:15px 0}a{color:#9df}@media(max-width:750px){.pair{grid-template-columns:1fr}}</style>
 <h1>Boat-aligned crop trial</h1><p>Cyan dashed: old crop. Orange: candidate rotated rectangle. Right: extracted candidate, with 100×100-pixel grid.
-One common placement across six scenes; not automatically fitted to each image. No existing labels changed. Rotation resamples pixels, so new tile labels must stay separate.</p>'''
+One common placement across selected scenes; not automatically fitted to each image. No existing labels changed. Rotation resamples pixels, so new tile labels must stay separate.</p>'''
     manifest=[]
     for s in selected:
         path=(args.source/s['file']).resolve()

@@ -181,6 +181,14 @@ Pass `--rotated-input /path/to/preview` instead of `--input` to the vision
 review tool to send those extracted JPEGs directly. The resulting separate
 HTML pairs each rotated image with its fresh model response. It does not
 produce a segmentation mask or silently reuse earlier crop estimates.
+Use `--scenes 9,10,16,...` on the crop tool to choose another explicit batch.
+`ice-monitored-review.py` accepts the same inference arguments and samples CPU
+core/package temperatures plus GPU temperature, power and memory every three
+seconds into the output's `telemetry.csv`. The experimental cutoffs are CPU
+95°C / GPU 83°C; it stops the request process and unloads the named model on
+cutoff, telemetry failure, normal completion or error. These thresholds are
+conservative trial policy, not official hardware limits, and cannot prevent
+every hardware failure. Existing per-image results survive interruptions.
 
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,
 sampling, corrupt-image recovery, real ffmpeg encoding (when available), a
