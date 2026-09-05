@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily copy of camera timelapse to leg photos
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cryomics
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+EnvironmentFile=/home/cryomics/.config/underway/camera.env
+ExecStart=/bin/bash tools/camera-job.sh sync
+TimeoutStartSec=15min
+Nice=15
+NoNewPrivileges=true
