@@ -23,7 +23,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
-from .config import (DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
+from .config import (DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
@@ -81,6 +81,20 @@ def _circular_mean_deg(x: pd.Series) -> float:
     if r.size == 0:
         return np.nan
     return float(np.degrees(np.arctan2(np.sin(r).mean(), np.cos(r).mean())) % 360)
+
+
+def _latest_heading(frame: pd.DataFrame, at: pd.Timestamp) -> float | None:
+    """The ship's heading for the map glyph: a circular mean over the ten
+    minutes up to the latest fix (a ship on station swings about), rounded;
+    None when that stretch holds no heading at all, so the glyph is not drawn
+    pointing somewhere made up."""
+    if "Heading (°)" not in frame.columns:
+        return None
+    h = frame["Heading (°)"]
+    h = h[(h.index > at - pd.Timedelta(minutes=10)) & (h.index <= at)].dropna()
+    if h.empty:
+        return None
+    return round(_circular_mean_deg(h), 1)
 
 
 def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
@@ -317,7 +331,8 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     latest = None
     if not last.empty:
         lt = last.index[-1]
-        latest = {"time": lt.isoformat(), "lat": float(last["lat"].iloc[-1]), "lon": float(last["lon"].iloc[-1])}
+        latest = {"time": lt.isoformat(), "lat": float(last["lat"].iloc[-1]), "lon": float(last["lon"].iloc[-1]),
+                  "heading": _latest_heading(a.frame, lt)}
 
     stations = [s for leg, _ in stores for s in read_stations(leg.stations, leg.id)]
     manifest = {
@@ -393,7 +408,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                       "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
-            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster,
+            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster, "low_flow_v": LOW_FLOW_V,
             "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}

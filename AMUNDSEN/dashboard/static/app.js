@@ -481,13 +481,18 @@
     });
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     // the ship herself at the latest position: the sprite's red-and-white
-    // Amundsen glyph, so she never reads as a selected station
-    const heading = lastFinite(d.vars["Heading (°)"] || []);
+    // Amundsen glyph turned to the heading the build averaged over the last
+    // ten minutes (a window's last bin swings with the bin width). With no
+    // heading to turn it to, a plain red dot stands in. allowoverlap keeps
+    // the glyph from losing the collision pass to labels when zoomed out.
+    const heading = M.latest?.heading ?? null;
     state.shipHeading = heading;
     if (li >= 0) traces.push({
       type: "scattermap", mode: "markers", name: "latest", showlegend: false,
-      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])}${heading != null ? ` · heading ${heading.toFixed(0)}°` : ""}`],
-      marker: { symbol: "ship", size: 11, opacity: 1 },
+      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text",
+      text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}`],
+      marker: heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
+                              : { size: 12, color: "#d52b1e", opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces);
     const shownIds = new Set(shownLegs().map((l) => l.id));
@@ -645,6 +650,33 @@
     for (const el of grid.children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); }
   }
 
+  // The underway panels share one x-axis: a zoom, pan or reset on any of
+  // them (drag, shift-scroll, the ⟲ button) is applied to the others.
+  let xSyncing = false;
+  function linkX(plot) {
+    if (plot._xLinked) return;
+    plot._xLinked = true;
+    plot.on("plotly_relayout", (ev) => {
+      if (xSyncing) return;
+      const upd = {};
+      if (ev["xaxis.autorange"]) upd["xaxis.autorange"] = true;
+      else if (ev["xaxis.range"]) { upd["xaxis.range"] = ev["xaxis.range"].slice(); upd["xaxis.autorange"] = false; }
+      else if (ev["xaxis.range[0]"] != null) { upd["xaxis.range"] = [ev["xaxis.range[0]"], ev["xaxis.range[1]"]]; upd["xaxis.autorange"] = false; }
+      else return;
+      const others = [...document.querySelectorAll("#panels .plot, #dock .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
+      xSyncing = true;
+      Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { xSyncing = false; });
+    });
+  }
+  // the y-range of the intake flow comes from the minutes the pump was
+  // running: a stopped pump reads near 0 V and would flatten the rest
+  function flowRange(y) {
+    const on = y.filter((v) => v != null && v >= (SITE.low_flow_v ?? 0.5));
+    if (on.length < 2) return null;
+    const [lo, hi] = minmax(on), pad = Math.max((hi - lo) * 0.08, 0.01);
+    return [lo - pad, hi + pad];
+  }
+
   function renderPanel(name) {
     if (state.panel[name] === "min") { layoutPanels(); return; }
     const d = state.data, v = VAR[name], el = panelEl(name);
@@ -681,8 +713,11 @@
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
     const useLog = !!state.log[name] && y.some((q) => q > 0);
+    // a zoom survives the minute refresh, and resets with the span, legs or x-mode
+    const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const layout = {
       ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
+      uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
@@ -690,13 +725,17 @@
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
+    if (name === "TSG flow (V)" && !useLog) {
+      const r = flowRange(y);
+      if (r) layout.yaxis.range = r;
+    }
     if (name.startsWith("Surprise")) {
       const top = Math.max(3.5, minmax(y)[1] * 1.08);
       layout.yaxis.range = [0, top];
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, [trace], layout, CFG).then(() => axisZoom(plot));
+    Plotly.react(plot, [trace], layout, CFG).then(() => { axisZoom(plot); linkX(plot); });
   }
 
   function renderPanels() {
