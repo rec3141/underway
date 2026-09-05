@@ -396,7 +396,7 @@
   // scale is marker.size / 10 of a 12 px sprite.
   const PLACE_BUCKETS = [[0, 6], [1, 8], [200, 10], [1000, 13], [5000, 16]];       // [min population, size]
   const placeBucket = (pop) => { let b = PLACE_BUCKETS[0]; for (const x of PLACE_BUCKETS) if ((pop || 0) >= x[0]) b = x; return b[1]; };
-  const EVENT_BUCKETS = [[1, 8], [2, 10], [4, 12]];                                 // [min events at the spot, size]
+  const EVENT_BUCKETS = [[1, 8.3], [2, 10], [4, 12]];                               // [min events at the spot, size]: 8.3 → a 10 px triangle
   const eventBucket = (n) => { let b = EVENT_BUCKETS[0]; for (const x of EVENT_BUCKETS) if (n >= x[0]) b = x; return b[1]; };
 
   // Places (settlements): one labelled square each; labels thin out with zoom

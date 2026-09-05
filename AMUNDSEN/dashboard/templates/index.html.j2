@@ -49,10 +49,11 @@
   <section class="map card">
     <div class="maptools">
       <button id="mapreset" title="fit to track">⟲</button>
-      <label title="the ship's track for the shown legs and span"><input type="checkbox" id="track" checked> Track</label>
+      <!-- listed top layer first -->
       <label title="CTD stations"><input type="checkbox" id="stations" checked> Stations</label>
       <label title="geolocated entries of the ship's event log, for the shown legs and span"><input type="checkbox" id="events"> Events</label>
       <label title="settlements (GeoNames, CC BY 4.0)"><input type="checkbox" id="communities" checked> Places</label>
+      <label title="the ship's track for the shown legs and span"><input type="checkbox" id="track" checked> Track</label>
     </div>
     <div id="map"></div>
     <div id="mapmsg" class="mapmsg" hidden></div>

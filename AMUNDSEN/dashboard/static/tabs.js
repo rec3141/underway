@@ -658,6 +658,9 @@
   const dayKey = (d) => d.toISOString().slice(0, 10);
   const evStart = (e) => new Date(e.all_day ? e.start + "T00:00:00Z" : e.start);
   const evEnd = (e) => e.end ? new Date(e.all_day ? e.end + "T00:00:00Z" : e.end) : evStart(e);
+  // block text without the prefixes the layout already conveys: a leading
+  // "[status] ", "scheduled · " / "was scheduled · ", and a trailing " at <date>"
+  const shortSummary = (t) => String(t || "").replace(/^\[[^\]]*\]\s*/, "").replace(/^(was )?scheduled · /, "").replace(/ at \d{4}-\d{2}-\d{2}[^,;]*$/, "");
   function entryHtml(e, cont) {
     return `<div class="mev" data-id="${e.id}" style="border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
       `<span class="mt">${cont || e.all_day ? "" : evStart(e).toISOString().slice(11, 16) + "Z"}</span> ${esc(e.summary || "")}</div>`;
@@ -756,8 +759,7 @@
       const blocks = sorted.map((e, i) => {
         const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(24, (evEnd(e) - d0) / 3600e3);
         // a short event still gets one readable line: the block is at least ~40 min tall
-        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
-          `<span class="mt">${evStart(e).toISOString().slice(11, 16)}Z</span> ${esc(e.summary || "")}</div>`;
+        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${evStart(e).toISOString().slice(11, 16)}Z ${esc(e.summary)}">${esc(shortSummary(e.summary))}</div>`;
       }).join("");
       const nowLine = k === today ? `<div class="dnow" style="top:${((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 100).toFixed(2)}%"></div>` : "";
       return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}</div>
