@@ -82,6 +82,7 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^avos — true wind direction", r"true wind direction"), circular=True, cmap="Phase"),
     Variable("Relative wind speed (kn)", "kn",
              (r"^avos — relative wind speed", r"^ats_mettower — relative wind speed", r"wind speed")),
+    Variable("Heading (°)", "°", (r"^posmv — heading", r"^gc — heading", r"heading \(deg\)"), circular=True, cmap="Phase"),
     Variable("Ship speed (kn)", "kn",
              (r"^posmv — speed", r"^cnav — speed", r"speed \(knt\)")),
     Variable("Sea state · 4σ heave (m)", "m", (), derived=True),

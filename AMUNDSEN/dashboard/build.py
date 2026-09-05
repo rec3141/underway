@@ -360,6 +360,17 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             if not dest.exists() or dest.stat().st_size != f.stat().st_size or dest.stat().st_mtime < f.stat().st_mtime:
                 shutil.copy2(f, dest)
     geo_layers = sorted(p.name for p in (PKG / "static" / "geo").glob("*.geojson")) if (PKG / "static" / "geo").is_dir() else []
+    # the marker sprite is referenced by a base URL that MapLibre completes with
+    # .json/.png/@2x, so it cannot carry a query string: versioned copies of the
+    # four files carry a content hash in their name instead (a browser must never
+    # pair a week-cached sprite image with a fresh index)
+    import hashlib
+    sprite_src = sorted((PKG / "static" / "geo").glob("sprite*.*"))
+    sprite_version = hashlib.sha1(b"".join(f.read_bytes() for f in sprite_src)).hexdigest()[:8] if sprite_src else ""
+    for f in sprite_src:
+        dest = static / "geo" / f.name.replace("sprite", f"sprite-{sprite_version}", 1)
+        if not dest.exists():
+            shutil.copy2(f, dest)
     # asset URLs carry a content hash so browsers pick up a new app.js/style.css
     # immediately instead of serving a heuristically cached one
     import hashlib
@@ -383,6 +394,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
             "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster,
+            "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}
     env = Environment(loader=FileSystemLoader(str(PKG / "templates")), autoescape=True)

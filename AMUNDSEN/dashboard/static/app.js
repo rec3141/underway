@@ -307,7 +307,7 @@
     // which MapLibre rejects on installations without raster tiles.
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const style = { version: 8, sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
-                    sprite: base0 + "static/geo/sprite",           // square + coloured triangles (tools/make_sprite.py)
+                    sprite: base0 + (SITE.sprite || "static/geo/sprite"),   // squares, triangles, the ship (tools/make_sprite.py); versioned by the build
                     // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
                     // Open Sans Regular PBFs are served locally so it works offline
                     glyphs: base0 + "static/geo/glyphs/{fontstack}/{range}.pbf",
@@ -419,8 +419,24 @@
   }
   // Labels follow the zoom: Plotly only reports user zooms as relayout events
   // (not programmatic ones), so a light poll of the map's zoom covers both.
+  // the ship glyph is drawn bow-right (east); turn it to the heading on the
+  // MapLibre layer (Plotly's map symbols carry no angle), whenever it drifts —
+  // the first draw's layer may not exist yet when react() resolves
+  function aimShip() {
+    const el = $("#map"); const sp = el?._fullLayout?.map?._subplot;
+    if (!sp?.map || state.shipHeading == null) return;
+    const lt = el._fullData?.find((t) => t.name === "latest");
+    const layer = lt && sp.traceHash?.[lt.uid]?.layerIds?.symbol;
+    if (!layer || !sp.map.getLayer(layer)) return;
+    const want = Math.round(((state.shipHeading - 90) % 360 + 360) % 360);
+    if (sp.map.getLayoutProperty(layer, "icon-rotate") !== want) {
+      sp.map.setLayoutProperty(layer, "icon-rotate", want);
+      sp.map.setLayoutProperty(layer, "icon-rotation-alignment", "map");
+    }
+  }
   let lastLabelZoom = null;
   setInterval(() => {
+    try { aimShip(); } catch { /* next tick */ }
     const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
     if (z == null || !state.communities || !el.data) return;
     const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
@@ -466,9 +482,11 @@
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     // the ship herself at the latest position: the sprite's red-and-white
     // Amundsen glyph, so she never reads as a selected station
+    const heading = lastFinite(d.vars["Heading (°)"] || []);
+    state.shipHeading = heading;
     if (li >= 0) traces.push({
       type: "scattermap", mode: "markers", name: "latest", showlegend: false,
-      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])}`],
+      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])}${heading != null ? ` · heading ${heading.toFixed(0)}°` : ""}`],
       marker: { symbol: "ship", size: 11, opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces);
@@ -519,6 +537,7 @@
     mapDrawing = true;
     Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(() => {
       state.fitPending = false;
+      try { aimShip(); } catch { /* the poll retries */ }
       el.removeAllListeners?.("plotly_relayout");
       el.on("plotly_relayout", (ev) => {
         if (state.fitPending) return;
