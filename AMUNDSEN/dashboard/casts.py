@@ -21,9 +21,11 @@ charges a network round trip per read, and the SBE 9 files are 21 MB.
 from __future__ import annotations
 
 import base64
+import hashlib
 import csv
 import json
 import logging
+import os
 import re
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -117,11 +119,22 @@ CACHE_VERSION = 3
 MVP_CACHE_VERSION = 5    # bumped when the MVP column set or scaling changes
 
 
-def _cached(leg: str, key: str, sources: list[Path]):
-    """A cached cast is trusted by name unless it is recent: every stat() of a
-    source file costs CIFS latency, and a cast's files stop changing once its
-    processing is done. Recent casts are re-validated against size and mtime
-    in case they were reprocessed."""
+# Reading from the local mirror, a stat() is free, so every cached cast is
+# re-validated against its sources on every build; straight off the CIFS share
+# only recent casts are (a stat there costs a round trip).
+LOCAL_MIRROR = os.environ.get("UNDERWAY_LOCAL") == "1"
+
+
+def _meta_key(meta: dict | None) -> str:
+    """Fingerprint of the logbook row a cast's metadata came from."""
+    return hashlib.sha1(json.dumps(meta or {}, sort_keys=True, default=str).encode()).hexdigest()[:12]
+
+
+def _cached(leg: str, key: str, sources: list[Path], meta: dict | None = None):
+    """A cached cast is reused when its source files (size, mtime) and the
+    logbook row behind its metadata are unchanged. Off the share, casts older
+    than RECENT_DAYS are trusted by name to save the stat() round trips; on
+    the mirror every cast is checked."""
     p = _cache_path(leg, key)
     if not p.is_file():
         return None
@@ -132,9 +145,11 @@ def _cached(leg: str, key: str, sources: list[Path]):
         return None
     if c.get("version") != (MVP_CACHE_VERSION if key.startswith("MVP") else CACHE_VERSION):
         return None
+    if meta is not None and c.get("meta") != _meta_key(meta):
+        return None
     t = cast.get("time") or ""
-    recent = True
-    if t:
+    recent = LOCAL_MIRROR
+    if t and not LOCAL_MIRROR:
         try:
             from datetime import datetime, timedelta, timezone
             when = datetime.fromisoformat(t[:19]).replace(tzinfo=timezone.utc)
@@ -150,11 +165,12 @@ def _cached(leg: str, key: str, sources: list[Path]):
     return cast if c.get("stamp") == stamp else None
 
 
-def _store(leg: str, key: str, sources: list[Path], cast: dict) -> None:
+def _store(leg: str, key: str, sources: list[Path], cast: dict, meta: dict | None = None) -> None:
     p = _cache_path(leg, key)
     p.parent.mkdir(parents=True, exist_ok=True)
     stamp = [[s.name, s.stat().st_size, int(s.stat().st_mtime)] for s in sources]
-    p.write_text(json.dumps({"version": MVP_CACHE_VERSION if key.startswith("MVP") else CACHE_VERSION, "stamp": stamp, "cast": cast}, separators=(",", ":")))
+    p.write_text(json.dumps({"version": MVP_CACHE_VERSION if key.startswith("MVP") else CACHE_VERSION, "stamp": stamp,
+                             "meta": _meta_key(meta) if meta is not None else None, "cast": cast}, separators=(",", ":")))
 
 
 # ---------------------------------------------------------------- rosette
@@ -325,7 +341,7 @@ def rosette_casts(leg: Leg) -> list[Cast]:
         paths = sorted(files.get(cast_no, []))
         cnv = cnvs.get(cast_no)
         sources = ([cnv] if cnv else []) + paths
-        cached = _cached(leg.id, f"CTD_{cast_no}", sources)
+        cached = _cached(leg.id, f"CTD_{cast_no}", sources, logbook.get(cast_no, {}))
         if cached:
             casts.append(Cast(**cached))
         else:
@@ -406,7 +422,7 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | N
              station=lb.get("station", ""), label=lb.get("label", ""),
              bottom_m=num("bottom_m") if num("bottom_m") is not None else (base or {}).get("bottom_m"),
              p=[round(x, 1) for x in pres], vars=vars_, units=units)
-    _store(leg.id, f"CTD_{cast_no}", ([cnv] if cnv else []) + paths, c.__dict__)
+    _store(leg.id, f"CTD_{cast_no}", ([cnv] if cnv else []) + paths, c.__dict__, lb)
     log.info("%s: parsed rosette cast %s (%d levels, %d vars, %s)", leg.id, cast_no, len(pres), len(units),
              "cnv+plots" if base and paths else "cnv" if base else "plots")
     return c

@@ -77,6 +77,50 @@ The default database directory is beside the source package, and the default
 chat database is `/data/underway/chat/chat.sqlite`, so explicitly set both
 state paths when installing into a shared or read-only Python environment.
 
+### Reaching the dashboard on the ship
+
+Three entry points serve the same site (Caddy on port 80 proxies to the
+page server on 8042; see `deploy/Caddyfile`):
+
+| from                          | address                                  |
+|-------------------------------|------------------------------------------|
+| ship Wi-Fi (192.168.3.x)      | `http://underway.local` or `http://192.168.3.216/underway/` |
+| wired ship LAN (10.0.0.x)     | `http://10.0.0.58/`                        |
+| this workstation              | `http://127.0.0.1:8042/`                   |
+
+`underway.local` is an mDNS name published by `underway-mdns.service` for the
+Wi-Fi address only: avahi cannot scope a record to one interface, and a client
+handed the wired address from the Wi-Fi side cannot reach it. Android does not
+resolve mDNS; give those users the IP. If a client cannot load the page: check
+which network it is on (`192.168.3.x` vs `10.0.0.x`) and use that network's
+address; try the IP before the name; make sure the URL starts with `http://`
+(nothing listens on 443); and from the workstation confirm the page answers on
+`127.0.0.1:8042` and that `ip route get 10.0.0.10` says `dev enp6s0`, not
+`tun0`. The UM VPN re-installs `10.0.0.0/25` routes (and the odd `/32`) on
+every reconnect; `ship-routes.timer` re-asserts on-link `/26` routes each
+minute, and any colliding host can be listed in `SHIP_EXTRA_HOSTS` for its own
+`/32`. A DHCP reservation or a ship DNS name would be the stable long-term fix.
+
+### Map layers
+
+Besides the track, stations and tow tracks, the map offers an **Event log**
+layer (geolocated entries of the ship's event log, filtered by the shown legs
+and span, grouped by position so several events at one spot share a marker and
+one hover) and a **Communities** layer: settlements of Nunavut, the NWT,
+Labrador, the northern shores of Québec/Ontario/Manitoba and all of Greenland,
+from GeoNames (CC BY 4.0), with a curated list of Inuit, Greenlandic and older
+colonial names. Labels thin out with zoom (population 2000+ far out, all when
+close in). Refresh the layer with `tools/make_communities.py` after downloading
+new `CA.zip`/`GL.zip` dumps from geonames.org into `/data/gis/geonames/`.
+
+### Cast cache
+
+Parsed casts are cached under `db/casts/<leg>/`. A cached cast is reused only
+while its source files (size and mtime) and the logbook row behind its
+metadata are unchanged; on the local mirror every cast is re-validated on
+every build, straight off the CIFS share only casts younger than three days
+are (a stat there costs a round trip). Delete a cache file to force a re-parse.
+
 `build` syncs every leg's store (only new or changed day files are parsed),
 combines the legs, computes derived variables, writes `data/w-*.json` for each
 window plus `data/manifest.json`, copies `static/`, and renders `index.html`.

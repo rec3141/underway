@@ -22,6 +22,8 @@
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     stations: store.get("stations", true),
+    events: store.get("events", false),                 // event-log entries on the map
+    communities: store.get("communities", true),        // settlements on the map
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
     raw: null,                                        // window payload as built
@@ -246,6 +248,10 @@
 
     $("#stations").checked = state.stations;
     $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
+    $("#events").checked = state.events;
+    $("#events").onchange = (e) => { state.events = e.target.checked; store.set("events", state.events); renderMap(); };
+    $("#communities").checked = state.communities;
+    $("#communities").onchange = (e) => { state.communities = e.target.checked; store.set("communities", state.communities); renderMap(); };
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
   }
 
@@ -258,8 +264,10 @@
     const get = async (name) => {
       try { const r = await fetch(`static/geo/${name}`); return r.ok ? await r.json() : null; } catch { return null; }
     };
-    const [bathy, land, glac, coast, isl] = await Promise.all(
-      ["bathymetry.geojson", "land.geojson", "glaciated_areas.geojson", "coastline.geojson", "minor_islands.geojson"].map(get));
+    const [bathy, land, glac, coast, isl, comm] = await Promise.all(
+      ["bathymetry.geojson", "land.geojson", "glaciated_areas.geojson", "coastline.geojson", "minor_islands.geojson", "communities.geojson"].map(get));
+    // settlements (GeoNames): kept as points for a marker trace, not a style layer
+    state.communities_data = comm ? comm.features.map((f) => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], ...f.properties })) : [];
     const layers = [];
     if (bathy) {
       const byDepth = {};
@@ -320,6 +328,59 @@
     state.focus = { lat: +lat, lon: +lon, label: label || "" };
     renderMap();
   }
+  // The event log comes from data/calendar.json (the Agenda's file); fetched
+  // once per build while the layer is on, then grouped by position so several
+  // events at one spot share one marker and one hover.
+  const evlog = { stamp: null, events: null, loading: false };
+  function ensureEvents() {
+    if (evlog.stamp === M.generated_utc || evlog.loading) return;
+    evlog.loading = true;
+    fetchJSON(`${M.calendar.file}?v=${encodeURIComponent(M.generated_utc)}`)
+      .then((c) => { evlog.events = c.events || []; evlog.stamp = M.generated_utc; renderMap(); })
+      .catch(() => {})
+      .finally(() => { evlog.loading = false; });
+  }
+  function eventTraces(f) {
+    if (!state.events) return [];
+    ensureEvents();
+    if (!evlog.events) return [];
+    const ok = evlog.events.filter((e) => e.lat != null && e.lon != null && isFinite(+e.lat) && isFinite(+e.lon) && Math.abs(+e.lat) <= 90 && Math.abs(+e.lon) <= 180
+      && !(+e.lat === 0 && +e.lon === 0) && inFilter(e.leg, e.time_utc, f));
+    const groups = new Map();
+    for (const e of ok) { const k = `${(+e.lat).toFixed(4)},${(+e.lon).toFixed(4)}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const acts = [...new Set(ok.map((e) => e.activity || "other"))];
+    const colour = (a) => PALETTE_EV[acts.indexOf(a) % PALETTE_EV.length];
+    const pts = [...groups.values()].map((es) => {
+      es.sort((a, b) => tms(b.time_utc) - tms(a.time_utc));
+      const lines = es.slice(0, 10).map((e) => `${fmtUTC(tms(e.time_utc))} · <b>${esc(e.station || "")}</b> ${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? " <i>" + esc(e.label) + "</i>" : ""}${e.comment ? "<br>&nbsp;&nbsp;" + esc(e.comment) : ""}`);
+      if (es.length > 10) lines.push(`… +${es.length - 10} more`);
+      return { lat: +es[0].lat, lon: +es[0].lon, n: es.length, text: (es.length > 1 ? `<b>${es.length} events here</b><br>` : "") + lines.join("<br>"), colour: colour(es[0].activity || "other") };
+    });
+    return [{
+      type: "scattermap", mode: "markers", name: "event log", showlegend: false, hoverinfo: "text",
+      lat: pts.map((p) => p.lat), lon: pts.map((p) => p.lon), text: pts.map((p) => p.text),
+      marker: { size: pts.map((p) => Math.min(14, 7 + 2 * Math.log2(p.n))), color: pts.map((p) => p.colour), opacity: .85 },
+    }];
+  }
+  const PALETTE_EV = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce", "#ffb454"];
+
+  // Settlements: a labelled marker each; labels thin out with zoom so the
+  // scientific layers stay readable (population 2000+ far out, all close in).
+  function communityTrace(zoom) {
+    if (!state.communities || !state.communities_data?.length) return null;
+    const cs = state.communities_data;
+    const minPop = zoom < 3.5 ? 2000 : zoom < 5 ? 400 : zoom < 6.5 ? 100 : 0;
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    return {
+      type: "scattermap", mode: "markers+text", name: "communities", showlegend: false, hoverinfo: "text",
+      lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon),
+      text: cs.map((c) => (c.pop >= minPop || (c.code === "PPLA" && zoom >= 2.5)) ? c.name : ""),
+      hovertext: cs.map((c) => `<b>${esc(c.name)}</b>${c.alt?.length ? " · " + esc(c.alt.join(" · ")) : ""}<br>${esc(c.region)}, ${c.cc === "GL" ? "Greenland" : "Canada"}${c.pop ? ` · pop. ${c.pop.toLocaleString()}` : ""}`),
+      textposition: "top right", textfont: { size: 11, color: "#f2e7c9" },
+      marker: { size: 6, color: "#f2cc60", opacity: .9 },
+    };
+  }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   function renderMap() {
@@ -337,7 +398,11 @@
 
     // draw order is click order: MVP tows from the cast tab go under the
     // track, and the station markers stay on top so they get the clicks
+    const f0 = currentFilter();
     const traces = [...(window.UW?.extraMapTraces?.() || [])];
+    const ct = communityTrace((state.view || fitView(d.lat, d.lon)).zoom);
+    if (ct) traces.push(ct);
+    traces.push(...eventTraces(f0));
     traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
@@ -403,6 +468,10 @@
         if (state.fitPending) return;
         const c2 = ev["map.center"], z = ev["map.zoom"];
         if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
+        if (z != null && ct) {                                  // relabel the settlements for the new zoom
+          const nt = communityTrace(z), idx = el.data.indexOf(el.data.find((t) => t.name === "communities"));
+          if (nt && idx >= 0 && JSON.stringify(nt.text) !== JSON.stringify(el.data[idx].text)) Plotly.restyle(el, { text: [nt.text] }, [idx]);
+        }
       });
       el.removeAllListeners?.("plotly_click");
       el.on("plotly_click", (ev) => {
@@ -574,7 +643,7 @@
       `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Axes are UTC; the header shows ship time (${SITE.local_tz}). Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}, all served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; settlements from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
   }
 
   // ------------------------------------------------------------ data flow

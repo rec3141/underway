@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Publish NAME (default underway.local) as an mDNS alias for this host's IPv4
-# on each IFACE given (default wlo1), re-publishing whenever an address changes. Gives
+# on each IFACE given (default wlo1), re-publishing whenever an address changes.
+#
+# avahi-publish cannot scope a record to one interface: every address given is
+# announced on every interface. A client picks any of them, so only publish
+# addresses every client can reach — on the ship that is the Wi-Fi address;
+# wired clients use http://10.0.0.58/ directly. Gives
 # the science party a stable http://underway.local on the ship LAN without a
 # DNS entry from ship IT (Apple, Windows and Linux resolve mDNS; Android does
 # not, so also hand out the IP).

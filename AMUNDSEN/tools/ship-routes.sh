@@ -13,6 +13,9 @@
 GW=192.168.3.1
 WIFI=wlo1
 NETS=(10.0.0.0/26 10.0.0.64/26 10.0.0.128/26 10.0.0.192/26)
+# The VPN also installs /32 host routes (10.0.0.172 has been seen); a /32 beats
+# any /26, so ship hosts that collide must be listed here to get their own /32.
+EXTRA_HOSTS=(${SHIP_EXTRA_HOSTS:-})
 
 need_root(){ [ "$(id -u)" = 0 ] || { echo "run with sudo: sudo $0 $1"; exit 1; }; }
 wired(){ ip -4 -o addr show | awk '$2 ~ /^(en|eth)/ && $4 ~ /^10\.0\.0\./ {print $2; exit}'; }
@@ -21,7 +24,8 @@ case "$1" in
   on)
     need_root on
     dev=$(wired)
-    for n in "${NETS[@]}"; do
+    for n in "${NETS[@]}" "${EXTRA_HOSTS[@]/%//32}"; do
+      [[ -z $n ]] && continue
       if [[ -n $dev ]]; then ip route replace "$n" dev "$dev" && echo "  $n on-link via $dev"
       else ip route replace "$n" via "$GW" dev "$WIFI" && echo "  $n via $GW"; fi
     done
