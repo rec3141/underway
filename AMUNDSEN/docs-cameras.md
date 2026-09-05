@@ -139,6 +139,11 @@ with a red tile outline and dashed cyan crop outline. Source previews are
 scaled, but boxes use original image coordinates. `--render-only` refreshes
 previews/UI from existing `tiles.json` without recomputing group assignments.
 Export unsaved browser labels before reloading a report.
+Arrow keys browse the filtered library: left/right advance one tile, up/down
+advance one displayed row, Home/End jump to its endpoints. X toggles the
+selected tile between `ice` and unlabelled (not water). Individual labels are
+exported as `reviewed_label` and retained by file/box when importing a labels
+export. Typing in form controls does not trigger navigation or labelling.
 
 ### Local vision review
 

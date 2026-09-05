@@ -69,6 +69,7 @@ def main():
     records, features, scenes, levels = [], [], [], []
     previous = json.loads(args.labels.read_text()) if args.labels else {}
     prior = {(r['file'],tuple(r['box'])):{'previous_group':r['cluster'],
+             'reviewed_label':r.get('reviewed_label',''),
              'previous_label':previous.get('group_names',{}).get(str(r['cluster']), '')}
              for r in previous.get('tiles',[])}
     entries = json.loads(args.config.read_text())
@@ -152,7 +153,7 @@ TEMPLATE = '''<!doctype html><meta charset="utf-8"><meta name="viewport" content
 <title>Ice texture explorer</title><style>
 body{font:16px system-ui;margin:20px;background:#17212b;color:#eee}button,select,input{font:inherit;margin:5px;padding:6px}
 canvas{width:100%;max-width:900px;background:#fff;touch-action:manipulation}img{max-width:100%}.tiles{display:flex;flex-wrap:wrap;gap:8px}
-.tile{width:110px;font-size:12px;cursor:pointer}.tile img{width:100px}#detail{padding:12px;background:#293846}article{display:inline-block;width:320px;margin:8px}a{color:#9de}
+.tile{width:110px;font-size:12px;cursor:pointer}.tile img{width:100px}.tile.selected{outline:3px solid #ffcc33;outline-offset:2px}#detail{padding:12px;background:#293846}article{display:inline-block;width:320px;margin:8px}a{color:#9de}
 </style><h1>Ice texture explorer</h1>
 <p>Native-pixel tiles from sea crops. Partial edge tiles omitted. All five reference scenes included.
 Leg sampling adds two time-spaced scenes per day and caps tiles per scene. The reused crop needs review for ship, sky, land and poor visibility; no automatic quality exclusions.</p>
@@ -165,16 +166,19 @@ Spacing, island size and group numbers have no physical meaning. Seed 42; groups
 <label>Previous label <select id="prior"><option value="all">All previous groups</option></select></label>
 <canvas id="plot" width="900" height="600"></canvas><div id="hover" style="display:none;position:fixed;pointer-events:none;background:#17212b;color:white;padding:8px;border:1px solid #aaa;z-index:10;width:170px"></div><div id="detail">Hover for a tile preview; click a point or tile for the full source image.</div>
 <p><label>Group name <input id="name" placeholder="Select a group first"></label><button id="save">Assign name</button><button id="export">Download labels</button>
-Names stay in this page until exported; reload clears them.</p><div id="tiles" class="tiles"></div><h2>Source crops</h2><div id="scenes"></div>
+Names and individual labels stay in this page until exported; reload clears unsaved edits.</p><p>Browse tiles with ←/→ (previous/next), ↑/↓ (one library row), Home/End (first/last). X toggles ice on the selected tile. Keys follow the active filters and do not interrupt typing. <span id="position" aria-live="polite"></span><button id="markice">Toggle selected ice (X)</button><button id="clearlabel">Clear selected tile label</button></p><div id="tiles" class="tiles"></div><h2>Source crops</h2><div id="scenes"></div>
 <script>const data=DATA_HERE, names={}, palette=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#008b8b','#b27800','#666666','#d050a0','#668000'];
 const by=id=>document.getElementById(id), c=by('plot'),ctx=c.getContext('2d');
+let selectedId=null;
 by('settings').textContent='Brightness block weight: '+(data.brightness_weight||0)+'. Previous labels are retained per tile, not assigned to new groups.';
 for(const [group,label] of Object.entries(data.previous_group_names||{})){let o=document.createElement('option');o.value=group;o.textContent=group+': '+label;by('prior').append(o)}
 for(let i=0;i<data.clusters;i++){let o=document.createElement('option');o.value=i;o.textContent='Group '+i;by('filter').append(o)}
 const xs=data.tiles.map(t=>t.x),ys=data.tiles.map(t=>t.y), xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
 for(const t of data.tiles){t.px=20+860*(t.x-xmin)/(xmax-xmin||1);t.py=20+560*(t.y-ymin)/(ymax-ymin||1)}
 function shown(){return data.tiles.filter(t=>(by('filter').value==='all'||t.cluster===+by('filter').value)&&(by('prior').value==='all'||t.previous_group===+by('prior').value))}
-function inspect(t){by('detail').replaceChildren();let im=new Image();im.src=t.image;im.width=200;by('detail').append(im,document.createElement('br'),
+function inspect(t){selectedId=t.id;const visible=shown();by('position').textContent=`Tile ${visible.findIndex(v=>v.id===t.id)+1} of ${visible.length} · #${t.id} · individual label: ${t.reviewed_label||'unlabelled'}`;
+for(const el of by('tiles').children)el.classList.toggle('selected',+el.dataset.id===t.id);
+by('hover').style.display='none';by('detail').replaceChildren();let im=new Image();im.src=t.image;im.width=200;by('detail').append(im,document.createElement('br'),
 document.createTextNode(`Tile ${t.id} · scene ${t.scene} · group ${t.cluster} · ${names[t.cluster]||'unnamed'} · previous: ${t.previous_label||'unlabelled'} · brightness ${(t.brightness_mean*255).toFixed(0)}/255 · source box ${t.box.join(', ')} · ${t.file}`));
 const s=data.scenes.find(s=>s.scene===t.scene);if(s&&s.original_image){
 const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),[w,h]=s.original_size;
@@ -187,14 +191,29 @@ function draw(){ctx.clearRect(0,0,900,600);by('tiles').replaceChildren();for(con
 const category=by('colour').value==='scene'?t.scene-1:t.cluster;
 const luminance=Math.round((t.brightness_mean??.5)*255);
 ctx.fillStyle=by('colour').value==='brightness'?`rgb(${luminance},${luminance},${luminance})`:category<palette.length?palette[category]:`hsl(${category*137.508%360} 65% 40%)`;ctx.beginPath();ctx.arc(t.px,t.py,5,0,7);ctx.fill();if(by('colour').value==='brightness'){ctx.strokeStyle='#888';ctx.lineWidth=.6;ctx.stroke()}
-let d=document.createElement('div');d.className='tile';let im=new Image();im.src=t.image;im.loading='lazy';d.append(im,document.createTextNode(`S${t.scene} · G${t.cluster} · #${t.id}`));d.onclick=()=>inspect(t);by('tiles').append(d)}}
+let d=document.createElement('div');d.className='tile';d.dataset.id=t.id;d.classList.toggle('selected',t.id===selectedId);let im=new Image();im.src=t.image;im.loading='lazy';d.append(im,document.createTextNode(`S${t.scene} · G${t.cluster} · #${t.id}`));d.onclick=()=>inspect(t);by('tiles').append(d)}}
 function nearest(e){let r=c.getBoundingClientRect(),x=(e.clientX-r.left)*900/r.width,y=(e.clientY-r.top)*600/r.height;
 let t=shown().reduce((a,b)=>!a||Math.hypot(b.px-x,b.py-y)<Math.hypot(a.px-x,a.py-y)?b:a,null);return t&&Math.hypot(t.px-x,t.py-y)<15?t:null}
 c.onclick=e=>{let t=nearest(e);if(t)inspect(t)};
 c.onpointermove=e=>{const t=nearest(e),tip=by('hover');if(!t){tip.style.display='none';return}tip.replaceChildren();let im=new Image();im.src=t.image;im.width=160;tip.append(im,document.createElement('br'),document.createTextNode(`Tile ${t.id} · S${t.scene} · G${t.cluster} · brightness ${Math.round((t.brightness_mean??.5)*255)}/255`));tip.style.display='block';tip.style.left=Math.max(0,Math.min(e.clientX+16,innerWidth-195))+'px';tip.style.top=Math.max(0,Math.min(e.clientY+16,innerHeight-240))+'px'};
 c.onpointerleave=()=>by('hover').style.display='none';
-by('filter').onchange=()=>{by('name').value=names[by('filter').value]||'';draw()};by('colour').onchange=draw;
-by('prior').onchange=draw;
+function filterChanged(){draw();const visible=shown(),t=visible.find(t=>t.id===selectedId)||visible[0];if(t)inspect(t);else{selectedId=null;by('position').textContent='No tiles match';by('detail').textContent='No tiles match these filters.'}}
+function markTile(label){const t=shown().find(t=>t.id===selectedId);if(!t)return;t.reviewed_label=label;inspect(t)}
+function toggleIce(){const t=shown().find(t=>t.id===selectedId);if(t)markTile(t.reviewed_label==='ice'?'':'ice')}
+by('markice').onclick=toggleIce;by('clearlabel').onclick=()=>markTile('');
+by('filter').onchange=()=>{by('name').value=names[by('filter').value]||'';filterChanged()};by('colour').onchange=draw;
+by('prior').onchange=filterChanged;
+document.addEventListener('keydown',e=>{
+if(e.defaultPrevented||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||e.target.closest?.('input,textarea,select,button,[contenteditable="true"]'))return;
+if(e.key.toLowerCase()==='x'){e.preventDefault();toggleIce();return}
+if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;
+const visible=shown();if(!visible.length)return;e.preventDefault();
+let i=visible.findIndex(t=>t.id===selectedId),cards=[...by('tiles').children];
+const columns=Math.max(1,cards.filter(el=>el.offsetTop===cards[0].offsetTop).length);
+if(e.key==='Home')i=0;else if(e.key==='End')i=visible.length-1;
+else if(i<0)i=0;else i+=({ArrowLeft:-1,ArrowRight:1,ArrowUp:-columns,ArrowDown:columns})[e.key];
+inspect(visible[Math.max(0,Math.min(visible.length-1,i))]);
+});
 by('save').onclick=()=>{if(by('filter').value==='all'){alert('Select a group first');return}names[by('filter').value]=by('name').value;};
 by('export').onclick=()=>{let blob=new Blob([JSON.stringify({group_names:names,seed:data.seed,tile_size:data.tile_size,
 tiles:data.tiles.map(({image,px,py,...t})=>t)},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ice-texture-labels.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};

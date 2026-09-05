@@ -1,0 +1,42 @@
+// Offline report smoke test: node tests/ice-texture-browser.cjs CHROME REPORT
+const {spawn}=require('node:child_process');
+const assert=require('node:assert/strict');
+const {pathToFileURL}=require('node:url');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let child,ws;
+const watchdog=setTimeout(()=>{child?.kill();process.exit(1)},30000);
+(async()=>{try{
+  let stderr='';
+  child=spawn(process.argv[2],['--no-sandbox','--headless','--disable-gpu','--remote-debugging-port=0','about:blank']);
+  child.stderr.on('data',d=>stderr+=d);
+  for(let i=0;i<100&&!stderr.includes('DevTools listening');i++)await wait(100);
+  const endpoint=stderr.match(/DevTools listening on (ws:\/\/\S+)/)[1];
+  const pages=await(await fetch(`http://${new URL(endpoint).host}/json/list`)).json();
+  ws=new WebSocket(pages[0].webSocketDebuggerUrl);
+  await new Promise(r=>ws.addEventListener('open',r,{once:true}));
+  let id=0;const pending=new Map();
+  ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){pending.get(m.id)(m);pending.delete(m.id)}});
+  const call=(method,params={})=>new Promise(r=>{let n=++id;pending.set(n,r);ws.send(JSON.stringify({id:n,method,params}))});
+  const ev=async expression=>{let r=await call('Runtime.evaluate',{expression,returnByValue:true});if(r.result.exceptionDetails)throw Error(JSON.stringify(r.result.exceptionDetails));return r.result.result.value};
+  await call('Page.navigate',{url:pathToFileURL(process.argv[3]).href});
+  for(let i=0;i<100;i++){if(await ev("!!document.querySelector('.tile')"))break;await wait(100)}
+  await ev('inspect(shown()[0])');
+  const key=key=>ev(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true}))`);
+  await key('ArrowRight');assert.equal(await ev('selectedId'),1);
+  assert.equal(await ev("by('tiles').querySelectorAll('.selected').length"),1);
+  await key('x');assert.equal(await ev("data.tiles[1].reviewed_label"),'ice');
+  await key('x');assert.equal(await ev("data.tiles[1].reviewed_label"),'');
+  await ev("by('name').dispatchEvent(new KeyboardEvent('keydown',{key:'x',bubbles:true}))");
+  assert.equal(await ev("data.tiles[1].reviewed_label"),'');
+  await ev("by('filter').value='7';filterChanged()");
+  await key('End');assert.equal(await ev('selectedId===shown().at(-1).id'),true);
+  await key('Home');assert.equal(await ev('selectedId===shown()[0].id'),true);
+  await key('ArrowDown');assert.equal(await ev('shown().findIndex(t=>t.id===selectedId)>1'),true);
+  assert.equal(await ev("by('detail').querySelectorAll('svg rect').length"),2);
+  await key('x');
+  assert.equal(await ev("data.tiles.find(t=>t.id===selectedId).reviewed_label"),'ice');
+  await ev("window.testExport=null;URL.createObjectURL=b=>{window.testExport=b;return 'blob:test'};HTMLAnchorElement.prototype.click=function(){};by('export').click()");
+  const r=await call('Runtime.evaluate',{expression:'testExport.text()',awaitPromise:true,returnByValue:true});
+  assert(JSON.parse(r.result.result.value).tiles.some(t=>t.reviewed_label==='ice'));
+  console.log('PASS filtered arrows/Home/End, row navigation, X toggle, typing guard, source boxes and exported individual labels');
+}finally{clearTimeout(watchdog);ws?.close();child?.kill()}})().catch(e=>{console.error(e);process.exitCode=1});
