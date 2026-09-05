@@ -14,6 +14,29 @@ import tempfile
 
 log = logging.getLogger(__name__)
 STAMP = re.compile(r"(?:Camera360_)?(\d{14})(?:_mosaic|_11)\.jpg$", re.I)
+LEG_DIR = re.compile(r"\d{4}_LEG_\d+")
+DEFAULT_WIDTH = {"mosaic": 1280, "portrait": 720}
+
+
+def shot_position(path: Path) -> dict:
+    """Latitude and longitude from the Camera360 header written beside each
+    shot (``Initial_Latitude [deg]: 76.08``); empty for all-sky frames."""
+    m = re.search(r"Camera360_(\d{14})", path.name)
+    if not m:
+        return {}
+    header = path.with_name(f"Camera360_{m[1]}_header.txt")
+    if not header.is_file():
+        return {}
+    try:
+        text = header.read_text(encoding="latin-1")
+    except OSError:
+        return {}
+    out = {}
+    for key, label in (("lat", "Latitude"), ("lon", "Longitude")):
+        found = re.search(r"Initial_" + label + r" \[deg\]:\s*([-+\d.]+)", text)
+        if found:
+            out[key] = float(found[1])
+    return out
 
 
 def frames(source: Path, end: datetime, hours=24, interval=120, start=None):
@@ -119,7 +142,7 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
                     canvas.save(tmp / "cache.jpg", format="JPEG", quality=85)
                     (tmp / "cache.jpg").replace(cached)
                 shutil.copyfile(cached, tmp / f"{len(kept):06d}.jpg")
-                kept.append({"time_utc":stamp.isoformat(), "file":str(path)})
+                kept.append({"time_utc":stamp.isoformat(), "file":str(path), **shot_position(path)})
             except (OSError, ValueError) as exc:
                 skipped.append(str(path))
                 log.warning("Skipping unreadable image %s: %s", path, exc)
@@ -147,10 +170,11 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
     return manifest
 
 
-def build_leg(source: Path, output: Path, *, interval=120, fps=12, width=1280, now=None, ffmpeg="ffmpeg"):
+def build_leg(source: Path, output: Path, *, interval=120, fps=12, width=None, now=None, ffmpeg="ffmpeg", layout="mosaic"):
     """UTC-day products plus a chronological full-leg concatenation."""
     if not source.is_dir():
         raise ValueError(f"Camera source unavailable: {source}")
+    width = width or DEFAULT_WIDTH[layout]
     now = now or datetime.now(timezone.utc)
     ready = now - timedelta(minutes=3)
     folders = sorted(p for p in source.iterdir() if p.is_dir() and re.fullmatch(r"\d{8}", p.name))
@@ -166,15 +190,19 @@ def build_leg(source: Path, output: Path, *, interval=120, fps=12, width=1280, n
         if len(selected) < 2:
             log.warning("%s: fewer than two frames; daily product not replaced", folder.name)
             continue
-        signature = hashlib.sha256(json.dumps([str(source.resolve()),interval,fps,width,end == start + timedelta(days=1),
+        signature = hashlib.sha256(json.dumps([str(source.resolve()),interval,fps,width,layout,end == start + timedelta(days=1),
             [(str(p),p.stat().st_size,p.stat().st_mtime_ns) for _,p in selected]]).encode()).hexdigest()
         target = output / "days" / folder.name
         meta = target / "latest.json"
         previous = json.loads(meta.read_text()) if meta.is_file() else {}
         if previous.get("input_signature") == signature and (target / "latest.mp4").is_file():
             continue
-        result = timelapse(source, target, interval=interval, fps=fps, width=width,
-                           end=end, ffmpeg=ffmpeg, selected=selected)
+        try:
+            result = timelapse(source, target, interval=interval, fps=fps, width=width,
+                               end=end, ffmpeg=ffmpeg, selected=selected, layout=layout)
+        except ValueError as exc:                # a day without readable frames must not stop the leg
+            log.warning("%s: %s", folder.name, exc)
+            continue
         result.update(utc_day=folder.name, complete_day=end == start + timedelta(days=1), input_signature=signature)
         atomic_write(meta, json.dumps(result, indent=2))
     days = sorted((output / "days").glob("????????/latest.json"))
@@ -183,7 +211,7 @@ def build_leg(source: Path, output: Path, *, interval=120, fps=12, width=1280, n
     inputs = []
     for meta in days:
         data = json.loads(meta.read_text())
-        if data.get("source") != str(source) or data.get("fps") != fps or data.get("width") != width:
+        if data.get("source") != str(source) or data.get("fps") != fps or data.get("width") != width or data.get("layout", "mosaic") != layout:
             raise ValueError("Daily products have mixed sources/settings; use a separate output directory")
         inputs.append({"utc_day":meta.parent.name,"signature":data.get("input_signature"),
                        "start_utc":data["start_utc"],"end_utc":data["end_utc"],
@@ -205,17 +233,39 @@ def build_leg(source: Path, output: Path, *, interval=120, fps=12, width=1280, n
     return inputs
 
 
+def build_root(source: Path, output: Path, **kw) -> dict:
+    """``source`` is either one leg (dated folders inside) or the directory
+    holding the legs (``2026_LEG_03/…``): every leg then gets its own
+    ``output/<leg>/`` and a failing leg does not stop the others."""
+    if not source.is_dir():
+        raise ValueError(f"Camera source unavailable: {source}")
+    if any(p.is_dir() and re.fullmatch(r"\d{8}", p.name) for p in source.iterdir()):
+        return {source.name: build_leg(source, output, **kw)}
+    legs = sorted(p for p in source.iterdir() if p.is_dir() and LEG_DIR.fullmatch(p.name))
+    if not legs:
+        raise ValueError(f"No dated or leg directories under {source}")
+    out = {}
+    for leg in legs:
+        try:
+            out[leg.name] = build_leg(leg, output / leg.name, **kw)
+        except (ValueError, subprocess.SubprocessError) as exc:
+            log.warning("%s: %s", leg.name, exc)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True, type=Path, help="Leg directory containing YYYYMMDD folders")
+    parser.add_argument("--source", required=True, type=Path, help="A leg directory of YYYYMMDD folders, or the directory holding the legs")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--interval", type=int, default=120)
     parser.add_argument("--fps", type=int, default=12)
-    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--width", type=int, default=None, help="default 1280 for mosaic, 720 for portrait")
+    parser.add_argument("--layout", choices=("mosaic", "portrait"), default="mosaic")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    result = build_leg(**vars(args))
-    print(f"Timelapse: {len(result)} UTC days stitched into full-leg.mp4")
+    result = build_root(**vars(args))
+    for leg, days in result.items():
+        print(f"{leg}: {len(days)} UTC days stitched into full-leg.mp4")
 
 
 if __name__ == "__main__":

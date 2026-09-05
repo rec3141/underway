@@ -4,8 +4,9 @@
 MapLibre draws non-circle markers from a sprite sheet, so the square used for
 communities and the coloured triangles used for event-log entries live here.
 Icons at 1x: "square-15" (off-white, 12 px), "tri-0-15" … "tri-9-15" (12 px, the
-event palette) and "ship-15" (28×12 px, the Amundsen seen from above in Coast Guard red
-and white, bow to the right, turned to the heading on the map). Plotly requests sprite icons
+event palette), "ship-15" (28×12 px, the Amundsen seen from above in Coast Guard red
+and white, bow to the right, turned to the heading on the map) and "camera-15"
+(14×12 px, a camera body for the daily timelapses). Plotly requests sprite icons
 as "<marker.symbol>-15". Re-run after changing the palette; the dashboard's map style points
 its `sprite` at these files.
 """
@@ -36,10 +37,23 @@ def ship(d: ImageDraw.ImageDraw, x0: int, scale: int) -> None:
     d.line([(x0 + 20 * k, cy - 3 * k), (x0 + 22 * k, cy + 3 * k)], fill=HOUSE, width=k)                     # the CCG stripe
 
 
+CAM_W, CAM_H = 14, 12
+CAM = "#dfe8f2"
+
+
+def camera(d: ImageDraw.ImageDraw, x0: int, scale: int) -> None:
+    """A camera body with a lens, seen from the front."""
+    k = scale
+    d.rectangle([x0 + 1 * k, 3 * k, x0 + 13 * k, 11 * k], fill=CAM, outline=OUTLINE, width=k)          # body
+    d.rectangle([x0 + 4 * k, 1 * k, x0 + 8 * k, 3 * k], fill=CAM, outline=OUTLINE, width=k)            # viewfinder hump
+    d.ellipse([x0 + 4.5 * k, 4.5 * k, x0 + 10 * k, 10 * k], fill=OUTLINE)                              # lens
+    d.ellipse([x0 + 6 * k, 6 * k, x0 + 8.5 * k, 8.5 * k], fill="#5cc8ff")                             # glass
+
+
 def sheet(scale: int):
     icons = [("square-15", "#f2e7c9")] + [(f"tri-{i}-15", c) for i, c in enumerate(PALETTE)]   # Plotly asks for Maki-style "<symbol>-15" names
     s = ICON * scale
-    img = Image.new("RGBA", (s * len(icons) + SHIP_W * scale, max(s, SHIP_H * scale)), (0, 0, 0, 0))
+    img = Image.new("RGBA", (s * len(icons) + (SHIP_W + CAM_W) * scale, max(s, SHIP_H * scale, CAM_H * scale)), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     index = {}
     for i, (name, colour) in enumerate(icons):
@@ -53,6 +67,9 @@ def sheet(scale: int):
     x0 = s * len(icons)
     ship(d, x0, scale)
     index["ship-15"] = {"width": SHIP_W * scale, "height": SHIP_H * scale, "x": x0, "y": 0, "pixelRatio": scale}
+    x0 += SHIP_W * scale
+    camera(d, x0, scale)
+    index["camera-15"] = {"width": CAM_W * scale, "height": CAM_H * scale, "x": x0, "y": 0, "pixelRatio": scale}
     return img, index
 
 

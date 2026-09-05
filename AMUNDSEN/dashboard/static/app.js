@@ -32,6 +32,7 @@
     track: store.get("track", true),                    // the ship's track on the map
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
+    cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
     communities: store.get("communities", true),        // settlements on the map
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
@@ -268,6 +269,8 @@
     sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
 
     $("#track").checked = state.track;
+    $("#cameras").checked = state.cameras;
+    $("#cameras").onchange = (e) => { state.cameras = e.target.checked; store.set("cameras", state.cameras); closeCamera(); renderMap(); };
     $("#track").onchange = (e) => { state.track = e.target.checked; store.set("track", state.track); renderMap(); };
     $("#stations").checked = state.stations;
     $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
@@ -401,6 +404,50 @@
   }
   const PALETTE_EV = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce", "#ffb454"];
 
+  // Daily camera timelapses (dashboard.cameras): a camera glyph where the
+  // day's shots were taken; a click plays the day's video in a popup over
+  // the map, with previous/next stepping through the shown days.
+  const camsShown = (f = currentFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
+    .filter((c) => c.lat != null && c.lon != null && state.cameras && inFilter(c.leg, c.mid_utc, f))
+    .sort((a, b) => a.day.localeCompare(b.day));
+  function cameraTraces(f) {
+    const cs = camsShown(f);
+    if (!cs.length) return [];
+    return [{
+      type: "scattermap", mode: "markers", name: "cameras", showlegend: false, hoverinfo: "text",
+      lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon), customdata: cs.map((c) => `cam:${c.i}`),
+      text: cs.map((c) => `<b>Camera timelapse</b> ${c.day.slice(0, 4)}-${c.day.slice(4, 6)}-${c.day.slice(6, 8)}` +
+        `<br>${c.frames} shots${c.complete ? "" : " so far"} · ${legById(c.leg)?.label || c.leg || ""}<br><i>click to play</i>`),
+      marker: { symbol: "camera", size: 11, opacity: .95, allowoverlap: true },
+    }];
+  }
+  function openCamera(i) {
+    const c = (M.cameras || [])[i];
+    const pop = $("#campop"), vid = $("#camvideo");
+    if (!c || !pop) return;
+    const cs = camsShown(); const at = cs.findIndex((x) => x.i === i);
+    $("#camtitle").textContent = `${c.day.slice(0, 4)}-${c.day.slice(4, 6)}-${c.day.slice(6, 8)}`;
+    $("#camsub").textContent = `${legById(c.leg)?.label || c.leg || ""} · ${c.frames} shots${c.complete ? "" : " so far"}`;
+    $("#camfoot").innerHTML = `${c.start_utc ? fmtUTC(Date.parse(c.start_utc)) : ""} → ${c.end_utc ? fmtUTC(Date.parse(c.end_utc)).slice(11) : ""} · ` +
+      `<a href="${c.url}" target="_blank" rel="noopener">open video</a>`;
+    $("#camprev").disabled = at <= 0; $("#camnext").disabled = at < 0 || at >= cs.length - 1;
+    $("#camprev").onclick = () => { if (at > 0) openCamera(cs[at - 1].i); };
+    $("#camnext").onclick = () => { if (at >= 0 && at < cs.length - 1) openCamera(cs[at + 1].i); };
+    $("#camclose").onclick = closeCamera;
+    vid.classList.toggle("wide", c.layout !== "portrait");
+    const src = new URL(c.url, location.href).href;
+    if (vid.src !== src) { vid.src = src; vid.load(); }
+    pop.hidden = false;
+    vid.play?.().catch(() => { /* autoplay may be refused; the controls remain */ });
+    state.cameraOpen = i;
+  }
+  function closeCamera() {
+    const pop = $("#campop"), vid = $("#camvideo");
+    if (!pop || pop.hidden) return;
+    vid.pause?.(); vid.removeAttribute("src"); vid.load?.();
+    pop.hidden = true; state.cameraOpen = null;
+  }
+
   // Settlements: a labelled marker each; labels thin out with zoom so the
   // scientific layers stay readable (population 2000+ far out, all close in).
   // Sprite symbols take one icon size per trace (Plotly ignores per-point
@@ -532,7 +579,7 @@
       marker: heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
                               : { size: 12, color: "#d52b1e", opacity: 1 },
     });
-    traces.push(...placeTr, ...evTraces);
+    traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const f = currentFilter();
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
@@ -590,6 +637,7 @@
       el.removeAllListeners?.("plotly_click");
       el.on("plotly_click", (ev) => {
         const p = ev.points?.[0];
+        if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
     }).catch(() => {

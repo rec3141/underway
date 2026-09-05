@@ -118,6 +118,17 @@ main {
   background: rgba(22,29,37,.85); border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; font-size: 12px; color: var(--muted); }
 .maptools label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
 .maptools button { background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; cursor: pointer; }
+/* a day's camera timelapse, played over the map where its camera was clicked */
+.campop { position: absolute; z-index: 6; right: 14px; top: 14px; width: min(300px, 62%); max-height: calc(100% - 28px); display: flex; flex-direction: column;
+  background: rgba(22,29,37,.96); border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px 8px; font-size: 12px; color: var(--muted); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
+.campop .head { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; }
+.campop .head b { color: var(--fg); font-size: 13px; }
+.campop .head span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.campop .head button { background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 0 7px; line-height: 20px; cursor: pointer; font: inherit; font-size: 14px; }
+.campop video { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: min(64vh, 560px); object-fit: contain; background: #000; border-radius: 6px; }
+.campop video.wide { aspect-ratio: 4 / 3; }
+.campop .foot { padding-top: 5px; font-size: 11.5px; }
+.campop .foot a { color: var(--accent); }
 
 .side { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-right: 2px; }
 .panels { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-content: start; }

@@ -23,7 +23,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
-from .config import (DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
+from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
@@ -86,6 +86,43 @@ def _circular_mean_deg(x: pd.Series) -> float:
         return np.nan
     angle = float(np.degrees(np.arctan2(s, c)) % 360)
     return 0.0 if angle >= 360 - 1e-10 else angle
+
+
+def camera_index(output: Path, frame: pd.DataFrame | None) -> list[dict]:
+    """One entry per daily timelapse under ``output`` (``<leg>/days/<day>/``,
+    or ``days/<day>/`` for a single-leg output): when it was shot, where (the
+    median of the shots' own positions, else the ship's track at the middle
+    of the day) and the URL the page plays it from."""
+    if not output.is_dir():
+        return []
+    out = []
+    for meta in sorted(output.glob("*/days/????????/latest.json")) + sorted(output.glob("days/????????/latest.json")):
+        try:
+            d = json.loads(meta.read_text())
+        except (OSError, ValueError):
+            continue
+        rel = meta.parent.relative_to(output)
+        leg = rel.parts[0] if len(rel.parts) == 3 else None
+        fr = d.get("frames") or []
+        lats = [f["lat"] for f in fr if f.get("lat") is not None]
+        lons = [f["lon"] for f in fr if f.get("lon") is not None]
+        lat = lon = None
+        if lats and lons:
+            lat, lon = float(np.median(lats)), float(np.median(lons))
+        start, end = pd.Timestamp(d.get("start_utc")), pd.Timestamp(d.get("end_utc"))
+        mid = start + (end - start) / 2
+        if lat is None and frame is not None and not frame.empty:
+            pos = frame[["lat", "lon"]].dropna()
+            if not pos.empty:
+                i = pos.index.get_indexer([mid], method="nearest")[0]
+                if abs((pos.index[i] - mid).total_seconds()) <= 3600:
+                    lat, lon = float(pos["lat"].iloc[i]), float(pos["lon"].iloc[i])
+        out.append({"leg": leg, "day": meta.parent.name, "start_utc": d.get("start_utc"), "end_utc": d.get("end_utc"),
+                    "mid_utc": mid.isoformat(), "frames": len(fr), "complete": bool(d.get("complete_day")),
+                    "layout": d.get("layout", "mosaic"), "width": d.get("width"),
+                    "lat": None if lat is None else round(lat, 5), "lon": None if lon is None else round(lon, 5),
+                    "url": "camera/" + "/".join(rel.parts) + "/latest.mp4"})
+    return out
 
 
 def _latest_heading(frame: pd.DataFrame, at: pd.Timestamp) -> float | None:
@@ -368,7 +405,13 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                   "heading": _latest_heading(a.frame, lt)}
 
     stations = [s for leg, _ in stores for s in read_stations(leg.stations, leg.id)]
+    try:
+        cameras = camera_index(CAMERA_OUTPUT, a.frame)
+    except Exception:                       # noqa: BLE001 — the timelapses are extra, never required
+        log.exception("camera index failed")
+        cameras = []
     manifest = {
+        "cameras": cameras,
         "title": title, "version": __version__,
         "generated_utc": started.isoformat(timespec="seconds"),
         "local_tz": LOCAL_TZ, "default_window": DEFAULT_WINDOW,

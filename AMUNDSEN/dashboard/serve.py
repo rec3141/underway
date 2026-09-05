@@ -116,6 +116,8 @@ def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = Fals
 # Raster tile pyramids are hundreds of thousands of small files; they are kept
 # on local disk and served from here rather than written to the CIFS share.
 TILES_DIR = Path(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles"))
+# the camera timelapses are built by their own job outside the web root
+from .config import CAMERA_OUTPUT
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -181,19 +183,21 @@ class Handler(SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
         p = unquote(urlsplit(path).path)
-        if p.startswith("/static/tiles/"):
-            rel = Path(p[len("/static/tiles/"):])
+        for prefix, base in (("/static/tiles/", TILES_DIR), ("/camera/", CAMERA_OUTPUT)):   # read at call time: tests swap the roots
+            if not p.startswith(prefix):
+                continue
+            rel = Path(p[len(prefix):])
             # An absolute suffix discards the root when joined. Resolve before
             # checking containment so symlinks cannot escape it either.
             if rel.is_absolute() or ".." in rel.parts or "\\" in p:
-                raise ValueError("invalid tile path")
+                raise ValueError("invalid path")
             try:
-                root = TILES_DIR.resolve()
+                root = base.resolve()
                 candidate = (root / rel).resolve()
             except (OSError, RuntimeError) as e:
-                raise ValueError("invalid tile path") from e
+                raise ValueError("invalid path") from e
             if not candidate.is_relative_to(root):
-                raise ValueError("invalid tile path")
+                raise ValueError("invalid path")
             return str(candidate)
         return super().translate_path(path)
 

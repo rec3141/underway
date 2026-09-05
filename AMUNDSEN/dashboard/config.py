@@ -184,6 +184,7 @@ DATA_ROOT = Path(os.environ.get("UNDERWAY_DATA_ROOT", "/mnt/ship/Data"))    # FU
 SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <year>/<leg>/ for archived seasons
 # per-leg SQLite stores; derived data, safe to delete
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))
+CAMERA_OUTPUT = Path(os.environ.get("UNDERWAY_CAMERA_OUTPUT", "/data/underway/camera360"))   # daily timelapses (dashboard.cameras), served at /camera/
 
 # ---------------------------------------------------------------- ship intranet
 # pages on the ship's own web server, linked from the dashboard (LAN only)
