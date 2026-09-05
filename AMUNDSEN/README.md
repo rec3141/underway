@@ -212,6 +212,12 @@ regenerate it on a new machine. Needs GDAL with Python bindings
 
 ## Troubleshooting
 
+The header reports failed data updates while keeping the last successfully
+loaded observations. Requests time out after 30 seconds and retry on the next
+30-second poll, on network reconnection, or when the page becomes visible
+again. Casts, Agenda, and Table refresh while open; failed tab downloads are
+retried even if the build timestamp has not changed.
+
 - *Page loads but map is blank*: check `static/geo/*.geojson` served (200) and
   that the browser has WebGL. The map is Plotly `scattermap` (MapLibre).
 - *"nothing to show"*: all legs unticked, or the span holds no data.
@@ -219,3 +225,24 @@ regenerate it on a new machine. Needs GDAL with Python bindings
   held by a stuck run is `AMUNDSEN/cache/.run.lock`.
 - *Mount points empty after boot*: `systemctl start mnt-ship-Data.automount
   mnt-ship-Share.automount`.
+
+## Refresh regression checks
+
+The request/cache checks need Node.js 22 or later:
+
+```sh
+node --test tests/data.test.cjs
+```
+
+The browser check uses an isolated synthetic data server and the real page
+template/scripts; it does not access the deployed dashboard or shared drives.
+It needs Chromium and Python with Jinja2. Set `PYTHON` to the desired interpreter:
+
+```sh
+PYTHON=python3 node tests/refresh-browser.cjs /path/to/chromium
+```
+
+This test starts Chromium with its sandbox disabled for compatibility with
+restricted development environments, using a fresh temporary profile and only
+the local test page. It checks initial-load recovery, failed updates, active
+tab refresh, revised cast data, and out-of-order window responses.

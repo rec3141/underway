@@ -14,6 +14,7 @@
   <div class="brand">
     <h1>{{ site.title }}</h1>
     <div class="sub" id="status">loading…</div>
+    <div class="sub" id="connection" role="status" hidden></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist">
     <button data-tab="underway" class="on" role="tab">Underway</button>
@@ -148,6 +149,7 @@ window.__MANIFEST__ = {{ m|tojson }};
   </div>
 </aside>
 
+<script src="static/data.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>

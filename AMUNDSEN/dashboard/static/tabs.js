@@ -7,12 +7,13 @@
   const { THEME, CFG, fmtUTC, fmtVal, dms, store } = UW;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const PALETTE = ["#5cc8ff", "#ffb454", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
-  async function getJSON(url) { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw new Error(`${r.status} ${url}`); return r.json(); }
+  const getJSON = UW.fetchJSON;
+  const cachedJSON = window.UWData.generationCache(getJSON, () => UW.M.generated_utc);
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
   // ================================================================ casts
   const casts = {
-    idx: null, loadedFor: null, cache: {},
+    idx: null, loadedFor: null,
     sel: new Set(store.get("casts.sel", [])),
     mode: store.get("casts.mode", "profiles"),
     kind: store.get("casts.kind", "all"),
@@ -41,7 +42,11 @@
   // a station click on the map toggles its cast and opens the Casts tab; a
   // quiet call (the stations table) only makes sure it is selected
   UW.onStationClick = async (key, opts = {}) => {
-    if (!casts.idx) { if (!opts.quiet) return; await ensureCastIndex(); }
+    if (!casts.idx) {
+      if (!opts.quiet) return;
+      try { await ensureCastIndex(); }
+      catch { UW.setLoadError("Casts", true); return; }
+    }
     if (!castById(key)) return;
     if (opts.quiet) { if (opts.toggle || !casts.sel.has(key)) toggleCast(key); return; }
     toggleCast(key);
@@ -112,14 +117,13 @@
   async function ensureCastIndex() {
     const stamp = UW.M.generated_utc;
     if (casts.idx && casts.loadedFor === stamp) return;
-    try { casts.idx = await getJSON(`${UW.M.casts.index}?v=${encodeURIComponent(stamp)}`); casts.loadedFor = stamp; }
-    catch { casts.idx = { casts: [], variables: [] }; }
+    const idx = await cachedJSON("cast-index", UW.M.casts.index);
+    casts.idx = idx; casts.loadedFor = stamp;
     fillCastVars();
   }
   async function castData(id) {
-    if (casts.cache[id]) return casts.cache[id];
     const m = castById(id); if (!m) return null;
-    try { return (casts.cache[id] = await getJSON(`${m.file}?v=${encodeURIComponent(UW.M.generated_utc)}`)); } catch { return null; }
+    return cachedJSON(`cast:${id}`, m.file);
   }
 
   // the variable menu offers what the selected casts actually carry (every
@@ -305,7 +309,9 @@
     wireCastPanels(host, () => renderSingle(host, data));
   }
 
+  let plotSeq = 0;
   async function renderCastPlots() {
+    const seq = ++plotSeq, stamp = UW.M.generated_utc;
     fillCastVars();
     if (casts.mode !== "live") clearTimeout(live.timer);
     const host = $("#castplots");
@@ -314,7 +320,15 @@
     $("#castxmode").hidden = casts.mode !== "section";          // the section's x axis follows Time/Distance
     if (casts.mode === "live") { $("#castmeta").textContent = "the cast in the water, from the deck unit"; return renderLive(host); }
     if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div>'; $("#castmeta").textContent = ""; return; }
-    const data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
+    let data;
+    try {
+      data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
+    } catch {
+      if (seq === plotSeq) { UW.setLoadError("Casts", true); refreshedTab = null; }
+      return false;
+    }
+    if (seq !== plotSeq || stamp !== UW.M.generated_utc) return false;
+    UW.setLoadError("Casts", false);
     const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
     $("#castmeta").textContent = `${data.length} selected · ${dips} profile${dips === 1 ? "" : "s"}`;
     if (casts.mode === "profiles") renderProfiles(host, data); else if (casts.mode === "single") renderSingle(host, data); else renderSection(host, data);
@@ -535,8 +549,8 @@
   async function ensureCalendar() {
     const stamp = UW.M.generated_utc;
     if (cal.data && cal.loadedFor === stamp) return;
-    try { cal.data = await getJSON(`${UW.M.calendar.file}?v=${encodeURIComponent(stamp)}`); cal.loadedFor = stamp; }
-    catch { cal.data = { events: [], schedule: { rows: [] } }; }
+    const data = await cachedJSON("calendar", UW.M.calendar.file);
+    cal.data = data; cal.loadedFor = stamp;
   }
   function renderCalendar() {
     const host = $("#calendar"); if (!cal.data) return;
@@ -749,11 +763,11 @@
   const tbl = { rule: store.get("tbl.rule", "stations"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
   async function ensureAgg() {
     const stamp = UW.M.generated_utc;
-    if (tbl.loadedFor !== stamp) { tbl.data = {}; tbl.loadedFor = stamp; }
     if (tbl.rule === "stations") return;
-    if (!tbl.data[tbl.rule]) {
-      try { tbl.data[tbl.rule] = await getJSON(`${UW.M.aggregates[tbl.rule].file}?v=${encodeURIComponent(stamp)}`); } catch { tbl.data[tbl.rule] = { variables: [], rows: [] }; }
-    }
+    const rule = tbl.rule;
+    const data = await cachedJSON(`aggregate:${rule}`, UW.M.aggregates[rule].file);
+    if (tbl.loadedFor !== stamp) tbl.data = {};
+    tbl.data[rule] = data; tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
   }
   // stations: the CTD station list, one row per cast
   const STATION_COLS = [["time", "time (UTC)"], ["leg", "leg"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
@@ -795,7 +809,9 @@
     const d = tbl.data[tbl.rule]; if (!d) return [];
     const q = tbl.search.toLowerCase();
     const f = UW.currentFilter();
-    let rows = d.rows.filter((r) => UW.inFilter(UW.M.legs[r.leg]?.id, r.t, f)).map((r) => ({ ...r, legLabel: UW.legById(UW.M.legs[r.leg]?.id)?.label || "" }));
+    // A failed refresh can leave older table data visible; its numeric leg
+    // codes must still be interpreted with the matching manifest.
+    let rows = d.rows.filter((r) => UW.inFilter(tbl.legs[r.leg]?.id, r.t, f)).map((r) => ({ ...r, legLabel: tbl.legs[r.leg]?.label || "" }));
     if (q) rows = rows.filter((r) => `${fmtUTC(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
     const k = tbl.sort.key, dir = tbl.sort.dir;
     const val = (r) => k === "t" ? r.t : k === "leg" ? r.legLabel : k === "lat" || k === "lon" ? r[k] : (r[k] ? r[k][tbl.stat] : null);
@@ -848,7 +864,7 @@
   function wireTable() {
     for (const b of $("#aggrule").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.r === tbl.rule);
-      b.onclick = async () => { tbl.rule = b.dataset.r; store.set("tbl.rule", tbl.rule); for (const x of $("#aggrule").querySelectorAll("button")) x.classList.toggle("on", x === b); await ensureAgg(); renderTable(); };
+      b.onclick = () => { tbl.rule = b.dataset.r; store.set("tbl.rule", tbl.rule); for (const x of $("#aggrule").querySelectorAll("button")) x.classList.toggle("on", x === b); refreshActiveTab(true); };
     }
     $("#aggstat").value = String(tbl.stat);
     $("#aggstat").onchange = (e) => { tbl.stat = +e.target.value; store.set("tbl.stat", tbl.stat); renderTable(); };
@@ -865,15 +881,41 @@
       const gone = [...casts.sel].filter((k) => { const c = castById(k); return c && !f.legs.has(c.leg); });
       if (gone.length) { for (const k of gone) casts.sel.delete(k); store.set("casts.sel", [...casts.sel]); if (!$("#pane-casts").hidden) renderCastPlots(); UW.renderMap(); }
     }
-    if (!$("#pane-casts").hidden && casts.idx) renderCastList();
-    if (!$("#pane-calendar").hidden && cal.data) renderCalendar();
-    if (!$("#pane-table").hidden) renderTable();
+    refreshActiveTab(true);
   };
-  UW.onTab = async (name) => {
+  let refreshedTab = null, tabSeq = 0;
+  const activeTab = () => [...document.querySelectorAll("#tabs button.on")].find((b) => b.dataset.tab !== "chat")?.dataset.tab;
+  async function refreshActiveTab(force = false) {
+    const name = activeTab();
+    if (!["casts", "calendar", "table"].includes(name)) return;
+    const stamp = UW.M.generated_utc;
+    const key = `${name}:${stamp}:${name === "table" ? tbl.rule : ""}`;
+    if (!force && refreshedTab === key) return;
+    const seq = ++tabSeq;
+    const scope = { casts: "Casts", calendar: "Agenda", table: "Table" }[name];
+    try {
+      if (name === "casts") await ensureCastIndex();
+      if (name === "calendar") await ensureCalendar();
+      if (name === "table") await ensureAgg();
+      if (seq !== tabSeq || name !== activeTab() || stamp !== UW.M.generated_utc) return;
+      if (name === "casts") {
+        renderCastList(); UW.renderMap();
+        if (await renderCastPlots() === false) return;
+      }
+      if (name === "calendar") renderCalendar();
+      if (name === "table") renderTable();
+      if (seq !== tabSeq || stamp !== UW.M.generated_utc) return;
+      refreshedTab = key; UW.setLoadError(scope, false);
+    } catch {
+      if (seq === tabSeq) { refreshedTab = null; UW.setLoadError(scope, true); }
+    }
+  }
+  UW.refreshActiveTab = refreshActiveTab;
+  UW.onTab = (name) => {
+    ++tabSeq; ++plotSeq; // invalidate work belonging to the tab being left
+    for (const scope of ["Casts", "Agenda", "Table"]) UW.setLoadError(scope, false);
     if (name !== "casts") clearTimeout(live.timer);
-    if (name === "casts") { await ensureCastIndex(); renderCastList(); renderCastPlots(); UW.renderMap(); }
-    if (name === "calendar") { await ensureCalendar(); renderCalendar(); }
-    if (name === "table") { await ensureAgg(); renderTable(); }
+    refreshActiveTab(true);
   };
   wireCasts(); wireCalendar(); wireTable();
   const active = document.querySelector("#tabs button.on")?.dataset.tab;
