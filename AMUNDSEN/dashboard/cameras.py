@@ -15,6 +15,7 @@ import tempfile
 log = logging.getLogger(__name__)
 STAMP = re.compile(r"(?:Camera360_)?(\d{14})(?:_mosaic|_11)\.jpg$", re.I)
 LEG_DIR = re.compile(r"\d{4}_LEG_\d+")
+SETTLED_DAYS = 7        # a complete day older than this is not re-read from the share
 DEFAULT_WIDTH = {"mosaic": 1280, "portrait": 720}
 
 
@@ -186,15 +187,21 @@ def build_leg(source: Path, output: Path, *, interval=120, fps=12, width=None, n
         end = min(start + timedelta(days=1), ready)
         if start >= end:
             continue
+        target = output / "days" / folder.name
+        meta = target / "latest.json"
+        previous = json.loads(meta.read_text()) if meta.is_file() else {}
+        # Listing and stat-ing a settled day's shots over the share costs more
+        # than it can ever change: a complete product for a day that closed
+        # more than SETTLED_DAYS ago stands as it is.
+        if (previous.get("complete_day") and previous.get("layout", "mosaic") == layout and previous.get("width") == width
+                and (target / "latest.mp4").is_file() and now - (start + timedelta(days=1)) > timedelta(days=SETTLED_DAYS)):
+            continue
         selected = frames(source, end, interval=interval, start=start)
         if len(selected) < 2:
             log.warning("%s: fewer than two frames; daily product not replaced", folder.name)
             continue
         signature = hashlib.sha256(json.dumps([str(source.resolve()),interval,fps,width,layout,end == start + timedelta(days=1),
             [(str(p),p.stat().st_size,p.stat().st_mtime_ns) for _,p in selected]]).encode()).hexdigest()
-        target = output / "days" / folder.name
-        meta = target / "latest.json"
-        previous = json.loads(meta.read_text()) if meta.is_file() else {}
         if previous.get("input_signature") == signature and (target / "latest.mp4").is_file():
             continue
         try:

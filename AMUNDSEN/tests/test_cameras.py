@@ -113,6 +113,22 @@ class CameraTests(unittest.TestCase):
         self.assertTrue((output / "latest.json").is_file())
 
     @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_settled_days_are_not_reread(self):
+        from datetime import timedelta
+        self.add("20260904233000")
+        self.add("20260904235000")
+        self.add("20260905113000")
+        self.add("20260905115000")
+        output = self.root / "leg"
+        build_leg(self.source, output, width=320, now=self.end)
+        # a week on, the closed day's shots are gone from the share: its product stands, the recent day is re-read
+        shutil.rmtree(self.source / "20260904")
+        days = build_leg(self.source, output, width=320, now=self.end + timedelta(days=8))
+        self.assertEqual([d["utc_day"] for d in days], ["20260904", "20260905"])
+        self.assertTrue(days[0]["complete_day"])
+        self.assertTrue((output / "days" / "20260904" / "latest.mp4").is_file())
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
     def test_daily_boundaries_stitch_and_unchanged_skip(self):
         self.add("20260904233000")
         self.add("20260904235000")
