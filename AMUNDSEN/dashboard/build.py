@@ -77,10 +77,15 @@ def _num(s):
 # ---------------------------------------------------------------- windows
 
 def _circular_mean_deg(x: pd.Series) -> float:
+    """Unweighted compass mean; a vanishing resultant has no direction."""
     r = np.radians(x.dropna().to_numpy())
     if r.size == 0:
         return np.nan
-    return float(np.degrees(np.arctan2(np.sin(r).mean(), np.cos(r).mean())) % 360)
+    s, c = np.sin(r).mean(), np.cos(r).mean()
+    if np.hypot(s, c) < 1e-12:
+        return np.nan
+    angle = float(np.degrees(np.arctan2(s, c)) % 360)
+    return 0.0 if angle >= 360 - 1e-10 else angle
 
 
 def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
@@ -190,6 +195,9 @@ def aggregate(a: Analysis, rule: str) -> dict:
     names = [n for n in names if n in df.columns]
     g = df[names + ["lat", "lon", "leg"]].resample(rule)
     mean, mn, mx, cnt = g[names].mean(), g[names].min(), g[names].max(), g[names].count()
+    circular = {v.name for v in VARIABLES if v.circular and v.name in names}
+    for n in circular:
+        mean[n] = g[n].agg(_circular_mean_deg)
     pos = g[["lat", "lon"]].mean()
     leg = g["leg"].first()
     keep = cnt.sum(axis=1) > 0
@@ -201,7 +209,11 @@ def aggregate(a: Analysis, rule: str) -> dict:
                "lon": None if pd.isna(pos.at[t, "lon"]) else round(float(pos.at[t, "lon"]), 5)}
         for n in names:
             c = int(cnt.at[t, n])
-            row[n] = None if c == 0 else [round(float(mean.at[t, n]), 4), round(float(mn.at[t, n]), 4),
+            value = _num(mean.at[t, n])
+            value = None if value is None else round(value, 4)
+            if n in circular and value is not None:
+                value %= 360                 # rounding must not produce 360°
+            row[n] = None if c == 0 else [value, round(float(mn.at[t, n]), 4),
                                           round(float(mx.at[t, n]), 4), c]
         rows.append(row)
     return {"rule": rule, "variables": names, "columns": ["mean", "min", "max", "n"], "rows": rows}

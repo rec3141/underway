@@ -313,3 +313,14 @@ This test starts Chromium with its sandbox disabled for compatibility with
 restricted development environments, using a fresh temporary profile and only
 the local test page. It checks initial-load recovery, failed updates, active
 tab refresh, revised cast data, and out-of-order window responses.
+
+### Wind-direction statistics
+
+Hourly/daily tables and CSV exports use the same unweighted circular mean
+as the plotted windows for compass directions: 359° and 1° average to 0°,
+not 180°. Missing samples are excluded. A balanced set of opposing directions
+has no mean direction (resultant magnitude below 1e-12); it appears as a dash
+in the table and an empty CSV field, with the sample count retained.
+Direction minimum/maximum remain the observed numeric extremes, not a circular
+spread or the bounds of the shortest arc. Other variables retain arithmetic
+means. Rebuild the dashboard data after updating to regenerate these aggregates.
