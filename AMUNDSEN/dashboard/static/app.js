@@ -442,8 +442,8 @@
         <div class="tools"><span class="now"></span>
           ${v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
           <button class="reset" title="reset zoom">⟲</button>
-          <button class="wide" title="expand">⤢</button>
           <button class="min" title="minimise to the bottom bar">—</button>
+          <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
     el.querySelector("h3").onclick = () => { state.colour = name; store.set("colour", name); $("#colour").value = name; render(); };
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });

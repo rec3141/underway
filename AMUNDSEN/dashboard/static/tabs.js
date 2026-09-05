@@ -358,18 +358,18 @@
   const castOrder = (vars) => { const o = castPanelState.order.filter((v) => vars.includes(v)); return [...o, ...vars.filter((v) => !o.includes(v))]; };
 
   // same frame and controls as the underway panels
-  function castPanelHtml(id, title, unit, wideable = true, movable = false) {
+  // toolbar order everywhere: reset, compress (depth graphs only), minimise, maximise
+  function castPanelHtml(id, title, unit, wideable = true, movable = false, depth = true) {
     return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${title === "Temperature" ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
       <div class="head">${movable ? '<span class="handle" title="drag to reorder">⋮⋮</span>' : ""}<h3>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
-        <button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>
-        <button class="reset" title="reset zoom">⟲</button>${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}</div></div>
+        <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
   function wireCastPanels(host, rerender, vars = []) {
     for (const sec of host.querySelectorAll(".castplot")) {
       const id = sec.dataset.cp, v = sec.dataset.var;
       sec.querySelector(".reset").onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
-      sec.querySelector(".dscale").onclick = () => { casts.dscale = casts.dscale === "sqrt" ? "linear" : "sqrt"; store.set("casts.dscale", casts.dscale); renderCastPlots(); };
+      if (sec.querySelector(".dscale")) sec.querySelector(".dscale").onclick = () => { casts.dscale = casts.dscale === "sqrt" ? "linear" : "sqrt"; store.set("casts.dscale", casts.dscale); renderCastPlots(); };
       sec.querySelector(".wide")?.addEventListener("click", () => {
         castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
         saveCastPanels(); rerender();
@@ -589,9 +589,12 @@
     const now = Date.now();
     const when = (e) => new Date(UW.tms(e.time_utc));
     const recent = evs;                                   // already the legs and span on display
-    const types = [...new Set(recent.map((e) => e.activity || "other"))].slice(0, 20);
+    const counts = new Map(); for (const e of recent) counts.set(e.activity || "other", (counts.get(e.activity || "other") || 0) + 1);
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 19).map(([t]) => t);
+    const typeOf = (e) => top.includes(e.activity || "other") ? (e.activity || "other") : "other";
+    const types = [...new Set(recent.map(typeOf))];
     const traces = types.map((t, i) => {
-      const es = recent.filter((e) => (e.activity || "other") === t);
+      const es = recent.filter((e) => typeOf(e) === t);
       return { type: "scatter", mode: "markers", name: t, x: es.map(when), y: es.map(() => t),
         text: es.map((e) => `${esc(e.station || "")} · ${esc(e.event || "")} ${esc(e.label || "")}`), hovertemplate: "%{x|%Y-%m-%d %H:%M}Z<br>%{text}<extra>" + esc(t) + "</extra>",
         marker: { size: 8, color: PALETTE[i % PALETTE.length] } };
@@ -603,7 +606,7 @@
     if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${new Date(UW.tms(b.r.start_utc)).toISOString().slice(0, 16).replace("T", " ")}–${new Date(UW.tms(b.r.end_utc)).toISOString().slice(11, 16)}Z`),
       hovertemplate: "%{text}<extra></extra>", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .6 });
-    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span`, false).replace('class="panel card castplot', 'class="panel card castplot wide');
+    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide');
     const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 12 } }, tickfont: { size: 12 } },
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 12 }, fixedrange: true },
