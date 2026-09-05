@@ -276,6 +276,18 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         tsg = None
     a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg)
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
+    # Optional, fail-open camera experiment. Never loads a GPU model. Deployment
+    # is explicit: no experimental model is enabled just by installing this code.
+    ice_model=os.environ.get('UNDERWAY_ICE_MODEL')
+    ice_source=os.environ.get('UNDERWAY_ICE_SOURCE')
+    if ice_model and ice_source:
+        try:
+            from .ice_classifier import camera_frame
+            camera=camera_frame(a.frame.index,Path(ice_source),Path(ice_model),
+                root/'cache'/'ice-predictions.json')
+            for column in camera: a.frame[column]=camera[column]
+        except Exception:  # optional source must never prevent a dashboard update
+            log.exception('Experimental camera classifier unavailable')
     end = a.frame.index.max()
 
     root.mkdir(parents=True, exist_ok=True)

@@ -27,6 +27,7 @@ assets = ["plotly>=6"]
 chat = ["requests>=2.31"]
 gcal = ["requests>=2.31", "PyJWT[crypto]>=2.8"]
 cameras = ["Pillow>=10"]
+ice-training = ["Pillow>=10", "scikit-learn>=1.3"]
 
 [project.scripts]
 underway = "dashboard.cli:main"

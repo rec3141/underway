@@ -89,6 +89,10 @@ VARIABLES: tuple[Variable, ...] = (
     Variable("Roll & pitch RMS (°)", "°", (), derived=True),
     Variable("Time elapsed (h)", "h", (), derived=True),
     Variable("Distance travelled (km)", "km", (), derived=True),
+    Variable("Camera visible ice · experimental (%)", "%", (), derived=True),
+    Variable("Camera thin/new ice · experimental (%)", "%", (), derived=True),
+    Variable("Camera broken ice · experimental (%)", "%", (), derived=True),
+    Variable("Camera consolidated ice · experimental (%)", "%", (), derived=True),
 )
 
 # Position sources in order of preference; per row the first finite pair wins.
