@@ -91,8 +91,9 @@ performance does not apply to this simple baseline.
 
 The Python `dashboard.cameras.timelapse` helper accepts `layout="portrait"`
 and `width=1080` for a 1080×1920, 9:16 video. Camera 2 is centre-cropped
-across the upper half; cameras 1 and 3 rotate in opposite directions into
-the lower two panels, with sky at the outside edges. Original images are
+across the upper third; cameras 1 and 3 rotate in opposite directions into
+the lower two-thirds, with sky at the outside edges (top-to-bottom ratio 1:2).
+The side views are centre-cropped to fit their taller panels. Original images are
 unchanged. All three individual camera JPEGs must accompany each mosaic;
 incomplete sets are skipped. Use a separate output directory for previews.
 Width must be a multiple of 18 (540 is a smaller preview option).

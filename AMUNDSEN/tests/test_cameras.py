@@ -42,6 +42,9 @@ class CameraTests(unittest.TestCase):
         result = compose_frame(path,540,"portrait")
         self.assertEqual(result.size,(540,960))
         self.assertGreater(result.getpixel((270,240))[1],100)
+        self.assertGreater(result.getpixel((135,319))[1],100)
+        self.assertGreater(result.getpixel((135,320))[0],240)
+        self.assertGreater(result.getpixel((405,320))[2],240)
         self.assertGreater(result.getpixel((135,720))[0],240)
         self.assertGreater(result.getpixel((405,720))[2],240)
         # Opposite rotations move the original sky to the outside edges.

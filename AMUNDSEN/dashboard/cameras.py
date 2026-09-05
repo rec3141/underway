@@ -43,7 +43,8 @@ def compose_frame(path, width, layout="mosaic"):
         if width % 18:
             raise ValueError("Portrait width must be a multiple of 18 (e.g. 1080 or 540)")
         height = width * 16 // 9
-        half = height // 2
+        top = height // 3
+        bottom = height - top
         canvas = Image.new("RGB", (width,height), "black")
         views = []
         for number in (1,2,3):
@@ -53,9 +54,9 @@ def compose_frame(path, width, layout="mosaic"):
             with Image.open(sibling) as image:
                 views.append(image.convert("RGB"))
         # Camera 2 faces forward; opposite rotations place both skies outward.
-        canvas.paste(ImageOps.fit(views[1],(width,half),centering=(.5,.5)),(0,0))
-        canvas.paste(ImageOps.fit(views[0].transpose(Image.Transpose.ROTATE_90),(width//2,half)),(0,half))
-        canvas.paste(ImageOps.fit(views[2].transpose(Image.Transpose.ROTATE_270),(width//2,half)),(width//2,half))
+        canvas.paste(ImageOps.fit(views[1],(width,top),centering=(.5,.5)),(0,0))
+        canvas.paste(ImageOps.fit(views[0].transpose(Image.Transpose.ROTATE_90),(width//2,bottom)),(0,top))
+        canvas.paste(ImageOps.fit(views[2].transpose(Image.Transpose.ROTATE_270),(width//2,bottom)),(width//2,top))
         return canvas
     if layout != "mosaic":
         raise ValueError("Unknown camera layout")
@@ -93,7 +94,7 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
                 key = hashlib.sha256(f"v1|{path.resolve()}|{stat.st_size}|{stat.st_mtime_ns}|{width}".encode()).hexdigest()
                 if layout == "portrait":
                     dependencies = [path.with_name(path.name.replace("_mosaic.jpg",f"_cam_{n}.jpg")) for n in (1,2,3)]
-                    key = hashlib.sha256(json.dumps(["portrait-v1",key,[(p.stat().st_size,p.stat().st_mtime_ns) for p in dependencies]]).encode()).hexdigest()
+                    key = hashlib.sha256(json.dumps(["portrait-v2",key,[(p.stat().st_size,p.stat().st_mtime_ns) for p in dependencies]]).encode()).hexdigest()
                 cached = cache / f"{key}.jpg"
                 if not cached.is_file():
                     canvas = compose_frame(path,width,layout)
