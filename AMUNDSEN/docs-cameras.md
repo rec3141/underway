@@ -166,6 +166,22 @@ updated after each response. Resume checks model identifier, prompt and budget;
 keep the same actual model loaded under that identifier. The page reports
 completed responses, not expected total or scientific validation status.
 
+### Rotated crop trial
+
+`tools/ice-rotated-preview.py --input /path/to/tiles.json --source /path/to/archive
+--output /path/to/preview --angle -30` compares six scenes with a boat-aligned
+1200×600 region centred at normalized (0.45,0.62). The HTML shows the old
+crop and candidate polygon on the original image, alongside the extracted
+region with 100-pixel grid. `regions.json` preserves the output-to-source
+affine mapping and each tile's original-image polygon. This is a fixed
+candidate, not an automatic wake detector; inspect before using across a leg.
+Old tile labels are not transferable because rotation changes pixel footprints.
+
+Pass `--rotated-input /path/to/preview` instead of `--input` to the vision
+review tool to send those extracted JPEGs directly. The resulting separate
+HTML pairs each rotated image with its fresh model response. It does not
+produce a segmentation mask or silently reuse earlier crop estimates.
+
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,
 sampling, corrupt-image recovery, real ffmpeg encoding (when available), a
 synthetic known ice fraction, invalid crops, dark-scene rejection, UTC daily

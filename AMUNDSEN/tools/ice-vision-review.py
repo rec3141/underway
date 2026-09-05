@@ -1,5 +1,6 @@
 """Run a blind local vision-model pilot; never download models or send images off-host."""
 import argparse
+import base64
 import html
 import json
 from pathlib import Path
@@ -11,7 +12,8 @@ PROMPT = '''Inspect this ship-camera sea-surface crop. Describe visible texture,
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--input', type=Path, required=True, help='Texture explorer tiles.json')
+    p.add_argument('--input', type=Path, help='Texture explorer tiles.json')
+    p.add_argument('--rotated-input', type=Path, help='Directory with regions.json and extracted rotated JPEGs')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--model', default='ice-vision')
     p.add_argument('--limit', type=int, default=5)
@@ -27,18 +29,31 @@ def main():
         p.error('max tokens must be 128..12000')
     if args.offset < 0:
         p.error('offset must be nonnegative')
-    scenes = json.loads(args.input.read_text())['scenes'][args.offset:args.offset+args.limit]
+    if bool(args.input)==bool(args.rotated_input):
+        p.error('Provide exactly one of --input or --rotated-input')
+    if args.rotated_input:
+        scenes=[]
+        for region in json.loads((args.rotated_input/'regions.json').read_text()):
+            image_path=args.rotated_input/f'scene-{region["scene"]}-rotated.jpg'
+            scenes.append({'scene':region['scene'],'file':region['file'],
+                           'roi':[0,0,1,1], 'region':region,
+                           'image':'data:image/jpeg;base64,'+base64.b64encode(image_path.read_bytes()).decode()})
+    else:
+        scenes = json.loads(args.input.read_text())['scenes']
+    scenes=scenes[args.offset:args.offset+args.limit]
     args.output.mkdir(parents=True,exist_ok=True)
     existing = args.output/'results.json'
     rows = json.loads(existing.read_text()) if args.render_only or (args.resume and existing.exists()) else []
     prompt = PROMPT + ('\n/no_think' if args.no_thinking else '')
     if args.resume and any(r['model']!=args.model or r['prompt']!=prompt or r.get('max_tokens')!=args.max_tokens for r in rows):
         p.error('Existing results have different model/prompt/budget; use a separate output')
-    done = {(r['file'],tuple(r['roi'])) for r in rows}
+    def identity(r):
+        return (r['file'],tuple(r['roi']),json.dumps(r.get('region'),sort_keys=True))
+    done = {identity(r) for r in rows}
     # Explicitly bypass shell proxy settings: requests are loopback only.
     client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     for scene in ([] if args.render_only else scenes):
-        if (scene['file'],tuple(scene['roi'])) in done:
+        if identity(scene) in done:
             continue
         start = time.monotonic()
         prompt = PROMPT + ('\n/no_think' if args.no_thinking else '')
@@ -68,6 +83,9 @@ def main():
 def render_report(rows,output,model):
     page = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Local ice vision review</title><style>body{font:17px system-ui;max-width:1000px;margin:24px auto;padding:12px}img{max-width:100%}pre{white-space:pre-wrap}article{border-top:1px solid #aaa;padding:20px 0}</style><h1>Local vision pilot — unreviewed suggestions</h1><p>Qwen3-VL-8B, Q4_K_M, temperature 0. No expert percentages or scene labels supplied. Not trained or validated for sea ice. Crops are resized previews from the texture explorer. Model text may be wrong.</p>'
     page = page.replace('Qwen3-VL-8B, Q4_K_M', html.escape(model))
+    if any('region' in r for r in rows):
+        page=page.replace('Crops are resized previews from the texture explorer.',
+                          'Images are the extracted boat-aligned regions; responses describe only these crops. ROI [0,0,1,1] denotes the entire extracted image; original-image geometry is stored under region in results.json.')
     page += f'<p>{len(rows)} completed scene responses. This page can be refreshed while the batch runs.</p>'
     for row in rows:
         status = ' — INCOMPLETE: output limit reached' if row['finish_reason']=='length' else ''
