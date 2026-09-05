@@ -568,6 +568,7 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
 def build_casts(legs: list[Leg], root: Path) -> dict:
     """Write per-cast JSON files and an index; return the index."""
     from .build import atomic_write   # local import: build imports this module
+    (root / "data" / "casts").mkdir(parents=True, exist_ok=True)
     index = []
     for leg in legs:
         casts = rosette_casts(leg) + mvp_casts(leg)

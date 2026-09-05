@@ -29,11 +29,15 @@ scheduler/               separate tool: event log -> Google Calendar sync (R)
 
 ## Requirements
 
-- Python ≥ 3.11 with `pandas`, `numpy`, `jinja2` — `pip install -e .` from this
+- Python ≥ 3.11 with `pandas`, `numpy`, `jinja2`, `scipy`, and `xlrd` — `pip install -e .` from this
   directory installs them and an `underway` console command. `plotly` is not
   needed at run time; its `plotly.min.js` is committed under `static/`
   (refresh it from a plotly install with the `assets` extra). On the ship
   workstation the interpreter with the stack is `/opt/miniforge3/bin/python3`.
+- Optional integrations: `pip install -e '.[chat]'` installs the HTTP client
+  for the local AI crew; `pip install -e '.[gcal]'` installs the Google Calendar
+  HTTP/signing dependencies. Human chat uses only the standard library. Use
+  `UNDERWAY_LLM=0` to disable the AI crew on machines without a model server.
 - Paths: the data roots and the store directory default to the ship's layout
   and can be overridden with `UNDERWAY_DATA_ROOT`, `UNDERWAY_SHARE_ROOT` and
   `UNDERWAY_DB_DIR`. Another ship or system would replace `legs.discover()`
@@ -53,6 +57,25 @@ python3 -m dashboard legs                     # what is on the shares
 python3 -m dashboard build --root /path/to/webroot
 python3 -m dashboard serve --root /path/to/webroot --port 8042
 ```
+
+For an ordinary installation, `pip install .` installs the `underway` command;
+`underway --help` works outside the source checkout. Choose writable paths for
+runtime state on another machine, for example (POSIX shell):
+
+```sh
+export UNDERWAY_DB_DIR="$PWD/runtime/db"
+export UNDERWAY_CHAT_DB="$PWD/runtime/chat.sqlite"
+export UNDERWAY_LLM=0
+underway serve --root "$PWD/www" --port 8042
+```
+
+Set `UNDERWAY_DATA_ROOT` and `UNDERWAY_SHARE_ROOT` to the mounted data before
+building. These environment variables work on Windows too; the deployment
+shell scripts and systemd units are specific to the ship's Linux workstation.
+Set `UNDERWAY_TILES_DIR` if using optional raster tiles on another machine.
+The default database directory is beside the source package, and the default
+chat database is `/data/underway/chat/chat.sqlite`, so explicitly set both
+state paths when installing into a shared or read-only Python environment.
 
 `build` syncs every leg's store (only new or changed day files are parsed),
 combines the legs, computes derived variables, writes `data/w-*.json` for each

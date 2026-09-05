@@ -14,18 +14,23 @@ dependencies = [
     "pandas>=2.2",
     "numpy>=1.26",
     "jinja2>=3.1",
+    "scipy>=1.11",
+    "xlrd>=2.0.1",
+    "tzdata; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
 # only for refreshing the bundled static/plotly.min.js; the dashboard itself
 # needs no plotly at run time
 assets = ["plotly>=6"]
+chat = ["requests>=2.31"]
+gcal = ["requests>=2.31", "PyJWT[crypto]>=2.8"]
 
 [project.scripts]
-underway = "underway.cli:main"
+underway = "dashboard.cli:main"
 
 [tool.setuptools]
-packages = ["underway"]
+packages = ["dashboard"]
 
 [tool.setuptools.package-data]
-underway = ["templates/*.j2", "static/*", "static/geo/*"]
+dashboard = ["templates/*.j2", "static/*", "static/geo/*"]
