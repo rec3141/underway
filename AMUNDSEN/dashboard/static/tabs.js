@@ -250,23 +250,32 @@
     if (box.querySelector("form")) { const pre = box.querySelector("pre"); if (pre) pre.textContent = (d.raw || []).join("\n"); return; }
     box.innerHTML = `<form class="livecfgform" id="livecfgform"><label>UDP port <input name="port" value="${d.port || ""}" size="6"></label>
         <label>columns, in Seasave's output order <input name="columns" value="${esc((d.columns || []).join(","))}" size="60"></label><button type="submit">apply</button>
-        <button type="button" class="chip" id="livecfgclose">close</button>
+        <button type="button" class="chip" id="livecfgclose">close</button><span role="alert" id="livecfgerror"></span>
         <details><summary>last raw packets</summary><pre class="mono">${esc((d.raw || []).join("\n"))}</pre></details></form>`;
     box.querySelector("#livecfgclose").onclick = () => { live.showCfg = false; liveCfgForm(host, d); };
     box.querySelector("form").onsubmit = async (ev) => { ev.preventDefault(); const f = new FormData(ev.target);
-      try { await fetch("api/live", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ port: +f.get("port") || 0, columns: f.get("columns") }) }); } catch {}
-      live.showCfg = false; pollLive(); };
+      const button = ev.target.querySelector('[type="submit"]'), error = box.querySelector("#livecfgerror");
+      button.disabled = true; error.textContent = "";
+      const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch("api/live", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ port: f.get("port").trim() || "0", columns: f.get("columns") }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `Configuration failed (${response.status})`);
+        live.data = result; live.showCfg = false; drawLive(host); pollLive();
+      } catch (e) { error.textContent = e.name === "AbortError" ? "Request timed out; check settings before retrying." : `Could not apply settings: ${e.message}`; }
+      finally { clearTimeout(timeout); button.disabled = false; }
+    };
   }
   function drawLive(host) {
     const st = host.querySelector("#livestatus"), body = host.querySelector("#livebody");
     if (!st || !body) return;
     const d = live.data;
     if (!d) { st.innerHTML = `<span class="muted">live feed unavailable (server not reachable)</span>`; return; }
-    const cast = live.which === "current" && d.current ? d.current : (d.current || d.last);
-    const which = cast === d.current ? "in the water" : cast === d.last ? "last cast (on deck)" : null;
+    const cast = live.which === "last" ? (d.last || d.current) : (d.current || d.last);
+    const which = cast === d.current ? "in the water" : cast === d.last ? (cast.end_reason ? `last cast (${esc(cast.end_reason)})` : "last cast") : null;
     const age = d.last_packet_age_s;
     const feed = d.port ? `listening on UDP ${d.port}${d.packets ? ` · ${d.packets.toLocaleString()} packets · ${d.rate_hz} Hz · last ${age != null ? age.toFixed(0) + " s ago" : "—"}${d.source ? " from " + esc(d.source) : ""}` : " · nothing received yet"}` : "feed off — set the UDP port with ⚙";
-    const cols = (d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
+    const cols = (cast?.columns || d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
     st.innerHTML = `<div class="livestatus"><span class="dot ${d.packets && age != null && age < 10 ? "on" : ""}"></span><span>${feed}</span>
         ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
         <button type="button" class="chip" id="livecfg" title="port and column names">⚙</button></div>
@@ -279,7 +288,7 @@
       body.innerHTML = `<div class="empty">${d.packets ? "Packets arrive but no cast is in the water yet — the plot starts when pressure passes 2 dbar." : "Waiting for the deck unit. Start acquisition in Seasave; the plot begins when the package goes in."}</div>`;
       return;
     }
-    const P = cast.cols[d.pressure_col] || [], lat = UW.M.latest?.lat ?? 70;
+    const P = cast.cols[cast.pressure_col || d.pressure_col] || [], lat = UW.M.latest?.lat ?? 70;
     const depth = cast.depth_like ? P : P.map((p) => p == null ? null : depthFrom(p, lat));
     let imax = 0; for (let i = 0; i < P.length; i++) if (P[i] != null && P[i] > (P[imax] ?? -1)) imax = i;
     const li = depth.length - 1;
