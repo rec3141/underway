@@ -383,7 +383,7 @@
       type: "scattermap", mode: "markers", name: "event log", showlegend: false, hoverinfo: "text",
       lat: pts.map((p) => p.lat), lon: pts.map((p) => p.lon), text: pts.map((p) => p.text),
       // sprite icons: marker.size / 10 is the icon scale of a 12 px triangle
-      marker: { symbol: pts.map((p) => `tri-${p.colour}`), size: pts.map((p) => Math.min(14, 7 + 2 * Math.log2(p.n))), opacity: .9 },
+      marker: { symbol: pts.map((p) => `tri-${p.colour}`), size: pts.map((p) => Math.min(17, 10 + 2 * Math.log2(p.n))), opacity: .95 },
     }];
   }
   const PALETTE_EV = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce", "#ffb454"];
