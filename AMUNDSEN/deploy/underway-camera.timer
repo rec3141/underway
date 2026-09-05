@@ -1,0 +1,10 @@
+[Unit]
+Description=Rebuild camera timelapse once an hour
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

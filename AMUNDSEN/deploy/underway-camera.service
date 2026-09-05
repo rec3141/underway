@@ -1,0 +1,15 @@
+[Unit]
+Description=Underway hourly camera timelapse
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cryomics
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+EnvironmentFile=/home/cryomics/.config/underway/camera.env
+ExecStart=/bin/bash tools/camera-job.sh build
+TimeoutStartSec=30min
+Nice=15
+IOSchedulingClass=idle
+NoNewPrivileges=true
+
