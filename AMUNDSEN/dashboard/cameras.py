@@ -37,9 +37,40 @@ def frames(source: Path, end: datetime, hours=24, interval=120, start=None):
     return sorted(selected.values())
 
 
+def compose_frame(path, width, layout="mosaic"):
+    from PIL import Image, ImageOps
+    if layout == "portrait":
+        if width % 18:
+            raise ValueError("Portrait width must be a multiple of 18 (e.g. 1080 or 540)")
+        height = width * 16 // 9
+        half = height // 2
+        canvas = Image.new("RGB", (width,height), "black")
+        views = []
+        for number in (1,2,3):
+            sibling = path.with_name(path.name.replace("_mosaic.jpg", f"_cam_{number}.jpg"))
+            if sibling == path:
+                raise ValueError("Portrait layout requires Camera360 mosaics with three sibling camera images")
+            with Image.open(sibling) as image:
+                views.append(image.convert("RGB"))
+        # Camera 2 faces forward; opposite rotations place both skies outward.
+        canvas.paste(ImageOps.fit(views[1],(width,half),centering=(.5,.5)),(0,0))
+        canvas.paste(ImageOps.fit(views[0].transpose(Image.Transpose.ROTATE_90),(width//2,half)),(0,half))
+        canvas.paste(ImageOps.fit(views[2].transpose(Image.Transpose.ROTATE_270),(width//2,half)),(width//2,half))
+        return canvas
+    if layout != "mosaic":
+        raise ValueError("Unknown camera layout")
+    with Image.open(path) as image:
+        image.load()
+        return ImageOps.pad(image.convert("RGB"), (width, width * 3 // 4 // 2 * 2), color="black")
+
+
 def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
-              width=1280, end=None, ffmpeg="ffmpeg", selected=None):
-    from PIL import Image, ImageDraw, ImageOps
+              width=1280, end=None, ffmpeg="ffmpeg", selected=None, layout="mosaic"):
+    from PIL import ImageDraw
+    if layout not in ("mosaic", "portrait"):
+        raise ValueError("Unknown camera layout")
+    if layout == "portrait" and width % 18:
+        raise ValueError("Portrait width must be a multiple of 18 (e.g. 1080 or 540)")
     if not source.is_dir():
         raise ValueError(f"Camera source unavailable: {source}")
     if not (0 < hours <= 168 and interval >= 60 and 1 <= fps <= 60 and 320 <= width <= 1920 and width % 2 == 0):
@@ -60,16 +91,26 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
             try:
                 stat = path.stat()
                 key = hashlib.sha256(f"v1|{path.resolve()}|{stat.st_size}|{stat.st_mtime_ns}|{width}".encode()).hexdigest()
+                if layout == "portrait":
+                    dependencies = [path.with_name(path.name.replace("_mosaic.jpg",f"_cam_{n}.jpg")) for n in (1,2,3)]
+                    key = hashlib.sha256(json.dumps(["portrait-v1",key,[(p.stat().st_size,p.stat().st_mtime_ns) for p in dependencies]]).encode()).hexdigest()
                 cached = cache / f"{key}.jpg"
                 if not cached.is_file():
-                    with Image.open(path) as image:
-                        image.load()
-                        canvas = ImageOps.pad(image.convert("RGB"), (width, width * 3 // 4 // 2 * 2), color="black")
-                        draw = ImageDraw.Draw(canvas)
+                    canvas = compose_frame(path,width,layout)
+                    draw = ImageDraw.Draw(canvas)
+                    if layout == "portrait":
+                        from PIL import ImageFont
+                        try:
+                            font = ImageFont.truetype("DejaVuSans.ttf",width//36)
+                        except OSError:
+                            font = ImageFont.load_default()
+                        draw.rectangle((width//24,width//24,width*23//24,width//10),fill="black")
+                        draw.text((width//18,width//20),stamp.strftime("%Y-%m-%d %H:%M UTC"),fill="white",font=font)
+                    else:
                         draw.rectangle((0, 0, width, 28), fill="black")
                         draw.text((8, 6), stamp.strftime("%Y-%m-%d %H:%M:%S UTC") + " | sampled timelapse", fill="white")
-                        canvas.save(tmp / "cache.jpg", format="JPEG", quality=85)
-                        (tmp / "cache.jpg").replace(cached)
+                    canvas.save(tmp / "cache.jpg", format="JPEG", quality=85)
+                    (tmp / "cache.jpg").replace(cached)
                 shutil.copyfile(cached, tmp / f"{len(kept):06d}.jpg")
                 kept.append({"time_utc":stamp.isoformat(), "file":str(path)})
             except (OSError, ValueError) as exc:
@@ -85,7 +126,7 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
                        check=True, timeout=1200)
         manifest = {"generated_utc":datetime.now(timezone.utc).isoformat(), "source":str(source),
                     "start_utc":kept[0]["time_utc"], "end_utc":kept[-1]["time_utc"],
-                    "hours":hours, "interval_s":interval, "fps":fps, "width":width, "frames":kept, "skipped":skipped,
+                    "hours":hours, "interval_s":interval, "fps":fps, "width":width, "layout":layout, "frames":kept, "skipped":skipped,
                     "note":"Uniform playback of sampled images; gaps are not real-time durations."}
         metadata = tmp / "latest.json"
         metadata.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

@@ -87,6 +87,19 @@ Background: [shipborne ice-segmentation study](https://arxiv.org/abs/2409.06641)
 demonstrates why image geometry and manual comparisons matter; its reported
 performance does not apply to this simple baseline.
 
+## Portrait layout preview
+
+The Python `dashboard.cameras.timelapse` helper accepts `layout="portrait"`
+and `width=1080` for a 1080×1920, 9:16 video. Camera 2 is centre-cropped
+across the upper half; cameras 1 and 3 rotate in opposite directions into
+the lower two panels, with sky at the outside edges. Original images are
+unchanged. All three individual camera JPEGs must accompany each mosaic;
+incomplete sets are skipped. Use a separate output directory for previews.
+Width must be a multiple of 18 (540 is a smaller preview option).
+
+This is an opt-in Python preview, not a change to the scheduled daily/leg
+layout. The normal CLI and hourly job still produce landscape mosaics.
+
 ## Checks
 
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,

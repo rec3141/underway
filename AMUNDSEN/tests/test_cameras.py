@@ -10,7 +10,7 @@ try:
 except ImportError:
     Image = None
 
-from dashboard.cameras import frames, timelapse, build_leg
+from dashboard.cameras import frames, timelapse, build_leg, compose_frame
 
 
 @unittest.skipIf(Image is None, "Install the cameras extra for image tests")
@@ -32,6 +32,26 @@ class CameraTests(unittest.TestCase):
         path = folder / name
         Image.new("RGB", (320, 240), "navy").save(path)
         return path
+
+    def test_portrait_layout(self):
+        path = self.add("20260905110000", True)
+        for number, color in ((1,"red"),(2,"green"),(3,"blue")):
+            image = Image.new("RGB", (160,90), color)
+            image.paste("white", (0,0,160,20))
+            image.save(path.with_name(path.name.replace("_mosaic",f"_cam_{number}")))
+        result = compose_frame(path,540,"portrait")
+        self.assertEqual(result.size,(540,960))
+        self.assertGreater(result.getpixel((270,240))[1],100)
+        self.assertGreater(result.getpixel((135,720))[0],240)
+        self.assertGreater(result.getpixel((405,720))[2],240)
+        # Opposite rotations move the original sky to the outside edges.
+        self.assertTrue(all(c > 230 for c in result.getpixel((10,720))))
+        self.assertTrue(all(c > 230 for c in result.getpixel((530,720))))
+        with self.assertRaises(ValueError):
+            compose_frame(path,640,"portrait")
+        path.with_name(path.name.replace("_mosaic","_cam_3")).unlink()
+        with self.assertRaises(OSError):
+            compose_frame(path,540,"portrait")
 
     def test_selection_window_and_sampling(self):
         self.add("20260905100000")
