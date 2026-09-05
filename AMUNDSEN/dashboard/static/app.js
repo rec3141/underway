@@ -10,6 +10,14 @@
   const SITE = window.__SITE__;
   let M = window.__MANIFEST__;
   const $ = (s) => document.querySelector(s);
+  const { fetchJSON } = window.UWData;
+  const loadErrors = new Set();
+  function setLoadError(scope, failed) {
+    failed ? loadErrors.add(scope) : loadErrors.delete(scope);
+    const el = $("#connection");
+    el.hidden = !loadErrors.size;
+    el.textContent = loadErrors.size ? `${[...loadErrors].join(", ")} update unavailable · retrying; displayed data may be older` : "";
+  }
   const store = {
     get(k, d) { try { return JSON.parse(localStorage.getItem("uw:" + k)) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem("uw:" + k, JSON.stringify(v)); } catch { /* private mode */ } },
@@ -260,9 +268,10 @@
     [4000, "#10253a"], [5000, "#0d1e30"], [6000, "#0a1828"], [7000, "#081422"], [8000, "#07111d"], [9000, "#060e19"], [10000, "#050c15"]];
 
   async function loadGeo() {
-    if (state.geo || !SITE.geo_layers?.length) return;
+    if (state.geoComplete) return;
+    if (!SITE.geo_layers?.length) { state.geoComplete = true; return; }
     const get = async (name) => {
-      try { const r = await fetch(`static/geo/${name}`); return r.ok ? await r.json() : null; } catch { return null; }
+      try { return await fetchJSON(`static/geo/${name}`, { cache: "default" }); } catch { return null; }
     };
     const [bathy, land, glac, coast, isl, comm] = await Promise.all(
       ["bathymetry.geojson", "land.geojson", "glaciated_areas.geojson", "coastline.geojson", "minor_islands.geojson", "communities.geojson"].map(get));
@@ -283,13 +292,18 @@
     if (glac) layers.push({ sourcetype: "geojson", source: glac, type: "fill", color: "#dfe7ef", opacity: .9, below: "traces", name: "ice" });
     if (coast) layers.push({ sourcetype: "geojson", source: coast, type: "line", color: "#8ea3ba", line: { width: 1 }, below: "traces", name: "coast" });
     state.geo = layers;
+    state.geoComplete = [bathy, land, glac, coast, isl].every(Boolean);
+    setLoadError("Basemap", !state.geoComplete);
   }
 
   // The GEBCO pyramid goes into the style as a proper source so MapLibre knows
   // its maxzoom and scales the deepest tiles at closer zooms; a Plotly layer
   // shorthand cannot say that, and the raster simply vanished past zoom 9.
   function mapStyle(withRaster) {
-    const style = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
+    // Plotly can drop an empty `sources` object on a subsequent react(),
+    // which MapLibre rejects on installations without raster tiles.
+    const style = { version: 8, sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
+                    layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
     if (withRaster && SITE.raster) {
       const base = location.origin + location.pathname.replace(/[^/]*$/, "");
       style.sources.gebco = { type: "raster", tiles: [base + SITE.raster.url], tileSize: 256,
@@ -396,7 +410,9 @@
   }, 1500);
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
+  let mapDrawing = false, mapAgain = false;
   function renderMap() {
+    if (mapDrawing) { mapAgain = true; return; }
     const d = state.data;
     const el = $("#map");
     if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
@@ -474,7 +490,8 @@
     }
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
                      map: { style: mapStyle(true), center: view.center, zoom: view.zoom, layers } };
-    Plotly.react(el, traces, layout, CFG).then(() => {
+    mapDrawing = true;
+    Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(() => {
       state.fitPending = false;
       el.removeAllListeners?.("plotly_relayout");
       el.on("plotly_relayout", (ev) => {
@@ -487,6 +504,11 @@
         const p = ev.points?.[0];
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
+    }).catch(() => {
+      mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
+    }).finally(() => {
+      mapDrawing = false;
+      if (mapAgain) { mapAgain = false; renderMap(); }
     });
 
     const km = lastFinite(d.dist_km) ?? 0;
@@ -656,12 +678,6 @@
   }
 
   // ------------------------------------------------------------ data flow
-  async function fetchJSON(url) {
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${r.status} ${url}`);
-    return r.json();
-  }
-
   function applyAndRender() {
     if (!state.raw) return;
     state.data = applyLegFilter(state.raw);
@@ -671,15 +687,28 @@
   }
 
   let loadSeq = 0;
-  async function loadWindow() {
-    const w = M.windows.find((x) => x.label === state.win) || M.windows.find((x) => x.label === M.default_window) || M.windows[0];
+  let windowLoading = false;
+  async function loadWindow(manifest = M) {
+    const w = manifest.windows.find((x) => x.label === state.win) || manifest.windows.find((x) => x.label === manifest.default_window) || manifest.windows[0];
     state.win = w.label;
     renderControls();
     const seq = ++loadSeq;
-    const raw = await fetchJSON(`${w.file}?v=${encodeURIComponent(M.generated_utc)}`);
-    if (seq !== loadSeq) return;            // a newer request is in flight; let it land instead
-    state.raw = raw;
-    applyAndRender();
+    windowLoading = true;
+    try {
+      const raw = await fetchJSON(`${w.file}?v=${encodeURIComponent(manifest.generated_utc)}`);
+      if (seq !== loadSeq) return false;
+      // Commit the header/leg metadata and observations together only after
+      // a successful download. A failed update keeps the last good pair.
+      M = manifest; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
+      state.raw = raw;
+      setLoadError("Underway", false);
+      renderControls(); renderProvenance();
+      applyAndRender(); renderAlert();
+      return true;
+    } catch {
+      if (seq === loadSeq) setLoadError("Underway", true);
+      return false;
+    } finally { if (seq === loadSeq) windowLoading = false; }
   }
 
   function render() {
@@ -688,14 +717,26 @@
     renderPanels();
   }
 
+  let checking = false, geoLoading = false;
   async function checkForUpdate() {
+    if (checking) return;
+    checking = true;
+    // Geography must not block observation downloads or their retry loop.
+    if (!state.geoComplete && !geoLoading) {
+      geoLoading = true;
+      loadGeo().then(() => renderMap()).finally(() => { geoLoading = false; });
+    }
     try {
       const m = await fetchJSON(`data/manifest.json?t=${Date.now()}`);
-      if (m.generated_utc !== M.generated_utc) {
-        M = m; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
-        renderProvenance(); await loadWindow(); renderAlert();
-      } else renderStatus();
-    } catch { /* offline or mid-write; next tick */ }
+      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || state.raw.label !== state.win)) {
+        await loadWindow(m);
+      } else if (!windowLoading) setLoadError("Underway", false);
+    } catch { setLoadError("Underway", true); }
+    finally {
+      renderStatus();
+      try { await window.UW?.refreshActiveTab?.(); }
+      finally { checking = false; }
+    }
   }
 
   // the latest change to the intranet schedule or whiteboard, until dismissed
@@ -728,10 +769,11 @@
 
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
-    get M() { return M; }, get state() { return state; }, SITE, THEME, CFG,
+    state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtUTC, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms,
   });
+  Object.defineProperty(window.UW, "M", { get: () => M, configurable: true });
 
   // ?win=2y&legs=2025_LEG_01,2026_LEG_03&tab=casts — a shareable view; the
   // parameters override what the browser remembered
@@ -756,9 +798,10 @@
     renderControls();
     renderProvenance();
     showTab(store.get("tab", "underway"));
-    await loadGeo();
-    await loadWindow(); renderAlert();
     setInterval(checkForUpdate, 30 * 1000);
+    window.addEventListener("online", checkForUpdate);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+    checkForUpdate();
     window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
   })();
