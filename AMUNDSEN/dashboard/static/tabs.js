@@ -193,10 +193,10 @@
     const gdEl = $(`#${plotId}`);
     // each extra axis needs ~58 px of ticks and title: the plot area gives up
     // that much per axis and the margins hold the outermost ones
-    const H = Math.max(360, gdEl.clientHeight || 500), step = 58 / H;
+    const H = Math.max(360, gdEl.clientHeight || 500), step = 64 / H;
     const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
-    const traces = [], layout = { ...CAST_LAYOUT, hovermode: "closest", margin: { l: 56, r: 16, t: 58, b: 58 }, showlegend: false };
+    const traces = [], layout = { ...CAST_LAYOUT, hovermode: "closest", margin: { l: 56, r: 16, t: 64, b: 64 }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
     layout.yaxis = depthAxis(maxD * 1.04, { domain: [y0, y1] });
     const yv = spec.depth.map(yT);
@@ -204,7 +204,10 @@
       const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = PALETTE[i % PALETTE.length];
       const bottom = i % 2 === 0, k = Math.floor(i / 2);
       const unit = spec.units?.[v] ? ` (${spec.units[v]})` : "";
-      layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: 12, color } }, tickfont: { size: 11, color }, side: bottom ? "bottom" : "top",
+      // each axis carries a baseline in its colour, ticks tight against it and the
+      // title tight against the ticks, so the stacked axes read as groups
+      layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: 12, color }, standoff: 2 }, tickfont: { size: 11, color }, ticks: "outside", ticklen: 3, tickcolor: color,
+        showline: true, linecolor: color, linewidth: 1.5, showgrid: i === 0, side: bottom ? "bottom" : "top",
         ...(i === 0 ? { anchor: "y" } : { overlaying: "x", anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) }) };
       const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v}${dash ? " up" : ""}`, xaxis: ax, yaxis: "y",
         x: spec.vars[v].slice(from, to), y: yv.slice(from, to), customdata: spec.depth.slice(from, to), connectgaps: false, line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
@@ -358,6 +361,7 @@
   function castPanelHtml(id, title, unit, wideable = true, movable = false) {
     return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${title === "Temperature" ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
       <div class="head">${movable ? '<span class="handle" title="drag to reorder">⋮⋮</span>' : ""}<h3>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
+        <button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>
         <button class="reset" title="reset zoom">⟲</button>${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
@@ -365,6 +369,7 @@
     for (const sec of host.querySelectorAll(".castplot")) {
       const id = sec.dataset.cp, v = sec.dataset.var;
       sec.querySelector(".reset").onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
+      sec.querySelector(".dscale").onclick = () => { casts.dscale = casts.dscale === "sqrt" ? "linear" : "sqrt"; store.set("casts.dscale", casts.dscale); renderCastPlots(); };
       sec.querySelector(".wide")?.addEventListener("click", () => {
         castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
         saveCastPanels(); rerender();
@@ -519,10 +524,6 @@
     for (const b of $("#castkind").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.k === casts.kind);
       b.onclick = () => { casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); UW.renderMap(); };
-    }
-    for (const b of $("#castdepth").querySelectorAll("button")) {
-      b.classList.toggle("on", b.dataset.d === casts.dscale);
-      b.onclick = () => { casts.dscale = b.dataset.d; store.set("casts.dscale", casts.dscale); for (const x of $("#castdepth").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastPlots(); };
     }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
