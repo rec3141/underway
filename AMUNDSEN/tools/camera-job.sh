@@ -13,13 +13,13 @@ case "${1:-build}" in
       --interval "${UNDERWAY_CAMERA_INTERVAL:-120}"
     ;;
   sync)
-    : "${UNDERWAY_CAMERA_SHARE:?Set the existing destination photos directory}"
+    : "${UNDERWAY_CAMERA_SHARE:?Set the existing destination timelapse directory}"
     [[ -d "$UNDERWAY_CAMERA_SHARE" ]] || { echo 'Destination unavailable; not creating a mount placeholder' >&2; exit 1; }
     [[ -s "$UNDERWAY_CAMERA_OUTPUT/full-leg.mp4" && -s "$UNDERWAY_CAMERA_OUTPUT/full-leg.json" ]] || exit 1
     # Dedicated subdirectory; no --delete and no original images copied.
     timeout 600 rsync -rt --whole-file --timeout=60 \
       --exclude='.*' --include='*/' --include='*.mp4' --include='*.json' --exclude='*' \
-      -- "$UNDERWAY_CAMERA_OUTPUT/" "$UNDERWAY_CAMERA_SHARE/underway-camera/"
+      -- "$UNDERWAY_CAMERA_OUTPUT/" "$UNDERWAY_CAMERA_SHARE/"
     ;;
   *) echo 'Usage: camera-job.sh build|sync' >&2; exit 2 ;;
 esac

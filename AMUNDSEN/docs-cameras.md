@@ -28,11 +28,12 @@ Resized frames are cached locally by source path/size/mtime/width, so hourly
 runs need not reread unchanged originals. Generated cache files older than
 eight days are pruned after successful builds; they can be regenerated.
 
-Review `deploy/camera.env.example`, confirm the actual leg
-photos destination, and copy it to `~/.config/underway/camera.env`. The daily
+Review `deploy/camera.env.example` and copy it to
+`~/.config/underway/camera.env`. The confirmed destination for 2026 Leg 3 is
+`/mnt/ship/Share/2026/2026_LEG_03/Pictures/Timelapse`. The daily
 sync deliberately refuses to create a missing destination directory. It
 copies the dated daily MP4/JSON files and full-leg MP4/JSON into the dedicated
-`underway-camera/` subdirectory, with no `--delete`. Cached JPEGs and hidden
+configured `Timelapse/` directory, with no `--delete`. Cached JPEGs and hidden
 working files are excluded. Old products retain their actual source dates;
 they are not relabelled as new days when camera acquisition stops.
 Use distinct output/destination folders for different legs or cameras.
