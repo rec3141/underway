@@ -55,9 +55,15 @@ def main():
     p.add_argument('--brightness-weight', type=float, default=0,
                    help='Relative block weight after standardization; 0 retains texture-only')
     p.add_argument('--labels', type=Path, help='Previous exported group labels, matched by source file and tile box')
+    p.add_argument('--render-only', action='store_true', help='Refresh source previews and HTML without changing existing groups')
     args = p.parse_args()
     if not 32 <= args.tile <= 512:
         p.error('tile must be 32..512')
+    if args.render_only:
+        data = json.loads((args.output/'tiles.json').read_text())
+        add_originals(data,args.source)
+        write_report(data,args.output)
+        return
     if not np.isfinite(args.brightness_weight) or not 0<=args.brightness_weight<=5:
         p.error('brightness weight must be 0..5')
     records, features, scenes, levels = [], [], [], []
@@ -121,11 +127,25 @@ def main():
     data = {'tiles':records,'scenes':scenes,'tile_size':args.tile,'perplexity':perplexity,
             'seed':42,'clusters':args.clusters, 'sample_leg':args.sample_leg,
             'brightness_weight':args.brightness_weight,'previous_group_names':previous.get('group_names',{})}
-    args.output.mkdir(parents=True,exist_ok=True)
-    (args.output/'tiles.json').write_text(json.dumps(data))
-    html = TEMPLATE.replace('DATA_HERE',json.dumps(data).replace('<','\\u003c'))
-    (args.output/'index.html').write_text(html)
+    add_originals(data,args.source)
+    write_report(data,args.output)
     print(f'{len(records)} tiles; {args.output / "index.html"}')
+
+
+def add_originals(data,source):
+    for scene in data['scenes']:
+        path = (source/scene['file']).resolve()
+        if not path.is_relative_to(source.resolve()):
+            raise ValueError('Source path escapes archive')
+        with Image.open(path) as image:
+            scene['original_size'] = list(image.size)
+            scene['original_image'] = jpeg(ImageOps.contain(image.convert('RGB'),(1000,1000)))
+
+
+def write_report(data,output):
+    output.mkdir(parents=True,exist_ok=True)
+    (output/'tiles.json').write_text(json.dumps(data))
+    (output/'index.html').write_text(TEMPLATE.replace('DATA_HERE',json.dumps(data).replace('<','\\u003c')))
 
 
 TEMPLATE = '''<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
@@ -140,10 +160,10 @@ Leg sampling adds two time-spaced scenes per day and caps tiles per scene. The r
 Texture uses contrast-normalized gradients, scale statistics and spatial differences. Optional brightness uses mean, spread and quantiles.
 Both can reflect glare, exposure, perspective and camera artifacts. <span id="settings"></span>
 Spacing, island size and group numbers have no physical meaning. Seed 42; groups are exploratory.</p>
-<label>Colour by <select id="colour"><option value="cluster">Texture group</option><option value="scene">Source scene</option></select></label>
+<label>Colour by <select id="colour"><option value="brightness">Brightness</option><option value="cluster">Texture group</option><option value="scene">Source scene</option></select></label>
 <label>Show <select id="filter"><option value="all">All groups</option></select></label>
 <label>Previous label <select id="prior"><option value="all">All previous groups</option></select></label>
-<canvas id="plot" width="900" height="600"></canvas><div id="detail">Click a point or tile to inspect it.</div>
+<canvas id="plot" width="900" height="600"></canvas><div id="hover" style="display:none;position:fixed;pointer-events:none;background:#17212b;color:white;padding:8px;border:1px solid #aaa;z-index:10;width:170px"></div><div id="detail">Hover for a tile preview; click a point or tile for the full source image.</div>
 <p><label>Group name <input id="name" placeholder="Select a group first"></label><button id="save">Assign name</button><button id="export">Download labels</button>
 Names stay in this page until exported; reload clears them.</p><div id="tiles" class="tiles"></div><h2>Source crops</h2><div id="scenes"></div>
 <script>const data=DATA_HERE, names={}, palette=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#008b8b','#b27800','#666666','#d050a0','#668000'];
@@ -155,13 +175,24 @@ const xs=data.tiles.map(t=>t.x),ys=data.tiles.map(t=>t.y), xmin=Math.min(...xs),
 for(const t of data.tiles){t.px=20+860*(t.x-xmin)/(xmax-xmin||1);t.py=20+560*(t.y-ymin)/(ymax-ymin||1)}
 function shown(){return data.tiles.filter(t=>(by('filter').value==='all'||t.cluster===+by('filter').value)&&(by('prior').value==='all'||t.previous_group===+by('prior').value))}
 function inspect(t){by('detail').replaceChildren();let im=new Image();im.src=t.image;im.width=200;by('detail').append(im,document.createElement('br'),
-document.createTextNode(`Tile ${t.id} · scene ${t.scene} · group ${t.cluster} · ${names[t.cluster]||'unnamed'} · previous: ${t.previous_label||'unlabelled'} · brightness ${(t.brightness_mean*255).toFixed(0)}/255 · source box ${t.box.join(', ')} · ${t.file}`))}
+document.createTextNode(`Tile ${t.id} · scene ${t.scene} · group ${t.cluster} · ${names[t.cluster]||'unnamed'} · previous: ${t.previous_label||'unlabelled'} · brightness ${(t.brightness_mean*255).toFixed(0)}/255 · source box ${t.box.join(', ')} · ${t.file}`));
+const s=data.scenes.find(s=>s.scene===t.scene);if(s&&s.original_image){
+const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),[w,h]=s.original_size;
+svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.style.width='100%';svg.style.maxWidth='1000px';svg.style.display='block';
+const full=document.createElementNS(ns,'image');full.setAttribute('href',s.original_image);full.setAttribute('width',w);full.setAttribute('height',h);svg.append(full);
+function box(b,color,dashed){let rect=document.createElementNS(ns,'rect');for(const [k,v] of Object.entries({x:b[0],y:b[1],width:b[2]-b[0],height:b[3]-b[1],fill:'none',stroke:color,'stroke-width':w/300})){rect.setAttribute(k,v)}if(dashed)rect.setAttribute('stroke-dasharray',w/100);svg.append(rect)}
+box(s.roi.map((v,i)=>v*(i%2?h:w)),'#00ffff',true);box(t.box,'#ff3030',false);
+by('detail').append(document.createElement('br'),document.createTextNode('Full source frame (scaled preview): red = selected tile; dashed cyan = sea crop.'),svg)}}
 function draw(){ctx.clearRect(0,0,900,600);by('tiles').replaceChildren();for(const t of shown()){
 const category=by('colour').value==='scene'?t.scene-1:t.cluster;
-ctx.fillStyle=category<palette.length?palette[category]:`hsl(${category*137.508%360} 65% 40%)`;ctx.beginPath();ctx.arc(t.px,t.py,5,0,7);ctx.fill();
+const luminance=Math.round((t.brightness_mean??.5)*255);
+ctx.fillStyle=by('colour').value==='brightness'?`rgb(${luminance},${luminance},${luminance})`:category<palette.length?palette[category]:`hsl(${category*137.508%360} 65% 40%)`;ctx.beginPath();ctx.arc(t.px,t.py,5,0,7);ctx.fill();if(by('colour').value==='brightness'){ctx.strokeStyle='#888';ctx.lineWidth=.6;ctx.stroke()}
 let d=document.createElement('div');d.className='tile';let im=new Image();im.src=t.image;im.loading='lazy';d.append(im,document.createTextNode(`S${t.scene} · G${t.cluster} · #${t.id}`));d.onclick=()=>inspect(t);by('tiles').append(d)}}
-c.onclick=e=>{let r=c.getBoundingClientRect(),x=(e.clientX-r.left)*900/r.width,y=(e.clientY-r.top)*600/r.height;
-let t=shown().reduce((a,b)=>!a||Math.hypot(b.px-x,b.py-y)<Math.hypot(a.px-x,a.py-y)?b:a,null);if(t)inspect(t)};
+function nearest(e){let r=c.getBoundingClientRect(),x=(e.clientX-r.left)*900/r.width,y=(e.clientY-r.top)*600/r.height;
+let t=shown().reduce((a,b)=>!a||Math.hypot(b.px-x,b.py-y)<Math.hypot(a.px-x,a.py-y)?b:a,null);return t&&Math.hypot(t.px-x,t.py-y)<15?t:null}
+c.onclick=e=>{let t=nearest(e);if(t)inspect(t)};
+c.onpointermove=e=>{const t=nearest(e),tip=by('hover');if(!t){tip.style.display='none';return}tip.replaceChildren();let im=new Image();im.src=t.image;im.width=160;tip.append(im,document.createElement('br'),document.createTextNode(`Tile ${t.id} · S${t.scene} · G${t.cluster} · brightness ${Math.round((t.brightness_mean??.5)*255)}/255`));tip.style.display='block';tip.style.left=Math.max(0,Math.min(e.clientX+16,innerWidth-195))+'px';tip.style.top=Math.max(0,Math.min(e.clientY+16,innerHeight-240))+'px'};
+c.onpointerleave=()=>by('hover').style.display='none';
 by('filter').onchange=()=>{by('name').value=names[by('filter').value]||'';draw()};by('colour').onchange=draw;
 by('prior').onchange=draw;
 by('save').onclick=()=>{if(by('filter').value==='all'){alert('Select a group first');return}names[by('filter').value]=by('name').value;};

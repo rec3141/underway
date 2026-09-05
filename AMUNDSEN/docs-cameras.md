@@ -133,6 +133,12 @@ applying its explicit weight (0 = texture only). New cluster numbers do not
 inherit old group names. The previous-label filter helps inspect how an old
 ambiguous group splits. Labels such as “probable” or “mixed” remain uncertain,
 not hard ice/water truth. Exposure and glare can confound brightness.
+Dots default to grayscale mean brightness; group and scene colours remain
+available. Hover a dot for its tile, or click to see the full source frame
+with a red tile outline and dashed cyan crop outline. Source previews are
+scaled, but boxes use original image coordinates. `--render-only` refreshes
+previews/UI from existing `tiles.json` without recomputing group assignments.
+Export unsaved browser labels before reloading a report.
 
 ### Local vision review
 
