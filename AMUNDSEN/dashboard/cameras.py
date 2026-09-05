@@ -94,7 +94,7 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
                 key = hashlib.sha256(f"v1|{path.resolve()}|{stat.st_size}|{stat.st_mtime_ns}|{width}".encode()).hexdigest()
                 if layout == "portrait":
                     dependencies = [path.with_name(path.name.replace("_mosaic.jpg",f"_cam_{n}.jpg")) for n in (1,2,3)]
-                    key = hashlib.sha256(json.dumps(["portrait-v3",key,[(p.stat().st_size,p.stat().st_mtime_ns) for p in dependencies]]).encode()).hexdigest()
+                    key = hashlib.sha256(json.dumps(["portrait-v4",key,[(p.stat().st_size,p.stat().st_mtime_ns) for p in dependencies]]).encode()).hexdigest()
                 cached = cache / f"{key}.jpg"
                 if not cached.is_file():
                     canvas = compose_frame(path,width,layout)
@@ -105,9 +105,14 @@ def timelapse(source: Path, output: Path, *, hours=24, interval=120, fps=12,
                             font = ImageFont.truetype("DejaVuSans.ttf",width//36)
                         except OSError:
                             font = ImageFont.load_default()
-                        bar_top = canvas.height - width//10
-                        draw.rectangle((width//24,bar_top,width*23//24,canvas.height-width//24),fill="black")
-                        draw.text((width//18,bar_top+width//120),stamp.strftime("%Y-%m-%d %H:%M UTC"),fill="white",font=font)
+                        label = stamp.strftime("%Y-%m-%d %H:%M UTC")
+                        left, top, right, bottom = draw.textbbox((0,0),label,font=font)
+                        text_width, text_height = right-left, bottom-top
+                        padding = max(4,width//90)
+                        x = (width-text_width)//2
+                        y = canvas.height-width//24-padding-text_height
+                        draw.rectangle((x-padding,y-padding,x+text_width+padding,y+text_height+padding),fill="black")
+                        draw.text((x-left,y-top),label,fill="white",font=font)
                     else:
                         draw.rectangle((0, 0, width, 28), fill="black")
                         draw.text((8, 6), stamp.strftime("%Y-%m-%d %H:%M:%S UTC") + " | sampled timelapse", fill="white")
