@@ -105,6 +105,25 @@ layout. The normal CLI and hourly job still produce landscape mosaics.
 
 ## Checks
 
+### Texture exploration
+
+`tools/ice-texture.py` requires Pillow, NumPy, SciPy and scikit-learn. Run with
+`--source /path/to/2025_LEG_04 --config tools/ice-2025-fixed-pilot.json
+--sample-leg --clusters 12 --output /path/to/Downloads/ice-texture`.
+It includes all five reference scenes regardless of the old exclusion flags,
+plus two time-spaced frames per archive day, with up to 24 native 100×100 tiles
+per scene. The fixed ROI is provisional for additional scenes. Inspect for
+land, ship, darkness and optical contamination before assigning ice labels.
+
+The self-contained HTML opens offline without a server. Click points or tiles,
+filter by group, compare source-scene colours, name groups, then download labels.
+Labels are not saved until exported. Standardized contrast-normalized texture
+features feed both t-SNE and k-means; k-means does not cluster the distorted
+2-D embedding. Groups are not physical ice types or confidence estimates.
+For supervised evaluation, split by scene/day, not adjacent tiles. Eric's five
+scene estimates (0,30,95,100,100%) are approximate scene references and must
+not be assigned to every tile as if they were tile-level labels.
+
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,
 sampling, corrupt-image recovery, real ffmpeg encoding (when available), a
 synthetic known ice fraction, invalid crops, dark-scene rejection, UTC daily
