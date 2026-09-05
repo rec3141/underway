@@ -158,9 +158,13 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/api/live" and LIVE:
             # retune the listener from the page: {"port": 5555, "columns": "scan,pressure,..."}
             try:
-                n = min(int(self.headers.get("Content-Length", "0")), 4096)
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 <= n <= 4096:
+                    raise ValueError("Configuration body must be at most 4096 bytes")
                 payload = json.loads(self.rfile.read(n) or b"{}")
-                LIVE.configure(int(payload.get("port", LIVE.port)), payload.get("columns") or None)
+                if not isinstance(payload, dict):
+                    raise ValueError("Configuration must be a JSON object")
+                LIVE.configure(payload.get("port", LIVE.port), payload.get("columns"))
                 return self._json(200, LIVE.status())
             except Exception as e:                       # noqa: BLE001
                 return self._json(400, {"error": str(e)})
@@ -223,6 +227,7 @@ def serve(root: Path, port: int, bind: str) -> None:
         LIVE = LiveCTD()
     except Exception as e:                  # noqa: BLE001 — a taken port must not stop the site
         log.warning("live CTD listener not started: %s", e)
+        LIVE = LiveCTD(port=0, columns="scan,pressure,temperature,conductivity,salinity,oxygen,fluorescence")
     CREW = Crew(root, post=lambda n, e, t: chat_post("crew", n, t, e, bot=True), read=lambda: chat_read(0, None))
     CREW.start()
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))
@@ -233,3 +238,5 @@ def serve(root: Path, port: int, bind: str) -> None:
         pass
     finally:
         httpd.server_close()
+        if LIVE:
+            LIVE.close()

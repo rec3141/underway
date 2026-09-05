@@ -12,6 +12,9 @@ const chrome = process.argv[2];
 if (!chrome) throw Error('Pass the Chromium executable path');
 const wait = ms => new Promise(r => setTimeout(r,ms));
 let generation=1;
+let rejectLiveConfig=true;
+const liveCast=(pressure_col, pressure)=>({started:1,n:2,n_raw:2,max_p:pressure,depth_like:true,t:[1,2],columns:['scan',pressure_col,'temperature'],pressure_col,cols:{scan:[1,2],[pressure_col]:[pressure,pressure],temperature:[3,4]}});
+const liveData={port:5555,columns:['scan','depth','temperature'],pressure_col:'depth',current:liveCast('depth',25),last:liveCast('depth_m',10)};
 const failures=new Set(['/data/manifest.json','/data/w-1h.json']), requests=[];
 const hold=new Set(), held=[];
 const leg='2026_LEG_03', t=Date.parse('2026-09-04T12:00:00Z');
@@ -37,7 +40,7 @@ function dataset(p) {
   if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:[{...cast,vars:['Temperature'],file:'data/casts/cast.json'}]};
   if(p==='/data/casts/cast.json') return cast;
   if(p==='/api/chat') return {messages:[],online:[],crew:[],typing:[]};
-  if(p==='/api/live') return {port:0};
+  if(p==='/api/live') return liveData;
 }
 const site={title:'Refresh test',version:'test',local_tz:'UTC',default_window:'1h',geo_layers:[],intranet:[],links:[],asset_version:'test',plotly_version:'test'};
 const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
@@ -46,6 +49,11 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname; requests.push(req.url);
+  if(p==='/api/live' && req.method==='POST'){
+    req.resume();res.setHeader('Content-Type','application/json');
+    res.writeHead(rejectLiveConfig?400:200);
+    res.end(JSON.stringify(rejectLiveConfig?{error:'Port already in use'}:liveData));return;
+  }
   if(failures.has(p)){res.writeHead(503);res.end('temporary failure');return;}
   if(p==='/'){res.setHeader('Content-Type','text/html');res.end(rendered.stdout);return;}
   if(p.startsWith('/static/')){
@@ -157,6 +165,18 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     const before=requests.filter(u=>u.startsWith('/data/casts/cast.json')).length;
     await poll();
     assert.equal(requests.filter(u=>u.startsWith('/data/casts/cast.json')).length,before);
+    await evaluate('window.UW.showTab("casts"); document.querySelector("#castmode [data-m=live]").click()');
+    await until('document.querySelector("#livecfg")');
+    await evaluate('document.querySelector("#livecfg").click();document.querySelector("#livecfgform [name=port]").value="6000";document.querySelector("#livecfgform").requestSubmit()');
+    await until('document.querySelector("#livecfgerror")?.textContent.includes("Port already in use")');
+    assert.equal(await evaluate('document.querySelector("#livecfgform [name=port]").value'),'6000');
+    rejectLiveConfig=false;
+    await evaluate('document.querySelector("#livecfgform").requestSubmit()');
+    await until('!document.querySelector("#livecfgform")');
+    await evaluate('document.querySelector("[data-w=last]").click()');
+    await until('document.querySelector("#livestatus").textContent.includes("max 10 m")');
+    await until('document.querySelector("#livebody .js-plotly-plot")?.data?.[0]?.y?.[0]===10');
+    console.log('PASS live settings retain edits on rejection; successful retry closes form; last cast uses its own pressure schema');
     const errors=await evaluate('window.__errors');
     if(errors.length) console.error(stderr.slice(0,4000),await evaluate('window.__mapErrors'));
     assert.deepEqual(errors,[]);
