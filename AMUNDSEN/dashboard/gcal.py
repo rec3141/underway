@@ -181,12 +181,16 @@ def _utc(s: str) -> datetime | None:
         return None
     s = str(s).strip()
     m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?", s)
+    dt = None
     try:
         dt = datetime.fromisoformat(s.replace(" ", "T")) if "T" in s or "-" in s[:8] else None
-        if dt is None and m:
-            dt = datetime(*[int(x) for x in m.groups() if x is not None])
     except ValueError:
-        dt = datetime(*[int(x) for x in m.groups() if x is not None]) if m else None
+        dt = None
+    if dt is None and m:
+        try:
+            dt = datetime(*[int(x) for x in m.groups() if x is not None])
+        except ValueError:                  # a placeholder like 0000/00/00 in the workbook
+            return None
     if dt is None:
         return None
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
