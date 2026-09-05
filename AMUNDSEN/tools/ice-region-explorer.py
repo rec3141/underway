@@ -9,11 +9,13 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from dashboard.ice_classifier import features
 
 
-def render(output, responses):
+def render(output, responses, follow_links=True):
     layout=output/'embedding.json'
     if not layout.exists(): return
     points=json.loads(layout.read_text())
-    annotations={r['id']:dict(response=r['response'],finish_reason=r['finish_reason']) for r in responses}
+    by_file={r['file']:r for r in responses}
+    annotations={p['id']:dict(response=by_file[p['file']]['response'],finish_reason=by_file[p['file']]['finish_reason'])
+                 for p in points if p['file'] in by_file}
     payload=json.dumps(dict(points=points,annotations=annotations)).replace('<','\\u003c')
     page='''<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Region t-SNE — live Qwen review</title>
 <style>body{font:16px system-ui;background:#17212b;color:#eee;margin:18px}main{display:grid;grid-template-columns:1fr 1fr;gap:16px}canvas{width:100%;background:#0d1720}img{max-width:100%}pre{white-space:pre-wrap}select{margin:8px}#tip{position:fixed;pointer-events:none;background:#17212b;padding:6px;display:none}#tip img{width:250px}@media(max-width:800px){main{grid-template-columns:1fr}}</style>
@@ -29,9 +31,17 @@ function draw(){ctx.clearRect(0,0,800,650);for(const p of data.points){const a=a
 function choose(id){const p=data.points.find(p=>p.id===id)||data.points[0];selected=p.id;history.replaceState(null,'','#'+p.id);document.getElementById('title').textContent=p.id+' · '+p.file;document.getElementById('crop').src=p.images[1];document.getElementById('source').src=p.images[0];document.getElementById('response').textContent=data.annotations[p.id]?.response||'Awaiting Qwen';draw();}
 function nearest(e){const b=canvas.getBoundingClientRect(),x=(e.clientX-b.left)*800/b.width,y=(e.clientY-b.top)*650/b.height;return data.points.find(p=>Math.hypot(p.cx-x,p.cy-y)<13);}
 canvas.onclick=e=>{const p=nearest(e);if(p)choose(p.id);};canvas.onmousemove=e=>{const p=nearest(e),tip=document.getElementById('tip');tip.replaceChildren();tip.style.display=p?'block':'none';if(p){const image=document.createElement('img');image.src=p.images[1];tip.append(document.createTextNode(p.id),document.createElement('br'),image);tip.style.left=Math.min(e.clientX+15,innerWidth-275)+'px';tip.style.top=Math.max(0,Math.min(e.clientY+15,innerHeight-180))+'px';}};canvas.onmouseleave=()=>document.getElementById('tip').style.display='none';colour.onchange=draw;
-document.getElementById('status').textContent=Object.keys(data.annotations).length+' / '+data.points.length+' responses';choose(selected);setTimeout(()=>location.reload(),60000);
+let zoom=1,panX=0,panY=0;const baseDraw=draw;
+draw=()=>{ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,800,650);ctx.setTransform(zoom,0,0,zoom,panX,panY);baseDraw();ctx.setTransform(1,0,0,1,0,0);};
+nearest=e=>{const b=canvas.getBoundingClientRect(),x=((e.clientX-b.left)*800/b.width-panX)/zoom,y=((e.clientY-b.top)*650/b.height-panY)/zoom;let best=null,distance=13/zoom;for(const p of data.points){const d=Math.hypot(p.cx-x,p.cy-y);if(d<distance){distance=d;best=p;}}return best;};
+canvas.addEventListener('wheel',e=>{e.preventDefault();const b=canvas.getBoundingClientRect(),x=(e.clientX-b.left)*800/b.width,y=(e.clientY-b.top)*650/b.height,next=Math.max(1,Math.min(30,zoom*Math.exp(-e.deltaY*.002)));panX=x-(x-panX)*next/zoom;panY=y-(y-panY)*next/zoom;zoom=next;if(zoom===1){panX=0;panY=0;}draw();},{passive:false});
+document.getElementById('status').textContent=Object.keys(data.annotations).length+' / '+data.points.length+' responses · scroll to zoom';choose(selected);setTimeout(()=>location.reload(),60000);
 </script>'''.replace('PAYLOAD',payload)
     tmp=output/'regions.html.tmp';tmp.write_text(page);tmp.replace(output/'regions.html')
+    linked=output/'linked-explorers.json'
+    if follow_links and linked.exists():
+        for folder in json.loads(linked.read_text()):
+            render(Path(folder),responses,follow_links=False)
 
 
 def main():

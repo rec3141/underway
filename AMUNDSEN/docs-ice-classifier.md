@@ -74,3 +74,23 @@ candidate estimates remain in `cache/ice-predictions.json` for audit. Optional
 source/model failures do not stop normal dashboard updates.
 
 Implementation attribution: Codex (GPT-6 Astra).
+
+## Full 2025 leg embedding
+
+`tools/ice-full-leg-tsne.py --source ARCHIVE --output DIR --annotations RESULTS`
+processes every camera-3 photo, not a sample. Features are committed per image
+to SQLite and reused on restart unless source size/mtime or feature version
+changes. Corrupt or unreviewed-dimension images are listed in `excluded.json`.
+All accepted feature vectors enter the Barnes–Hut t-SNE fit (seed 42).
+Preview JPEGs are separate, loaded only when needed by the browser; the page
+does not embed the entire archive. Scroll to zoom and click for source/region.
+Annotations match by source-relative filename, never by point proximity.
+
+The supervising process pauses its own worker at CPU >=88°C / GPU >=80°C and
+resumes below CPU <=75°C / GPU <=68°C. It never stops the dashboard, Gemma or
+VLC. The launched user service additionally limits CPU to one core-equivalent,
+memory to 8 GB and runtime to 24 hours. A timeout/OOM can interrupt the fit,
+but cached feature extraction is resumable. `progress.json` reports the stage.
+This does not authorize or launch Qwen for every photo. A `linked-explorers.json`
+list in the teacher output directory refreshes the full-leg annotations when
+that teacher report is next regenerated.
