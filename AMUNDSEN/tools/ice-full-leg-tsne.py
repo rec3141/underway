@@ -31,6 +31,7 @@ def worker(a):
     from sklearn.preprocessing import StandardScaler
     from threadpoolctl import threadpool_limits
     threadpool_limits(limits=1)
+    feature_size=tuple(getattr(a,'feature_size',(240,120)))
     a.output.mkdir(parents=True,exist_ok=True);(a.output/'previews').mkdir(exist_ok=True)
     db=sqlite3.connect(a.output/'features.sqlite')
     db.execute('CREATE TABLE IF NOT EXISTS features (file TEXT PRIMARY KEY, fingerprint TEXT, vector TEXT, point TEXT, error TEXT)')
@@ -40,13 +41,13 @@ def worker(a):
     valid_files=set()
     for i,path in enumerate(paths):
         relative=str(path.relative_to(a.source));valid_files.add(relative)
-        stat=path.stat();fingerprint=f'{VERSION}:{path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}'
+        stat=path.stat();fingerprint=f'{VERSION}:{feature_size}:{path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}'
         old=db.execute('SELECT fingerprint,error FROM features WHERE file=?',(relative,)).fetchone()
         if old and old[0]==fingerprint and not old[1]: continue
         identity=hashlib.sha256(relative.encode()).hexdigest()[:20]
         try:
             with Image.open(path) as im:
-                im=im.convert('RGB');crop=crop_region(im);vector=features(crop)
+                im=im.convert('RGB');crop=crop_region(im);vector=features(crop,size=feature_size)
                 _,polygon,_=load('rotation','ice-rotated-preview.py').geometry(im.size,angle=-30)
                 ImageDraw.Draw(im).line(polygon+[polygon[0]],fill='orange',width=12)
                 ImageOps.contain(im,(900,900)).save(a.output/'previews'/f'{identity}-source.jpg',quality=75)
@@ -79,7 +80,7 @@ def worker(a):
             random_state=42,init='pca',learning_rate='auto',method='barnes_hut',
             n_jobs=1,verbose=1).fit_transform(StandardScaler().fit_transform(x))
         for point,xy in zip(points,coords):point.update(x=float(xy[0]),y=float(xy[1]))
-        write(layout,points);write(state,dict(signature=signature,seed=42,features=VERSION))
+        write(layout,points);write(state,dict(signature=signature,seed=42,features=VERSION,feature_size=feature_size))
     responses=json.loads(a.annotations.read_text()) if a.annotations.exists() else []
     load('explorer','ice-region-explorer.py').render(a.output,responses)
     write(a.output/'progress.json',dict(stage='complete',included=len(good),excluded=len(excluded)))
@@ -90,7 +91,9 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--source',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--annotations',type=Path,required=True);p.add_argument('--worker',action='store_true')
+    p.add_argument('--feature-size',type=int,nargs=2,default=[240,120],metavar=('WIDTH','HEIGHT'))
     a=p.parse_args()
+    if min(a.feature_size)<=16 or max(a.feature_size)>1200:p.error('Feature dimensions must be 17..1200')
     if a.worker: return worker(a)
     a.output.mkdir(parents=True,exist_ok=True)
     monitor=load('monitor','ice-monitored-review.py')

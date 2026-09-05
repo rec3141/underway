@@ -37,6 +37,15 @@ class ClassifierTests(unittest.TestCase):
         with self.assertRaises(ValueError):crop_region(Image.new('RGB',(640,480)))
         self.assertEqual(crop_region(Image.new('RGB',(3648,2052))).size,(1200,600))
 
+    def test_feature_resolutions_keep_same_schema(self):
+        crop=self.image()
+        np.testing.assert_array_equal(features(crop),features(crop,size=(240,120)))
+        for size in ((120,60),(480,240),None):
+            vector=features(crop,size=size)
+            self.assertEqual(vector.shape,(89,))
+            self.assertTrue(np.isfinite(vector).all())
+        with self.assertRaises(ValueError):features(crop,size=(16,16))
+
     def test_structured_targets_reject_bad_quality_or_totals(self):
         label=dict(visibility='clear',confidence='high',percentages=dict(zip(TYPES,[10,20,30,40,0])))
         row=dict(id='region-scene-2',finish_reason='stop',response=json.dumps(label))

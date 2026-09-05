@@ -94,3 +94,34 @@ but cached feature extraction is resumable. `progress.json` reports the stage.
 This does not authorize or launch Qwen for every photo. A `linked-explorers.json`
 list in the teacher output directory refreshes the full-leg annotations when
 that teacher report is next regenerated.
+
+## 600 × 300 duplicate and representative review
+
+The feature extractor accepts an experimental resolution without changing the
+240 × 120 runtime default. `ice-full-leg-tsne.py --feature-size 600 300` includes
+resolution in cache fingerprints and layout metadata. Use a distinct output
+directory; the new vectors are not interchangeable with existing trained models.
+
+`ice-projections.py` adds UMAP and exact Euclidean Ward/single linkage trees to
+each 2-D projection. UMAP/dbMAP dependencies live in the isolated local
+`~/.local/share/underway-ice-venv`; the dashboard environment is untouched.
+The installed dbMAP 1.2.0.4 required replacing its two obsolete `np.int` uses
+in diffusion.py with `np.int64`. Its bundled layout API is incomplete; the
+attempted compatibility variant uses its Diffusor and a modern UMAP layout.
+The first full-data attempt produced an invalid diffusion basis and was not
+published as a successful dbMAP embedding. Errors remain in projections.json;
+other projections are still published when this optional stage fails.
+
+`ice-cluster-representatives.py --k 64` cuts the t-SNE Ward tree at exact k,
+then selects a central point and greedily separated representatives, up to
+three distinct photos per cluster. Tiny clusters are not padded with duplicates.
+The portal exposes the fixed cut separately from distance-height cuts.
+`ice-overnight.py --regions-only --structured --queue QUEUE --hours 4` runs
+the blind local teacher on that queue. It records cluster membership for audit,
+not in the prompt. No labels automatically propagate from representatives.
+
+The browser supports half-size points, mean RGB/brightness colouring, dragging,
+lasso selection and additive human label sets. Human label exports are keyed by
+source file and exact region geometry, and can be imported into the duplicate.
+Autosave is browser-local and export remains the portable backup. The temperature
+page tool samples every 30 seconds through a user timer, with seven-day retention.

@@ -31,9 +31,18 @@ def crop_region(image):
         (u,-v,ox,v,u,oy), Image.Resampling.BICUBIC)
 
 
-def features(crop):
-    """Fixed low-resolution colour, contrast, edge and spatial features."""
-    rgb = np.asarray(crop.convert('RGB').resize((240,120),Image.Resampling.BOX),dtype=float)/255
+def features(crop, size=(240,120)):
+    """89 colour/texture features; default unchanged, size=None keeps native ROI.
+
+    Alternate resolutions are experiments, not compatible model inputs: pixel
+    lags stay at 1,2,4,8,16 in the chosen resolution.
+    """
+    image=crop.convert('RGB')
+    if size is not None:
+        if len(size)!=2 or min(size)<=16: raise ValueError('Feature dimensions must exceed largest pixel lag (16)')
+        image=image.resize(size,Image.Resampling.BOX)
+    if min(image.size)<=16: raise ValueError('Feature image too small')
+    rgb = np.asarray(image,dtype=float)/255
     gray = rgb @ np.array([.299,.587,.114])
     result = []
     for plane in (*rgb.transpose(2,0,1),gray,rgb.max(2)-rgb.min(2)):

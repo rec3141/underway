@@ -118,12 +118,21 @@ def main():
     p.add_argument('--prepare-only', action='store_true')
     p.add_argument('--regions-only', action='store_true')
     p.add_argument('--structured', action='store_true')
+    p.add_argument('--queue',type=Path,help='Blind region review queue, matched to source filenames')
     a = p.parse_args()
     if not 0 < a.hours <= 4: p.error('hours must be >0 and <=4')
     out = a.output; out.mkdir(parents=True, exist_ok=True)
     data = json.loads((Path.home()/'Downloads/amundsen-ice-texture-brightness/tiles.json').read_text())
     label_path = Path.home()/'Downloads/ice-texture-labels(1).json'
     labels = json.loads(label_path.read_text())
+    queue_by_file={}
+    if a.queue:
+        if not a.regions_only or not a.structured:raise ValueError('Queues require structured region mode')
+        queued=json.loads(a.queue.read_text())['queue']
+        queue_by_file={q['file']:q for q in queued}
+        if len(queue_by_file)!=len(queued):raise ValueError('Duplicate photos in queue')
+        data={'scenes':[{'scene':f'cluster-{q["cluster"]}-{i}','file':q['file']} for i,q in enumerate(queued)]}
+        labels={'tiles':[]}
     source = Path('/media/cryomics/T7 Shield/Amundsen/Camera_360/2025_LEG_04')
     atomic(out/'human-labels-snapshot.json', json.dumps(labels))
     existing=out/'results.json'
@@ -146,6 +155,7 @@ def main():
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
         for job in jobs(data, labels, source):
+            if a.queue:job['queue_metadata']=queue_by_file[job['file']]
             if a.regions_only and not job['id'].startswith('region-'): continue
             if a.structured:
                 if not a.regions_only: raise ValueError('Structured mode requires --regions-only')
