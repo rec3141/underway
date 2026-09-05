@@ -124,6 +124,19 @@ For supervised evaluation, split by scene/day, not adjacent tiles. Eric's five
 scene estimates (0,30,95,100,100%) are approximate scene references and must
 not be assigned to every tile as if they were tile-level labels.
 
+### Local vision review
+
+`tools/ice-vision-review.py --input /path/to/tiles.json --output /path/to/review
+--model ice-vision --limit 5` calls an already-loaded vision model through
+LM Studio on **127.0.0.1:1234 only**, bypassing proxy environment variables.
+It downloads nothing. Load an existing local GGUF with its matching vision
+projector first; do not interrupt other GPU workloads without approval.
+The report embeds crops and unreviewed model responses, with prompt, usage,
+timing and completion status in `results.json`. Expert labels are not sent.
+These are pretrained-model suggestions, not a trained ice model. The small
+reference set cannot establish general accuracy. Check `finish_reason` for
+truncation and review dark/new ice particularly carefully.
+
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,
 sampling, corrupt-image recovery, real ffmpeg encoding (when available), a
 synthetic known ice fraction, invalid crops, dark-scene rejection, UTC daily
