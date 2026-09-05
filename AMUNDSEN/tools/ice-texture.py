@@ -61,6 +61,18 @@ def main():
         p.error('tile must be 32..512')
     if args.render_only:
         data = json.loads((args.output/'tiles.json').read_text())
+        if args.labels:
+            exported = json.loads(args.labels.read_text())
+            labelled = {(r['file'],tuple(r['box'])):r for r in exported['tiles']}
+            if len(labelled)!=len(data['tiles']) or any(
+                labelled.get((t['file'],tuple(t['box'])),{}).get('cluster')!=t['cluster']
+                for t in data['tiles']):
+                raise ValueError('Label export does not match these tiles/groups; existing report unchanged')
+            data['group_names'] = exported.get('group_names',{})
+            for t in data['tiles']:
+                label = labelled[(t['file'],tuple(t['box']))]
+                if 'reviewed_label' in label:
+                    t['reviewed_label'] = label['reviewed_label']
         add_originals(data,args.source)
         write_report(data,args.output)
         return
@@ -167,12 +179,12 @@ Spacing, island size and group numbers have no physical meaning. Seed 42; groups
 <canvas id="plot" width="900" height="600"></canvas><div id="hover" style="display:none;position:fixed;pointer-events:none;background:#17212b;color:white;padding:8px;border:1px solid #aaa;z-index:10;width:170px"></div><div id="detail">Hover for a tile preview; click a point or tile for the full source image.</div>
 <p><label>Group name <input id="name" placeholder="Select a group first"></label><button id="save">Assign name</button><button id="export">Download labels</button>
 Names and individual labels stay in this page until exported; reload clears unsaved edits.</p><p>Browse tiles with ←/→ (previous/next), ↑/↓ (one library row), Home/End (first/last). X toggles ice on the selected tile. Keys follow the active filters and do not interrupt typing. <span id="position" aria-live="polite"></span><button id="markice">Toggle selected ice (X)</button><button id="clearlabel">Clear selected tile label</button></p><div id="tiles" class="tiles"></div><h2>Source crops</h2><div id="scenes"></div>
-<script>const data=DATA_HERE, names={}, palette=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#008b8b','#b27800','#666666','#d050a0','#668000'];
+<script>const data=DATA_HERE, names={...(data.group_names||{})}, palette=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#008b8b','#b27800','#666666','#d050a0','#668000'];
 const by=id=>document.getElementById(id), c=by('plot'),ctx=c.getContext('2d');
 let selectedId=null;
 by('settings').textContent='Brightness block weight: '+(data.brightness_weight||0)+'. Previous labels are retained per tile, not assigned to new groups.';
 for(const [group,label] of Object.entries(data.previous_group_names||{})){let o=document.createElement('option');o.value=group;o.textContent=group+': '+label;by('prior').append(o)}
-for(let i=0;i<data.clusters;i++){let o=document.createElement('option');o.value=i;o.textContent='Group '+i;by('filter').append(o)}
+for(let i=0;i<data.clusters;i++){let o=document.createElement('option');o.value=i;o.textContent='Group '+i+(names[i]?' · '+names[i]:'');by('filter').append(o)}
 const xs=data.tiles.map(t=>t.x),ys=data.tiles.map(t=>t.y), xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
 for(const t of data.tiles){t.px=20+860*(t.x-xmin)/(xmax-xmin||1);t.py=20+560*(t.y-ymin)/(ymax-ymin||1)}
 function shown(){return data.tiles.filter(t=>(by('filter').value==='all'||t.cluster===+by('filter').value)&&(by('prior').value==='all'||t.previous_group===+by('prior').value))}
