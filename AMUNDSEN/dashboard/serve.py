@@ -17,7 +17,7 @@ import time
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 log = logging.getLogger(__name__)
 
@@ -176,13 +176,31 @@ class Handler(SimpleHTTPRequestHandler):
         return self._json(200 if r.get("ok") else 400, r)
 
     def translate_path(self, path):
-        p = path.split("?", 1)[0].split("#", 1)[0]
+        p = unquote(urlsplit(path).path)
         if p.startswith("/static/tiles/"):
             rel = Path(p[len("/static/tiles/"):])
-            if ".." in rel.parts:
-                return str(TILES_DIR / "nonexistent")
-            return str(TILES_DIR / rel)
+            # An absolute suffix discards the root when joined. Resolve before
+            # checking containment so symlinks cannot escape it either.
+            if rel.is_absolute() or ".." in rel.parts or "\\" in p:
+                raise ValueError("invalid tile path")
+            try:
+                root = TILES_DIR.resolve()
+                candidate = (root / rel).resolve()
+            except (OSError, RuntimeError) as e:
+                raise ValueError("invalid tile path") from e
+            if not candidate.is_relative_to(root):
+                raise ValueError("invalid tile path")
+            return str(candidate)
         return super().translate_path(path)
+
+    def send_head(self):
+        # Both GET and HEAD pass through here. Do not substitute a sentinel
+        # filename: that file could actually exist inside the configured root.
+        try:
+            return super().send_head()
+        except ValueError:
+            self.send_error(404, "File not found")
+            return None
 
     def end_headers(self):
         p = self.path.split("?")[0]
