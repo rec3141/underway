@@ -10,19 +10,16 @@ case "${1:-build}" in
     : "${UNDERWAY_CAMERA_SOURCE:?Set the camera leg directory}"
     "${UNDERWAY_CAMERA_PYTHON:-python3}" -m dashboard.cameras \
       --source "$UNDERWAY_CAMERA_SOURCE" --output "$UNDERWAY_CAMERA_OUTPUT" \
-      --hours "${UNDERWAY_CAMERA_HOURS:-24}" --interval "${UNDERWAY_CAMERA_INTERVAL:-120}"
+      --interval "${UNDERWAY_CAMERA_INTERVAL:-120}"
     ;;
   sync)
     : "${UNDERWAY_CAMERA_SHARE:?Set the existing destination photos directory}"
     [[ -d "$UNDERWAY_CAMERA_SHARE" ]] || { echo 'Destination unavailable; not creating a mount placeholder' >&2; exit 1; }
-    [[ -s "$UNDERWAY_CAMERA_OUTPUT/latest.mp4" && -s "$UNDERWAY_CAMERA_OUTPUT/latest.json" ]] || exit 1
-    "${UNDERWAY_CAMERA_PYTHON:-python3}" -c 'import json,sys; from datetime import datetime,timezone; m=json.load(open(sys.argv[1])); age=(datetime.now(timezone.utc)-datetime.fromisoformat(m["end_utc"])).total_seconds(); sys.exit(0 if 0 <= age <= 26*3600 else "Timelapse stale; not copying as a new daily product")' "$UNDERWAY_CAMERA_OUTPUT/latest.json"
-    # Dedicated filenames; no --delete and no original images copied.
-    day=$(date -u +%Y%m%d)
-    timeout 600 rsync -rt --whole-file --timeout=60 -- \
-      "$UNDERWAY_CAMERA_OUTPUT/latest.mp4" "$UNDERWAY_CAMERA_SHARE/underway-camera-$day.mp4"
-    timeout 60 rsync -rt --whole-file --timeout=60 -- \
-      "$UNDERWAY_CAMERA_OUTPUT/latest.json" "$UNDERWAY_CAMERA_SHARE/underway-camera-$day.json"
+    [[ -s "$UNDERWAY_CAMERA_OUTPUT/full-leg.mp4" && -s "$UNDERWAY_CAMERA_OUTPUT/full-leg.json" ]] || exit 1
+    # Dedicated subdirectory; no --delete and no original images copied.
+    timeout 600 rsync -rt --whole-file --timeout=60 \
+      --exclude='.*' --include='*/' --include='*.mp4' --include='*.json' --exclude='*' \
+      -- "$UNDERWAY_CAMERA_OUTPUT/" "$UNDERWAY_CAMERA_SHARE/underway-camera/"
     ;;
   *) echo 'Usage: camera-job.sh build|sync' >&2; exit 2 ;;
 esac

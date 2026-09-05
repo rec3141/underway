@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
+import json
 import tempfile
 import unittest
 
@@ -9,7 +10,7 @@ try:
 except ImportError:
     Image = None
 
-from dashboard.cameras import frames, timelapse
+from dashboard.cameras import frames, timelapse, build_leg
 
 
 @unittest.skipIf(Image is None, "Install the cameras extra for image tests")
@@ -54,6 +55,20 @@ class CameraTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             estimate(path, [0,0,2,1])
 
+    def test_reference_model_and_explicit_exclusion(self):
+        from dashboard.ice import estimate, train
+        path = self.add("20260905110000")
+        image = Image.new("RGB", (100,100), "navy")
+        image.paste("white", (50,0,100,100))
+        image.save(path)
+        calibration = self.root / "patches.json"
+        calibration.write_text(json.dumps([
+            {"file":str(path.relative_to(self.source)),"label":"water","roi":[0,0,.4,1]},
+            {"file":str(path.relative_to(self.source)),"label":"ice","roi":[.6,0,1,1]}]))
+        model = train(self.source,calibration)
+        self.assertAlmostEqual(estimate(path,[0,0,1,1],model=model)["ice_fraction_proxy"],.5,places=2)
+        self.assertIsNone(estimate(path,[0,0,1,1],model=model,exclude_reason="fog")["ice_fraction_proxy"])
+
     def test_missing_or_corrupt_frames_preserve_previous(self):
         output = self.root / "out"
         output.mkdir()
@@ -73,6 +88,23 @@ class CameraTests(unittest.TestCase):
         self.assertEqual(len(result["frames"]), 2)
         self.assertGreater((output / "latest.mp4").stat().st_size, 100)
         self.assertTrue((output / "latest.json").is_file())
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_daily_boundaries_stitch_and_unchanged_skip(self):
+        self.add("20260904233000")
+        self.add("20260904235000")
+        self.add("20260905000000")
+        self.add("20260905113000")
+        output = self.root / "leg"
+        days = build_leg(self.source, output, width=320, now=self.end)
+        self.assertEqual([d["utc_day"] for d in days], ["20260904", "20260905"])
+        self.assertTrue(days[0]["complete_day"])
+        self.assertFalse(days[1]["complete_day"])
+        self.assertTrue(days[0]["end_utc"].startswith("2026-09-04"))
+        self.assertTrue(days[1]["start_utc"].startswith("2026-09-05"))
+        before = (output / "full-leg.mp4").stat().st_mtime_ns
+        build_leg(self.source, output, width=320, now=self.end)
+        self.assertEqual((output / "full-leg.mp4").stat().st_mtime_ns, before)
 
 
 if __name__ == "__main__":
