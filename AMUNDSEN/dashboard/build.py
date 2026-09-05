@@ -85,12 +85,18 @@ def _circular_mean_deg(x: pd.Series) -> float:
 
 def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
     df = a.frame[a.frame.index >= end - pd.Timedelta(hours=w.hours)]
+    from .pump import FLOW
+    from .config import LOW_FLOW_V
+    df = df.copy()
+    df["_tsg_low"] = ((df[FLOW] < LOW_FLOW_V).where(df[FLOW].notna()).astype(float)
+                      if FLOW in df else np.nan)
     if df.empty:
         return {"label": w.label, "step_s": w.step_s, "n": 0, "t": [], "lat": [], "lon": [],
                 "dist_km": [], "leg": [], "vars": {}, "limits": {}}
 
     rule = f"{w.step_s}s"
     agg: dict[str, object] = {"lat": "mean", "lon": "mean", "dist_km": "max", "leg": "first"}
+    agg["_tsg_low"] = "max"  # any affected sample flags the entire displayed bin
     for v in VARIABLES:
         if v.name not in df.columns or v.name in WINDOW_FILLED:
             continue
@@ -155,6 +161,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         "dist_km": col(dist_rel, 3),
         "leg": [None if (x is None or not np.isfinite(x)) else int(x) for x in g["leg"].to_numpy()],
         "vars": vars_out,
+        "tsg_low": [bool(x == 1) for x in g["_tsg_low"]],
         "limits": {name: _limits(vals) for name, vals in vars_out.items()},
     }
 
@@ -331,6 +338,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             "name": r.variable.name, "unit": r.variable.unit, "derived": r.variable.derived,
             "log_ok": r.variable.log_ok, "circular": r.variable.circular, "cmap": r.variable.cmap,
             "resolved": r.resolved, "source": r.display,
+            "tsg": bool(r.key and r.key.startswith("tsg — ")) or r.variable.name == "TSG line warming (°C)",
             "coverage": {leg_id: cov[r.variable.name] for leg_id, cov in coverage.items()},
         } for r in res],
         "position_source": a.position_source,

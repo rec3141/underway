@@ -209,6 +209,8 @@ def eventlog_items(events: list[dict]) -> list[tuple[str, str, dict]]:
     since = _utc(GCAL_SINCE)
     groups: dict[tuple, list[dict]] = {}
     for e in events:
+        if str(e.get("id", "")).startswith("pump|"):
+            continue  # preserve individual episodes, not one daily operation
         t = _utc(e.get("time_utc", ""))
         if not t or (since and t < since):
             continue
@@ -307,6 +309,12 @@ def queue(events: list[dict], sched: dict, frame: pd.DataFrame | None) -> dict:
     if os.environ.get("UNDERWAY_GCAL", "1") != "1":
         return {"skipped": "disabled"}
     items = eventlog_items(events) + schedule_items(sched) + surprise_items(frame)
+    since = _utc(GCAL_SINCE)
+    items += [("surprise", e["id"], {"summary": "TSG pump off / low intake flow",
+               "description": e["comment"], "start": _when(e["time_utc"]), "end": _when(e["end_utc"]),
+               "extendedProperties": {"private": {"underwayPump": e["id"]}}})
+              for e in events if str(e.get("id", "")).startswith("pump|")
+              and (not since or _utc(e["time_utc"]) >= since)]
     DB_DIR.mkdir(parents=True, exist_ok=True)
     (DB_DIR / "gcal_queue.json").write_text(json.dumps({"queued_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                                          "items": [[c, fp, b] for c, fp, b in items]}))

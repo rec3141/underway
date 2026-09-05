@@ -210,9 +210,12 @@ def _num(s):
 def build_calendar(legs: list[Leg], root: Path, frame=None) -> dict:
     from .build import atomic_write
     from . import gcal
+    from .pump import pump_events
+    pump = pump_events(frame, legs)
     events = [e for leg in legs for e in read_eventlog(leg)]
+    events.extend(pump)
     events.sort(key=lambda e: e.get("time_utc", ""))
-    payload = {"events": events, "schedule": fetch_schedule(),
+    payload = {"events": events, "pump_events": pump, "schedule": fetch_schedule(),
                "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     try:
         payload["gcal"] = gcal.import_calendars()

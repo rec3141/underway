@@ -9,6 +9,23 @@ variable, and a "surprise" panel that flags minutes that look unusual against
 the previous 48 hours. A span slider reaches from the last hour back across
 every leg on the share, and a leg list filters what is shown.
 
+TSG intake flow below the existing 0.5 V cutoff creates a “Pump off / low
+intake flow” event in Agenda, Timeline and Calendar, and queues an episode on
+the **Underway Updates** Google calendar. This is a low-flow indicator, not
+proof that pump power is off. Times use the existing minute-mean flow telemetry
+aligned to underway observations; missing telemetry and leg boundaries split
+episodes rather than implying continuous pump-off. If coverage starts low,
+the event begins at the first observed low minute. An ongoing episode extends
+to the end of its last observed minute and is updated on subsequent builds.
+
+TSG-sourced panel values and the map track (when coloured by a TSG variable)
+are grey for affected samples, with a hover warning. Coarse bins are grey if
+any contributing sample has low flow. The flow diagnostic itself stays
+coloured. Original measurements and table/CSV statistics remain unchanged;
+this is a visual flag, not removal or correction of measurements. Missing flow
+telemetry means no flag. A data rebuild is required after installing this
+change; Google publishing uses the existing separate calendar-sync job.
+
 ```
 dashboard/           the Python package
   config.py          variables, windows, data roots — the file to edit

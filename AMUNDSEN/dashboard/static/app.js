@@ -455,6 +455,7 @@
     const traces = [...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
     const evTraces = eventTraces(f0);
+    const trackStart = traces.length;
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
@@ -463,6 +464,16 @@
                 colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
                   tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
+    if (state.track && v?.tsg && d.tsg_low?.some(Boolean)) {
+      const track = traces[trackStart];
+      track.lat = d.lat.map((value,i)=>d.tsg_low[i]?null:value);
+      track.lon = d.lon.map((value,i)=>d.tsg_low[i]?null:value);
+      traces.push({...track,name:"track · low intake flow",
+        lat:d.lat.map((value,i)=>d.tsg_low[i]?value:null),
+        lon:d.lon.map((value,i)=>d.tsg_low[i]?value:null),
+        text:hover.map(text=>text+"<br>Low intake flow — affected bin"),
+        line:{width:1.4,color:"#858b93"},marker:{size:6,color:"#858b93"}});
+    }
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     if (li >= 0) traces.push({
       type: "scattermap", mode: "markers", name: "latest", showlegend: false,
@@ -659,6 +670,14 @@
       text: d.leg.map((i) => legByIndex(i)?.label || ""),
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
+    const traces = [trace];
+    if (v.tsg && d.tsg_low?.some(Boolean)) {
+      trace.y = y.map((value, i) => d.tsg_low[i] ? null : value);
+      traces.push({...trace, y:y.map((value,i)=>d.tsg_low[i]?value:null),
+        name:`${name} · low intake flow`, line:{width:1,color:"#858b93"},
+        marker:{size:4,color:"#858b93"},
+        hovertemplate:trace.hovertemplate.replace('<extra>', '<br>Low intake flow — affected bin<extra>')});
+    }
     const useLog = !!state.log[name] && y.some((q) => q > 0);
     const layout = {
       ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
@@ -675,7 +694,7 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, [trace], layout, CFG).then(() => axisZoom(plot));
+    Plotly.react(plot, traces, layout, CFG).then(() => axisZoom(plot));
   }
 
   function renderPanels() {

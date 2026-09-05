@@ -644,6 +644,11 @@
   function calendarItems(q) {
     const items = [];
     for (const f of cal.data.gcal || []) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
+    const pump = cal.data.pump_events || [];
+    for (let i = items.length - 1; i >= 0; i--) if (items[i].cal === "surprise" &&
+      items[i].summary === "TSG pump off / low intake flow" && pump.some(e => UW.tms(e.time_utc) === UW.tms(items[i].start))) items.splice(i, 1);
+    for (const e of pump) items.push({start:e.time_utc,end:e.end_utc,summary:e.event,
+      description:e.comment,cal:"pump",label:"TSG intake",leg:e.leg});
     // the intranet rows are also pushed to the Amundsen Schedule calendar; the
     // row itself is the fresher copy (the feed lags the push by minutes), so
     // a feed event that is one of our rows gives way to the row
