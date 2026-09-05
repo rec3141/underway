@@ -155,6 +155,11 @@ truncation and review dark/new ice particularly carefully.
 `--max-tokens 6000` raises the completion budget; load enough context for both
 image/prompt and output (the pilot uses 16384). Budget and completion status
 are recorded in the result. No-thinking hints depend on runtime support.
+`--offset 5 --limit 56 --resume` reviews the remaining scenes of the 61-scene
+sample without repeating the five references. JSON and HTML are atomically
+updated after each response. Resume checks model identifier, prompt and budget;
+keep the same actual model loaded under that identifier. The page reports
+completed responses, not expected total or scientific validation status.
 
 `python -m unittest discover -s tests -p test_cameras.py` covers date selection,
 sampling, corrupt-image recovery, real ffmpeg encoding (when available), a
