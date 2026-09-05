@@ -25,16 +25,30 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import DATA_ROOT, DB_DIR, LOCAL_TZ
+from .config import DATA_ROOT, DB_DIR, LOCAL_TZ, SHARE_ROOT
 from .legs import Leg
 
 log = logging.getLogger(__name__)
 SCHEDULE_URL = os.environ.get("UNDERWAY_SCHEDULE_URL", "http://10.0.0.2/Schedule.html")
 
 
-def read_eventlog(leg: Leg) -> list[dict]:
+def eventlog_path(leg: Leg) -> Path | None:
+    """The leg's event log: ``Data/EventLog/<leg>/`` for the current season;
+    earlier seasons only survive as copies scattered through people's folders
+    on the Share (``Share/<year>/<any leg>/**/Eventlog_<leg>.xls[x]``), so the
+    largest of those stands in."""
     p = DATA_ROOT / "EventLog" / leg.id / f"Eventlog_{leg.id}.xls"
-    if not p.is_file():
+    if p.is_file():
+        return p
+    year = leg.id[:4]
+    found = [q for pat in (f"*/**/Eventlog_{leg.id}.xls", f"*/**/Eventlog_{leg.id}.xlsx") for q in (SHARE_ROOT / year).glob(pat)] if (SHARE_ROOT / year).is_dir() else []
+    found = [q for q in found if "copy" not in q.name.lower()]
+    return max(found, key=lambda q: q.stat().st_size) if found else None
+
+
+def read_eventlog(leg: Leg) -> list[dict]:
+    p = eventlog_path(leg)
+    if p is None:
         return []
     try:
         df = pd.read_excel(p)

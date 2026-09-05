@@ -68,8 +68,10 @@ if [[ -d $SRC_SHARE ]]; then
   for ydir in "$SRC_SHARE"/[0-9][0-9][0-9][0-9]; do
     [[ -d $ydir ]] || continue
     y=$(basename "$ydir")
+    # ACSD day files, plus the event-log workbooks people left in their folders
     run "Share/$y" "$ydir" "$DEST/Share/$y" \
-        --include='/*_LEG_*/' --include='/*_LEG_*/ACSD_????????.csv' --exclude='*'
+        --include='/*_LEG_*/' --include='/*_LEG_*/ACSD_????????.csv' \
+        --include='/*_LEG_*/*/' --include='/*_LEG_*/*/*/' --include='/*_LEG_*/**/Eventlog_*.xls' --include='/*_LEG_*/**/Eventlog_*.xlsx' --exclude='*'
   done
 fi
 echo "$(ts) mirror pass complete" | tee -a "$LOG"
