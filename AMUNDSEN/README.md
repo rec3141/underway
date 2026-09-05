@@ -29,7 +29,7 @@ scheduler/               separate tool: event log -> Google Calendar sync (R)
 
 ## Requirements
 
-- Python ≥ 3.11 with `pandas`, `numpy`, `jinja2`, `scipy`, and `xlrd` — `pip install -e .` from this
+- Python ≥ 3.11 with `pandas`, `numpy`, `jinja2`, `scipy`, `xlrd` and `openpyxl` — `pip install -e .` from this
   directory installs them and an `underway` console command. `plotly` is not
   needed at run time; its `plotly.min.js` is committed under `static/`
   (refresh it from a plotly install with the `assets` extra). On the ship
