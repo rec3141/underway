@@ -177,6 +177,30 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('document.querySelector("#livestatus").textContent.includes("max 10 m")');
     await until('document.querySelector("#livebody .js-plotly-plot")?.data?.[0]?.y?.[0]===10');
     console.log('PASS live settings retain edits on rejection; successful retry closes form; last cast uses its own pressure schema');
+    const fits = async selector => {
+      const outside = await evaluate(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).filter(e => {
+        const r=e.getBoundingClientRect(); return r.width && (r.left < -1 || r.right > innerWidth+1);
+      }).map(e => e.id || e.name || e.className || e.tagName)`);
+      assert.deepEqual(outside, [], `Controls outside viewport: ${selector}`);
+    };
+    for (const width of [320,390,768]) {
+      await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
+      await evaluate('window.UW.showTab("calendar")');
+      await until('document.querySelector(".agenda .ev")');
+      await evaluate('document.querySelector(".agenda .ev .st").textContent="Ice station — multidisciplinary sampling"');
+      await fits('#tabs button, .agenda .ev > *, #sources');
+      await evaluate('document.querySelector("#legmenu").open=true');
+      await fits('#legmenu .pop, #legmenu li label > *');
+      await evaluate('document.querySelector("#legmenu").open=false;window.UW.showTab("casts")');
+      await until('document.querySelector("#livecfg")');
+      await evaluate('document.querySelector("#livecfg").click()');
+      await fits('#livecfgform input, #livecfgform button');
+      if (width <= 640) {
+        assert.equal(await evaluate(`Array.from(document.querySelectorAll('#tabs button,.maptools button,#castmode button')).every(e=>e.getBoundingClientRect().height>=44)`),true);
+      }
+      await evaluate('document.querySelector("#livecfgclose").click()');
+    }
+    console.log('PASS mobile navigation, Agenda, leg menu and live settings fit 320/390/768px; phone touch targets are enlarged');
     const errors=await evaluate('window.__errors');
     if(errors.length) console.error(stderr.slice(0,4000),await evaluate('window.__mapErrors'));
     assert.deepEqual(errors,[]);
