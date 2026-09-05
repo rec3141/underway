@@ -106,7 +106,7 @@ minute, and any colliding host can be listed in `SHIP_EXTRA_HOSTS` for its own
 Besides the track, stations and tow tracks, the map offers an **Event log**
 layer (geolocated entries of the ship's event log, filtered by the shown legs
 and span, grouped by position so several events at one spot share a marker and
-one hover) and a **Communities** layer: settlements of Nunavut, the NWT,
+one hover) and a **Places** layer: settlements of Nunavut, the NWT,
 Labrador, the northern shores of Québec/Ontario/Manitoba and all of Greenland,
 from GeoNames (CC BY 4.0), with a curated list of Inuit, Greenlandic and older
 colonial names. Labels thin out with zoom (population 2000+ far out, all when

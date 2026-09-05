@@ -644,10 +644,13 @@
   function calendarItems(q) {
     const items = [];
     for (const f of cal.data.gcal || []) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
-    // the intranet rows are also pushed to the Amundsen Schedule calendar;
-    // once that copy is in the feed the row is shown once
-    const covered = (r) => items.some((e) => e.cal === "schedule" && Math.abs(UW.tms(e.start) - UW.tms(r.start_utc)) < 90e3 && (e.summary || "").includes(r.station || "\u0000"));
-    for (const r of scheduledRows(cal.data.schedule || {})) if (!covered(r)) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
+    // the intranet rows are also pushed to the Amundsen Schedule calendar; the
+    // row itself is the fresher copy (the feed lags the push by minutes), so
+    // a feed event that is one of our rows gives way to the row
+    const rows = scheduledRows(cal.data.schedule || {});
+    const isRowCopy = (e) => e.cal === "schedule" && rows.some((r) => Math.abs(UW.tms(e.start) - UW.tms(r.start_utc)) < 90e3 && (e.summary || "").includes(r.station || "\u0000"));
+    for (let i = items.length - 1; i >= 0; i--) if (isRowCopy(items[i])) items.splice(i, 1);
+    for (const r of rows) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
       description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule" });
     items.forEach((e, i) => { e.id = i; });
     return items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
@@ -752,7 +755,8 @@
       const nl = Math.max(1, lanes.length);
       const blocks = sorted.map((e, i) => {
         const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(24, (evEnd(e) - d0) / 3600e3);
-        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(1.4, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
+        // a short event still gets one readable line: the block is at least ~40 min tall
+        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
           `<span class="mt">${evStart(e).toISOString().slice(11, 16)}Z</span> ${esc(e.summary || "")}</div>`;
       }).join("");
       const nowLine = k === today ? `<div class="dnow" style="top:${((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 100).toFixed(2)}%"></div>` : "";

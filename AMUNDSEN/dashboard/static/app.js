@@ -379,47 +379,56 @@
       if (es.length > 10) lines.push(`… +${es.length - 10} more`);
       return { lat: +es[0].lat, lon: +es[0].lon, n: es.length, text: (es.length > 1 ? `<b>${es.length} events here</b><br>` : "") + lines.join("<br>"), colour: colour(es[0].activity || "other") };
     });
-    return [{
+    const bySize = new Map();
+    for (const p of pts) { const sz = eventBucket(p.n); if (!bySize.has(sz)) bySize.set(sz, []); bySize.get(sz).push(p); }
+    return [...bySize.entries()].sort((a, b) => a[0] - b[0]).map(([sz, ps]) => ({
       type: "scattermap", mode: "markers", name: "event log", showlegend: false, hoverinfo: "text",
-      lat: pts.map((p) => p.lat), lon: pts.map((p) => p.lon), text: pts.map((p) => p.text),
-      // sprite icons: marker.size / 10 is the icon scale of a 12 px triangle
-      marker: { symbol: pts.map((p) => `tri-${p.colour}`), size: pts.map((p) => Math.min(14, COMMUNITY_MIN + 2 * Math.log2(p.n))), opacity: .95 },
-    }];
+      lat: ps.map((p) => p.lat), lon: ps.map((p) => p.lon), text: ps.map((p) => p.text),
+      marker: { symbol: ps.map((p) => `tri-${p.colour}`), size: sz, opacity: .95 },
+    }));
   }
   const PALETTE_EV = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce", "#ffb454"];
 
   // Settlements: a labelled marker each; labels thin out with zoom so the
   // scientific layers stay readable (population 2000+ far out, all close in).
-  // icon scale is marker.size / 10 of a 12 px sprite: a hamlet with no listed
-  // population draws at ~7 px, Nuuk at ~20 px; events start at the hamlet size
-  const COMMUNITY_MIN = 6;
-  function communityTrace(zoom) {
-    if (!state.communities || !state.communities_data?.length) return null;
-    const cs = state.communities_data;
+  // Sprite symbols take one icon size per trace (Plotly ignores per-point
+  // sizes for them), so places and events are split into size buckets. Icon
+  // scale is marker.size / 10 of a 12 px sprite.
+  const PLACE_BUCKETS = [[0, 6], [1, 8], [200, 10], [1000, 13], [5000, 16]];       // [min population, size]
+  const placeBucket = (pop) => { let b = PLACE_BUCKETS[0]; for (const x of PLACE_BUCKETS) if ((pop || 0) >= x[0]) b = x; return b[1]; };
+  const EVENT_BUCKETS = [[1, 8], [2, 10], [4, 12]];                                 // [min events at the spot, size]
+  const eventBucket = (n) => { let b = EVENT_BUCKETS[0]; for (const x of EVENT_BUCKETS) if (n >= x[0]) b = x; return b[1]; };
+
+  // Places (settlements): one labelled square each; labels thin out with zoom
+  // so the scientific layers stay readable (population 2000+ far out, all
+  // close in). Returns one trace per size bucket, all named "places".
+  function placeTraces(zoom) {
+    if (!state.communities || !state.communities_data?.length) return [];
     const minPop = zoom < 3.5 ? 2000 : zoom < 5 ? 400 : zoom < 6.5 ? 100 : 0;
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    return {
-      type: "scattermap", mode: "markers+text", name: "communities", showlegend: false, hoverinfo: "text",
+    const groups = new Map();
+    for (const c of state.communities_data) { const sz = placeBucket(c.pop); if (!groups.has(sz)) groups.set(sz, []); groups.get(sz).push(c); }
+    return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([sz, cs]) => ({
+      type: "scattermap", mode: "markers+text", name: "places", showlegend: false, hoverinfo: "text",
       lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon),
       text: cs.map((c) => (c.pop >= minPop || (c.code === "PPLA" && zoom >= 2.5)) ? c.name : ""),
       hovertext: cs.map((c) => `<b>${esc(c.name)}</b>${c.alt?.length ? " · " + esc(c.alt.join(" · ")) : ""}<br>${esc(c.region)}, ${c.cc === "GL" ? "Greenland" : "Canada"}${c.pop ? ` · pop. ${c.pop.toLocaleString()}` : ""}`),
       textposition: "top right", textfont: { size: 11, color: "#f2e7c9", family: "Open Sans Regular" },
-      // sprite "square"; icon scale = size / 10, so this runs ~7 px (a hamlet) to ~15 px (Nuuk, Iqaluit)
-      marker: { symbol: "square", size: cs.map((c) => COMMUNITY_MIN + 3.2 * Math.log10((c.pop || 0) + 10) - 3.2), opacity: .9 },
-    };
+      marker: { symbol: "square", size: sz, opacity: .9 },
+    }));
   }
   // Labels follow the zoom: Plotly only reports user zooms as relayout events
   // (not programmatic ones), so a light poll of the map's zoom covers both.
   let lastLabelZoom = null;
   setInterval(() => {
     const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
-    if (z == null || !state.communities) return;
+    if (z == null || !state.communities || !el.data) return;
     const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
     if (bucket === lastLabelZoom) return;
     lastLabelZoom = bucket;
-    const idx = el.data ? el.data.findIndex((t) => t.name === "communities") : -1;
-    const nt = communityTrace(z);
-    if (idx >= 0 && nt) Plotly.restyle(el, { text: [nt.text] }, [idx]);
+    const fresh = placeTraces(z);
+    const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
+    if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
   }, 1500);
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
@@ -444,7 +453,7 @@
     // event-log entries, then the stations (which keep the clicks)
     const f0 = currentFilter();
     const traces = [...(window.UW?.extraMapTraces?.() || [])];
-    const ct = communityTrace((state.view || fitView(d.lat, d.lon)).zoom);
+    const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
     const evTraces = eventTraces(f0);
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
@@ -460,8 +469,7 @@
       lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`latest · ${fmtUTC(d.t[li])}`],
       marker: { size: 16, color: "#ffb454", opacity: .95 },
     });
-    if (ct) traces.push(ct);
-    traces.push(...evTraces);
+    traces.push(...placeTr, ...evTraces);
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const f = currentFilter();
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
@@ -690,7 +698,7 @@
       `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Axes are UTC; the header shows ship time (${SITE.local_tz}). Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; settlements from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
   }
 
   // ------------------------------------------------------------ data flow
