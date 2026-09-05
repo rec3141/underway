@@ -98,7 +98,6 @@ def parse_ics(text: str) -> list[dict]:
 def import_calendars(fetch: bool = False) -> list[dict]:
     """The public feeds of both calendars: the cached copy, refreshed when
     ``fetch`` is set and the copy is older than ``GCAL_SYNC_MINUTES``."""
-    import requests
     cache_p = DB_DIR / "gcal_cache.json"
     cache = json.loads(cache_p.read_text()) if cache_p.is_file() else {}
     now = datetime.now(timezone.utc)
@@ -111,6 +110,7 @@ def import_calendars(fetch: bool = False) -> list[dict]:
             entry = dict(entry, stale=not fetched or (now - datetime.fromisoformat(fetched)) > timedelta(minutes=3 * GCAL_SYNC_MINUTES))
         elif not fresh:
             try:
+                import requests
                 r = requests.get(f"https://calendar.google.com/calendar/ical/{c['id'].replace('@', '%40')}/public/basic.ics",
                                  timeout=TIMEOUT)
                 r.raise_for_status()
