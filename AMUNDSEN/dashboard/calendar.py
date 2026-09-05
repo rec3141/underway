@@ -68,7 +68,9 @@ def read_eventlog(leg: Leg) -> list[dict]:
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 continue
             e[dst] = v.isoformat() if hasattr(v, "isoformat") else (str(v).strip() if isinstance(v, str) else float(v) if isinstance(v, (int, float)) else str(v))
-        if e.get("time_utc"):
+        # rows without a real time, or with nothing said, are not events
+        if e.get("time_utc") and str(e["time_utc"])[:4].isdigit() and int(str(e["time_utc"])[:4]) >= 2000 \
+                and (e.get("station") or e.get("activity") or e.get("event") or e.get("comment")):
             out.append(e)
     return out
 
@@ -140,7 +142,13 @@ def _instants(r: dict) -> dict:
         t0 = at(r.get("start"), "00:00"); t1 = at(r.get("end"), "23:59")
     except ValueError:
         return {}
-    if t1 < t0:
+    # the duration column is authoritative: an operation running past midnight
+    # (04:30 to 05:00 the next day, 24.5 h) reads as half an hour from the clock
+    # times alone
+    dur = r.get("duration_h")
+    if isinstance(dur, (int, float)) and dur > 0:
+        t1 = t0 + timedelta(hours=float(dur))
+    elif t1 < t0:
         t1 += timedelta(days=1)
     return {"start_utc": t0.astimezone(timezone.utc).isoformat(timespec="minutes"),
             "end_utc": t1.astimezone(timezone.utc).isoformat(timespec="minutes")}

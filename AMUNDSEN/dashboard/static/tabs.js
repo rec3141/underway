@@ -628,7 +628,7 @@
     const rows = scheduledRows(s).map((r) => ({ r, d0: new Date(r.start_utc), d1: new Date(r.end_utc) })).filter((b) => b.d1 >= f.start);
     if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${new Date(UW.tms(b.r.start_utc)).toISOString().slice(0, 16).replace("T", " ")}–${new Date(UW.tms(b.r.end_utc)).toISOString().slice(11, 16)}Z`),
-      hovertemplate: "%{text}<extra></extra>", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .6 });
+      hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .5 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide');
     const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 12 } }, tickfont: { size: 12 } },
@@ -644,7 +644,10 @@
   function calendarItems(q) {
     const items = [];
     for (const f of cal.data.gcal || []) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
-    for (const r of scheduledRows(cal.data.schedule || {})) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
+    // the intranet rows are also pushed to the Amundsen Schedule calendar;
+    // once that copy is in the feed the row is shown once
+    const covered = (r) => items.some((e) => e.cal === "schedule" && Math.abs(UW.tms(e.start) - UW.tms(r.start_utc)) < 90e3 && (e.summary || "").includes(r.station || "\u0000"));
+    for (const r of scheduledRows(cal.data.schedule || {})) if (!covered(r)) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
       description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule" });
     items.forEach((e, i) => { e.id = i; });
     return items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
@@ -741,13 +744,15 @@
       const here = items.filter((e) => evStart(e) < d1 && evEnd(e) > d0 || (e.all_day && e.start === k));
       const allDay = here.filter((e) => e.all_day), timed = here.filter((e) => !e.all_day);
       // lay overlapping blocks side by side
-      const sorted = timed.sort((a, b) => a.start.localeCompare(b.start));
+      // longer blocks first so a short one drawn later sits on top of a long
+      // one it overlaps; overlapping blocks share the column side by side
+      const sorted = timed.sort((a, b) => (evStart(a) - evStart(b)) || ((evEnd(b) - evStart(b)) - (evEnd(a) - evStart(a))));
       const lanes = [];
       for (const e of sorted) { let l = 0; while (lanes[l] && lanes[l] > evStart(e)) l++; lanes[l] = evEnd(e); e._lane = l; }
       const nl = Math.max(1, lanes.length);
-      const blocks = sorted.map((e) => {
+      const blocks = sorted.map((e, i) => {
         const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(24, (evEnd(e) - d0) / 3600e3);
-        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(1.4, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
+        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(1.4, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
           `<span class="mt">${evStart(e).toISOString().slice(11, 16)}Z</span> ${esc(e.summary || "")}</div>`;
       }).join("");
       const nowLine = k === today ? `<div class="dnow" style="top:${((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 100).toFixed(2)}%"></div>` : "";

@@ -391,7 +391,9 @@ html.chat-side .alertbar, html.chat-side .top { padding-right: 20px; }
 .livecfgform input { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; font-size: 12.5px; }
 .livecfgform button { background: var(--accent); color: #062033; border: 0; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
 .livecfgform details { flex: 1 0 100%; } .livecfgform pre { font-size: 11px; white-space: pre-wrap; max-height: 160px; overflow: auto; margin: 4px 0 0; }
-#castplots .castplot.tall .plot { height: 70vh; min-height: 420px; }
+/* single and live casts: a portrait panel in the golden ratio, not the pane's width */
+#castplots .castplot.tall { --tallh: clamp(520px, 74vh, 820px); width: min(100%, calc(var(--tallh) / 1.618 + 24px)); }
+#castplots .castplot.tall .plot { height: var(--tallh); }
 #castplots #livebody, #castplots #singlebody { grid-column: 1 / -1; }
 
 /* ---------------------------------------------------------------- footer */

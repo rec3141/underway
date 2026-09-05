@@ -383,13 +383,16 @@
       type: "scattermap", mode: "markers", name: "event log", showlegend: false, hoverinfo: "text",
       lat: pts.map((p) => p.lat), lon: pts.map((p) => p.lon), text: pts.map((p) => p.text),
       // sprite icons: marker.size / 10 is the icon scale of a 12 px triangle
-      marker: { symbol: pts.map((p) => `tri-${p.colour}`), size: pts.map((p) => Math.min(17, 10 + 2 * Math.log2(p.n))), opacity: .95 },
+      marker: { symbol: pts.map((p) => `tri-${p.colour}`), size: pts.map((p) => Math.min(14, COMMUNITY_MIN + 2 * Math.log2(p.n))), opacity: .95 },
     }];
   }
   const PALETTE_EV = ["#7ee787", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce", "#ffb454"];
 
   // Settlements: a labelled marker each; labels thin out with zoom so the
   // scientific layers stay readable (population 2000+ far out, all close in).
+  // icon scale is marker.size / 10 of a 12 px sprite: a hamlet with no listed
+  // population draws at ~7 px, Nuuk at ~20 px; events start at the hamlet size
+  const COMMUNITY_MIN = 6;
   function communityTrace(zoom) {
     if (!state.communities || !state.communities_data?.length) return null;
     const cs = state.communities_data;
@@ -402,7 +405,7 @@
       hovertext: cs.map((c) => `<b>${esc(c.name)}</b>${c.alt?.length ? " · " + esc(c.alt.join(" · ")) : ""}<br>${esc(c.region)}, ${c.cc === "GL" ? "Greenland" : "Canada"}${c.pop ? ` · pop. ${c.pop.toLocaleString()}` : ""}`),
       textposition: "top right", textfont: { size: 11, color: "#f2e7c9", family: "Open Sans Regular" },
       // sprite "square"; icon scale = size / 10, so this runs ~7 px (a hamlet) to ~15 px (Nuuk, Iqaluit)
-      marker: { symbol: "square", size: cs.map((c) => 4 + 2 * Math.log10((c.pop || 0) + 10)), opacity: .9 },
+      marker: { symbol: "square", size: cs.map((c) => COMMUNITY_MIN + 3.2 * Math.log10((c.pop || 0) + 10) - 3.2), opacity: .9 },
     };
   }
   // Labels follow the zoom: Plotly only reports user zooms as relayout events
@@ -437,11 +440,12 @@
 
     // draw order is click order: MVP tows from the cast tab go under the
     // track, and the station markers stay on top so they get the clicks
+    // draw order, bottom to top: tow tracks, the ship's track, communities,
+    // event-log entries, then the stations (which keep the clicks)
     const f0 = currentFilter();
     const traces = [...(window.UW?.extraMapTraces?.() || [])];
     const ct = communityTrace((state.view || fitView(d.lat, d.lon)).zoom);
-    if (ct) traces.push(ct);
-    traces.push(...eventTraces(f0));
+    const evTraces = eventTraces(f0);
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
@@ -456,6 +460,8 @@
       lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text", text: [`latest · ${fmtUTC(d.t[li])}`],
       marker: { size: 16, color: "#ffb454", opacity: .95 },
     });
+    if (ct) traces.push(ct);
+    traces.push(...evTraces);
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const f = currentFilter();
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
