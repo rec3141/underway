@@ -97,6 +97,7 @@ The side views are centre-cropped to fit their taller panels. Original images ar
 unchanged. All three individual camera JPEGs must accompany each mosaic;
 incomplete sets are skipped. Use a separate output directory for previews.
 Width must be a multiple of 18 (540 is a smaller preview option).
+The UTC timestamp bar is inset along the bottom edge.
 
 This is an opt-in Python preview, not a change to the scheduled daily/leg
 layout. The normal CLI and hourly job still produce landscape mosaics.
