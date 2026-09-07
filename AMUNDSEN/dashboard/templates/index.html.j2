@@ -68,6 +68,7 @@
       <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
       <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
       <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
+      <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>
@@ -110,10 +111,12 @@
           <div class="pane-tools compact">
             <span class="lbl">Select Graph</span>
             <div class="group seg" id="castmode"><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="profiles" class="on" title="the selected casts as depth profiles, one graph per variable">Multi</button><button data-m="section" title="the selected casts side by side as a depth section along time or distance">Section</button></div>
+            <button type="button" id="castbottles" class="chip" title="mark the rosette's bottle firings on the casts (from the SeaBird .btl files)">Bottles</button>
+            <button type="button" id="castsmooth" class="chip" title="smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range">Smooth</button>
             <span class="muted" id="castmeta"></span>
           </div>
           <div class="pane-tools compact" id="castrow2" hidden>
-            <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the section between time and distance along it">Time</button></div>
+            <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
             <label class="group select" id="castvarwrap">Color by <select id="castvar"></select></label>
           </div>
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>

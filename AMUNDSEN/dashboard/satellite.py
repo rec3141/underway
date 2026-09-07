@@ -62,7 +62,14 @@ SENSORS = {
            "processing": {"backCoeff": "GAMMA0_ELLIPSOID"}, "label": "Sentinel-1 radar"},
     "s2": {"type": "sentinel-2-l2a", "days": 7, "max_age_h": 6.0, "filter": {"mosaickingOrder": "leastCC", "maxCloudCoverage": 40},
            "processing": {}, "label": "Sentinel-2 optical"},
+    # the radar again at close to its native resolution, in a box that follows
+    # the ship (a new one once it has moved NEAR_MOVE_KM); drawn over the region
+    "s1near": {"type": "sentinel-1-grd", "days": 2, "max_age_h": 3.0, "filter": {"mosaickingOrder": "mostRecent"},
+               "processing": {"backCoeff": "GAMMA0_ELLIPSOID"}, "label": "Sentinel-1 radar, 50 m near the ship",
+               "near": True, "box_km": (240.0, 160.0), "ground_m_per_px": 50.0},
 }
+NEAR_MOVE_KM = 40.0
+EVALSCRIPTS["s1near"] = EVALSCRIPTS["s1"]
 
 
 def sat_dir() -> Path:
@@ -82,6 +89,15 @@ def to_mercator(lon: float, lat: float) -> tuple[float, float]:
 
 def from_mercator(x: float, y: float) -> tuple[float, float]:
     return math.degrees(x / R_EARTH), math.degrees(2 * math.atan(math.exp(y / R_EARTH)) - math.pi / 2)
+
+
+def box_around(lat: float, lon: float, km: tuple[float, float]) -> list[float]:
+    """The Web Mercator bbox [w, s, e, n] of a box ``km`` across on the
+    ground at the ship: mercator metres are stretched by 1/cos(lat)."""
+    cx, cy = to_mercator(lon, lat)
+    k = 1 / math.cos(math.radians(lat))
+    hw, hh = km[0] * 500 * k, km[1] * 500 * k
+    return [cx - hw, cy - hh, cx + hw, cy + hh]
 
 
 def region_bbox(region: tuple[float, float, float, float] = REGION) -> list[float]:
@@ -171,15 +187,16 @@ def render_tile(tok: str, kind: str, bbox: list[float], size: tuple[int, int], e
     return r.content, float(r.headers.get("x-processingunits-spent") or 0)
 
 
-def render(tok: str, kind: str, bbox: list[float], end: datetime) -> tuple[bytes, float, tuple[int, int]]:
-    """The whole region for ``kind`` as one WebP (tiles fetched and
-    stitched), the processing units it cost, and its size in pixels."""
+def render(tok: str, kind: str, bbox: list[float], end: datetime, m_per_px: float = MERC_M_PER_PX) -> tuple[bytes, float, tuple[int, int]]:
+    """The whole box for ``kind`` as one WebP (tiles fetched and stitched),
+    the processing units it cost, and its size in pixels."""
     import io
     from PIL import Image
-    size = region_size(bbox)
+    size = region_size(bbox, m_per_px)
     out = Image.new("RGBA", size, (0, 0, 0, 0))
     cost = 0.0
-    for tb, tsize, offset in tiles(bbox, size):
+    grid = (1 if size[0] <= 2500 else 2, 1 if size[1] <= 2500 else 2)
+    for tb, tsize, offset in tiles(bbox, size, grid):
         png, c = render_tile(tok, kind, tb, tsize, end)
         cost += c
         out.paste(Image.open(io.BytesIO(png)).convert("RGBA"), offset)
@@ -190,6 +207,18 @@ def render(tok: str, kind: str, bbox: list[float], end: datetime) -> tuple[bytes
 
 # ---------------------------------------------------------------- the refresh
 
+def ship_position() -> tuple[float, float] | None:
+    """(lat, lon) of the newest fix the dashboard has published."""
+    p = WEBROOT / "data" / "manifest.json"
+    try:
+        latest = json.loads(p.read_text()).get("latest") or {}
+        if latest.get("lat") is not None and latest.get("lon") is not None:
+            return float(latest["lat"]), float(latest["lon"])
+    except (OSError, ValueError, TypeError):
+        pass
+    return None
+
+
 def load_info() -> dict:
     p = sat_dir() / "sat.json"
     try:
@@ -198,19 +227,24 @@ def load_info() -> dict:
         return {}
 
 
-def due(info: dict, now: datetime, kinds=tuple(SENSORS)) -> list[str]:
+def due(info: dict, now: datetime, kinds=tuple(SENSORS), ship: tuple[float, float] | None = None) -> list[str]:
     """Which sensors want a new picture: those without one (or with one of
-    another region) and those older than their max_age_h."""
+    another region), those older than their max_age_h, and a near box the
+    ship has moved NEAR_MOVE_KM away from."""
     out = []
     for k in kinds:
+        sp = SENSORS[k]
         cur = (info.get("images") or {}).get(k)
-        if not cur or cur.get("region") != list(REGION):
+        if sp.get("near") and ship is None:
+            continue                                     # no fix yet: nothing to centre on
+        if not cur or (not sp.get("near") and cur.get("region") != list(REGION)):
             out.append(k); continue
         try:
             age = (now - datetime.fromisoformat(cur["fetched"])).total_seconds() / 3600
-        except (KeyError, ValueError, TypeError):
+            moved = distance_km(ship[0], ship[1], cur["centre"][0], cur["centre"][1]) if sp.get("near") else 0.0
+        except (KeyError, ValueError, TypeError, IndexError):
             out.append(k); continue
-        if age >= SENSORS[k]["max_age_h"]:
+        if age >= sp["max_age_h"] or moved >= NEAR_MOVE_KM:
             out.append(k)
     return out
 
@@ -224,24 +258,35 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
         return load_info()
     info = load_info()
     info.setdefault("images", {})
-    wanted = list(kinds) if force else due(info, now, kinds)
+    ship = ship_position()
+    wanted = [k for k in kinds if not (SENSORS[k].get("near") and ship is None)] if force else due(info, now, kinds, ship)
     if not wanted:
         return info
     sat_dir().mkdir(parents=True, exist_ok=True)
-    tok = token(creds)
-    bbox = region_bbox()
+    try:
+        tok = token(creds)
+    except Exception as e:                  # noqa: BLE001 — the link is down or the service is: the next run
+        log.warning("satellite: no token (%s); nothing rendered", str(e).split("(Caused by")[0][:160])
+        return info
     for k in wanted:
+        sp = SENSORS[k]
         try:
-            data, cost, size = render(tok, k, bbox, now)
-            scene = newest_scene(tok, k, bbox, now - timedelta(days=SENSORS[k]["days"]), now)
+            if sp.get("near"):
+                bbox = box_around(ship[0], ship[1], sp["box_km"])
+                m_per_px = sp["ground_m_per_px"] / math.cos(math.radians(ship[0]))
+            else:
+                bbox, m_per_px = region_bbox(), MERC_M_PER_PX
+            data, cost, size = render(tok, k, bbox, now, m_per_px)
+            scene = newest_scene(tok, k, bbox, now - timedelta(days=sp["days"]), now)
             tmp = sat_dir() / f"{k}.webp.tmp"
             tmp.write_bytes(data)
             os.replace(tmp, sat_dir() / f"{k}.webp")
-            info["images"][k] = {"file": f"{k}.webp", "label": SENSORS[k]["label"], "corners": corners(bbox), "region": list(REGION),
-                                 "size": list(size), "fetched": now.isoformat(timespec="seconds"), "scene": scene,
-                                 "days": SENSORS[k]["days"], "bytes": len(data), "cost_pu": cost}
+            info["images"][k] = {"file": f"{k}.webp", "label": sp["label"], "corners": corners(bbox), "region": None if sp.get("near") else list(REGION),
+                                 "centre": list(ship) if sp.get("near") else None, "size": list(size), "fetched": now.isoformat(timespec="seconds"), "scene": scene,
+                                 "days": sp["days"], "bytes": len(data), "cost_pu": cost}
             info["cost_pu_total"] = round(float(info.get("cost_pu_total") or 0) + cost, 2)
-            archive(info, k, data, scene, now)
+            if not sp.get("near"):
+                archive(info, k, data, scene, now)
             log.info("satellite: %s rendered (%dx%d, %d kB, newest scene %s, %.1f PU)", k, size[0], size[1], len(data) // 1024, scene, cost)
         except Exception as e:                  # noqa: BLE001 — one sensor failing must not stop the other
             log.warning("satellite: %s failed: %s", k, e)

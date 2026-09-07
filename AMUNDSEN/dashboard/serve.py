@@ -259,6 +259,20 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(200, LIVE.status())
             except Exception as e:                       # noqa: BLE001
                 return self._json(400, {"error": str(e)})
+        if u.path == "/api/plan":
+            # a KMZ or KML dropped on the map: parsed here, kept by that browser
+            # alone (the leg's own plan in db/plan/ is the build's business)
+            from .plan import parse
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 8 * 1024 * 1024:
+                    raise ValueError("the file must be under 8 MB")
+                return self._json(200, {"ok": True, **parse(self.rfile.read(n))})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("plan upload failed: %s", e)
+                return self._json(400, {"error": "that file could not be read as KML or KMZ"})
         if u.path == "/api/alerts/row":
             # the bell: follow (or drop) one operation: {"channel": "email", "to": ..., "key": "CardS-3|CTD-Rosette", "remove": false}
             from .alerts import follow_row, following

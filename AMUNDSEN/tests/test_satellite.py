@@ -29,9 +29,13 @@ class SatelliteTests(unittest.TestCase):
         fresh = {"fetched": (now - timedelta(hours=1)).isoformat(), "region": list(sat.REGION)}
         old = {"fetched": (now - timedelta(hours=7)).isoformat(), "region": list(sat.REGION)}
         elsewhere = {"fetched": now.isoformat(), "region": [0, 0, 1, 1]}
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": old}}, now), ["s2"])          # s2 past six hours
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": old}}, now), ["s2"])          # s2 past six hours; no fix: the near box waits
         self.assertEqual(sat.due({"images": {"s1": elsewhere, "s2": fresh}}, now), ["s1"])    # another region
         self.assertEqual(sat.due({}, now), ["s1", "s2"])                                        # nothing yet
+        near = {"fetched": now.isoformat(), "centre": [77.5, -91.8]}
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near}}, now, ship=(77.5, -91.8)), [])
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near}}, now, ship=(77.5, -94.1)), ["s1near"])   # ~55 km east, past NEAR_MOVE_KM
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh}}, now, ship=(77.5, -91.8)), ["s1near"])
 
     def test_archive_keeps_new_scenes_only_and_prunes(self):
         now = datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)

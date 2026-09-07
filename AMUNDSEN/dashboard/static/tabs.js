@@ -17,10 +17,23 @@
     sel: new Set(store.get("casts.sel", [])),
     mode: store.get("casts.mode", "profiles"),          // single | profiles (Multi) | section
     kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | live (the cast in the water)
-    xmode: store.get("casts.xmode", "time"),            // the section's own x axis: time | distance
+    xmode: store.get("casts.xmode", "time"),            // the section's own x axis: time | distance | custom (an order of the user's)
+    order: store.get("casts.order", []),                // custom: profile ids in the order they are laid along the section
     variable: store.get("casts.var", "Temperature"),
+    bottles: store.get("casts.bottles", false),          // mark the bottle firings on the casts
+    smooth: store.get("casts.smooth", true),             // the section smooths the jittery sensors down the profile
     search: "",
   };
+  // a profile's variable at a pressure, interpolated between its levels
+  const valueAt = (prof, v, pres) => {
+    const p = prof.p, x = prof.vars[v]; if (!p?.length || !x) return null;
+    if (pres <= p[0]) return x[0]; if (pres >= p[p.length - 1]) return x[p.length - 1];
+    let j = 0; while (j < p.length - 2 && p[j + 1] < pres) j++;
+    const xa = x[j], xb = x[j + 1]; if (xa == null || xb == null) return xa ?? xb;
+    return xa + (xb - xa) * (pres - p[j]) / (p[j + 1] - p[j] || 1);
+  };
+  const bottleDepth = (b, lat) => b.depth_m ?? (b.p != null ? depthFrom(b.p, lat) : null);
+  const bottleText = (b) => `bottle ${b.bottle}${b.time ? " · " + String(b.time).replace("T", " ").slice(11, 16) : ""}`;
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   if (casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // the live cast is out of reach until Seasave's output is back
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
@@ -49,8 +62,8 @@
       const st = (UW.M.stations || []).find((s) => s.kind === "event" && `ev:${s.leg}:${s.station}` === key);
       if (!st || opts.quiet) return;
       UW.focusMap(st.lat, st.lon, st.station);
-      cal.search = st.station; const box = $("#calsearch"); if (box) box.value = st.station;
-      UW.showTab("calendar"); return;
+      stn.search = st.station; const box = $("#stnsearch"); if (box) box.value = st.station;
+      UW.showTab("stations"); renderStations(); return;
     }
     if (!casts.idx) {
       if (!opts.quiet) return;
@@ -168,7 +181,7 @@
     if (casts.kind === "live") {                                   // the list box holds the Seasave setup instead
       if (!ul.querySelector("#livecfgbox")) ul.innerHTML = '<li class="livesetup"><div id="livecfgbox"></div></li>';
       if (live.data) liveCfgForm(ul, live.data);
-      $("#castclear").textContent = "clear selection"; return;
+      $("#castclear").textContent = "clear selection"; $("#castclear").classList.remove("has"); return;
     }
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
@@ -210,6 +223,7 @@
     };
     const nsel = new Set([...casts.sel].map(parentId)).size;
     $("#castclear").textContent = nsel ? `clear selection (${nsel})` : "clear selection";
+    $("#castclear").classList.toggle("has", nsel > 0);
   }
 
   // ------------------------------------------------------------ overlay views
@@ -224,7 +238,7 @@
 
   // spec: { depth[], vars: {name: values}, units: {name}, splitAt (index of the deepest point, or null), nowDepth, sub }
   function drawOverlay(body, plotId, title, spec, chosen) {
-    if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false).replace('class="panel card castplot', 'class="panel card castplot wide tall');
+    if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide tall');
     const vars = chosen.filter((v) => spec.vars[v]);
     const gdEl = $(`#${plotId}`);
     // each extra axis needs ~58 px of ticks and title: the plot area gives up
@@ -254,6 +268,12 @@
     if (spec.nowDepth != null && vars.length) {
       const li = spec.depth.length - 1;
       traces.push({ type: "scatter", mode: "markers", xaxis: "x", yaxis: "y", x: [spec.vars[vars[0]][li]], y: [yT(spec.nowDepth)], marker: { size: 11, color: "#ffb454", symbol: "diamond" }, hoverinfo: "skip", name: "now" });
+    }
+    // the bottle firings: white dots down the right edge, on an axis of their own
+    if (casts.bottles && spec.bottles?.length && vars.length) {
+      layout.xaxis20 = { overlaying: "x", range: [0, 1], visible: false, fixedrange: true };
+      traces.push({ type: "scatter", mode: "markers", xaxis: "x20", yaxis: "y", name: "bottles", x: spec.bottles.map(() => 0.975), y: spec.bottles.map((b) => yT(bottleDepth(b, spec.lat))),
+        text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: "#ffffff", line: { color: "#0b1620", width: 1 } } });
     }
     if (!vars.length) { body.innerHTML = '<div class="empty">Tick at least one variable above.</div>'; return; }
     Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd, { x: false }));
@@ -368,7 +388,7 @@
     for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
     const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
     drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? `${castLabel(pick)} · dip #${prof.index + 1}` : castLabel(pick),
-      { depth: depths(prof), vars: prof.vars, units: pick.units || {}, splitAt: null, nowDepth: null,
+      { depth: depths(prof), vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, drawn(prof, v)])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
         sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, single.vars);
     wireCastPanels(host, () => renderSingle(host, data));
   }
@@ -433,22 +453,26 @@
   const orderVars = (vs) => [...vs].sort((a, b) => (VAR_ORDER.indexOf(a) + 1 || 99) - (VAR_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b));
   // the profile panels can be reordered by drag, widened, and minimised to a
   // chip row, like the underway panels; remembered on the device
-  const castPanelState = { wide: new Set(store.get("casts.wide", [])), min: new Set(store.get("casts.min", [])), order: store.get("casts.order", []) };
-  const saveCastPanels = () => { store.set("casts.wide", [...castPanelState.wide]); store.set("casts.min", [...castPanelState.min]); store.set("casts.order", castPanelState.order); };
+  const castPanelState = { wide: new Set(store.get("casts.wide", [])), min: new Set(store.get("casts.min", [])), order: store.get("casts.panelorder", []), focus: store.get("casts.focus", "Temperature") };
+  const saveCastPanels = () => { store.set("casts.wide", [...castPanelState.wide]); store.set("casts.min", [...castPanelState.min]); store.set("casts.panelorder", castPanelState.order); };
   const castOrder = (vars) => { const o = castPanelState.order.filter((v) => vars.includes(v)); return [...o, ...vars.filter((v) => !o.includes(v))]; };
 
   // same frame and controls as the underway panels
   // toolbar order everywhere: reset, compress (depth graphs only), minimise, maximise
-  function castPanelHtml(id, title, unit, wideable = true, movable = false, depth = true) {
-    return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${title === "Temperature" ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
-      <div class="head">${movable ? '<span class="handle" title="drag to reorder">⋮⋮</span>' : ""}<h3>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
+  // A cast panel is "on" (blue frame) when it is the one whose axes answer
+  // shift/ctrl + scroll; Single and Section have one panel, always on; in
+  // Multi a click on a title picks the panel, Temperature to begin with.
+  function castPanelHtml(id, title, unit, wideable = true, movable = false, depth = true, on = true) {
+    return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${on ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
+      <div class="head">${movable ? '<span class="handle" title="drag onto another graph to swap places">⋮⋮</span>' : ""}<h3 ${movable ? 'title="click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them"' : ""}>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
         <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
   function wireCastPanels(host, rerender, vars = []) {
     for (const sec of host.querySelectorAll(".castplot")) {
       const id = sec.dataset.cp, v = sec.dataset.var;
-      sec.querySelector(".reset").onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
+      const rs = sec.querySelector(".reset");
+      if (rs) rs.onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
       if (sec.querySelector(".dscale")) sec.querySelector(".dscale").onclick = () => { casts.dscale = casts.dscale === "sqrt" ? "linear" : "sqrt"; store.set("casts.dscale", casts.dscale); renderCastPlots(); };
       sec.querySelector(".wide")?.addEventListener("click", () => {
         castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
@@ -464,11 +488,19 @@
           e.preventDefault(); sec.classList.remove("over");
           const from = e.dataTransfer.getData("text/plain");
           if (!from || from === v) return;
-          const order = castOrder(vars).filter((x) => x !== from);
-          const at = order.indexOf(v);
-          order.splice(e.offsetX < sec.clientWidth / 2 ? at : at + 1, 0, from);
+          // the dragged graph and the one it lands on trade places, wherever
+          // in the card it was dropped
+          const order = castOrder(vars);
+          const i = order.indexOf(from), j = order.indexOf(v);
+          if (i < 0 || j < 0) return;
+          [order[i], order[j]] = [order[j], order[i]];
           castPanelState.order = order; saveCastPanels(); rerender();
         });
+        if (v !== LEGEND) sec.querySelector("h3").onclick = () => {
+          castPanelState.focus = castPanelState.focus === v ? null : v;         // the selected title clicked again: none selected
+          store.set("casts.focus", castPanelState.focus);
+          for (const x of host.querySelectorAll(".castplot")) x.classList.toggle("on", !!castPanelState.focus && x.dataset.var === castPanelState.focus);
+        };
       }
     }
     for (const chip of host.querySelectorAll(".dock .chip")) chip.onclick = () => { castPanelState.min.delete(chip.dataset.var); saveCastPanels(); rerender(); };
@@ -476,32 +508,63 @@
   const CAST_LAYOUT = { ...THEME, margin: { l: 52, r: 8, t: 6, b: 36 }, showlegend: false, dragmode: "pan" };
 
   function renderProfiles(host, data) {
-    const all = castOrder(orderVars(new Set(data.flatMap((d) => Object.keys(d.units)))));
+    // the legend is a panel like the graphs (movable, minimisable), named LEGEND in the order
+    const all = castOrder([...orderVars(new Set(data.flatMap((d) => Object.keys(d.units)))), LEGEND]);
     const vars = all.filter((v) => !castPanelState.min.has(v));
     const minimised = all.filter((v) => castPanelState.min.has(v));
-    host.innerHTML = vars.map((v) => castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true)).join("") +
-      (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
-      `<div class="castlegend">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))} <small>${esc(castDate(d))}</small></span>`).join("")}</div>`;
+    if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
+    const legendHtml = () => castPanelHtml("cp-legend", LEGEND, `${data.length} cast${data.length === 1 ? "" : "s"}`, true, true, false, false)
+      .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
+      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
+    host.innerHTML = vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("") +
+      (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "");
     for (const v of vars) {
+      if (v === LEGEND) continue;
       const traces = [];
       data.forEach((d, i) => {
         const ps = profilesOf(d);
         ps.forEach((p, j) => {
           if (!p.vars[v]) return;
+          const colour = ps.length > 1 ? towShade(PALETTE[i % PALETTE.length], j, ps.length) : PALETTE[i % PALETTE.length];
           traces.push({
-            type: "scatter", mode: "lines", name: p.label, x: p.vars[v], y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
-            line: { width: ps.length > 1 ? 1 : 1.6, color: ps.length > 1 ? towShade(PALETTE[i % PALETTE.length], j, ps.length) : PALETTE[i % PALETTE.length] },
+            type: "scatter", mode: "lines", name: p.label, x: drawn(p, v), y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
+            line: { width: ps.length > 1 ? 1 : 1.6, color: colour },
             opacity: ps.length > 1 ? 0.8 : 1,
             hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{customdata:.0f} m<extra></extra>`,
+          });
+          const bts = casts.bottles ? (p.bottles || []).filter((b) => b.p != null || b.depth_m != null) : [];
+          if (bts.length) traces.push({
+            type: "scatter", mode: "markers", name: `${p.label} bottles`, showlegend: false,
+            x: bts.map((b) => valueAt(p, v, b.p ?? b.depth_m)), y: bts.map((b) => yT(bottleDepth(b, p.lat ?? d.lat))),
+            text: bts.map((b) => `${esc(p.label)}<br>${bottleText(b)} · ${Math.round(bottleDepth(b, p.lat ?? d.lat))} m`), hoverinfo: "text",
+            marker: { size: 7, color: colour, line: { color: "#ffffff", width: 1 } },
           });
         });
       });
       const layout = { ...CAST_LAYOUT, hovermode: "closest",
         xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 } },
         yaxis: depthAxis(Math.max(1, ...data.flatMap((d) => profilesOf(d).flatMap((p) => p.vars[v] ? depths(p) : []))) * 1.02) };
-      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
+      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
     }
     wireCastPanels(host, () => renderProfiles(host, data), all);
+  }
+  const LEGEND = "Legend";
+  // the Multi graphs share their depth axis: a zoom or pan of one (or its
+  // reset) is applied to the others; the flag keeps the echoes from looping
+  let depthSyncing = false;
+  function syncDepthAxes(host, gd) {
+    gd.removeAllListeners?.("plotly_relayout");
+    gd.on("plotly_relayout", (ev) => {
+      if (depthSyncing) return;
+      let upd = null;
+      if (ev["yaxis.autorange"]) upd = { "yaxis.autorange": true };
+      else if (ev["yaxis.range[0]"] != null) upd = { "yaxis.range": [ev["yaxis.range[0]"], ev["yaxis.range[1]"]] };
+      else if (Array.isArray(ev["yaxis.range"])) upd = { "yaxis.range": ev["yaxis.range"] };
+      if (!upd) return;
+      depthSyncing = true;
+      const others = [...host.querySelectorAll(".castplot:not(.legendpanel) .plot")].filter((p) => p !== gd && p.data);
+      Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { depthSyncing = false; });
+    });
   }
 
   // interpolate a cast's variable onto a common pressure grid
@@ -522,16 +585,68 @@
   const haversine = (a, b) => { const R = 6371, r = Math.PI / 180, dl = (b.lat - a.lat) * r, dn = (b.lon - a.lon) * r;
     const h = Math.sin(dl / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
 
+  // a profile's id for the custom order: the cast's, plus the dip for a tow
+  const profileId = (d) => `${d.parent?.id || d.id}${d.index != null ? `#${d.index}` : ""}`;
+  // the custom order: the remembered ids first (those still selected), then
+  // anything new in time order
+  const customOrder = (profiles) => {
+    const byId = new Map(profiles.map((d) => [profileId(d), d]));
+    const out = casts.order.filter((id) => byId.has(id)).map((id) => byId.get(id));
+    const seen = new Set(out.map(profileId));
+    return [...out, ...profiles.filter((d) => !seen.has(profileId(d)))];
+  };
+  const saveOrder = (profiles) => { casts.order = profiles.map(profileId); store.set("casts.order", casts.order); };
+  // Smoothing goes by the data, not by name: a profile's variable is rough
+  // when what a 7-sample running mean removes has an RMS above ROUGH of the
+  // variable's 2–98 % range. Temperature, salinity and oxygen sit near 0.01,
+  // the optical and chemical sensors at 0.03 and up.
+  const ROUGH = 0.02;
+  const roughness = (x) => {
+    const sm = runningMean(x, 7); let n = 0, ss = 0; const vals = [];
+    for (let i = 0; i < x.length; i++) if (x[i] != null && sm[i] != null) { ss += (x[i] - sm[i]) ** 2; n++; vals.push(x[i]); }
+    if (n < 30) return 0;
+    vals.sort((a, b) => a - b); const rng = vals[Math.floor(vals.length * .98)] - vals[Math.floor(vals.length * .02)];
+    return rng > 0 ? Math.sqrt(ss / n) / rng : 0;
+  };
+  const roughCache = new WeakMap();
+  const isRough = (prof, v) => { let m = roughCache.get(prof); if (!m) { m = new Map(); roughCache.set(prof, m); } if (!m.has(v)) m.set(v, prof.vars[v] ? roughness(prof.vars[v]) > ROUGH : false); return m.get(v); };
+  // the smoothing window (samples ≈ dbar) for a profile reaching maxD
+  const smoothWindow = (maxD) => maxD > 1500 ? 21 : maxD > 400 ? 11 : 7;
+  // a profile's variable as drawn: smoothed when it is rough and Smooth is on, else as stored
+  const drawn = (prof, v) => (casts.smooth && prof.vars[v] && isRough(prof, v)) ? runningMean(prof.vars[v], smoothWindow(prof.p?.length ? prof.p[prof.p.length - 1] : 0)) : prof.vars[v];
+  // a centred running mean over w samples, nulls left out of the average and
+  // kept as gaps where the window holds nothing
+  function runningMean(x, w) {
+    if (!x) return x;
+    const h = Math.floor(w / 2), out = new Array(x.length).fill(null);
+    for (let i = 0; i < x.length; i++) {
+      let sum = 0, n = 0;
+      for (let j = Math.max(0, i - h); j <= Math.min(x.length - 1, i + h); j++) if (x[j] != null) { sum += x[j]; n++; }
+      out[i] = n ? sum / n : null;
+    }
+    return out;
+  }
   function renderSection(host, data) {
     const v = casts.variable;
-    // tows contribute every dip; everything is ordered by time
-    const withVar = data.flatMap(profilesOf).filter((d) => d.vars[v]).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    // tows contribute every dip; everything is ordered by time, or in
+    // custom mode as the user has arranged the legend
+    const custom = casts.xmode === "custom", az = casts.xmode === "az";
+    let withVar = data.flatMap(profilesOf).filter((d) => d.vars[v]).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    if (custom) withVar = customOrder(withVar);
+    // A–Z: by station id, numbers in order (CardS-2 before CardS-10), then time
+    const stationOf = (d) => String(d.station ?? d.parent?.station ?? d.label ?? "");
+    if (az) withVar = [...withVar].sort((a, b) => stationOf(a).localeCompare(stationOf(b), undefined, { numeric: true, sensitivity: "base" }) || (a.time || "").localeCompare(b.time || ""));
     if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
     // depth grid (metres) shared by every profile
     const maxD = Math.max(...withVar.map((d) => depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
     const step = maxD > 1500 ? 5 : maxD > 400 ? 2 : 1;
     const grid = []; for (let d = 0; d <= maxD; d += step) grid.push(d);
-    const onDepthGrid = (prof) => onGrid({ p: depths(prof), vars: prof.vars }, v, grid);
+    // the jittery optical and chemical sensors are smoothed down the profile
+    // (a centred running mean, a window that grows with the depth range)
+    // before gridding, since a section is about the big picture
+    // a section smooths a variable when it is rough in most of its profiles
+    const smoothW = casts.smooth && withVar.filter((d) => isRough(d, v)).length * 2 > withVar.length ? smoothWindow(maxD) : 0;
+    const onDepthGrid = (prof) => onGrid({ p: depths(prof), vars: smoothW ? { [v]: runningMean(prof.vars[v], smoothW) } : prof.vars }, v, grid);
     // x follows the header's Time/Distance switch: distance is cumulative
     // along the profiles in time order, time is each profile's own
     const byTime = casts.xmode === "time";                       // the section's axis, apart from the underway one
@@ -542,7 +657,7 @@
     }
     const tms = withVar.map((d, i) => d.time ? Date.parse(d.time + (d.time.endsWith("Z") ? "" : "Z")) : i);
     const xs = byTime ? tms.map((t) => UW.shipAxis(t)) : km;
-    const xTitle = byTime ? `ship time (${UW.tzAbbr()})` : "distance along section (km)";
+    const xTitle = byTime ? `ship time (${UW.tzAbbr()})` : custom ? "distance along the custom order (km)" : az ? "distance along the stations A–Z (km)" : "distance along section (km)";
     const xFmt = (i) => byTime ? fmtTs(tms[i]) : `${km[i].toFixed(0)} km`;
     const unit = withVar[0].units[v] || "";
     // Resample onto a regular x grid so the section interpolates between
@@ -564,8 +679,26 @@
     const xPlot = byTime ? xg.map((t) => new Date(t)) : xg;
     const xPts = byTime ? xs.map((t) => new Date(t)) : km;          // the same ship-time shift as the heatmap
     const dense = withVar.length > 24;      // a tow: label only every few dips
-    host.innerHTML = castPanelHtml("cs-plot", `${v} section`, `${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${unit}`, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
-      (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span>`).join("")}</div>`);
+    // the legend: a column of chips to the left of the plot, always
+    // movable (drag, or ▲ ▼); moving one switches the axis to custom and
+    // keeps that order, and a link restores time order
+    const entry = (d, i) => `<span class="chip reorder" draggable="true" data-i="${i}" title="drag, or ▲ ▼, to lay the profiles in your own order"><b>${i + 1}</b><span class="lbl">${esc(d.label)}<small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span><span class="nudges"><button type="button" class="nudge" data-d="-1" title="move up" ${i === 0 ? "disabled" : ""}>▲</button><button type="button" class="nudge" data-d="1" title="move down" ${i === withVar.length - 1 ? "disabled" : ""}>▼</button></span></span>`;
+    host.innerHTML = `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? '<a href="#" class="timeorder">↺ time order</a>' : ""}</div>` +
+      castPanelHtml("cs-plot", `${v} section`, `${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${unit}${smoothW ? ` · smoothed over ${smoothW} m` : ""}`, false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide') + "</div>";
+    const move = (from, to) => {
+      const arr = [...withVar]; const [x] = arr.splice(from, 1); arr.splice(to, 0, x); saveOrder(arr);
+      if (casts.xmode !== "custom") { casts.xmode = "custom"; store.set("casts.xmode", "custom"); $("#castxmode .xcycle").textContent = "Custom"; }
+      renderSection(host, data);
+    };
+    for (const b of host.querySelectorAll(".castlegend .nudge")) b.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); const i = +b.closest(".reorder").dataset.i; move(i, i + (+b.dataset.d)); };
+    for (const el of host.querySelectorAll(".castlegend .reorder")) {
+      el.ondragstart = (ev) => { ev.dataTransfer.setData("text/plain", el.dataset.i); ev.dataTransfer.effectAllowed = "move"; };
+      el.ondragover = (ev) => { ev.preventDefault(); el.classList.add("over"); };
+      el.ondragleave = () => el.classList.remove("over");
+      el.ondrop = (ev) => { ev.preventDefault(); el.classList.remove("over"); const from = +ev.dataTransfer.getData("text/plain"), to = +el.dataset.i; if (!isNaN(from) && from !== to) move(from, to); };
+    }
+    const to = host.querySelector(".castlegend .timeorder");
+    if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = "Time"; renderCastPlots(); };
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 12 }, outlinewidth: 0 },
@@ -586,6 +719,12 @@
       line: { color: "#3b4658", width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)",
       marker: { size: sounded.map((b) => b ? 5 : 0), color: "#8ea3ba", symbol: "diamond" },
       hovertext: withVar.map((d, i) => sounded[i] ? `${d.label}<br>bottom ${Math.round(d.bottom_m)} m` : `${d.label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
+    // the bottle firings, after the bottom: its fill runs to the trace before it
+    if (casts.bottles) {
+      const bx = [], by = [], bt = [];
+      withVar.forEach((d, i) => { for (const b of d.bottles || []) { const dep = bottleDepth(b, d.lat ?? d.parent?.lat); if (dep == null) continue; bx.push(xPts[i]); by.push(yT(dep)); bt.push(`${d.label}<br>${bottleText(b)} · ${Math.round(dep)} m`); } });
+      if (bx.length) traces.push({ type: "scatter", mode: "markers", name: "bottles", x: bx, y: by, text: bt, hoverinfo: "text", marker: { size: 6, color: "#ffffff", line: { color: "#0b1620", width: 1 } } });
+    }
     const layout = { ...CAST_LAYOUT, margin: { l: 54, r: 8, t: 18, b: 40 },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 }, type: byTime ? "date" : "linear" },
       yaxis: depthAxis(maxD + step) };
@@ -601,15 +740,22 @@
     };
     for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
     $("#castvar").onchange = (e) => { casts.variable = e.target.value; store.set("casts.var", casts.variable); renderCastPlots(); };
-    const sx = $("#castxmode .xcycle");
-    sx.textContent = casts.xmode === "time" ? "Time" : "Distance";
-    sx.onclick = () => { casts.xmode = casts.xmode === "time" ? "distance" : "time"; store.set("casts.xmode", casts.xmode); sx.textContent = casts.xmode === "time" ? "Time" : "Distance"; renderCastPlots(); };
+    const sx = $("#castxmode .xcycle"), XMODES = ["time", "distance", "az", "custom"], XWORD = { time: "Time", distance: "Distance", az: "A–Z", custom: "Custom" };
+    if (!XMODES.includes(casts.xmode)) casts.xmode = "time";
+    sx.textContent = XWORD[casts.xmode];
+    sx.onclick = () => { casts.xmode = XMODES[(XMODES.indexOf(casts.xmode) + 1) % XMODES.length]; store.set("casts.xmode", casts.xmode); sx.textContent = XWORD[casts.xmode]; renderCastPlots(); };
     for (const b of $("#castkind").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.k === casts.kind);
       b.onclick = () => { casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); UW.renderMap(); };
     }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
+    const sm = $("#castsmooth");
+    sm.classList.toggle("on", casts.smooth);
+    sm.onclick = () => { casts.smooth = !casts.smooth; store.set("casts.smooth", casts.smooth); sm.classList.toggle("on", casts.smooth); renderCastPlots(); };
+    const bb = $("#castbottles");
+    bb.classList.toggle("on", casts.bottles);
+    bb.onclick = () => { casts.bottles = !casts.bottles; store.set("casts.bottles", casts.bottles); bb.classList.toggle("on", casts.bottles); renderCastPlots(); };
   }
 
   // ================================================================ calendar
@@ -1130,6 +1276,8 @@
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
     let all = (UW.M.stations || []).filter((s) => f.legs.has(s.leg)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    // the planned stations (the cruise plan KMZ): no time or leg, so never filtered out
+    for (const pl of UW.plansShown?.() || []) all = all.concat(pl.stations.map((st) => ({ station: st.name, kind: `plan · ${pl.name}`.slice(0, 40), type: st.group, comments: st.desc || "", lat: st.lat, lon: st.lon, legLabel: "", time: null, leg: null, activities: "" })));
     if (q) all = all.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
     const rows = all.filter((s) => UW.inFilter(s.leg, s.time, f));
     stn.hidden = all.length - rows.length;

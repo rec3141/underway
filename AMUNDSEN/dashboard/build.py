@@ -25,7 +25,7 @@ from jinja2 import Environment, FileSystemLoader
 from . import __version__
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
-from . import satellite
+from . import plan, satellite
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -456,6 +456,11 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                 tail = tail.combine_first(scraped) if len(tail) else scraped
             if len(tail):
                 archive_tail(tail)                  # the only copy, should the TSG file be lost
+                # one row per instant: a minute the record has since gained, or a
+                # repeated minute in a source, must not double up (the leg lookup
+                # below reindexes and refuses duplicate labels)
+                tail = tail[~tail.index.duplicated(keep="last")]
+                tail = tail[~tail.index.isin(df.index)]
                 df = pd.concat([df, tail]).sort_index()
                 leg_codes = pd.concat([leg_codes, pd.Series(float(live_i), index=tail.index)])
                 prov_from = tail.index.min()
@@ -463,6 +468,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         except Exception:                   # noqa: BLE001
             log.exception("provisional tail not built")
     a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg)
+    leg_codes = leg_codes[~leg_codes.index.duplicated(keep="last")]
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
     a.frame["provisional"] = (a.frame.index >= prov_from).astype(float) if prov_from is not None else 0.0
     end = a.frame.index.max()
@@ -572,6 +578,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "calendar": {"file": "data/calendar.json", **cal},
         "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
         "satellite": satellite.publish(root),           # recent Sentinel pictures around the ship, or None
+        "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 

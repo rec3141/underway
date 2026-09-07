@@ -42,6 +42,8 @@
     events: store.get("events", false),                 // event-log entries on the map
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
     communities: store.get("communities", true),        // settlements on the map
+    plan: store.get("plan", true),                      // the leg's planned track and stations
+    planData: null, planStamp: null,                    // the plan as published, and which version it is
     sat: store.get("sat", ""),                          // satellite picture under the track: "" | "s1" | "s2"
     satAt: null,                                        // an archived picture's scene time, or null for the newest
     order: store.get("order", []),
@@ -86,7 +88,7 @@
     const allowX = opts.x !== false, allowY = opts.y !== false;
     gd.addEventListener("wheel", (ev) => {
       const panel = gd.closest(".panel");
-      if (panel && !panel.classList.contains("on")) { ev.stopPropagation(); return; }   // an unselected panel: the page scrolls
+      if (panel && !panel.classList.contains("on") && !panel.classList.contains("solo")) { ev.stopPropagation(); return; }   // an unselected panel: the page scrolls (a lone panel counts as selected)
       const fl = gd._fullLayout;
       if (!((ev.shiftKey && allowX) || (ev.ctrlKey && allowY)) || !fl || !fl.xaxis || !fl.yaxis) return;
       ev.preventDefault(); ev.stopPropagation();
@@ -105,11 +107,16 @@
   // camera panel showing one of its modes) pans and zooms; on the others a
   // drag or a wheel scrolls the page, and a click selects them. That keeps
   // touch gestures for scrolling and drag-and-drop.
-  const panelOn = (name) => { const x = extraPanels.get(name); return x ? (x.colours || []).includes(state.colour) : name === state.colour; };
+  // the selected panel follows the colour variable; a click on its own title
+  // lets it go (no panel selected until the next click)
+  const panelOn = (name) => { if (state.unfocus) return false; const x = extraPanels.get(name); return x ? (x.colours || []).includes(state.colour) : name === state.colour; };
   function selectPanel(name) {
+    if (panelOn(name)) { state.unfocus = true; renderPanels(); return; }
     const x = extraPanels.get(name);
     const colour = x ? (x.colours || [])[0] : name;
-    if (!colour || colour === state.colour) return;
+    if (!colour) return;
+    state.unfocus = false;
+    if (colour === state.colour) { renderPanels(); return; }
     state.colour = colour; store.set("colour", colour); renderControls(); render();
   }
 
@@ -298,7 +305,9 @@
     const gen = Date.parse(M.generated_utc);
     const open = $("#srcpop")?.open;
     // the sources box opens on hover, or on a click on "last refresh" or LIVE
-    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>`;
+    const schedWord = M.calendar?.now && schedMode() === "hidden" ? ` · <span class="schedlink" id="schedlink" title="show the status bar">STATUS</span>` : "";
+    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>` + schedWord;
+    const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
   setInterval(() => { if (M?.data_range) renderStatus(); }, 20000);
@@ -368,11 +377,18 @@
     // none and full (⤢ again, back to half). Every plot resizes after.
     const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half Map", full: "Full Map", none: "No Map" };
     const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
+    // the classes and labels follow the stored mode; the plots resize and
+    // the map refits only when the mode has actually changed (this runs on
+    // every controls render, once a minute, and must not touch the view then)
     const applyMapMode = () => {
       const m = mapMode(), main = $("main");
       main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
       $("#maptoggle").textContent = MAP_WORD[m];
       $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
+      if (main.dataset.mapmode === m) return;
+      const first = !main.dataset.mapmode;
+      main.dataset.mapmode = m;
+      if (first) return;                                              // the first draw fits on its own
       setTimeout(() => {
         for (const p of document.querySelectorAll(".plot")) if (p.data) Plotly.Plots.resize(p);
         if (m !== "none" && $("#map").data) { Plotly.Plots.resize($("#map")); requestFit(); renderMap(); }
@@ -667,6 +683,90 @@
   // Station labels: one per station name (the latest visit), thinned to one
   // per map cell so they never pile up; far out only the stations without a
   // cast and the most recent casts survive, close in every name shows.
+  // the plan's station labels: from zoom 5 in, one per label cell, the first
+  // named station of a cell winning
+  function planLabels(st, zoom) {
+    if (zoom < 5) return st.map(() => "");
+    const cell = 40 / Math.pow(2, zoom), cells = new Set();
+    return st.map((s) => {
+      const key = `${Math.floor(s.lat / cell)}:${Math.floor(s.lon * Math.cos(s.lat * Math.PI / 180) / cell)}`;
+      if (!s.name || cells.has(key)) return "";
+      cells.add(key); return s.name;
+    });
+  }
+  // Plans on the map: the leg's own (published by the build, charcoal) and
+  // any this browser has loaded by dropping a KMZ (kept in its local
+  // storage, one pill and one colour each). Every shown plan draws its
+  // tracks (the alternate dim) and its stations, labelled by zoom.
+  const PLAN_COLOURS = ["#ffb454", "#ff9bce", "#7ee787", "#c9a2ff"];
+  const userPlans = () => store.get("plans.user", []);
+  const planOn = (i) => !!(store.get("plans.on", {})[i] ?? true);
+  function plansShown() {
+    const out = [];
+    if (state.plan && state.planData) out.push({ ...state.planData, key: "plan", colour: "#454f5b", label: "#aab3bd" });
+    userPlans().forEach((pl, i) => { if (planOn(i)) out.push({ ...pl, key: `user${i}`, colour: PLAN_COLOURS[i % PLAN_COLOURS.length], label: PLAN_COLOURS[i % PLAN_COLOURS.length] }); });
+    return out;
+  }
+  function planTraces(zoom) {
+    const out = [];
+    for (const pl of plansShown()) {
+      for (const t of pl.tracks) out.push({ type: "scattermap", mode: "lines", name: `${pl.key}-${t.alternate ? "alt" : "track"}`, showlegend: false,
+        lat: t.coords.map((c) => c[1]), lon: t.coords.map((c) => c[0]), hoverinfo: "text", text: t.coords.map(() => `${t.name} · ${pl.name}`),
+        line: { width: t.alternate ? 1.2 : 2.2, color: pl.colour }, opacity: t.alternate ? .45 : .95 });
+      if (pl.stations.length) out.push({ type: "scattermap", mode: "markers+text", name: `${pl.key}-stations`, showlegend: false,
+        lat: pl.stations.map((s) => s.lat), lon: pl.stations.map((s) => s.lon), text: planLabels(pl.stations, zoom), textposition: "top right", textfont: { size: 11, color: pl.label },
+        hovertext: pl.stations.map((s) => `<b>${s.name}</b>${s.group ? "<br>" + s.group : ""}${s.desc ? "<br>" + s.desc : ""}<br>planned station · ${pl.name}`), hoverinfo: "text",
+        marker: { size: 7, color: pl.colour, opacity: .95 } });
+    }
+    return out;
+  }
+  // the pills for this browser's own plans, after the Plan pill; ✕ forgets one
+  function renderPlanPills() {
+    for (const b of document.querySelectorAll("#maplayers button.userplan")) b.remove();
+    const anchor = document.querySelector('#maplayers button[data-layer="plan"]'); if (!anchor) return;
+    userPlans().forEach((pl, i) => {
+      const b = document.createElement("button");
+      b.className = `userplan ${planOn(i) ? "on" : ""}`; b.type = "button"; b.title = `${pl.name} · ${pl.stations.length} stations (this browser only) · ✕ forgets it`;
+      b.innerHTML = `${esc(pl.short || `Plan ${i + 2}`)}<span class="x" title="forget this plan">✕</span>`;
+      b.onclick = (e) => {
+        if (e.target.classList.contains("x")) { const all = userPlans(); all.splice(i, 1); store.set("plans.user", all); store.set("plans.on", {}); renderPlanPills(); renderMap(); return; }
+        const on = store.get("plans.on", {}); on[i] = !planOn(i); store.set("plans.on", on); renderPlanPills(); renderMap();
+      };
+      anchor.after(b);
+    });
+  }
+  // the plan file follows the manifest: a new version (a build, or a drop
+  // on the map) is fetched and drawn
+  async function loadPlan() {
+    const p = M?.plan;
+    if (!p) { if (state.planData) { state.planData = null; state.planStamp = null; renderMap(); } return; }
+    if (p.stamp === state.planStamp) return;
+    try { state.planData = await fetchJSON(p.file); state.planStamp = p.stamp; renderMap(); }
+    catch { /* the next manifest */ }
+  }
+  // a KMZ or KML dropped on the map replaces the plan for everyone
+  function wirePlanDrop() {
+    const sec = document.querySelector("section.map"); if (!sec) return;
+    sec.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); sec.classList.add("dropping"); } });
+    sec.addEventListener("dragleave", () => sec.classList.remove("dropping"));
+    sec.addEventListener("drop", async (e) => {
+      sec.classList.remove("dropping");
+      const f = e.dataTransfer?.files?.[0]; if (!f) return;
+      e.preventDefault();
+      if (!/\.(kmz|kml)$/i.test(f.name)) { toast(`${f.name}: not a KMZ or KML`); return; }
+      toast(`reading ${f.name}…`);
+      try {
+        const r = await fetch("api/plan", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.status);
+        const all = userPlans();
+        all.push({ name: j.name, short: f.name.replace(/\.(kmz|kml)$/i, "").slice(0, 18), tracks: j.tracks, stations: j.stations, groups: j.groups });
+        store.set("plans.user", all);
+        renderPlanPills(); renderMap();
+        toast(`plan loaded in this browser: ${j.name} · ${j.stations.length} stations, ${j.tracks.length} tracks`);
+      } catch (err) { toast(`plan not loaded: ${err.message}`); }
+    });
+  }
   function stationLabels(st, zoom) {
     if (zoom < 2.5) return st.map(() => "");
     const cell = 40 / Math.pow(2, zoom);                      // degrees of latitude per label cell
@@ -698,6 +798,10 @@
       lastStationZoom = sz;
       const idx = el.data.findIndex((t) => t.name === "stations");
       if (idx >= 0 && el.data[idx].lat.length === state.stationList.length) Plotly.restyle(el, { text: [stationLabels(state.stationList, z)] }, [idx]);
+      for (const pl of plansShown()) {
+        const pi = el.data.findIndex((t) => t.name === `${pl.key}-stations`);
+        if (pi >= 0 && el.data[pi].lat.length === pl.stations.length) Plotly.restyle(el, { text: [planLabels(pl.stations, z)] }, [pi]);
+      }
     }
   }, 1500);
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
@@ -787,7 +891,7 @@
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
     const f0 = currentFilter();
-    const traces = [...(window.UW?.extraMapTraces?.() || [])];
+    const traces = [...planTraces((state.view || fitView(d.lat, d.lon)).zoom), ...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
     const evTraces = eventTraces(f0);
     if (state.track) traces.push({
@@ -839,7 +943,7 @@
     const stKey = (s) => s.kind === "event" ? `ev:${s.leg}:${s.station}` : `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`;
     const stText = (s) => s.kind === "event"
       ? `<b>${s.station}</b>${s.type ? " · " + s.type : ""} · ${legById(s.leg)?.label || s.leg}<br>${(s.time || "").slice(0, 16)}${s.time_end && s.time_end !== s.time ? " → " + s.time_end.slice(0, 16) : ""}` +
-        `<br>${(s.activities || []).join(", ")}${s.bottom_m != null ? `<br>depth ${Math.round(s.bottom_m)} m` : ""}${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`
+        `<br>${(s.activities || []).length > 3 ? `${s.activities.length} events` : (s.activities || []).join(", ")}${s.bottom_m != null ? `<br>depth ${Math.round(s.bottom_m)} m` : ""}${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`
       : `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
         `<br>${s.time || ""}${s.type ? "<br>" + s.type : ""}${s.bottom_m != null ? `<br>bottom ${s.bottom_m} m` : ""}` +
         `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`;
@@ -877,6 +981,9 @@
     const layers = [];
     const sat = state.sat && satPicture();
     if (sat) layers.push({ sourcetype: "image", source: sat.url, coordinates: sat.corners, opacity: .95, below: "traces", name: "sat" });
+    // the newest radar at 50 m in a box round the ship lies over the region picture
+    const near = state.sat === "s1" && !state.satAt && satImages().s1near;
+    if (near) layers.push({ sourcetype: "image", source: near.url, coordinates: near.corners, opacity: 1, below: "traces", name: "satnear" });
     for (const l of (state.geo || [])) {
       if (l.name === "bathy" && SITE.raster) continue;
       if (l.name === "land" && relief) continue;
@@ -918,7 +1025,8 @@
       `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
-      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()} · Copernicus Sentinel data</span>` : "") +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat === "s1" && !state.satAt && satImages().s1near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages().s1near.scene || satImages().s1near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
+      plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
 
@@ -1181,6 +1289,7 @@
       setLoadError("Underway", false);
       renderControls(); renderProvenance();
       applyAndRender(); renderAlert();
+      loadPlan();
       return true;
     } catch {
       if (seq === loadSeq) setLoadError("Underway", true);
@@ -1220,6 +1329,8 @@
   // the schedule bar: the operations around now (last completed, in
   // progress, coming up next) from the intranet schedule, in ship time, with
   // the calendar links
+  const schedMode = () => { const m = store.get("sched.mode", null); return ["open", "ticker", "hidden"].includes(m) ? m : (store.get("sched.hidden", false) ? "ticker" : "open"); };
+  const setSchedMode = (m) => { store.set("sched.mode", m); renderAlert(); renderStatus(); };
   function renderAlert() {
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const c = M.calendar || {}, n = c.now;
@@ -1234,13 +1345,16 @@
     const op = (r, live) => `<div class="sop" title="${esc(r.comment || "")}${live ? ` (${hm(r.start_utc)}–${hm(r.end_utc)})` : ""}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${live ? left(r) : `${hm(r.start_utc)}–${hm(r.end_utc)}`}</span></div>`;
     const col = (label, rows, cls) => `<div class="scol ${cls}"><div class="slbl">${label}</div>${rows.length ? rows.map((r) => op(r, cls === "live")).join("") : '<div class="sop muted">—</div>'}</div>`;
     // a click folds the bar to a thin strip; a click on the strip brings it back
-    const folded = !!store.get("sched.hidden", false);
+    // three states: open, folded to the ticker, hidden (then SCHEDULE in the
+    // subtitle brings it back); each click on the bar goes one step
+    const mode = schedMode(), folded = mode === "ticker";
+    if (mode === "hidden") { bar.hidden = true; renderStatus(); return; }
     bar.classList.toggle("folded", folded);
-    bar.title = folded ? "show the schedule" : "";
+    bar.title = folded ? "click to hide the schedule" : "";
     $("#schedrow").hidden = folded;
-    // the fold must not bubble to the bar, whose restore handler is installed by the re-render
-    $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); store.set("sched.hidden", true); renderAlert(); };
-    bar.onclick = folded ? (ev) => { if (ev.target.closest("a")) return; store.set("sched.hidden", false); renderAlert(); } : null;
+    // the fold must not bubble to the bar, whose handler is installed by the re-render
+    $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); setSchedMode("ticker"); };
+    bar.onclick = folded ? (ev) => { if (ev.target.closest("a")) return; setSchedMode("hidden"); } : null;
     $("#schedticker").hidden = !folded;
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
     const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
@@ -1319,7 +1433,7 @@
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown,
     refreshExtraData() { render(); },
     moveShip,
     registerPanel(name, spec) {
@@ -1366,6 +1480,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
     window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
+    wirePlanDrop(); renderPlanPills();
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
   })();
 })();
