@@ -26,6 +26,7 @@
   </nav>
   <div class="pickhint phone">Select leg and time span:</div>
   <div class="controls" id="controls-underway">
+    <div class="group maptoggle"><button type="button" id="maptoggle" class="xcycle" title="how much of the page the map takes: half, all of it, or none">Half Map</button></div>
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
       <div class="pop">
@@ -35,7 +36,7 @@
       </div>
     </details>
     <div class="group span" aria-label="Time span">
-      <span class="lbl">Display data from only the last</span>
+      <span class="lbl">Show last</span>
       <output id="spanlabel" for="span">6h</output>
       <input type="range" id="span" min="0" max="0" step="1" value="0" list="spanticks">
       <datalist id="spanticks"></datalist>
@@ -48,6 +49,7 @@
     <div class="schedcols" id="schedcols"></div>
     <div class="schedlinks" id="schedlinks"></div>
   </div>
+  <div class="ticker" id="schedticker" hidden title="show the schedule"><div class="tkwrap"><div class="tk" id="tk"></div></div><div class="tklinks" id="tickerlinks"></div></div>
 </div>
 
 <main>
@@ -58,13 +60,15 @@
   <section class="map card">
     <div class="maplayers" id="maplayers">
       <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
-      <button id="mapreset" title="fit to track">⟲</button>
       <!-- listed top layer first; each is an on/off toggle -->
+      <div class="layers">
       <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
       <button data-layer="cameras" title="a camera for each day's timelapse; click one to play it"><span class="full">Cameras</span><span class="short">Cams</span></button>
       <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
       <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
       <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
+      </div>
+      <div class="tools"><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
     </div>
     <div id="map"></div>
     <div id="campop" class="campop" hidden>

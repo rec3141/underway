@@ -359,6 +359,34 @@
       };
     }
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
+    // how much of the page the map takes: half (the left column), full (the
+    // whole page, no pane) or none (the pane takes the whole width). The
+    // header pill cycles through them; the map's own — and ⤢ buttons pick
+    // none and full (⤢ again, back to half). Every plot resizes after.
+    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half Map", full: "Full Map", none: "No Map" };
+    const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
+    const applyMapMode = () => {
+      const m = mapMode(), main = $("main");
+      main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
+      $("#maptoggle").textContent = MAP_WORD[m];
+      $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
+      setTimeout(() => {
+        for (const p of document.querySelectorAll(".plot")) if (p.data) Plotly.Plots.resize(p);
+        if (m !== "none" && $("#map").data) { Plotly.Plots.resize($("#map")); requestFit(); renderMap(); }
+      }, 0);
+    };
+    const setMapMode = (m) => { store.set("mapmode", m); applyMapMode(); };
+    window.UW = Object.assign(window.UW || {}, { mapMode, setMapMode });
+    // the pill swings: none, half, full, half, none, ... so half is always one click away
+    let mapDir = "up";
+    $("#maptoggle").onclick = () => {
+      const m = mapMode();
+      if (m === "half") setMapMode(mapDir === "up" ? "full" : "none");
+      else { mapDir = m === "none" ? "up" : "down"; setMapMode("half"); }
+    };
+    $("#mapnone").onclick = () => setMapMode("none");
+    $("#mapfull").onclick = () => setMapMode(mapMode() === "full" ? "half" : "full");
+    applyMapMode();
   }
 
   // ------------------------------------------------------------ basemap
@@ -723,8 +751,9 @@
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
       marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
                 opacity: .95,
-                colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
-                  tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
+                // the scale lies along the top of the map, under the Color by picker
+                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: 12 } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
+                  tickfont: { size: 11 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1032,7 +1061,8 @@
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
-               ticksuffix: state.xmode === "time" ? "" : " km" },
+               ticksuffix: state.xmode === "time" ? "" : " km",
+               ...(window.innerWidth < 640 ? { nticks: 4, tickangle: 0 } : {}) },   // a phone's plot: few, level ticks, clear of the title
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
@@ -1162,11 +1192,25 @@
     $("#schedrow").hidden = folded;
     // the fold must not bubble to the bar, whose restore handler is installed by the re-render
     $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); store.set("sched.hidden", true); renderAlert(); };
-    bar.onclick = folded ? () => { store.set("sched.hidden", false); renderAlert(); } : null;
-    if (folded) return;
-    $("#schedcols").innerHTML = col("Last completed", n.completed ? [n.completed] : [], "done") + col("In progress", n.in_progress || [], "live") + col("Coming up next", n.next ? [n.next] : [], "next");
+    bar.onclick = folded ? (ev) => { if (ev.target.closest("a")) return; store.set("sched.hidden", false); renderAlert(); } : null;
+    $("#schedticker").hidden = !folded;
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
-    $("#schedlinks").innerHTML = feed ? `<a class="bigcal" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="bigcal" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
+    const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
+    if (folded) {
+      // the folded bar is a one-line ticker: the three columns as a slow
+      // marquee (two copies so the loop is seamless), the links pinned on the right
+      const item = (label, rows, cls) => `<span class="tki ${cls}"><b>${label}</b> ${rows.length ? rows.map((r) => `${esc(r.station || "")} ${esc(r.operation || "")} ${cls === "live" ? `<span class="stm tkleft" data-end="${esc(r.end_utc)}"></span>` : `<span class="stm">${hm(r.start_utc)}–${hm(r.end_utc)}</span>`}`).join(" · ") : "—"}</span>`;
+      const text = item("Last completed", n.completed ? [n.completed] : [], "done") + item("In progress", n.in_progress || [], "live") + item("Coming up next", n.next ? [n.next] : [], "next");
+      const tk = $("#tk");
+      const same = tk.dataset.text === text;
+      if (!same) { tk.innerHTML = text + text; tk.dataset.text = text; }
+      for (const el of tk.querySelectorAll(".tkleft")) el.textContent = left({ end_utc: el.dataset.end });   // the minutes tick without restarting the scroll
+      tk.style.animationDuration = `${Math.max(20, tk.scrollWidth / 2 / 30)}s`;   // 30 px/s, so the row reads at a walking pace
+      $("#tickerlinks").innerHTML = links("smallcal");
+      return;
+    }
+    $("#schedcols").innerHTML = col("Last completed", n.completed ? [n.completed] : [], "done") + col("In progress", n.in_progress || [], "live") + col("Coming up next", n.next ? [n.next] : [], "next");
+    $("#schedlinks").innerHTML = links("bigcal");
   }
 
   setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
@@ -1177,7 +1221,8 @@
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
-    document.querySelector("main").className = "tab-" + name;
+    if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
+    const mn = document.querySelector("main"); mn.className = "tab-" + name + (mn.classList.contains("mapmin") ? " mapmin" : mn.classList.contains("mapfull") ? " mapfull" : "");   // No Map survives a tab change
     // the header row (legs, span) filters every tab; the other switches live
     // in the figure areas
     $("#controls-underway").hidden = false;

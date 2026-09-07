@@ -69,49 +69,6 @@
         Plotly.react(plot,[trace],{...UW.THEME,margin:{l:52,r:8,t:6,b:34},showlegend:false,dragmode:'pan',xaxis:{...UW.THEME.xaxis,type:UW.state.xmode==='time'?'date':'linear',range:sharedRange,title:{text:UW.state.xmode==='time'?'UTC':'Distance travelled (km)'}},yaxis:{...UW.THEME.yaxis,title:{text:axisLabel}}},UW.CFG).then(()=>{UW.axisZoom(plot);UW.linkX(plot);plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',ev=>{if(cycle.includes(UW.state.colour))openPhoto(points[ev.points?.[0]?.pointIndex]?.p);});});
       }
     });
-    const presence='Camera · ice present (label score)',totalIce='Camera · ice area (experimental)',
-      iceTypes=['grease ice','nilas','thin fyi','icy bits','brash ice','ice floe'],
-      iceModes=[totalIce,...iceTypes.map(n=>'Camera · '+n+' area (experimental)'),presence];
-    function iceValue(p,mode){
-      if(!p)return null;
-      if(mode===presence){const v=p.human_ice;return v&&!v.review_reasons?.length?v.scores['any ice']*100:null;}
-      const v=p.area_ice;if(!v||v.review_reasons?.length||p.human_ice?.review_reasons?.length)return null;
-      return mode===totalIce?v.ice_percent:v.scores[iceTypes[iceModes.indexOf(mode)-1]];
-    }
-    iceModes.forEach(name=>UW.registerColour({name,resolved:true,unit:name===presence?'score':'%',cmap:'Viridis',onPoint,
-      values:d=>matches(d).map(p=>iceValue(p,name))}));
-    UW.registerPanel('Camera ice · experimental',{
-      unit:'score / %',resolved:true,log_ok:false,
-      colours:iceModes,
-      description:'Human-label presence scores are not area fractions. Area estimates are teacher-distilled and unvalidated. Review-flagged photos leave gaps.',
-      onTitle(){UW.selectColour(iceModes[(iceModes.indexOf(UW.state.colour)+1)%iceModes.length]);},
-      render(el,plot){
-        const mode=iceModes.includes(UW.state.colour)?UW.state.colour:payload.photos.some(p=>p.area_ice)?totalIce:presence;
-        el.querySelector('h3').textContent=mode;el.querySelector('h3').title='Click to cycle ice-area estimates, types, and human-label presence score. Experimental; not for navigation.';
-        const filter=UW.currentFilter(),d=UW.state.data,rows=payload.photos.filter(p=>UW.inFilter(p.leg,p.time,filter)),distances=new Map();
-        if(UW.state.xmode!=='time'&&d)for(let i=0;i<d.t.length;i++){
-          const leg=UW.M.legs.find(l=>l.index===d.leg[i])?.id;if(d.dist_km[i]==null||!leg)continue;
-          if(!distances.has(leg))distances.set(leg,[]);distances.get(leg).push([Number(d.t[i]),d.dist_km[i]]);
-        }
-        function xValue(p){if(UW.state.xmode==='time')return p.time;const a=distances.get(p.leg)||[],t=Date.parse(p.time);let lo=0,hi=a.length;
-          while(lo<hi){const mid=(lo+hi)>>1;if(a[mid][0]<t)lo=mid+1;else hi=mid;}
-          const best=[a[lo-1],a[lo]].filter(Boolean).sort((x,y)=>Math.abs(x[0]-t)-Math.abs(y[0]-t))[0];return best&&Math.abs(best[0]-t)<=300000?best[1]:null;}
-        const points=rows.map(p=>({p,x:xValue(p),y:iceValue(p,mode)})).filter(r=>r.x!=null&&r.y!=null);
-        el.querySelector('.now').textContent=points.length?points.at(-1).y.toFixed(1)+(mode===presence?' score':'%'):'';
-        if(!points.length){if(plot.data)Plotly.purge(plot);plot.className='plot empty';plot.textContent='No unflagged camera estimates in this span';return;}
-        if(plot.classList.contains('empty')){plot.className='plot';plot.textContent='';}
-        const xs=(UW.state.xmode==='time'?d?.t:d?.dist_km)||[],finite=xs.filter(x=>x!=null);
-        const title=mode===presence?'Ice-present label score (0–100; not area %)':'Estimated image area (%)';
-        Plotly.react(plot,[{type:'scatter',mode:'markers',x:points.map(r=>r.x),y:points.map(r=>r.y),
-          marker:{size:4,color:points.map(r=>r.y),colorscale:'Viridis',cmin:0,cmax:100},text:points.map(r=>r.p.file),
-          hovertemplate:'%{x}<br>'+title+': %{y:.1f}<br>%{text}<extra></extra>'}],
-          {...UW.THEME,margin:{l:60,r:8,t:6,b:34},showlegend:false,dragmode:'pan',
-          xaxis:{...UW.THEME.xaxis,type:UW.state.xmode==='time'?'date':'linear',range:finite.length?[finite[0],finite.at(-1)]:undefined},
-          yaxis:{...UW.THEME.yaxis,range:[0,100],title:{text:title}}},UW.CFG).then(()=>{
-            UW.axisZoom(plot);UW.linkX(plot);plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',ev=>openPhoto(points[ev.points?.[0]?.pointIndex]?.p));
-          });
-      }
-    });
     let refreshing=false;
     setInterval(async()=>{if(refreshing||document.hidden)return;refreshing=true;
       try{const next=await UW.fetchJSON('data/camera-track.json');

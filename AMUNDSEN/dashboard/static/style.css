@@ -130,8 +130,21 @@ select {
 .livestate.connected { background: #34435a; color: var(--fg); }
 .livestate.offline, .livestate.off { background: #4a2a2a; color: #ff9bce; }
 .livestate.port-open { background: #5a3d10; color: var(--accent-2); }
-.alertbar.folded { padding: 0; height: 7px; cursor: pointer; background: rgba(255,180,84,.18); }
-.alertbar.folded:hover { background: rgba(255,180,84,.4); }
+.alertbar.folded { padding: 3px 12px; cursor: pointer; background: rgba(255,180,84,.10); }
+.alertbar.folded:hover { background: rgba(255,180,84,.18); }
+/* the folded bar: one slow ticker row */
+.ticker { display: flex; align-items: center; gap: 12px; font-size: 12.5px; line-height: 20px; }
+.ticker .tkwrap { flex: 1; min-width: 0; overflow: hidden; }
+.ticker .tk { display: inline-flex; white-space: nowrap; animation: tick linear infinite; will-change: transform; }
+.ticker:hover .tk { animation-play-state: paused; }
+.ticker .tki { padding-right: 48px; }
+.ticker .tki b { font-weight: 650; text-transform: uppercase; font-size: 10.5px; letter-spacing: .4px; color: var(--muted); margin-right: 6px; }
+.ticker .tki.live b { color: #7ee787; } .ticker .tki.next b { color: var(--accent-2); }
+.ticker .stm { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-left: 6px; }
+.ticker .tklinks { display: flex; gap: 6px; flex: none; }
+.ticker .smallcal { padding: 1px 8px; border-radius: 6px; background: var(--accent); color: #041018; font-weight: 700; font-size: 11.5px; text-decoration: none; white-space: nowrap; }
+@keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ticker .tk { animation: none; } }
 @media (max-width: 640px) { .schedrow { flex-direction: column; } .schedcols { grid-template-columns: 1fr; } .schedlinks { justify-content: space-between; } }
 
 /* toast: a brief note when legs and span nudge each other */
@@ -155,6 +168,21 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
 .plotctl label.select { min-width: 0; }
 .map { grid-column: 1; grid-row: 1 / 3; }
 .side { grid-column: 2; grid-row: 2; }
+/* No Map: the pickers, the pane and the provenance span both columns */
+main.mapmin { grid-template-columns: 0 minmax(0, 1fr); column-gap: 0; }
+main.mapmin .plotctl, main.mapmin .side, main.mapmin > footer { grid-column: 1 / 3; }
+main.mapmin .map { display: none; }
+/* Full Map: the map is the whole page; no pane, pickers or provenance */
+main.mapfull { grid-template-columns: minmax(0, 1fr) 0; column-gap: 0; }
+main.mapfull .map { grid-column: 1 / 3; grid-row: 1 / 4; }
+main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none; }
+.group.maptoggle .xcycle { min-width: 6.5em; }
+/* the map's tool buttons, at the right end of the layer bar, like a graph's */
+.maplayers .layers { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.maplayers .tools { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.maplayers .tools button { background: transparent; color: var(--muted); border: 1px solid var(--line); font-size: 11px; padding: 1px 7px; border-radius: 5px; cursor: pointer; }
+.maplayers .tools button:hover { color: var(--fg); border-color: var(--accent); }
+.maplayers .tools button.on { color: var(--fg); border-color: var(--accent); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 
 .map { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 6px; margin-bottom: 14px; }
@@ -169,7 +197,6 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
 .maplayers button { background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
 .maplayers button:hover { border-color: var(--accent); color: var(--fg); }
 .maplayers button.on { background: var(--accent); color: #062033; border-color: var(--accent); font-weight: 650; }
-.maplayers #mapreset { border-radius: 7px; padding: 3px 9px; color: var(--fg); }
 .maplayers .short { display: none; }
 /* the attribution sits under the map, not on it */
 #map .maplibregl-ctrl-attrib, #map .maplibregl-ctrl-bottom-right { display: none; }
@@ -204,8 +231,11 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
   .plotctl { order: 2; padding: 4px 0; }
   main.tab-underway .plotctl { order: 0; position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 6px 0; margin: -10px 0 6px; }
   /* on a narrow screen the pane is the point on every tab: the map follows it, shorter */
-  .map { position: relative; order: 2; height: 42vh; margin: 12px 0 14px; }
-  #map { height: calc(42vh - 48px); }
+  .map { position: relative; order: 2; height: auto; margin: 12px 0 14px; }
+  #map { flex: none; height: 45vh; }                    /* the plot keeps its height whatever the bars around it take */
+  main.mapmin .map { display: none; }
+  main.mapfull #map { height: calc(100vh - 220px); }
+  main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none; }
   .side { overflow: visible; }
   .tablewrap { max-height: 70vh; }
   .panels { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
@@ -225,25 +255,34 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
   table.sched .status.s-canceled { background: #ff7b72; } table.sched .status.s-was { background: transparent; border: 1px dashed var(--muted); }
   /* legs, span, x-axis and colour on one row: the span as a dropdown, the labels gone; the hint above */
   .controls { width: 100%; gap: 6px; flex-wrap: nowrap; }
-  .legmenu { flex: 0 0 auto; }
-  .group.span { flex: 0 0 auto; width: auto; min-width: 0; padding: 0; background: transparent; border: 0; }
+  .legmenu, .group.maptoggle { flex: 0 0 auto; }
+  .group.maptoggle .xcycle { min-width: 0; padding-left: 8px; padding-right: 8px; }
+  .group.span { flex: 1 1 auto; width: auto; min-width: 0; padding: 0; background: transparent; border: 0; }   /* the span dropdown shrinks rather than falling off the row */
+  #spansel { width: 100%; min-width: 0; }
   .group.span .lbl, .group.span output, .group.span input[type=range] { display: none; }
   #spansel { display: inline-block; }
   .plotctl { flex-wrap: nowrap; gap: 6px; }
   .plotctl .group.xmode { flex: 0 0 auto; }
   .plotctl label.select { flex: 1 1 auto; min-width: 0; }
   .plotctl label.select select { flex: 1; min-width: 0; }
-  .maplayers .mapcolour { flex: 1 0 100%; margin: 0 0 4px; }   /* the map's colour picker on its own line above the pills */
+  /* line one: the colour picker and the tool buttons; line two: the layer pills, sharing the width */
+  .maplayers .mapcolour { flex: 1 1 0; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0 0 4px; order: 0; }
   .maplayers .mapcolour select { flex: 1; min-width: 0; }
+  .maplayers .tools { order: 1; margin-left: 0; }
+  .maplayers .layers { order: 2; flex: 1 0 100%; flex-wrap: nowrap; gap: 5px; }
+  .maplayers .layers button { flex: 1 1 0; min-width: 0; }
   .legmenu .pop { position: absolute; top: calc(100% + 8px); left: 0; width: min(calc(100vw - 24px), 420px); min-width: 0; max-height: 60vh; overflow: auto; }   /* below the button, never over it */
   .group button, .seg button, select, .legmenu summary { padding: 8px 12px; font-size: 14px; }   /* finger-sized */
+  .panel .head h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .panel .plot { height: 170px; }
   .panel.wide .plot { height: 240px; }
   .panel .handle { display: none; }                  /* no drag-and-drop on touch */
   /* the five layer pills and the fit button on one row, abbreviated where a word is long */
-  .maplayers { font-size: 12px; flex-wrap: nowrap; gap: 5px; padding: 2px 2px 6px; }
+  /* the colour picker takes its own line (basis 100%); the pills share the next one, shrinking to fit rather than wrapping or overflowing */
+  .maplayers { font-size: 12px; flex-wrap: wrap; gap: 5px; padding: 2px 2px 6px; }
   .maplayers button { flex: 1 1 0; min-width: 0; padding: 4px 4px; font-size: 12px; white-space: nowrap; }
-  .maplayers #mapreset { flex: 0 0 auto; }
+  .maplayers .tools { flex: 0 0 auto; }
+  .maplayers .tools button { flex: none; min-width: 36px; min-height: 36px; padding: 4px 8px; }
   .maplayers .full { display: none; }
   .maplayers .short { display: inline; }
   .map-foot .hint { display: none; }
