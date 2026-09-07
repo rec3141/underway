@@ -170,12 +170,9 @@ main {
   html, body { overflow: auto; height: auto; }
   body { display: block; }
   main { display: flex; flex-direction: column; padding: 10px 12px 0; }
-  .map { position: relative; height: 56vh; margin-bottom: 12px; }
-  #map { height: calc(56vh - 48px); }
-  /* the map leads on the underway tab; elsewhere the pane is the point and
-     the map follows it, shorter */
-  main:not(.tab-underway) .map { order: 2; height: 42vh; margin: 12px 0 14px; }
-  main:not(.tab-underway) #map { height: calc(42vh - 48px); }
+  /* on a narrow screen the pane is the point on every tab: the map follows it, shorter */
+  .map { position: relative; order: 2; height: 42vh; margin: 12px 0 14px; }
+  #map { height: calc(42vh - 48px); }
   .side { overflow: visible; }
   .tablewrap { max-height: 70vh; }
   .panels { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
@@ -329,6 +326,18 @@ tr.st-completed .status { color: var(--muted); }
 tr.st-coming-soon .status { background: #5a3d10; color: var(--accent-2); }
 table.sched tr.fold td { padding: 2px 8px; }
 .alerts { margin-top: 10px; font-size: 13px; }
+/* the bell beside an operation and its little menu */
+.bell { background: transparent; border: 0; padding: 0 3px; cursor: pointer; font-size: 12px; opacity: .35; filter: grayscale(1); vertical-align: middle; }
+.bell:hover { opacity: .8; filter: none; }
+.bell.on { opacity: 1; filter: none; }
+.bell.kind { font-size: 11px; }
+table.sched td.alerts-cell { white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+table.sched td:nth-child(3), table.sched td:nth-child(6), table.sched td:nth-child(7) { white-space: nowrap; }   /* station, status, duration */
+.bellmenu { position: absolute; z-index: 30; background: var(--card-2); border: 1px solid var(--accent-2); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; box-shadow: 0 6px 18px rgba(0,0,0,.4); max-width: 320px; }
+.bellmenu .bm-title { font-weight: 650; }
+.bellmenu button, .bellmenu a { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; text-decoration: none; }
+.bellmenu button:hover, .bellmenu a:hover { border-color: var(--accent); }
+.bellmenu .bm-note { color: var(--muted); font-size: 11.5px; }
 .alerts summary { cursor: pointer; color: var(--accent-2); }
 .alertform { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 8px 0 4px; }
 .alertform input, .alertform select { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 13px; }
@@ -406,6 +415,13 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
   padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
 .chat .chatside { background: transparent; color: var(--muted); border: 0; border-left: 1px solid var(--line); padding: 0 12px; font-size: 15px; cursor: pointer; }
 .chat .chatside:hover { color: var(--fg); }
+.chat .chatai { background: transparent; color: var(--muted); border: 0; border-left: 1px solid var(--line); padding: 0 10px; font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+.chat .chatai:hover { color: var(--fg); }
+.chat .chatclose { background: transparent; color: var(--muted); border: 0; border-left: 1px solid var(--line); padding: 0 10px; font-size: 13px; cursor: pointer; }
+.chat .chatclose:hover { color: var(--fg); }
+.chat.collapsed .chatclose { display: none; }
+.chat.noai .chatlog .msg.bot { display: none; }
+.chat.noai .chatai { color: var(--accent-2); }
 .chat .chattoggle .muted { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 /* side-bar mode: full height on the right, the page makes room */
 .chat.sidebar { top: 0; bottom: 0; right: 0; width: 380px; max-height: none; height: 100vh; height: 100dvh; border-radius: 0; border-left: 1px solid var(--line); border-bottom: 0; box-shadow: none; }

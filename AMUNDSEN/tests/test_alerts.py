@@ -116,3 +116,75 @@ class AlertTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RowFollowTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        p = patch.object(alerts, "DB_DIR", Path(self.tmp.name)); p.start(); self.addCleanup(p.stop)
+        self.now = datetime(2026, 9, 6, 13, 0, tzinfo=timezone.utc)
+
+    def test_follow_and_drop_a_row(self):
+        s = alerts.follow_row("email", "ann@example.org", "CardS-3|CTD-Rosette", name="Ann")
+        self.assertEqual((s["all"], s["match"], s["name"]), (False, "", "Ann"))
+        self.assertEqual(s["rows"]["CardS-3|CTD-Rosette"], {"lead_min": 15, "events": list(alerts.EVENTS)})
+        self.assertEqual(alerts.following("email", "ann@example.org"), {"rows": ["CardS-3|CTD-Rosette"], "all": False, "match": ""})
+        self.assertEqual(alerts.following("email", "nobody"), {"rows": [], "all": False, "match": ""})
+        alerts.follow_row("email", "ann@example.org", "JSW-01|Mapping")
+        self.assertIsNone(alerts.follow_row("email", "ann@example.org", "CardS-3|CTD-Rosette", remove=True) and None)
+        self.assertEqual(alerts.following("email", "ann@example.org")["rows"], ["JSW-01|Mapping"])
+        self.assertIsNone(alerts.follow_row("email", "ann@example.org", "JSW-01|Mapping", remove=True))
+        self.assertEqual(alerts.load_subs(), [])                              # nothing left to follow: the subscription goes
+        # a general subscription keeps its rows, and survives dropping them
+        alerts.subscribe("email", "ann@example.org", "", 30, None)
+        alerts.follow_row("email", "ann@example.org", "JSW-01|Mapping")
+        self.assertEqual(alerts.following("email", "ann@example.org")["all"], True)
+        alerts.follow_row("email", "ann@example.org", "JSW-01|Mapping", remove=True)
+        self.assertEqual(len(alerts.load_subs()), 1)
+
+    def test_followed_row_uses_its_own_lead_and_events(self):
+        t = lambda m: (self.now + timedelta(minutes=m)).isoformat(timespec="minutes")
+        state = alerts.load_state()
+        rows = [_row("CardS-3", "CTD-Rosette", t(12), t(70)), _row("CardS-3", "TM-Rosette", t(12), t(70))]
+        ev = alerts.due_events(rows, state, self.now)
+        sub = alerts.follow_row("telegram", "42", "CardS-3|CTD-Rosette")           # follows the CTD only
+        general = alerts.subscribe("email", "b@example.org", "", 10, ["upcoming"])  # everything, but only 10 min ahead
+        msgs = dict((s["to"], lines) for s, lines in alerts.messages_for([sub, general], ev, state, self.now))
+        self.assertEqual(list(msgs), ["42"])                                        # 12 min out: inside the row's 15, outside the general 10
+        self.assertEqual(len(msgs["42"]), 1); self.assertIn("CTD-Rosette", msgs["42"][0])
+        later = self.now + timedelta(minutes=13)
+        rows = [_row("CardS-3", "CTD-Rosette", t(12), t(70), status="Completed"), _row("CardS-3", "TM-Rosette", t(12), t(70), status="Completed")]
+        ev = alerts.due_events(rows, state, later)
+        msgs = dict((s["to"], lines) for s, lines in alerts.messages_for([sub, general], ev, state, later))
+        self.assertEqual(msgs.get("42"), ["Completed: CardS-3 — CTD-Rosette"])   # the row's events include finished; the general one's do not
+        self.assertNotIn("b@example.org", msgs)
+        # a kind of operation, at any station
+        kind = alerts.follow_row("telegram", "43", "op:TM-Rosette")
+        rows = [_row("CardS-4", "TM-Rosette", t(30), t(90)), _row("CardS-4", "CTD", t(30), t(90))]
+        ev = alerts.due_events(rows, alerts.load_state(), self.now + timedelta(minutes=20))
+        msgs = dict((s["to"], lines) for s, lines in alerts.messages_for([kind], ev, alerts.load_state(), self.now + timedelta(minutes=20)))
+        self.assertEqual(len(msgs["43"]), 1); self.assertIn("CardS-4 — TM-Rosette", msgs["43"][0])
+        # every transit, whatever the destination
+        self.assertEqual((alerts.kind_of("Transit to CardS-5"), alerts.kind_of("Steam to OG-1"), alerts.kind_of("CTD")), ("Transit", "Transit", "CTD"))
+        tr = alerts.follow_row("telegram", "44", "op:Transit to CardS-5")           # a page-built key is normalised to the kind
+        self.assertEqual(list(tr["rows"]), ["op:Transit"])
+        rows = [_row("", "Transit to CardS-5", t(30), t(45)), _row("", "Steaming", t(60), t(90))]
+        st2 = alerts.load_state()
+        ev = alerts.due_events(rows, st2, self.now + timedelta(minutes=20))
+        msgs = dict((s["to"], lines) for s, lines in alerts.messages_for([tr], ev, st2, self.now + timedelta(minutes=20)))
+        self.assertEqual(len(msgs["44"]), 1); self.assertIn("Transit to CardS-5", msgs["44"][0])
+
+    def test_telegram_start_payload_follows_a_row(self):
+        key = "CardS-3|CTD-Rosette"
+        payload = alerts.encode_row(key)
+        self.assertLessEqual(len(payload), 64); self.assertNotIn("=", payload)
+        self.assertEqual(alerts.decode_row(payload), key)
+        self.assertEqual(alerts.decode_row("not base64!"), "not base64!")
+        tg = FakeTelegram([{"update_id": 1, "message": {"chat": {"id": 7}, "from": {"first_name": "Ann"}, "text": f"/start {payload}"}},
+                           {"update_id": 2, "message": {"chat": {"id": 7}, "text": "/status"}}])
+        state = alerts.load_state()
+        alerts.handle_telegram(tg, state)
+        self.assertEqual(alerts.following("telegram", "7")["rows"], [key])
+        self.assertFalse(alerts.load_subs()[0]["all"])
+        self.assertIn("Following CardS-3 — CTD-Rosette", tg.sent[0][1])
+        self.assertIn("• CardS-3 — CTD-Rosette (15 min ahead)", tg.sent[1][1])

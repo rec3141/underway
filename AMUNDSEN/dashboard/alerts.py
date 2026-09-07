@@ -4,7 +4,11 @@ People subscribe from the Schedule tab (email) or by messaging the Telegram
 bot; each subscription names what to hear about (keywords matched against
 station and operation, or everything), how far ahead ("starting in 30 min")
 and which events: upcoming, started (In progress), finished (Completed or
-Canceled), moved (a start time changed). Subscriptions live in
+Canceled), moved (a start time changed). A subscription can also follow
+single operations (the bell beside a row, or a ``t.me/<bot>?start=<row>``
+link) or every operation of one kind (a key ``op:<operation>``, the second
+bell): each such entry carries its own lead time and events, by default a
+15-minute heads-up and every change. Subscriptions live in
 ``db/alerts.json``; what has been sent, the last version of every row seen
 and the Telegram update offset live in ``db/alerts_state.json``.
 
@@ -13,7 +17,8 @@ minutes) reads the current schedule (``db/schedule.json``), answers Telegram
 commands, works out what is due for each subscription and sends one message
 per subscription per run. Nothing is sent twice for the same row and event.
 
-Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` or
+Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` (or
+``TELEGRAM_KEY``, as in ``~/.config/underway/underway.env``) or in
 ``~/.config/underway/telegram.json`` (``{"token": ...}``). Email needs an SMTP
 account in ``~/.config/underway/smtp.json`` (host, port, user, password,
 from, ssl). Without one the corresponding channel is off and said so on the
@@ -38,10 +43,12 @@ from .config import DB_DIR, LOCAL_TZ
 
 log = logging.getLogger(__name__)
 CONF_DIR = Path("~/.config/underway").expanduser()
-TELEGRAM_TOKEN = os.environ.get("UNDERWAY_TELEGRAM_TOKEN", "")
+TELEGRAM_TOKEN = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
 EVENTS = ("upcoming", "started", "finished", "moved")
 DEFAULT_EVENTS = ("upcoming", "started", "moved")
 DEFAULT_LEAD_MIN = 30
+ROW_LEAD_MIN = 15               # a single followed operation: a quarter hour ahead …
+ROW_EVENTS = EVENTS             # … and every change to it
 MOVED_MIN = 15                  # a start that shifts by less is not worth a message
 STATUS_STARTED = ("in progress",)
 STATUS_FINISHED = ("completed", "canceled", "cancelled")
@@ -95,8 +102,7 @@ def _clean_events(events) -> list[str]:
     return out or list(DEFAULT_EVENTS)
 
 
-def subscribe(channel: str, to: str, match: str = "", lead_min=DEFAULT_LEAD_MIN, events=None, name: str = "") -> dict:
-    """Add (or update, same channel and address) a subscription; returns it."""
+def _check_address(channel: str, to: str) -> str:
     if channel not in ("email", "telegram"):
         raise ValueError("channel must be email or telegram")
     to = str(to or "").strip()
@@ -104,18 +110,80 @@ def subscribe(channel: str, to: str, match: str = "", lead_min=DEFAULT_LEAD_MIN,
         raise ValueError("that does not look like an email address")
     if channel == "telegram" and not re.fullmatch(r"-?\d{1,20}", to):
         raise ValueError("bad Telegram chat id")
+    return to
+
+
+def _lead(lead_min) -> int:
     try:
-        lead = max(5, min(24 * 60, int(lead_min)))
+        return max(5, min(24 * 60, int(lead_min)))
     except (TypeError, ValueError):
         raise ValueError("lead time must be minutes") from None
+
+
+def _find(subs: list[dict], channel: str, to: str) -> dict | None:
+    return next((s for s in subs if s["channel"] == channel and s["to"].lower() == to.lower()), None)
+
+
+def _new(channel: str, to: str) -> dict:
+    return {"id": secrets.token_hex(12), "channel": channel, "to": to, "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "all": False, "match": "", "lead_min": DEFAULT_LEAD_MIN, "events": list(DEFAULT_EVENTS), "name": "", "rows": {}}
+
+
+def subscribe(channel: str, to: str, match: str = "", lead_min=DEFAULT_LEAD_MIN, events=None, name: str = "") -> dict:
+    """Add (or update, same channel and address) a general subscription:
+    everything, or the operations matching ``match``; returns it. Rows the
+    address already follows stay."""
+    to = _check_address(channel, to)
+    lead = _lead(lead_min)
     subs = load_subs()
-    sub = next((s for s in subs if s["channel"] == channel and s["to"].lower() == to.lower()), None)
+    sub = _find(subs, channel, to)
     if sub is None:
-        sub = {"id": secrets.token_hex(12), "channel": channel, "to": to, "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-        subs.append(sub)
-    sub.update(match=_clean_match(match), lead_min=lead, events=_clean_events(events), name=str(name or "").strip()[:40] or sub.get("name", ""))
+        sub = _new(channel, to); subs.append(sub)
+    match = _clean_match(match)
+    sub.update(match=match, all=not match, lead_min=lead, events=_clean_events(events), name=str(name or "").strip()[:40] or sub.get("name", ""))
     save_subs(subs)
     return sub
+
+
+def follow_row(channel: str, to: str, key: str, remove: bool = False, lead_min=ROW_LEAD_MIN, events=ROW_EVENTS, name: str = "") -> dict | None:
+    """Follow (or stop following) one operation by its row key; a subscription
+    left following nothing is removed. Returns the subscription, or None."""
+    to = _check_address(channel, to)
+    key = str(key or "").strip()[:120]
+    if not key:
+        raise ValueError("no operation given")
+    if key.startswith("op:"):                          # a kind: transits are one kind whatever the destination
+        key = "op:" + kind_of(key[3:])
+    subs = load_subs()
+    sub = _find(subs, channel, to)
+    if remove:
+        if sub is None:
+            return None
+        sub.setdefault("rows", {}).pop(key, None)
+        if not sub["rows"] and not sub.get("all") and not sub.get("match"):
+            subs.remove(sub); save_subs(subs)
+            return None
+    else:
+        if sub is None:
+            sub = _new(channel, to); subs.append(sub)
+        if name and not sub.get("name"):
+            sub["name"] = str(name).strip()[:40]
+        sub.setdefault("rows", {})[key] = {"lead_min": _lead(lead_min), "events": _clean_events(events)}
+    save_subs(subs)
+    return sub
+
+
+def following(channel: str, to: str) -> dict:
+    """What an address follows, for the page's bells: row keys and whether
+    it hears about everything or a keyword match."""
+    try:
+        to = _check_address(channel, to)
+    except ValueError:
+        return {"rows": [], "all": False, "match": ""}
+    sub = _find(load_subs(), channel, to)
+    if sub is None:
+        return {"rows": [], "all": False, "match": ""}
+    return {"rows": sorted(sub.get("rows", {})), "all": bool(sub.get("all")), "match": sub.get("match", "")}
 
 
 def unsubscribe(token: str) -> dict | None:
@@ -126,12 +194,21 @@ def unsubscribe(token: str) -> dict | None:
     return gone
 
 
+def kind_of(operation: str) -> str:
+    """The kind an ``op:`` entry names: transits and steaming are one kind
+    ("Transit"), whatever their destination; anything else is its own name."""
+    op = (operation or "").strip()
+    return "Transit" if re.search(r"transit|steam", op, re.I) else op
+
+
 def matches(sub: dict, row: dict) -> bool:
+    """Whether a general subscription covers the row (followed rows are
+    checked separately, with their own settings)."""
     words = [w.strip().lower() for w in (sub.get("match") or "").split(",") if w.strip()]
-    if not words:
-        return True
-    hay = f"{row.get('station') or ''} {row.get('operation') or ''}".lower()
-    return any(w in hay for w in words)
+    if words:
+        hay = f"{row.get('station') or ''} {row.get('operation') or ''}".lower()
+        return any(w in hay for w in words)
+    return bool(sub.get("all", True))
 
 
 # ---------------------------------------------------------------- what is due
@@ -199,11 +276,19 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
         lines = []
         mine = sent.setdefault(sub["id"], {})
         for ev, r, text in events:
-            if ev not in sub.get("events", DEFAULT_EVENTS) or not matches(sub, r):
+            rows_ = sub.get("rows") or {}
+            followed = rows_.get(r["key"]) or rows_.get("op:" + kind_of(r.get("operation")))
+            if followed is not None:                     # a followed row: its own lead time and events
+                wanted, lead = followed.get("events", ROW_EVENTS), followed.get("lead_min", ROW_LEAD_MIN)
+            elif matches(sub, r):
+                wanted, lead = sub.get("events", DEFAULT_EVENTS), sub.get("lead_min", DEFAULT_LEAD_MIN)
+            else:
+                continue
+            if ev not in wanted:
                 continue
             if ev == "upcoming":
                 start = datetime.fromisoformat(r["start_utc"])
-                if (start - now).total_seconds() > sub.get("lead_min", DEFAULT_LEAD_MIN) * 60:
+                if (start - now).total_seconds() > lead * 60:
                     continue
             key = f"{r['key']}|{ev}" + (f"|{r['start_utc']}" if ev == "moved" else "")
             if key in mine:
@@ -285,6 +370,7 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
 
 HELP = ("Amundsen schedule alerts.\n"
         "/all — everything on the schedule\n"
+        "(a bell on the dashboard follows one operation: 15 min heads-up and every change)\n"
         "/only CardS-3, CTD — only operations whose station or name contains one of these\n"
         "/lead 30 — warn this many minutes ahead\n"
         "/events upcoming,started,finished,moved — which changes to hear about\n"
@@ -309,7 +395,13 @@ def handle_telegram(tg: Telegram, state: dict) -> int:
         subs = load_subs()
         mine = next((s for s in subs if s["channel"] == "telegram" and s["to"] == chat), None)
         try:
-            if cmd in ("/start", "/all"):
+            if cmd == "/start" and arg.strip():          # the dashboard's bell: t.me/<bot>?start=<row key>
+                key = decode_row(arg.strip())
+                follow_row("telegram", chat, key, name=who)
+                key = "op:" + kind_of(key[3:]) if key.startswith("op:") else key
+                what = ("every transit" if key == "op:Transit" else f"every {key[3:]}") if key.startswith("op:") else key.replace("|", " — ")
+                reply = f"Following {what}: a heads-up 15 min ahead and every change.\n/status shows everything you follow, /stop ends it all."
+            elif cmd in ("/start", "/all"):
                 subscribe("telegram", chat, "", (mine or {}).get("lead_min", DEFAULT_LEAD_MIN), (mine or {}).get("events"), who)
                 reply = "Subscribed to every scheduled operation.\n\n" + HELP
             elif cmd == "/only":
@@ -326,8 +418,12 @@ def handle_telegram(tg: Telegram, state: dict) -> int:
                     unsubscribe(mine["id"])
                 reply = "Unsubscribed. /start to come back."
             elif cmd == "/status":
-                reply = (f"Subscribed: {mine.get('match') or 'everything'} · {mine.get('lead_min')} min ahead · {', '.join(mine.get('events', []))}"
-                         if mine else "Not subscribed. /start to subscribe.")
+                if not mine:
+                    reply = "Not subscribed. /start to subscribe."
+                else:
+                    general = f"{mine.get('match') or ('everything' if mine.get('all') else 'no general subscription')} · {mine.get('lead_min')} min ahead · {', '.join(mine.get('events', []))}"
+                    rows = "\n".join(f"• {('every transit' if k == 'op:Transit' else 'every ' + k[3:]) if k.startswith('op:') else k.replace('|', ' — ')} ({v.get('lead_min')} min ahead)" for k, v in (mine.get("rows") or {}).items())
+                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "")
             else:
                 reply = HELP
         except ValueError as e:
@@ -337,6 +433,20 @@ def handle_telegram(tg: Telegram, state: dict) -> int:
         except Exception as e:                  # noqa: BLE001
             log.warning("alerts: telegram reply to %s failed: %s", chat, e)
     return n
+
+
+def encode_row(key: str) -> str:
+    """A row key as a Telegram /start payload (base64url, at most 64 chars)."""
+    import base64
+    return base64.urlsafe_b64encode(key.encode()).decode().rstrip("=")[:64]
+
+
+def decode_row(payload: str) -> str:
+    import base64
+    try:
+        return base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)).decode()
+    except Exception:                       # noqa: BLE001 — not ours: keep as typed
+        return payload
 
 
 def info() -> dict:

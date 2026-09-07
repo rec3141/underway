@@ -615,23 +615,23 @@
     const nCanc = done.length - nDone;
     const foldLabel = [nDone && `${nDone} completed`, nCanc && `${nCanc} canceled`].filter(Boolean).join(" \u00b7 ");
     const foldToggle = done.length
-      ? `<tr class="fold"><td colspan="7"><button id="schedunfold">${cal.showDone ? "\u25be hide" : "\u25b8 show"} ${foldLabel}</button></td></tr>`
+      ? `<tr class="fold"><td colspan="8"><button id="schedunfold">${cal.showDone ? "\u25be hide" : "\u25b8 show"} ${foldLabel}</button></td></tr>`
       : "";
     const sched = foldToggle + (s.rows || []).map((r) => {
       if (finishedToday(r) && (!cal.showDone || !r.start_utc)) return "";
       if (q && !`${r.station} ${r.operation} ${r.status} ${r.comment} ${isoDay(r)}`.toLowerCase().includes(q)) return "";
-      return `<tr class="${statusClass(r.status || "upcoming")}"><td>${isoDay(r)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td><span class="status">${esc(r.status || "upcoming")}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`;
+      return `<tr class="${statusClass(r.status || "upcoming")}"><td>${isoDay(r)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td class="alerts-cell">${bellHtml(r)}</td><td><span class="status">${esc(r.status || "upcoming")}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`;
     }).join("");
     let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
-      (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
+      (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
       `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
       ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p>` +
       alertsHtml() + `</section>`;
     const wasOpen = host.querySelector("#alerts")?.open;
     host.innerHTML = html;
     const det = host.querySelector("#alerts"); if (det && wasOpen) det.open = true;
-    wireAlerts(host);
+    wireAlerts(host); wireBells(host);
     const unfold = host.querySelector("#schedunfold"); if (unfold) unfold.onclick = () => { cal.showDone = !cal.showDone; renderCalendar(); };
   }
   // the event log: logged events and scheduled operations (current and
@@ -656,7 +656,7 @@
     const schedHtml = (r, k) => `<div class="ev sched ${r.former ? "former" : ""} ${statusClass(r.status)} ${!r.former && r.key === nextKey ? "next" : ""}" data-key="${esc(k)}">
           <span class="t">${hm(UW.tms(r.start_utc))}</span>
           <span class="st">${esc(r.station || "")}</span>
-          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : !r.former && r.key === nextKey ? "up next" : "scheduled"}</span> <span class="status">${esc(r.status || "upcoming")}</span></span>
+          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : !r.former && r.key === nextKey ? "up next" : "scheduled"}</span> <span class="status">${esc(r.status || "upcoming")}</span>${r.former ? "" : bellHtml(r)}</span>
           <span class="pos muted">${hm(UW.tms(r.start_utc))}–${hm(UW.tms(r.end_utc))}${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
           ${r.comment ? `<span class="cm muted">${esc(r.comment)}</span>` : ""}</div>`;
     return `<section class="agenda evlog" id="evlog">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t - a.t); const first = items.find((x) => x.e)?.e;
@@ -666,6 +666,7 @@
   const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
   function wireEventList(host) {
     for (const el of host.querySelectorAll(".ev[data-lat]")) el.onclick = () => { if (el.dataset.lat) UW.focusMap(el.dataset.lat, el.dataset.lon, el.querySelector(".st")?.textContent); };
+    wireBells(host);
   }
   // a click on the timeline scrolls the log to that row (the log's own scroll, not the page's)
   function showLogRow(host, key) {
@@ -676,6 +677,66 @@
     log.scrollTo({ top: row.offsetTop - log.offsetTop - log.clientHeight / 3, behavior: "smooth" });
     if (row.dataset.lat) UW.focusMap(row.dataset.lat, row.dataset.lon, row.querySelector(".st")?.textContent);
   }
+  // the bell beside an operation: follow just that one, by email (the address
+  // the page remembers) or by Telegram (a t.me link carrying the row); a
+  // followed row gets a 15-minute heads-up and every change
+  const bells = { rows: new Set(), for: null, pendingRow: null };
+  const followEmail = () => store.get("alerts.email", "");
+  const encodeRow = (key) => btoa(unescape(encodeURIComponent(key))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "").slice(0, 64);
+  // two bells: this operation, and every operation of this kind (any station)
+  const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : `follow ${kind}: 15 min heads-up and every change`;
+  function bellHtml(r) {
+    const a = UW.M.alerts || {};
+    if (!a.email && !a.telegram_bot) return "";
+    const key = r.key || `${r.station}|${r.operation}`, on = bells.rows.has(key);
+    const kind = /transit|steam/i.test(r.operation || "") ? "Transit" : (r.operation || "");     // every transit is one kind, whatever the destination
+    const opKey = `op:${kind}`, opOn = bells.rows.has(opKey), kindName = kind === "Transit" ? "every transit" : `every ${kind}`;
+    return `<button type="button" class="bell ${on ? "on" : ""}" data-key="${esc(key)}" data-name="${esc(`${r.station || ""} — ${r.operation || ""}`.trim())}" title="${esc(bellTitle("this operation", on))}">🔔</button>` +
+      (kind ? `<button type="button" class="bell kind ${opOn ? "on" : ""}" data-key="${esc(opKey)}" data-name="${esc(kindName)}" title="${esc(bellTitle(kindName, opOn))}">📢</button>` : "");
+  }
+  async function refreshBells(host) {
+    const to = followEmail();
+    if (!to) { bells.rows = new Set(); bells.for = null; return; }
+    if (bells.for === to) return;
+    try { const j = await UW.fetchJSON(`api/alerts/following?channel=email&to=${encodeURIComponent(to)}&t=${Date.now()}`); bells.rows = new Set(j.rows || []); bells.for = to; }
+    catch { /* bells stay unlit */ }
+    for (const b of host.querySelectorAll(".bell")) b.classList.toggle("on", bells.rows.has(b.dataset.key));
+  }
+  function wireBells(host) {
+    refreshBells(host);
+    for (const b of host.querySelectorAll(".bell")) b.onclick = (ev) => { ev.stopPropagation(); bellMenu(host, b); };
+  }
+  async function followByEmail(host, key, name, remove) {
+    const to = followEmail();
+    const r = await fetch("api/alerts/row", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: "email", to, key, name, remove }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    bells.rows = new Set(j.rows || []); bells.for = to;
+    for (const b of host.querySelectorAll(".bell")) { const on = bells.rows.has(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(b.classList.contains("kind") ? b.dataset.name : "this operation", on); }
+  }
+  function bellMenu(host, b) {
+    host.querySelector(".bellmenu")?.remove();
+    const a = UW.M.alerts || {}, key = b.dataset.key, name = b.dataset.name, to = followEmail(), on = bells.rows.has(key);
+    const m = document.createElement("div"); m.className = "bellmenu";
+    m.innerHTML = `<div class="bm-title">${esc(name)}</div>` +
+      (a.email ? (to ? `<button type="button" class="bm-email">${on ? "✉ stop emailing" : "✉ email"} ${esc(to)}</button>` : `<button type="button" class="bm-email">✉ email me… (enter an address below)</button>`) : "") +
+      (a.telegram_bot ? `<a class="bm-tg" href="https://t.me/${esc(a.telegram_bot)}?start=${encodeRow(key)}" target="_blank" rel="noopener">✈ Telegram @${esc(a.telegram_bot)}</a>` : "") +
+      `<div class="bm-note">15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}</div>`;
+    const rect = b.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
+    m.style.left = `${Math.max(0, rect.left - hostRect.left)}px`; m.style.top = `${rect.bottom - hostRect.top + host.scrollTop + 4}px`;
+    host.style.position = host.style.position || "relative";
+    host.appendChild(m);
+    const close = () => { m.remove(); document.removeEventListener("click", close); };
+    setTimeout(() => document.addEventListener("click", close), 0);
+    const e = m.querySelector(".bm-email");
+    if (e) e.onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!to) { bells.pendingRow = { key, name }; close(); const det = host.querySelector("#alerts"); if (det) { det.open = true; det.querySelector("input[name=to]")?.focus(); det.querySelector("#alertmsg").textContent = `enter your email to follow ${name}`; } return; }
+      try { await followByEmail(host, key, name, on); close(); } catch (err) { m.querySelector(".bm-note").textContent = `not saved: ${err.message}`; }
+    };
+    if (m.querySelector(".bm-tg")) m.querySelector(".bm-tg").onclick = () => setTimeout(close, 100);
+  }
+
   // alerts: subscribe by email here, or through the Telegram bot
   function alertsHtml() {
     const a = UW.M.alerts || {};
@@ -704,6 +765,8 @@
         if (!r.ok) throw new Error(j.error || r.status);
         store.set("alerts.email", j.to);
         msg.textContent = `subscribed ${j.to}: ${j.match || "everything"}, ${j.lead_min} min ahead`;
+        if (bells.pendingRow) { const pr = bells.pendingRow; bells.pendingRow = null; bells.for = null; try { await followByEmail(f.closest("#calendar") || document, pr.key, pr.name, false); msg.textContent += ` · following ${pr.name}`; } catch { /* the bell shows the truth */ } }
+        else { bells.for = null; refreshBells(f.closest("#calendar") || document); }
       } catch (e) { msg.textContent = `not saved: ${e.message}`; }
     };
   }

@@ -194,6 +194,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == "/api/alerts/following":
+            from .alerts import following
+            q = parse_qs(u.query)
+            return self._json(200, following(q.get("channel", ["email"])[0], q.get("to", [""])[0]))
         if u.path == "/api/alerts/unsubscribe":
             from .alerts import unsubscribe
             gone = unsubscribe(parse_qs(u.query).get("token", [""])[0])
@@ -236,6 +240,24 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(200, LIVE.status())
             except Exception as e:                       # noqa: BLE001
                 return self._json(400, {"error": str(e)})
+        if u.path == "/api/alerts/row":
+            # the bell: follow (or drop) one operation: {"channel": "email", "to": ..., "key": "CardS-3|CTD-Rosette", "remove": false}
+            from .alerts import follow_row, following
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 <= n <= 4096:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                channel, to = str(payload.get("channel", "email")), str(payload.get("to", ""))
+                follow_row(channel, to, str(payload.get("key", "")), remove=bool(payload.get("remove")), name=str(payload.get("name", "")))
+                return self._json(200, {"ok": True, **following(channel, to)})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("alert row subscription failed: %s", e)
+                return self._json(500, {"error": "could not save the subscription"})
         if u.path == "/api/alerts":
             # subscribe from the page: {"channel": "email", "to": ..., "match": "CardS-3, CTD", "lead_min": 30, "events": [...]}
             from .alerts import subscribe

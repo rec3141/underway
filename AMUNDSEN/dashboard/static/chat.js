@@ -14,10 +14,16 @@
   const nameIn = $("#chatname"), textIn = $("#chattext"), emojiBtn = $("#chatemoji"), pick = $("#emojipick"), typing = $("#chattyping"), crewEl = $("#chatcrew");
   const EMOJI = ["🙂", "😎", "🤓", "🥶", "🧊", "🐧", "🐻‍❄️", "🦭", "🐋", "🐟", "🦑", "🐙", "🦀", "🌊", "⚓", "🚢", "🛶", "🧭", "🔭", "🧪", "🧬", "☕", "🍩", "🎣", "🌌", "❄️", "🌬️", "⛈️", "🛰️", "🐾"];
   const st = { open: store.get("chat.open", false), side: store.get("chat.side", false), lastId: 0, seen: store.get("chat.seen", 0), unread: 0, timer: null,
-    myName: store.get("chat.name", ""), myEmoji: store.get("chat.emoji", "🙂"), crew: [] };
+    myName: store.get("chat.name", ""), myEmoji: store.get("chat.emoji", "🙂"), crew: [], noai: store.get("chat.noai", false) };
   nameIn.value = st.myName; emojiBtn.textContent = st.myEmoji;
+  // on a phone the drawer stays out of the way until the Chat tab opens it
+  const phone = matchMedia("(max-width: 640px)");
+  phone.addEventListener?.("change", () => layout());
 
   function layout() {
+    el.hidden = phone.matches && !st.open;
+    el.classList.toggle("noai", st.noai);
+    const ai = $("#chataibtn"); ai.textContent = st.noai ? "show AI" : "hide AI"; ai.title = st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names";
     el.classList.toggle("collapsed", !st.open);
     el.classList.toggle("sidebar", st.side && st.open);
     document.documentElement.classList.toggle("chat-side", st.side && st.open);
@@ -50,7 +56,7 @@
     while (log.children.length > 300) log.firstChild.remove();
     if (atBottom || st.open) log.scrollTop = log.scrollHeight;
     if (st.open) { st.seen = st.lastId; store.set("chat.seen", st.seen); st.unread = 0; }
-    else st.unread += msgs.filter((m) => m.id > st.seen).length;
+    else st.unread += msgs.filter((m) => m.id > st.seen && !(st.noai && isCrew(m.name))).length;
     unread.hidden = !st.unread; unread.textContent = st.unread;
   }
 
@@ -68,8 +74,8 @@
       who.textContent = j.online?.length ? `${j.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
       who.title = (j.online || []).map((n) => n.name).join(", ");
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
-      typing.hidden = !t.length; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} typing…` : "";
-      crewEl.hidden = !st.crew.length;
+      typing.hidden = !t.length || st.noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} typing…` : "";
+      crewEl.hidden = !st.crew.length || st.noai;
       crewEl.innerHTML = st.crew.length ? `AI crew (${esc(j.model || "local model")}): ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ") : "";
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
     } catch { dot.className = "dot"; who.textContent = "offline"; }
@@ -83,6 +89,8 @@
     layout(); if (st.open) textIn.focus(); poll();
   }
   $("#chathead").onclick = () => toggle();
+  $("#chatclosebtn").onclick = () => toggle(false);
+  $("#chataibtn").onclick = () => { st.noai = !st.noai; store.set("chat.noai", st.noai); layout(); poll(); };
   $("#chatsidebtn").onclick = () => { st.side = !st.side; store.set("chat.side", st.side); if (!st.open) st.open = true; layout(); poll(); };
   // the Chat tab button: open as a side bar, or put it away
   window.UW = Object.assign(window.UW || {}, { chatToggle: () => { if (st.side && st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } } });

@@ -162,7 +162,9 @@ window.__MANIFEST__ = {{ m|tojson }};
 <aside class="chat collapsed" id="chat" aria-label="ship chat">
   <div class="chathead">
     <button class="chattoggle" id="chathead"><span class="dot" id="chatdot"></span><b>Chat</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
+    <button class="chatai" id="chataibtn" title="hide the AI crew's messages">hide AI</button>
     <button class="chatside" id="chatsidebtn" title="open as a side bar">⇤</button>
+    <button class="chatclose" id="chatclosebtn" title="close the chat">✕</button>
   </div>
   <div class="chatbody">
     <div class="chatlog" id="chatlog"></div>
