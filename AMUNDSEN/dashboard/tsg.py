@@ -14,6 +14,14 @@ sound velocity beside it is a plausible sound velocity, which is what pins
 the tail down. Each file is reduced to minute means and cached per leg in
 ``db/tsg/<leg>.pkl`` keyed by file size, mtime and parser version, so only
 the growing current-day file is re-read.
+
+The file also runs two minutes behind real time where the ACSD feed is
+flushed every ten, so its minutes past the end of the ACSD record stand in
+as a provisional tail (``provisional_tail``): the TSG channels and its GPS
+position, mapped onto the ACSD columns they duplicate (the values agree to
+the fourth decimal; the position to about 15 m). The tail is recomputed at
+every build from whatever the ACSD does not yet cover, so it shrinks to
+nothing as each flush lands.
 """
 
 from __future__ import annotations
@@ -32,10 +40,14 @@ log = logging.getLogger(__name__)
 HEAD = ["date", "time", "t_gps", "lat", "lon", "t_sbe45", "cond", "sal", "vel_a", "t_sbe38"]
 ANALOGUE = ["fluo", "oxy", "cdom"]      # optional, in the order they were added
 TAIL = ["flow", "vel_b"]
-KEEP = ["flow", "cond", "t_sbe45", "t_sbe38", "sal"]
+KEEP = ["flow", "cond", "t_sbe45", "t_sbe38", "sal", "fluo", "oxy", "cdom", "vel_b", "lat", "lon"]
+# the ACSD column each TSG channel duplicates, as a pattern on the key
+ACSD_OF = {"t_sbe38": r"^tsg — hull temperature", "t_sbe45": r"^tsg — salinometer temperature", "sal": r"^tsg — salinity",
+           "oxy": r"^tsg — oxygen", "fluo": r"^tsg — fluorescence", "cdom": r"^tsg — ecocdom", "vel_b": r"^tsg — sound velocity",
+           "lat": r"^posmv — latitude", "lon": r"^posmv — longitude"}
 FLOW_RANGE = (0.0, 10.0)                # the flow sensor is a voltage
 VEL_RANGE = (1350.0, 1650.0)            # sound speed in seawater, m/s
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 
 
 def columns_for(n: int) -> list[str]:
@@ -61,12 +73,14 @@ def parse_conv(path: Path) -> pd.DataFrame:
                          engine="c", on_bad_lines="skip")
         t = pd.to_datetime(df["date"].str.strip() + " " + df["time"].str.strip(), format="%Y/%m/%d %H:%M:%S",
                            errors="coerce", utc=True)
-        want = [c for c in KEEP + ["vel_b"] if c in df.columns]
+        want = [c for c in KEEP if c in df.columns]
         out = df[want].apply(pd.to_numeric, errors="coerce")
-        if "flow" in out.columns:
+        if "flow" in out.columns and "vel_b" in out.columns:
             bad = ~out["flow"].between(*FLOW_RANGE) | ~out["vel_b"].between(*VEL_RANGE)
             out.loc[bad, "flow"] = np.nan
-        out = out.drop(columns=[c for c in ("vel_b",) if c in out.columns])
+            out.loc[~out["vel_b"].between(*VEL_RANGE), "vel_b"] = np.nan
+        if "lat" in out.columns:
+            out.loc[~out["lat"].between(-90, 90) | ~out["lon"].between(-180, 180), ["lat", "lon"]] = np.nan
         out.index = t
         parts.append(out[out.index.notna()])
     if not parts:
@@ -104,3 +118,21 @@ def minute_frame(legs) -> pd.DataFrame | None:
         return None
     f = pd.concat(frames).sort_index()
     return f[~f.index.duplicated(keep="last")]
+
+
+def provisional_tail(tsg: pd.DataFrame, after: pd.Timestamp, columns: list[str], max_minutes: int = 30) -> pd.DataFrame:
+    """The TSG minutes after ``after`` (the end of the ACSD record), as rows
+    in the ACSD columns they duplicate; at most ``max_minutes`` so a stalled
+    ACSD feed does not grow a long tail of guesswork."""
+    import re
+    if tsg is None or after is None:
+        return pd.DataFrame(columns=columns)
+    naive = after.tzinfo is None
+    cut = after.tz_localize("UTC") if naive else after.tz_convert("UTC")
+    tail = tsg[(tsg.index > cut) & (tsg.index <= cut + pd.Timedelta(minutes=max_minutes))]
+    out = pd.DataFrame(index=tail.index.tz_convert(None) if naive else tail.index, columns=columns, dtype=float)
+    for ch, pat in ACSD_OF.items():
+        key = next((c for c in columns if re.match(pat, c)), None)
+        if key and ch in tail.columns:
+            out[key] = tail[ch].to_numpy()
+    return out.dropna(how="all")

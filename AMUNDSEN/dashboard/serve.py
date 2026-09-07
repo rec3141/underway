@@ -8,7 +8,10 @@ open (``/api/chat``), kept in a small SQLite file outside the web root.
 
 from __future__ import annotations
 
+import html
 import json
+import urllib.request
+import re
 import logging
 import os
 import sqlite3
@@ -35,6 +38,56 @@ _last_post: dict[str, float] = {}       # address -> last post, a light rate lim
 _emoji: dict[str, str] = {}             # name -> avatar last seen with
 CREW = None                             # the model-driven crew, once the server is up
 LIVE = None                             # the live CTD listener, once the server is up
+INTRANET = None                         # the intranet live-page poller, once the server is up
+
+
+class IntranetLive:
+    """The ship intranet's live page (``INTRANET_BASE/live.html``: navigation,
+    atmosphere, sea-water surface, rosette and 500HP winch tables, refreshed
+    by the acquisition host every few seconds), polled every ``every``
+    seconds and kept as label/value rows per table for ``/api/intranet``.
+    The page has no data endpoint, so the tables are read off the HTML: each
+    ``<table>`` has a ``<th>`` title and then ``<td>`` label, ``<td>`` value
+    pairs. Failures are reported, never raised."""
+
+    def __init__(self, url: str, every: float = 4.0):
+        self.url, self.every = url, every
+        self.lock = threading.Lock()
+        self.sections: list[dict] = []
+        self.fetched = 0.0
+        self.error = ""
+        self._stop = threading.Event()
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    @staticmethod
+    def parse(text: str) -> list[dict]:
+        import html as _html
+        out = []
+        for tbl in re.findall(r"<table[^>]*>(.*?)</table>", text, flags=re.S | re.I):
+            th = re.search(r"<th[^>]*>(.*?)</th>", tbl, flags=re.S | re.I)
+            cells = [" ".join(_html.unescape(re.sub(r"<[^>]+>", " ", c)).split()) for c in re.findall(r"<td[^>]*>(.*?)</td>", tbl, flags=re.S | re.I)]
+            rows = [[cells[i], cells[i + 1]] for i in range(0, len(cells) - 1, 2)]
+            if th and rows:
+                out.append({"title": " ".join(_html.unescape(re.sub(r"<[^>]+>", " ", th.group(1))).split()), "rows": rows})
+        return out
+
+    def _loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                with urllib.request.urlopen(self.url, timeout=6) as r:
+                    text = r.read().decode("latin-1")
+                sections = self.parse(text)
+                with self.lock:
+                    self.sections, self.fetched, self.error = sections, time.time(), "" if sections else "no tables on the page"
+            except Exception as e:                       # noqa: BLE001
+                with self.lock:
+                    self.error = str(e)[:120]
+            self._stop.wait(self.every)
+
+    def status(self) -> dict:
+        with self.lock:
+            return {"url": self.url, "fetched": self.fetched, "age_s": round(time.time() - self.fetched, 1) if self.fetched else None,
+                    "error": self.error, "sections": self.sections}
 
 
 def _chat_conn() -> sqlite3.Connection:
@@ -52,13 +105,15 @@ def _clean_emoji(e: str) -> str:
     return e[:8] if e and "<" not in e else ""
 
 
-def chat_read(since: int, name: str | None, emoji: str = "") -> dict:
+def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None = None) -> dict:
     now = time.time()
     with _chat_lock:
         if name:
             _online[name] = now
             if emoji:
                 _emoji[name] = _clean_emoji(emoji)
+        if leave:                            # the chat was closed: not "here" any more
+            _online.pop(leave, None)
         for k in [k for k, v in _online.items() if now - v > 45]:
             del _online[k]
         online = [{"name": n, "emoji": _emoji.get(n, "")} for n in sorted(_online)]
@@ -139,8 +194,18 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == "/api/alerts/unsubscribe":
+            from .alerts import unsubscribe
+            gone = unsubscribe(parse_qs(u.query).get("token", [""])[0])
+            body = ("<p>Unsubscribed: no more schedule alerts to " + html.escape(gone["to"]) + ".</p>") if gone else "<p>That subscription is already gone.</p>"
+            data = ("<!doctype html><meta charset=utf-8><title>Amundsen alerts</title><body style='font:16px system-ui;padding:2em'>" + body).encode()
+            self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(data))); self.end_headers()
+            self.wfile.write(data)
+            return
         if u.path == "/api/live":
-            return self._json(200, LIVE.status() if LIVE else {"port": 0})
+            return self._json(200, LIVE.status() if LIVE else {"tcp": "", "tcp_state": "off"})
+        if u.path == "/api/intranet":
+            return self._json(200, INTRANET.status() if INTRANET else {"sections": [], "error": "not polling"})
         if u.path == "/api/chat":
             q = parse_qs(u.query)
             try:
@@ -148,8 +213,9 @@ class Handler(SimpleHTTPRequestHandler):
             except ValueError:
                 since = 0
             name = (q.get("name", [""])[0] or "").strip()[:NAME_MAX] or None
+            leave = (q.get("leave", [""])[0] or "").strip()[:NAME_MAX] or None
             try:
-                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0]))
+                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0], leave))
             except Exception as e:                       # noqa: BLE001
                 log.warning("chat read failed: %s", e)
                 return self._json(500, {"error": "chat unavailable"})
@@ -158,7 +224,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         u = urlsplit(self.path)
         if u.path == "/api/live" and LIVE:
-            # retune the listener from the page: {"port": 5555, "columns": "scan,pressure,..."}
+            # point the listener at Seasave from the page: {"tcp": "10.0.0.22:49161"}
             try:
                 n = int(self.headers.get("Content-Length", "0"))
                 if not 0 <= n <= 4096:
@@ -166,10 +232,28 @@ class Handler(SimpleHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(n) or b"{}")
                 if not isinstance(payload, dict):
                     raise ValueError("Configuration must be a JSON object")
-                LIVE.configure(payload.get("port", LIVE.port), payload.get("columns"))
+                LIVE.configure(payload.get("tcp"))
                 return self._json(200, LIVE.status())
             except Exception as e:                       # noqa: BLE001
                 return self._json(400, {"error": str(e)})
+        if u.path == "/api/alerts":
+            # subscribe from the page: {"channel": "email", "to": ..., "match": "CardS-3, CTD", "lead_min": 30, "events": [...]}
+            from .alerts import subscribe
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 <= n <= 4096:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                sub = subscribe(str(payload.get("channel", "email")), str(payload.get("to", "")), str(payload.get("match", "")),
+                                payload.get("lead_min", 30), payload.get("events"), str(payload.get("name", "")))
+                return self._json(200, {"ok": True, "to": sub["to"], "match": sub["match"], "lead_min": sub["lead_min"], "events": sub["events"]})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("alert subscription failed: %s", e)
+                return self._json(500, {"error": "could not save the subscription"})
         if u.path != "/api/chat":
             return self._json(404, {"error": "not found"})
         try:
@@ -224,14 +308,16 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def serve(root: Path, port: int, bind: str) -> None:
-    global CREW, LIVE
+    global CREW, LIVE, INTRANET
+    from .config import INTRANET_BASE
+    INTRANET = IntranetLive(INTRANET_BASE.rstrip("/") + "/live.html")
     from .chatbot import Crew
-    from .live import LiveCTD
+    from .live import DEFAULT_TCP, LiveCTD
     try:
-        LIVE = LiveCTD()
-    except Exception as e:                  # noqa: BLE001 — a taken port must not stop the site
+        LIVE = LiveCTD(DEFAULT_TCP)
+    except Exception as e:                  # noqa: BLE001 — a bad source setting must not stop the site
         log.warning("live CTD listener not started: %s", e)
-        LIVE = LiveCTD(port=0, columns="scan,pressure,temperature,conductivity,salinity,oxygen,fluorescence")
+        LIVE = LiveCTD("")
     CREW = Crew(root, post=lambda n, e, t: chat_post("crew", n, t, e, bot=True), read=lambda: chat_read(0, None))
     CREW.start()
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))

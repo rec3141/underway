@@ -4,7 +4,7 @@
   "use strict";
   const UW = window.UW;
   const $ = (s) => document.querySelector(s);
-  const { THEME, CFG, fmtUTC, fmtVal, dms, store } = UW;
+  const { THEME, CFG, fmtTs, fmtVal, dms, store } = UW;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const PALETTE = ["#5cc8ff", "#ffb454", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
   const getJSON = UW.fetchJSON;
@@ -42,6 +42,13 @@
   // a station click on the map toggles its cast and opens the Casts tab; a
   // quiet call (the stations table) only makes sure it is selected
   UW.onStationClick = async (key, opts = {}) => {
+    if (key.startsWith("ev:")) {                          // a station without a cast: its events on the Agenda
+      const st = (UW.M.stations || []).find((s) => s.kind === "event" && `ev:${s.leg}:${s.station}` === key);
+      if (!st || opts.quiet) return;
+      UW.focusMap(st.lat, st.lon, st.station);
+      cal.search = st.station; const box = $("#calsearch"); if (box) box.value = st.station;
+      UW.showTab("calendar"); return;
+    }
     if (!casts.idx) {
       if (!opts.quiet) return;
       try { await ensureCastIndex(); }
@@ -182,7 +189,7 @@
 
   // ------------------------------------------------------------ overlay views
   // Live: the cast in the water (or the last one back on deck) from the deck
-  // unit's UDP feed via api/live, polled every 2 s while on screen. Single:
+  // PC's Seasave feed via api/live, polled every 2 s while on screen. Single:
   // one selected cast from the archive. Both draw the chosen variables over
   // depth on their own x axes (bottom, top, then outwards).
   const live = { vars: store.get("casts.live.vars", ["temperature", "salinity"]), which: "current", data: null, timer: null, showCfg: false };
@@ -242,23 +249,31 @@
     host.innerHTML = `<div class="livebar" id="livebar"><div id="livestatus"></div><div id="livecfgbox"></div></div><div id="livebody"></div>`;
     pollLive();
   }
-  // the settings form is built once when opened and left alone while the
-  // page refreshes, so an edit in progress survives
+  // the source form is built once when opened and left alone while the page
+  // refreshes, so an edit in progress survives; the field list and raw scans
+  // under it follow every poll
   function liveCfgForm(host, d) {
     const box = host.querySelector("#livecfgbox");
     if (!live.showCfg) { box.innerHTML = ""; return; }
-    if (box.querySelector("form")) { const pre = box.querySelector("pre"); if (pre) pre.textContent = (d.raw || []).join("\n"); return; }
-    box.innerHTML = `<form class="livecfgform" id="livecfgform"><label>UDP port <input name="port" value="${d.port || ""}" size="6"></label>
-        <label>columns, in Seasave's output order <input name="columns" value="${esc((d.columns || []).join(","))}" size="60"></label><button type="submit">apply</button>
-        <button type="button" class="chip" id="livecfgclose">close</button><span role="alert" id="livecfgerror"></span>
-        <details><summary>last raw packets</summary><pre class="mono">${esc((d.raw || []).join("\n"))}</pre></details></form>`;
+    const fieldsSummary = `Seasave's field list (SBE_ConvertedDataSettings)${d.fields?.length ? ` · ${d.fields.length} fields` : ""}`;
+    const fieldsText = d.fields?.length ? d.fields.map((n, i) => `${(d.columns || [])[i] || ""}  ←  ${n}`).join("\n") : "none received yet — Seasave sends it when the connection opens";
+    const rawText = (d.raw || []).join("\n") || "none yet";
+    const details = `<details id="livefields"><summary>${esc(fieldsSummary)}</summary><pre class="mono">${esc(fieldsText)}</pre></details>
+        <details id="liveraw"><summary>last raw scans</summary><pre class="mono">${esc(rawText)}</pre></details>`;
+    if (box.querySelector("form")) {                     // refresh the texts, not the elements: an open panel stays open
+      const set = (id, summary, text) => { const el = box.querySelector(id); if (!el) return; if (summary) el.querySelector("summary").textContent = summary; el.querySelector("pre").textContent = text; };
+      set("#livefields", fieldsSummary, fieldsText); set("#liveraw", null, rawText);
+      return;
+    }
+    box.innerHTML = `<form class="livecfgform" id="livecfgform"><label>Seasave TCP/IP out (host:port) <input name="tcp" value="${esc(d.tcp || "")}" size="20"></label><button type="submit">apply</button>
+        <button type="button" class="chip" id="livecfgclose">close</button><span role="alert" id="livecfgerror"></span></form><div id="livedetails">${details}</div>`;
     box.querySelector("#livecfgclose").onclick = () => { live.showCfg = false; liveCfgForm(host, d); };
     box.querySelector("form").onsubmit = async (ev) => { ev.preventDefault(); const f = new FormData(ev.target);
       const button = ev.target.querySelector('[type="submit"]'), error = box.querySelector("#livecfgerror");
       button.disabled = true; error.textContent = "";
       const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10000);
       try {
-        const response = await fetch("api/live", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ port: f.get("port").trim() || "0", columns: f.get("columns") }) });
+        const response = await fetch("api/live", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tcp: f.get("tcp") }) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || `Configuration failed (${response.status})`);
         live.data = result; live.showCfg = false; drawLive(host); pollLive();
@@ -273,19 +288,26 @@
     if (!d) { st.innerHTML = `<span class="muted">live feed unavailable (server not reachable)</span>`; return; }
     const cast = live.which === "last" ? (d.last || d.current) : (d.current || d.last);
     const which = cast === d.current ? "in the water" : cast === d.last ? (cast.end_reason ? `last cast (${esc(cast.end_reason)})` : "last cast") : null;
+    // the subtitle: the time now, when data last arrived, and LIVE while
+    // scans are coming in (connected but idle: CONNECTED; otherwise OFFLINE)
     const age = d.last_packet_age_s;
-    const feed = d.port ? `listening on UDP ${d.port}${d.packets ? ` · ${d.packets.toLocaleString()} packets · ${d.rate_hz} Hz · last ${age != null ? age.toFixed(0) + " s ago" : "—"}${d.source ? " from " + esc(d.source) : ""}` : " · nothing received yet"}` : "feed off — set the UDP port with ⚙";
+    const flowing = d.tcp_state === "connected" && age != null && age < 10;
+    const announced = !!d.fields?.length;                          // Seasave sends its field list when it is really serving
+    const state = !d.tcp ? "OFF" : flowing ? "LIVE" : d.tcp_state === "connected" ? (announced ? "CONNECTED" : "PORT OPEN") : "OFFLINE";
+    const updated = d.packets && age != null ? `last updated ${age < 60 ? age.toFixed(0) + " s" : (age / 60).toFixed(0) + " min"} ago` : "no data yet";
+    const why = !d.tcp ? "no source set" : state === "PORT OPEN" ? `Seasave at ${d.tcp} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off` : `Seasave at ${d.tcp}: ${d.tcp_state}`;
+    const feed = `${stampL(Date.now())} ${tzAbbr()} · ${updated} · <span class="livestate ${state.toLowerCase().replace(" ", "-")}" title="${esc(why)}">${state}</span>`;
     const cols = (cast?.columns || d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
-    st.innerHTML = `<div class="livestatus"><span class="dot ${d.packets && age != null && age < 10 ? "on" : ""}"></span><span>${feed}</span>
+    st.innerHTML = `<div class="livestatus"><span class="dot ${flowing ? "on" : ""}"></span><span>${feed}</span>
         ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
-        <button type="button" class="chip" id="livecfg" title="port and column names">⚙</button></div>
+        <button type="button" class="chip" id="livecfg" title="Seasave source, field list and raw scans">⚙</button></div>
       <div class="livevars">${varChips(cols, live.vars, "livevar")}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
     for (const b of st.querySelectorAll(".livevar")) b.onclick = () => { live.vars = live.vars.includes(b.dataset.v) ? live.vars.filter((x) => x !== b.dataset.v) : [...live.vars, b.dataset.v]; store.set("casts.live.vars", live.vars); drawLive(host); };
     for (const b of st.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
     st.querySelector("#livecfg").onclick = () => { live.showCfg = !live.showCfg; liveCfgForm(host, d); };
     liveCfgForm(host, d);
     if (!cast || !cast.t.length) {
-      body.innerHTML = `<div class="empty">${d.packets ? "Packets arrive but no cast is in the water yet — the plot starts when pressure passes 2 dbar." : "Waiting for the deck unit. Start acquisition in Seasave; the plot begins when the package goes in."}</div>`;
+      body.innerHTML = `<div class="empty">${d.tcp_state === "connected" && !announced ? `Seasave at ${esc(d.tcp)} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).` : d.no_pressure ? "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m]." : d.packets ? "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m." : d.tcp_state === "connected" ? "Connected to Seasave; the plot begins when acquisition starts and the package goes in." : d.tcp ? `Seasave at ${esc(d.tcp)} is not answering (${esc(d.tcp_state)}); retrying.` : "No Seasave source set — use ⚙."}</div>`;
       return;
     }
     const P = cast.cols[cast.pressure_col || d.pressure_col] || [], lat = UW.M.latest?.lat ?? 70;
@@ -293,7 +315,7 @@
     let imax = 0; for (let i = 0; i < P.length; i++) if (P[i] != null && P[i] > (P[imax] ?? -1)) imax = i;
     const li = depth.length - 1;
     drawOverlay(body, "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li],
-      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + new Date(cast.started * 1000).toISOString().slice(11, 16) + "Z" : ""}` }, live.vars);
+      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, live.vars);
     wireCastPanels(host, () => drawLive(host));
   }
 
@@ -484,9 +506,9 @@
       km.push(km[i - 1] + (a.lat != null && b.lat != null ? haversine(a, b) : 1));
     }
     const tms = withVar.map((d, i) => d.time ? Date.parse(d.time + (d.time.endsWith("Z") ? "" : "Z")) : i);
-    const xs = byTime ? tms : km;
-    const xTitle = byTime ? "time (UTC)" : "distance along section (km)";
-    const xFmt = (i) => byTime ? (withVar[i].time || "").replace("T", " ").slice(0, 16) : `${km[i].toFixed(0)} km`;
+    const xs = byTime ? tms.map((t) => UW.shipAxis(t)) : km;
+    const xTitle = byTime ? `ship time (${UW.tzAbbr()})` : "distance along section (km)";
+    const xFmt = (i) => byTime ? fmtTs(tms[i]) : `${km[i].toFixed(0)} km`;
     const unit = withVar[0].units[v] || "";
     // Resample onto a regular x grid so the section interpolates between
     // profiles in both modes (a heatmap on irregular x only smooths in pixels).
@@ -512,7 +534,7 @@
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 12 }, outlinewidth: 0 },
-        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}Z" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
+        hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
         hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
@@ -553,8 +575,20 @@
   }
 
   // ================================================================ calendar
-  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", new Date().toISOString().slice(0, 7)),
-    span: store.get("cal.span", "days"), day: store.get("cal.day", new Date().toISOString().slice(0, 10)) };
+  // The ship stays on Quebec time, so every time a person reads on this tab
+  // is ship time (SITE.local_tz); the instants underneath stay UTC.
+  const LTZ = UW.SITE.local_tz;
+  const _lparts = new Intl.DateTimeFormat("en-CA", { timeZone: LTZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const localParts = (t) => { const o = {}; for (const p of _lparts.formatToParts(new Date(t))) o[p.type] = p.value; return o; };
+  const dayL = (t) => { const p = localParts(t); return `${p.year}-${p.month}-${p.day}`; };            // YYYY-MM-DD, ship time
+  const hmL = (t) => { const p = localParts(t); return `${p.hour}:${p.minute}`; };                       // HH:MM, ship time
+  const tzAbbr = (t = Date.now()) => (new Intl.DateTimeFormat("en-US", { timeZone: LTZ, timeZoneName: "short" }).formatToParts(new Date(t)).find((p) => p.type === "timeZoneName") || {}).value || LTZ;
+  const offsetMs = (t) => { const p = localParts(t); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(t / 60000) * 60000; };  // ship time minus UTC
+  const localMidnight = (key) => { const g = Date.parse(key + "T00:00:00Z"); return g - offsetMs(g); }; // the instant the ship day begins
+  const nextDay = (key) => dayL(localMidnight(key) + 36 * 3600e3);
+  const stampL = (t) => `${dayL(t)} ${hmL(t)}`;
+  const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", dayL(Date.now()).slice(0, 7)),
+    span: store.get("cal.span", "days"), day: store.get("cal.day", dayL(Date.now())) };
   async function ensureCalendar() {
     const stamp = UW.M.generated_utc;
     if (cal.data && cal.loadedFor === stamp) return;
@@ -564,77 +598,179 @@
   function renderCalendar() {
     const host = $("#calendar"); if (!cal.data) return;
     const s = cal.data.schedule || {};
-    $("#calmeta").textContent = `${cal.data.events.length} logged events · schedule ${s.updated ? "updated " + s.updated : "unavailable"}${s.stale ? " (cached copy)" : ""}`;
+    $("#calmeta").textContent = `${cal.data.events.length} logged events · schedule ${s.updated ? "updated " + s.updated : "unavailable"}${s.stale ? " (cached copy)" : ""} · times are ship time (${tzAbbr()})`;
     const q = cal.search.toLowerCase();
     const f = UW.currentFilter();
     const evs = cal.data.events.filter((e) => UW.inFilter(e.leg, e.time_utc, f)).filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
     if (cal.view === "timeline") return renderTimeline(host, evs, s);
     if (cal.view === "month") return renderMonth(host, q);
-    const isoDay = (r) => { const t = UW.tms(r.start_utc); return isNaN(t) ? esc(r.date) : new Date(t).toISOString().slice(0, 10); };
-    const sched = (s.rows || []).map((r) => `<tr class="st-${esc((r.status || "").toLowerCase().replace(/\s+/g, "-"))}"><td>${isoDay(r)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td><span class="status">${esc(r.status)}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`).join("");
+    const isoDay = (r) => { const t = UW.tms(r.start_utc); return isNaN(t) ? esc(r.date) : dayL(t); };
+    // finished operations (completed or canceled, dated or not) fold into
+    // one line until asked for. The toggle is emitted ahead of the rows so it
+    // stays at the top of the table.
+    const FOLDED_STATUS = /^(completed|cancell?ed)$/i;
+    const finishedToday = (r) => FOLDED_STATUS.test((r.status || "").trim());
+    const done = (s.rows || []).filter((r) => finishedToday(r) && r.start_utc);
+    const nDone = done.filter((r) => /^completed$/i.test((r.status || "").trim())).length;
+    const nCanc = done.length - nDone;
+    const foldLabel = [nDone && `${nDone} completed`, nCanc && `${nCanc} canceled`].filter(Boolean).join(" \u00b7 ");
+    const foldToggle = done.length
+      ? `<tr class="fold"><td colspan="7"><button id="schedunfold">${cal.showDone ? "\u25be hide" : "\u25b8 show"} ${foldLabel}</button></td></tr>`
+      : "";
+    const sched = foldToggle + (s.rows || []).map((r) => {
+      if (finishedToday(r) && (!cal.showDone || !r.start_utc)) return "";
+      if (q && !`${r.station} ${r.operation} ${r.status} ${r.comment} ${isoDay(r)}`.toLowerCase().includes(q)) return "";
+      return `<tr class="${statusClass(r.status || "upcoming")}"><td>${isoDay(r)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td><span class="status">${esc(r.status || "upcoming")}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`;
+    }).join("");
     let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
-      (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
+      (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
       `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
-      ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
-    // agenda: logged events and scheduled operations (current and former)
-    // grouped by UTC day, newest first
-    // every source has its own time format (the event log writes 2026/09/03
-    // 11:23:12, the schedule ISO), so group and sort on instants
+      ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p>` +
+      alertsHtml() + `</section>`;
+    const wasOpen = host.querySelector("#alerts")?.open;
+    host.innerHTML = html;
+    const det = host.querySelector("#alerts"); if (det && wasOpen) det.open = true;
+    wireAlerts(host);
+    const unfold = host.querySelector("#schedunfold"); if (unfold) unfold.onclick = () => { cal.showDone = !cal.showDone; renderCalendar(); };
+  }
+  // the event log: logged events and scheduled operations (current and
+  // former) grouped by ship day, newest first; every row carries the key its
+  // timeline point uses (e:<index> / r:<row key>)
+  // every source has its own time format (the event log writes 2026/09/03
+  // 11:23:12, the schedule ISO), so group and sort on instants
+  function eventListHtml(evs, s, q, f) {
+    const hm = (t) => isNaN(t) ? "" : hmL(t);
     const byDay = new Map();
-    const iso = (t) => isNaN(t) ? "" : new Date(t).toISOString();
-    const hm = (t) => iso(t).slice(11, 16);
-    const add = (t, x) => { const d = iso(t).slice(0, 10) || "undated"; if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ t: isNaN(t) ? 0 : t, ...x }); };
-    for (const e of evs) add(UW.tms(e.time_utc), { e });
-    for (const r of scheduledRows(s)) if ((!q || JSON.stringify(r).toLowerCase().includes(q)) && (UW.inFilter(null, r.start_utc, f) || UW.inFilter(null, r.end_utc, f) || UW.tms(r.start_utc) > f.end)) add(UW.tms(r.start_utc), { r });
+    const add = (t, x) => { const d = isNaN(t) ? "undated" : dayL(t); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ t: isNaN(t) ? 0 : t, ...x }); };
+    evs.forEach((e, i) => add(UW.tms(e.time_utc), { e, k: `e:${i}` }));
+    for (const r of scheduledRows(s)) if ((!q || JSON.stringify(r).toLowerCase().includes(q)) && (UW.inFilter(null, r.start_utc, f) || UW.inFilter(null, r.end_utc, f) || UW.tms(r.start_utc) > f.end)) add(UW.tms(r.start_utc), { r, k: rowKey(r) });
     const days = [...byDay.keys()].sort().reverse().slice(0, 60);
-    const evHtml = (e) => `<div class="ev" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
-          <span class="t">${hm(UW.tms(e.time_utc))}Z</span>
+    const evHtml = (e, k) => `<div class="ev" data-key="${esc(k)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
+          <span class="t">${hm(UW.tms(e.time_utc))}</span>
           <span class="st">${esc(e.station || "")}</span>
           <span class="what">${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</span>
           <span class="pos muted">${e.lat != null && e.lon != null ? dms(+e.lat, +e.lon) : ""}${e.depth_m != null ? " · " + Math.round(+e.depth_m) + " m" : ""}</span>
           ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`;
-    const schedHtml = (r) => `<div class="ev sched ${r.former ? "former" : ""}">
-          <span class="t">${hm(UW.tms(r.start_utc))}Z</span>
+    const nextKey = UW.M.calendar?.now?.next?.key;
+    const schedHtml = (r, k) => `<div class="ev sched ${r.former ? "former" : ""} ${statusClass(r.status)} ${!r.former && r.key === nextKey ? "next" : ""}" data-key="${esc(k)}">
+          <span class="t">${hm(UW.tms(r.start_utc))}</span>
           <span class="st">${esc(r.station || "")}</span>
-          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : "scheduled"}</span> <span class="status">${esc(r.status || "")}</span></span>
-          <span class="pos muted">${hm(UW.tms(r.start_utc))}–${hm(UW.tms(r.end_utc))}Z${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
+          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : !r.former && r.key === nextKey ? "up next" : "scheduled"}</span> <span class="status">${esc(r.status || "upcoming")}</span></span>
+          <span class="pos muted">${hm(UW.tms(r.start_utc))}–${hm(UW.tms(r.end_utc))}${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
           ${r.comment ? `<span class="cm muted">${esc(r.comment)}</span>` : ""}</div>`;
-    html += `<section class="agenda">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t - a.t); const first = items.find((x) => x.e)?.e;
-      return `<div class="day"><h4>${esc(d)} <small>${items.filter((x) => x.e).length} events · ${items.filter((x) => x.r).length} scheduled · ${esc(UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "")}</small></h4>` +
-        items.map((x) => x.e ? evHtml(x.e) : schedHtml(x.r)).join("") + `</div>`; }).join("") + `</section>`;
-    host.innerHTML = html;
+    return `<section class="agenda evlog" id="evlog">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t - a.t); const first = items.find((x) => x.e)?.e;
+      return `<div class="day"><h4>${esc(d)}${d === dayL(Date.now()) ? " · today" : ""} <small>${items.filter((x) => x.e).length} events · ${items.filter((x) => x.r).length} scheduled · ${esc(UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "")} · ${tzAbbr()}</small></h4>` +
+        items.map((x) => x.e ? evHtml(x.e, x.k) : schedHtml(x.r, x.k)).join("") + `</div>`; }).join("") + `</section>`;
+  }
+  const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
+  function wireEventList(host) {
     for (const el of host.querySelectorAll(".ev[data-lat]")) el.onclick = () => { if (el.dataset.lat) UW.focusMap(el.dataset.lat, el.dataset.lon, el.querySelector(".st")?.textContent); };
+  }
+  // a click on the timeline scrolls the log to that row (the log's own scroll, not the page's)
+  function showLogRow(host, key) {
+    const log = host.querySelector("#evlog"), row = log?.querySelector(`.ev[data-key="${CSS.escape(key)}"]`);
+    if (!log || !row) return;
+    for (const x of log.querySelectorAll(".ev.on")) x.classList.remove("on");
+    row.classList.add("on");
+    log.scrollTo({ top: row.offsetTop - log.offsetTop - log.clientHeight / 3, behavior: "smooth" });
+    if (row.dataset.lat) UW.focusMap(row.dataset.lat, row.dataset.lon, row.querySelector(".st")?.textContent);
+  }
+  // alerts: subscribe by email here, or through the Telegram bot
+  function alertsHtml() {
+    const a = UW.M.alerts || {};
+    if (!a.email && !a.telegram_bot) return "";
+    const saved = store.get("alerts.email", "");
+    return `<details class="alerts" id="alerts"><summary>🔔 Get alerts for scheduled operations</summary>
+      ${a.email ? `<form id="alertform" class="alertform">
+        <label>email <input type="email" name="to" required value="${esc(saved)}" placeholder="you@example.org"></label>
+        <label>only operations matching <input name="match" placeholder="e.g. CardS-3, CTD — blank for everything" size="34"></label>
+        <label>warn <select name="lead_min"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 h</option><option value="120">2 h</option></select> ahead</label>
+        <span class="evs"><label><input type="checkbox" name="events" value="upcoming" checked> starting soon</label><label><input type="checkbox" name="events" value="started" checked> started</label><label><input type="checkbox" name="events" value="finished"> finished</label><label><input type="checkbox" name="events" value="moved" checked> time changed</label></span>
+        <button type="submit">subscribe</button><span class="muted" id="alertmsg"></span></form>` : ""}
+      ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it.</p>` : ""}
+      <p class="muted small">Every alert email carries an unsubscribe link. Times are ship time.</p></details>`;
+  }
+  function wireAlerts(host) {
+    const f = host.querySelector("#alertform"); if (!f) return;
+    f.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(f), msg = f.querySelector("#alertmsg");
+      const body = { channel: "email", to: fd.get("to"), match: fd.get("match"), lead_min: fd.get("lead_min"), events: fd.getAll("events") };
+      msg.textContent = "saving…";
+      try {
+        const r = await fetch("api/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.status);
+        store.set("alerts.email", j.to);
+        msg.textContent = `subscribed ${j.to}: ${j.match || "everything"}, ${j.lead_min} min ahead`;
+      } catch (e) { msg.textContent = `not saved: ${e.message}`; }
+    };
   }
   // current rows plus the former ones the history remembers, each with UTC instants
   const scheduledRows = (s) => [...(s.rows || []), ...(s.former || [])].filter((r) => r.start_utc && r.end_utc);
+  // "In progress" -> st-in-progress, for the agenda, the schedule table and the calendar blocks
+  const statusClass = (status) => status ? "st-" + String(status).toLowerCase().replace(/\s+/g, "-") : "";
+  // one colour per kind of operation, shared by the timeline's event-log
+  // rows and its scheduled bars so a scheduled CTD and a logged CTD match
+  const OP_KINDS = [["transit", /transit|steam/i], ["ctd", /ctd|rosette/i], ["core", /core|corer/i], ["net", /net|ikmt|hydrobios|tucker|monster|catcher|pump/i],
+    ["camera", /cam|rov|subocean|hydroscat|c-ops/i], ["boat", /zodiac|barge|community|tour|open house/i], ["mapping", /mapping|survey|multibeam/i], ["break", /break|lunch|dinner|meal/i]];
+  const OP_COLOUR = { transit: "#8ea3ba", ctd: "#5cc8ff", core: "#e3b341", net: "#7ee787", camera: "#d2a8ff", boat: "#ff9bce", mapping: "#79c0ff", break: "#6b7787" };
+  const opKind = (name) => (OP_KINDS.find(([, re]) => re.test(name || "")) || [""])[0];
+  // the instrument or process behind a free-text activity or operation name,
+  // so the timeline has one row for "Box Core", "Box Core - GEO" and "Box core
+  // bio", one "Transit" for every "Transit to <station>", one "Baited Cam" for
+  // its deployment and recovery
+  const OP_NAMES = [["Transit", /transit|steam/i], ["CTD Rosette", /ctd.?rosette|classic.?rosette|^rosette/i], ["TM Rosette", /tm.?rosette/i], ["CTD", /^ctd\b/i],
+    ["Box Core", /box.?core/i], ["Gravity Core", /gravity.?core/i], ["Multicorer", /multi.?corer/i], ["Piston Core", /piston/i],
+    ["Baited Cam", /baited.?cam/i], ["Drop Camera", /drop.?cam/i], ["ROV", /\brov\b/i], ["SubOcean", /subocean/i],
+    ["Tucker Net", /tucker/i], ["Monster Net", /monster/i], ["IKMT", /ikmt/i], ["Hydrobios", /hydrobios/i], ["Snow Catcher", /snow.?catcher/i], ["Agassiz Trawl", /agassiz/i], ["Plankton Net", /plankton|bongo|wp2/i],
+    ["In-situ Pumps", /in.?situ.?pump/i], ["Zodiac", /zodiac/i], ["Barge", /barge/i], ["Helicopter", /helicopter|heli\b/i], ["Mooring", /mooring/i], ["Lander", /lander/i],
+    ["Mapping", /mapping|multibeam|survey/i], ["Break", /break|lunch|dinner|meal/i], ["Crew Change", /crew.?change/i], ["Community Visit", /community|ship.?tour|open.?house/i],
+    ["C-OPS", /c-?ops/i], ["Hydroscat", /hydroscat/i], ["SCUBA", /scuba|dive/i], ["Ice Station", /ice.?station|ice.?work/i]];
+  const opName = (name) => {
+    const hit = OP_NAMES.find(([, re]) => re.test(name || ""));
+    if (hit) return hit[0];
+    // otherwise: drop a leading verb, a trailing count or size, and tidy the case
+    const s = String(name || "other").replace(/^(deploy|recover|retrieve|launch|drop|start|end|stop)\s+/i, "").replace(/\s+(\d+\s*(x\s*\d+\s*m)?|[A-Z]|bio|geo)\s*$/i, "").replace(/\s*[-–]\s*(geo|bio|p)\s*$/i, "").trim();
+    return s ? s.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1)) : "other";
+  };
+  const opColour = (name, fallback) => OP_COLOUR[opKind(name)] || fallback;
   function renderTimeline(host, evs, s) {
     const now = Date.now();
-    const when = (e) => new Date(UW.tms(e.time_utc));
+    const shifted = (t) => new Date(t + offsetMs(t));      // the axis reads as ship time
+    const when = (e) => shifted(UW.tms(e.time_utc));
     const recent = evs;                                   // already the legs and span on display
-    const counts = new Map(); for (const e of recent) counts.set(e.activity || "other", (counts.get(e.activity || "other") || 0) + 1);
+    const counts = new Map(); for (const e of recent) counts.set(opName(e.activity), (counts.get(opName(e.activity)) || 0) + 1);
     const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 19).map(([t]) => t);
-    const typeOf = (e) => top.includes(e.activity || "other") ? (e.activity || "other") : "other";
+    const typeOf = (e) => top.includes(opName(e.activity)) ? opName(e.activity) : "other";
     const types = [...new Set(recent.map(typeOf))];
     const traces = types.map((t, i) => {
-      const es = recent.filter((e) => typeOf(e) === t);
-      return { type: "scatter", mode: "markers", name: t, x: es.map(when), y: es.map(() => t),
-        text: es.map((e) => `${esc(e.station || "")} · ${esc(e.event || "")} ${esc(e.label || "")}`), hovertemplate: "%{x|%Y-%m-%d %H:%M}Z<br>%{text}<extra>" + esc(t) + "</extra>",
-        marker: { size: 8, color: PALETTE[i % PALETTE.length] } };
+      const es = recent.map((e, j) => [e, j]).filter(([e]) => typeOf(e) === t).map(([e]) => e);
+      const idx = recent.map((e, j) => [e, j]).filter(([e]) => typeOf(e) === t).map(([, j]) => `e:${j}`);
+      return { type: "scatter", mode: "markers", name: t, x: es.map(when), y: es.map(() => t), customdata: idx,
+        text: es.map((e) => `${esc(e.station || "")} · ${esc(e.activity || "")} · ${esc(e.event || "")} ${esc(e.label || "")}`), hovertemplate: "%{x|%Y-%m-%d %H:%M} " + tzAbbr() + "<br>%{text}<extra>" + esc(t) + "</extra>",
+        marker: { size: 8, color: opColour(t, PALETTE[i % PALETTE.length]) } };
     });
-    // scheduled operations as bars on their own row: current ones bright,
-    // former ones (off the intranet page now) dimmer
+    // scheduled operations as bars on their own row, coloured like the
+    // event-log row of the same kind: current ones bright, former ones (off
+    // the intranet page now) dimmer
     const f = UW.currentFilter();
-    const rows = scheduledRows(s).map((r) => ({ r, d0: new Date(r.start_utc), d1: new Date(r.end_utc) })).filter((b) => b.d1 >= f.start);
-    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"),
-      text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${new Date(UW.tms(b.r.start_utc)).toISOString().slice(0, 16).replace("T", " ")}–${new Date(UW.tms(b.r.end_utc)).toISOString().slice(11, 16)}Z`),
-      hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => b.r.former ? "rgba(255,180,84,.35)" : "rgba(255,180,84,.8)"), line: { color: "#ffb454", width: 1 } }, width: .5 });
-    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide');
-    const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 10, b: 40 }, barmode: "overlay",
-      xaxis: { ...THEME.xaxis, type: "date", title: { text: "UTC", font: { size: 12 } }, tickfont: { size: 12 } },
+    const rows = scheduledRows(s).map((r) => ({ r, d0: shifted(UW.tms(r.start_utc)), d1: shifted(UW.tms(r.end_utc)) })).filter((b) => b.d1 - offsetMs(b.d1) >= f.start);
+    const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+    const barColour = (b) => opColour(b.r.operation, PALETTE[(b.r.operation || "").length % PALETTE.length]);
+    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
+      text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${stampL(UW.tms(b.r.start_utc))}–${hmL(UW.tms(b.r.end_utc))} ${tzAbbr()}`),
+      hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => rgba(barColour(b), b.r.former ? .3 : .8)), line: { color: rows.map(barColour), width: 1 } }, width: .5 });
+    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span · click a point for its log entry`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
+      eventListHtml(evs, s, cal.search.toLowerCase(), f);
+    wireEventList(host);
+    const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 28, b: 58 }, barmode: "overlay",
+      xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: 12 } }, tickfont: { size: 12 } },
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 12 }, fixedrange: true },
-      shapes: [{ type: "line", xref: "x", x0: new Date(now), x1: new Date(now), yref: "paper", y0: 0, y1: 1, line: { color: "#7ee787", width: 1.5, dash: "dot" } }] };
-    Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
+      shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: "#ff5c5c", width: 2 } }],
+      annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: 11, color: "#ff5c5c" } }] };
+    Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
     wireCastPanels(host, () => renderTimeline(host, evs, s));
   }
   // Calendar view: a month grid or three days centred on a day, from the
@@ -649,31 +785,33 @@
       items[i].summary === "TSG pump off / low intake flow" && pump.some(e => UW.tms(e.time_utc) === UW.tms(items[i].start))) items.splice(i, 1);
     for (const e of pump) items.push({start:e.time_utc,end:e.end_utc,summary:e.event,
       description:e.comment,cal:"pump",label:"TSG intake",leg:e.leg});
-    // the intranet rows are also pushed to the Amundsen Schedule calendar; the
-    // row itself is the fresher copy (the feed lags the push by minutes), so
-    // a feed event that is one of our rows gives way to the row
+    // the intranet rows are also pushed to the Amundsen Schedule calendar as
+    // "[status] station — operation"; the row itself is the fresher copy (the
+    // public feed lags the push by minutes to hours), so a feed event that
+    // names one of our rows gives way to the row whatever time it still shows
     const rows = scheduledRows(cal.data.schedule || {});
-    const isRowCopy = (e) => e.cal === "schedule" && rows.some((r) => Math.abs(UW.tms(e.start) - UW.tms(r.start_utc)) < 90e3 && (e.summary || "").includes(r.station || "\u0000"));
+    const rowName = (station, op) => `${station || ""} — ${op || ""}`.replace(/\s+/g, " ").trim();
+    const rowNames = new Set(rows.map((r) => rowName(r.station, r.operation)));
+    const isRowCopy = (e) => { const m = /^\[(?!EventLog\])[^\]]*\]\s*(.*)$/.exec(e.summary || ""); return e.cal === "schedule" && m && rowNames.has(m[1].replace(/\s+/g, " ").trim()); };
     for (let i = items.length - 1; i >= 0; i--) if (isRowCopy(items[i])) items.splice(i, 1);
     for (const r of rows) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
-      description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule" });
+      description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule", status: r.status, key: r.key });
     items.forEach((e, i) => { e.id = i; });
     return items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
   }
-  const dayKey = (d) => d.toISOString().slice(0, 10);
-  const evStart = (e) => new Date(e.all_day ? e.start + "T00:00:00Z" : e.start);
-  const evEnd = (e) => e.end ? new Date(e.all_day ? e.end + "T00:00:00Z" : e.end) : evStart(e);
+  const evStart = (e) => new Date(e.all_day ? localMidnight(e.start) : e.start);
+  const evEnd = (e) => e.end ? new Date(e.all_day ? localMidnight(e.end) : e.end) : evStart(e);
   // block text without the prefixes the layout already conveys: a leading
   // "[status] ", "scheduled · " / "was scheduled · ", and a trailing " at <date>"
   const shortSummary = (t) => String(t || "").replace(/^\[[^\]]*\]\s*/, "").replace(/^(was )?scheduled · /, "").replace(/ at \d{4}-\d{2}-\d{2}[^,;]*$/, "");
   function entryHtml(e, cont) {
     return `<div class="mev" data-id="${e.id}" style="border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
-      `<span class="mt">${cont || e.all_day ? "" : evStart(e).toISOString().slice(11, 16) + "Z"}</span> ${esc(e.summary || "")}</div>`;
+      `<span class="mt">${cont || e.all_day ? "" : hmL(evStart(e))}</span> ${esc(e.summary || "")}</div>`;
   }
   function detailHtml(e) {
     const t0 = evStart(e), t1 = evEnd(e);
     const when = e.all_day ? `${e.start}${e.end && e.end !== e.start ? " → " + e.end : ""} (all day)` :
-      `${t0.toISOString().slice(0, 16).replace("T", " ")}Z → ${t1.toISOString().slice(0, 16).replace("T", " ")}Z · ${((t1 - t0) / 3600e3).toFixed(1)} h`;
+      `${stampL(t0)} → ${stampL(t1)} ${tzAbbr(t1)} · ${((t1 - t0) / 3600e3).toFixed(1)} h`;
     const pos = /Position:\s*([\d.]+)°([NS]),\s*([\d.]+)°([EW])/.exec(e.description || "");
     return `<div class="mdetail"><button class="mclose" title="close">✕</button>
       <div class="mdlabel" style="color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}">${esc(e.label)}</div>
@@ -704,10 +842,10 @@
         <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || "#8ea3ba"}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:#8ea3ba"></i>intranet schedule</span></div>
       <div id="mdetailbox" hidden></div>
       ${body}
-      <p class="muted small">Times UTC. Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
+      <p class="muted small">Times are ship time (${tzAbbr()}). Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
     for (const b of host.querySelectorAll("#calspan button")) b.onclick = () => { cal.span = b.dataset.s; store.set("cal.span", cal.span); renderCalendar(); };
     $("#mprev").onclick = () => navShift(-1); $("#mnext").onclick = () => navShift(1);
-    $("#mtoday").onclick = () => { cal.day = dayKey(new Date()); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); };
+    $("#mtoday").onclick = () => { cal.day = dayL(Date.now()); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); };
     wireEntries(host, items);
   }
   function renderMonth(host, q) {
@@ -719,62 +857,76 @@
     const lead = (first.getUTCDay() + 6) % 7;                 // Monday first
     const byDay = new Map();
     for (const e of items) {
-      const d0 = evStart(e), d1 = evEnd(e);
-      for (let d = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate())); d <= d1 && d - d0 < 62 * 86400e3; d = new Date(d.getTime() + 86400e3)) {
-        if (e.all_day && e.end && d >= d1) break;              // all-day ends are exclusive
-        const k = dayKey(d);
-        if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push({ e, cont: (d - d0) >= 86400e3 });
+      const d0 = evStart(e).getTime(), d1 = evEnd(e).getTime();
+      const seen = new Set();
+      // every ship day the event touches (half-day steps survive a clock change)
+      for (let t = d0; (t < d1 || t === d0) && t - d0 < 62 * 86400e3; t += 43200e3) {
+        if (e.all_day && e.end && t >= d1) break;              // all-day ends are exclusive
+        const k = dayL(t);
+        if (seen.has(k)) continue; seen.add(k);
+        if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push({ e, cont: seen.size > 1 });
       }
     }
-    const today = dayKey(new Date());
+    const today = dayL(Date.now());
     const cells = [];
     for (let i = 0; i < lead; i++) cells.push('<div class="mcell pad"></div>');
     for (let d = 1; d <= days; d++) {
       const k = `${cal.month}-${String(d).padStart(2, "0")}`;
-      const evs = (byDay.get(k) || []).sort((a, b) => a.e.start.localeCompare(b.e.start));
+      const evs = (byDay.get(k) || []).sort((a, b) => evStart(a.e) - evStart(b.e));
       cells.push(`<div class="mcell ${k === today ? "today" : ""}" data-day="${k}"><div class="mday">${d}</div>` +
         evs.slice(0, 6).map(({ e, cont }) => entryHtml(e, cont)).join("") +
         (evs.length > 6 ? `<div class="mmore">+${evs.length - 6} more</div>` : "") + `</div>`);
     }
-    const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+    const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: LTZ });
     calFrame(host, label, `<div class="mgrid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>`, items,
       (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); });
     // a day number opens that day in the 3-day view
     for (const c of host.querySelectorAll(".mcell[data-day] .mday")) c.onclick = () => { cal.day = c.parentElement.dataset.day; cal.span = "days"; store.set("cal.day", cal.day); store.set("cal.span", "days"); renderCalendar(); };
   }
-  // three days centred on cal.day, with a time axis; timed entries are
+  // three ship days centred on cal.day, with a time axis; timed entries are
   // blocks, all-day ones sit at the top
   function renderDays(host, q) {
     const items = calendarItems(q);
-    const centre = new Date(cal.day + "T00:00:00Z");
-    const days = [-1, 0, 1].map((n) => new Date(centre.getTime() + n * 86400e3));
-    const today = dayKey(new Date());
-    const now = new Date();
-    const cols = days.map((d) => {
-      const k = dayKey(d), d0 = d, d1 = new Date(d.getTime() + 86400e3);
+    const centre = localMidnight(cal.day);
+    const keys = [-1, 0, 1].map((n) => dayL(centre + n * 86400e3 + 43200e3));
+    const today = dayL(Date.now());
+    const now = Date.now();
+    const cols = keys.map((k) => {
+      const d0 = localMidnight(k), d1 = localMidnight(nextDay(k)), hours = (d1 - d0) / 3600e3;
       const here = items.filter((e) => evStart(e) < d1 && evEnd(e) > d0 || (e.all_day && e.start === k));
       const allDay = here.filter((e) => e.all_day), timed = here.filter((e) => !e.all_day);
       // lay overlapping blocks side by side
       // longer blocks first so a short one drawn later sits on top of a long
       // one it overlaps; overlapping blocks share the column side by side
       const sorted = timed.sort((a, b) => (evStart(a) - evStart(b)) || ((evEnd(b) - evStart(b)) - (evEnd(a) - evStart(a))));
+      // overlapping blocks share the column width equally: a block alone is
+      // full width, two together half each, three a third; the lanes are
+      // dealt within each cluster of mutually overlapping blocks
       const lanes = [];
-      for (const e of sorted) { let l = 0; while (lanes[l] && lanes[l] > evStart(e)) l++; lanes[l] = evEnd(e); e._lane = l; }
-      const nl = Math.max(1, lanes.length);
+      let cluster = [], clusterEnd = -Infinity;
+      const close = () => { const nl = Math.max(1, ...cluster.map((e) => e._lane + 1)); for (const e of cluster) e._nl = nl; cluster = []; lanes.length = 0; };
+      for (const e of sorted) {
+        if (cluster.length && evStart(e) >= clusterEnd) close();
+        let l = 0; while (lanes[l] && lanes[l] > evStart(e)) l++;
+        lanes[l] = evEnd(e); e._lane = l; cluster.push(e); clusterEnd = Math.max(clusterEnd, evEnd(e));
+      }
+      close();
       const blocks = sorted.map((e, i) => {
-        const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(24, (evEnd(e) - d0) / 3600e3);
+        const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(hours, (evEnd(e) - d0) / 3600e3);
         // a short event still gets one readable line: the block is at least ~40 min tall
-        return `<div class="dblock mev" data-id="${e.id}" style="top:${(s / 24 * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / 24 * 100).toFixed(2)}%;left:${(e._lane / nl * 100).toFixed(1)}%;width:${(100 / nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${evStart(e).toISOString().slice(11, 16)}Z ${esc(e.summary)}">${esc(shortSummary(e.summary))}</div>`;
+        return `<div class="dblock mev ${statusClass(e.status)}" data-id="${e.id}" style="top:${(s / hours * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / hours * 100).toFixed(2)}%;left:${(e._lane / e._nl * 100).toFixed(1)}%;width:${(100 / e._nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${hmL(evStart(e))} ${esc(e.summary)}">${esc(shortSummary(e.summary))}</div>`;
       }).join("");
-      const nowLine = k === today ? `<div class="dnow" style="top:${((now.getUTCHours() + now.getUTCMinutes() / 60) / 24 * 100).toFixed(2)}%"></div>` : "";
-      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}</div>
+      const nowLine = k === today ? `<div class="dnow" style="top:${((now - d0) / (d1 - d0) * 100).toFixed(2)}%"><span>${hmL(now)}</span></div>` : "";
+      const head = new Date(d0 + 43200e3).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: LTZ });
+      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${head}${k === today ? " · today" : ""}</div>
         <div class="dallday">${allDay.map((e) => entryHtml(e, false)).join("")}</div>
-        <div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhour" style="top:${(h / 24 * 100).toFixed(2)}%"></div>`).join("")}${blocks}${nowLine}</div></div>`;
+        <div class="dbody">${Array.from({ length: Math.round(hours) }, (_, h) => `<div class="dhour" style="top:${(h / hours * 100).toFixed(2)}%"></div>`).join("")}${blocks}${nowLine}</div></div>`;
     }).join("");
-    const axis = `<div class="daxis"><div class="dhead"></div><div class="dallday"></div><div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhl" style="top:${(h / 24 * 100).toFixed(2)}%">${String(h).padStart(2, "0")}</div>`).join("")}</div></div>`;
-    const label = `${days[0].toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })} – ${days[2].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`;
+    const axis = `<div class="daxis"><div class="dhead">${tzAbbr()}</div><div class="dallday"></div><div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhl" style="top:${(h / 24 * 100).toFixed(2)}%">${String(h).padStart(2, "0")}</div>`).join("")}</div></div>`;
+    const dayLabel = (k, opts) => new Date(localMidnight(k) + 43200e3).toLocaleDateString(undefined, { ...opts, timeZone: LTZ });
+    const label = `${dayLabel(keys[0], { month: "short", day: "numeric" })} – ${dayLabel(keys[2], { month: "short", day: "numeric", year: "numeric" })}`;
     calFrame(host, label, `<div class="dgrid">${axis}${cols}</div>`, items,
-      (n) => { cal.day = dayKey(new Date(centre.getTime() + n * 86400e3)); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); });
+      (n) => { cal.day = dayL(centre + n * 86400e3 + 43200e3); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); });
   }
   function wireCalendar() {
     for (const b of $("#calview").querySelectorAll("button")) {
@@ -784,51 +936,77 @@
     $("#calsearch").oninput = debounce((e) => { cal.search = e.target.value; renderCalendar(); }, 150);
   }
 
-  // ================================================================ table
-  const tbl = { rule: store.get("tbl.rule", "stations"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
-  async function ensureAgg() {
-    const stamp = UW.M.generated_utc;
-    if (tbl.rule === "stations") return;
-    const rule = tbl.rule;
-    const data = await cachedJSON(`aggregate:${rule}`, UW.M.aggregates[rule].file);
-    if (tbl.loadedFor !== stamp) tbl.data = {};
-    tbl.data[rule] = data; tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
-  }
-  // stations: the CTD station list, one row per cast
-  const STATION_COLS = [["time", "time (UTC)"], ["leg", "leg"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
+  // ================================================================ stations
+  // one row per CTD cast from the logbook, and one per station the event
+  // log records without a cast (kind "event", with what was done there)
+  const stn = { kind: store.get("stn.kind", "all"), sort: store.get("stn.sort", { key: "time", dir: -1 }), search: "" };
+  const STATION_COLS = [["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
   function stationRows() {
-    const q = tbl.search.toLowerCase();
+    const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
-    let rows = (UW.M.stations || []).filter((s) => UW.inFilter(s.leg, s.time, f)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg }));
-    if (q) rows = rows.filter((r) => `${r.time} ${r.legLabel} ${r.station} ${r.label} ${r.type} ${r.comments}`.toLowerCase().includes(q));
-    const k = tbl.sort.key in { t: 1 } ? "time" : tbl.sort.key, dir = tbl.sort.dir;
+    let rows = (UW.M.stations || []).filter((s) => UW.inFilter(s.leg, s.time, f)).filter((s) => stn.kind === "all" || (s.kind === "event") === (stn.kind === "event")).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    if (q) rows = rows.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
+    const k = stn.sort.key, dir = stn.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
     return rows;
   }
   function renderStations() {
     const rows = stationRows();
-    const arrow = (k) => (tbl.sort.key === k || (k === "time" && tbl.sort.key === "t")) ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
+    const arrow = (k) => stn.sort.key === k ? (stn.sort.dir > 0 ? " ▲" : " ▼") : "";
     const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
-    const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc((r.time || "").replace("T", " ").slice(0, 16)) :
+    const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
-    const body = rows.map((r) => `<tr class="${casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
-    $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
-    const nsel = rows.filter((r) => casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
-    $("#tblmeta").textContent = `${rows.length.toLocaleString()} stations${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to select its cast (again to deselect)`;
-    for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
-      const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "time" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderStations();
+    const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
+    $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    const nsel = rows.filter((r) => r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
+    const nev = rows.filter((r) => !r.cast).length;
+    $("#stnmeta").textContent = `${rows.length.toLocaleString()} stations${nev ? ` (${nev} without a cast)` : ""}${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to select its cast (again to deselect), or to find a station on the map`;
+    for (const th of $("#stationtable").querySelectorAll("th")) th.onclick = () => {
+      const k = th.dataset.k; stn.sort = { key: k, dir: stn.sort.key === k ? -stn.sort.dir : (k === "time" ? -1 : 1) }; store.set("stn.sort", stn.sort); renderStations();
     };
     // a click selects the cast (and shows the station on the map); a click on
     // a selected row deselects it
-    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = async () => {
+    for (const [i, tr] of [...$("#stationtable").querySelectorAll("tbody tr")].entries()) tr.onclick = async () => {
       const r = rows[i], key = `${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`;
+      if (!r.cast) {                                      // a station without a cast: just find it on the map
+        for (const x of $("#stationtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
+        tr.classList.add("on"); UW.focusMap(r.lat, r.lon, r.station); return;
+      }
       const was = casts.sel.has(key);
       if (!was) UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
       await UW.onStationClick?.(key, { quiet: true, toggle: true });
       renderStations();
-      if (!was) $("#aggtable").querySelectorAll("tbody tr")[i]?.classList.add("on");
+      if (!was) $("#stationtable").querySelectorAll("tbody tr")[i]?.classList.add("on");
     };
+  }
+  function downloadStationsCSV() {
+    const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const rows = stationRows();
+    const lines = [STATION_COLS.map(([k]) => q(k)).join(",")].concat(rows.map((r) => STATION_COLS.map(([k]) => q(k === "leg" ? r.legLabel : r[k])).join(",")));
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "stations.csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  function wireStations() {
+    for (const b of $("#stnkind").querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.k === stn.kind);
+      b.onclick = () => { stn.kind = b.dataset.k; store.set("stn.kind", stn.kind); for (const x of $("#stnkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderStations(); };
+    }
+    $("#stnsearch").oninput = debounce((e) => { stn.search = e.target.value; renderStations(); }, 150);
+    $("#stncsv").onclick = downloadStationsCSV;
+  }
+
+  // ================================================================ table
+  // hourly or daily aggregates of the underway record
+  const tbl = { rule: store.get("tbl.rule", "1h"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
+  if (!["1h", "1d"].includes(tbl.rule)) tbl.rule = "1h";
+  async function ensureAgg() {
+    const stamp = UW.M.generated_utc;
+    const rule = tbl.rule;
+    const data = await cachedJSON(`aggregate:${rule}`, UW.M.aggregates[rule].file);
+    if (tbl.loadedFor !== stamp) tbl.data = {};
+    tbl.data[rule] = data; tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
   }
   function currentRows() {
     const d = tbl.data[tbl.rule]; if (!d) return [];
@@ -837,29 +1015,27 @@
     // A failed refresh can leave older table data visible; its numeric leg
     // codes must still be interpreted with the matching manifest.
     let rows = d.rows.filter((r) => UW.inFilter(tbl.legs[r.leg]?.id, r.t, f)).map((r) => ({ ...r, legLabel: tbl.legs[r.leg]?.label || "" }));
-    if (q) rows = rows.filter((r) => `${fmtUTC(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
+    if (q) rows = rows.filter((r) => `${fmtTs(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
     const k = tbl.sort.key, dir = tbl.sort.dir;
     const val = (r) => k === "t" ? r.t : k === "leg" ? r.legLabel : k === "lat" || k === "lon" ? r[k] : (r[k] ? r[k][tbl.stat] : null);
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
     return rows;
   }
   function renderTable() {
-    $("#aggstat").parentElement.hidden = tbl.rule === "stations";
-    if (tbl.rule === "stations") return renderStations();
     const d = tbl.data[tbl.rule]; if (!d) return;
     const rows = currentRows();
     const stat = ["mean", "min", "max", "n"][tbl.stat];
-    const cols = [["t", "time (UTC)"], ["leg", "leg"], ["lat", "lat"], ["lon", "lon"], ...d.variables.map((v) => [v, v])];
+    const cols = [["t", "time (ship)"], ["leg", "leg"], ["lat", "lat"], ["lon", "lon"], ...d.variables.map((v) => [v, v])];
     const arrow = (k) => tbl.sort.key === k ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
     const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
-    const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtUTC(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
+    const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtTs(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
     const shown = rows.slice(0, 2000);
     for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
       const r = shown[i]; if (r.lat == null) return;
       for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
-      tr.classList.add("on"); UW.focusMap(r.lat, r.lon, `${fmtUTC(r.t)} · ${r.legLabel}`);
+      tr.classList.add("on"); UW.focusMap(r.lat, r.lon, `${fmtTs(r.t)} · ${r.legLabel}`);
     };
     $("#tblmeta").textContent = `${rows.length.toLocaleString()} rows · ${stat}${rows.length > 2000 ? " · showing first 2000" : ""}`;
     for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
@@ -867,15 +1043,6 @@
     };
   }
   function downloadCSV() {
-    if (tbl.rule === "stations") {
-      const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-      const rows = stationRows();
-      const lines = [STATION_COLS.map(([k]) => q(k)).join(",")].concat(rows.map((r) => STATION_COLS.map(([k]) => q(k === "leg" ? r.legLabel : r[k])).join(",")));
-      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "stations.csv"; a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      return;
-    }
     const d = tbl.data[tbl.rule]; if (!d) return;
     const stat = ["mean", "min", "max", "n"][tbl.stat];
     const rows = currentRows();
@@ -912,12 +1079,12 @@
   const activeTab = () => [...document.querySelectorAll("#tabs button.on")].find((b) => b.dataset.tab !== "chat")?.dataset.tab;
   async function refreshActiveTab(force = false) {
     const name = activeTab();
-    if (!["casts", "calendar", "table"].includes(name)) return;
+    if (!["casts", "stations", "calendar", "table"].includes(name)) return;
     const stamp = UW.M.generated_utc;
     const key = `${name}:${stamp}:${name === "table" ? tbl.rule : ""}`;
     if (!force && refreshedTab === key) return;
     const seq = ++tabSeq;
-    const scope = { casts: "Casts", calendar: "Agenda", table: "Table" }[name];
+    const scope = { casts: "Casts", stations: "Stations", calendar: "Schedule", table: "Table" }[name];
     try {
       if (name === "casts") await ensureCastIndex();
       if (name === "calendar") await ensureCalendar();
@@ -927,6 +1094,7 @@
         renderCastList(); UW.renderMap();
         if (await renderCastPlots() === false) return;
       }
+      if (name === "stations") renderStations();
       if (name === "calendar") renderCalendar();
       if (name === "table") renderTable();
       if (seq !== tabSeq || stamp !== UW.M.generated_utc) return;
@@ -938,11 +1106,11 @@
   UW.refreshActiveTab = refreshActiveTab;
   UW.onTab = (name) => {
     ++tabSeq; ++plotSeq; // invalidate work belonging to the tab being left
-    for (const scope of ["Casts", "Agenda", "Table"]) UW.setLoadError(scope, false);
+    for (const scope of ["Casts", "Stations", "Schedule", "Table"]) UW.setLoadError(scope, false);
     if (name !== "casts") clearTimeout(live.timer);
     refreshActiveTab(true);
   };
-  wireCasts(); wireCalendar(); wireTable();
+  wireCasts(); wireStations(); wireCalendar(); wireTable();
   const active = document.querySelector("#tabs button.on")?.dataset.tab;
   if (active && active !== "underway") UW.onTab(active);
 })();

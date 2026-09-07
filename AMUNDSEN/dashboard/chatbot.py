@@ -28,6 +28,8 @@ log = logging.getLogger(__name__)
 
 LLM_URL = os.environ.get("UNDERWAY_LLM_URL", "http://127.0.0.1:11434")
 LLM_MODEL = os.environ.get("UNDERWAY_LLM_MODEL", "gemma4-local")
+LLM_API = os.environ.get("UNDERWAY_LLM_API", "ollama")
+LLM_CONFIG = Path.home() / '.config/underway/chat-model.json'
 CHIME_MIN_S = 45 * 60          # unprompted remarks at most this often …
 EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
@@ -71,7 +73,8 @@ class Crew:
         self.last_bot = 0.0
         self.seen_update = None
         self.seen_surprise = None
-        self.enabled = os.environ.get("UNDERWAY_LLM", "1") == "1"
+        self.pause_file = Path.home() / '.config/underway/chat-paused'
+        self.enabled = os.environ.get("UNDERWAY_LLM", "1") == "1" and not self.pause_file.exists()
 
     # ------------------------------------------------------------ context
     def _last(self, d: dict, name: str, nd=2) -> str:
@@ -146,9 +149,26 @@ class Crew:
         body = {"model": LLM_MODEL, "stream": False, "think": False, "keep_alive": "3h",
                 "options": {"num_predict": MAX_TOKENS, "num_ctx": NUM_CTX, "temperature": 1.0},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": task}]}
-        r = requests.post(f"{LLM_URL}/api/chat", json=body, timeout=TIMEOUT)
+        # Optional local configuration lets chat share the camera server, without
+        # asking Ollama to auto-load another copy of the model.
+        config = json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
+        backend = config.get('api', LLM_API)
+        url = config.get('url', LLM_URL).rstrip('/')
+        body['model'] = config.get('model', LLM_MODEL)
+        if backend == 'openai':
+            body = dict(model=body['model'], messages=body['messages'], stream=False,
+                        max_tokens=MAX_TOKENS, temperature=1.0,
+                        chat_template_kwargs={'enable_thinking': False})
+            endpoint = '/v1/chat/completions'
+        elif backend == 'ollama':
+            endpoint = '/api/chat'
+        else:
+            raise ValueError('Unknown chat API backend')
+        r = requests.post(url + endpoint, json=body, timeout=TIMEOUT)
         r.raise_for_status()
-        text = (r.json().get("message") or {}).get("content", "").strip()
+        result = r.json()
+        message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
+        text = (message.get('content') or '').strip()
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return text[:2500] or None
 

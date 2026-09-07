@@ -23,13 +23,20 @@
     set(k, v) { try { localStorage.setItem("uw:" + k, JSON.stringify(v)); } catch { /* private mode */ } },
   };
 
+  // the page opens on the current leg over its whole span ("leg"); later
+  // choices are remembered, and a browser with settings from before these
+  // defaults (prefs.v < 2) takes them once
+  const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
+  const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
+  if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
   const state = {
-    hidden: new Set(store.get("hiddenLegs", [])),   // leg ids switched off; default: everything shown
+    hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
     win: store.get("win", M.default_window),
     xmode: store.get("xmode", "time"),
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
+    trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the span)
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
@@ -43,6 +50,8 @@
   };
 
   const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)"]);
+  const extraPanels = new Map();
+  const extraColours = new Map();
   // the per-scale surprise series feed the one surprise panel, which shows
   // the scale matching the span on display (holding at the longest scale)
   const SURPRISE = "Surprise (−log10 p)";
@@ -88,7 +97,15 @@
   }
 
   // ------------------------------------------------------------ helpers
-  const fmtUTC = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 16) + "Z";
+  // Every time a person reads is ship time (SITE.local_tz); the instants
+  // stay UTC underneath. Plotly has no zones, so a date axis gets instants
+  // shifted by the offset (shipAxis) and reads as ship time.
+  const _lp = new Intl.DateTimeFormat("en-CA", { timeZone: SITE.local_tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const localParts = (ms) => { const o = {}; for (const p of _lp.formatToParts(new Date(ms))) o[p.type] = p.value; return o; };
+  const fmtTs = (ms) => { if (ms == null || isNaN(ms)) return ""; const p = localParts(ms); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`; };
+  const tzAbbr = (ms = Date.now()) => new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date(ms)).find((p) => p.type === "timeZoneName")?.value || SITE.local_tz;
+  const offsetMs = (ms) => { const p = localParts(ms); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60000) * 60000; };
+  const shipAxis = (ms) => new Date(ms + offsetMs(ms));
   const fmtLocal = (iso) => new Date(iso).toLocaleString(undefined, { timeZone: SITE.local_tz,
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const ago = (iso) => {
@@ -101,8 +118,8 @@
   const lastFinite = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i]; return null; };
   const fmtVal = (v, unit) => v == null ? "—" : `${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)}${unit ? " " + unit : ""}`;
   const dms = (lat, lon) => `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
-  const xvals = (d) => state.xmode === "time" ? d.t.map((ms) => new Date(ms)) : d.dist_km;
-  const xTitle = () => state.xmode === "time" ? "UTC" : "distance along track (km)";
+  const xvals = (d) => state.xmode === "time" ? d.t.map(shipAxis) : d.dist_km;
+  const xTitle = () => state.xmode === "time" ? `ship time (${tzAbbr()})` : "distance along track (km)";
   const minmax = (a) => { let lo = Infinity, hi = -Infinity; for (const x of a) if (x != null) { if (x < lo) lo = x; if (x > hi) hi = x; } return [lo, hi]; };
   const cssId = (s) => s.replace(/[^a-z0-9]+/gi, "_");
   const legById = (id) => M.legs.find((l) => l.id === id);
@@ -226,18 +243,28 @@
   }
 
   // ------------------------------------------------------------ header
+  // the subtitle: the time now (ship time), when the record last updated,
+  // and LIVE while observations are still arriving. The ship's ACSD system
+  // flushes its CSV every ten minutes, so the newest observation is up to
+  // eleven minutes old in normal running; LIVE holds up to fifteen.
   function renderStatus() {
-    const d = state.data;
     const end = M.data_range.end;
-    const stale = (Date.now() - new Date(end)) > 30 * 60 * 1000;
-    const live = legById(M.live);
-    const pos = M.latest ? dms(M.latest.lat, M.latest.lon) : "position unknown";
-    $("#status").innerHTML =
-      `${live ? `<b>${live.label}</b> <span class="live">live</span> · ` : ""}latest data <b>${fmtLocal(end)}</b> ship time` +
-      ` (${stale ? `<span class="stale">${ago(end)}</span>` : ago(end)}) · <b>${pos}</b>` +
-      (d ? ` · <b>${(d.shown ?? d.n).toLocaleString()}</b> points @ ${d.step_s}s` : "");
-    $("#gen").textContent = M.generated_utc.replace("T", " ").slice(0, 16) + "Z";
+    const ageMin = (Date.now() - new Date(end)) / 60000;
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: SITE.local_tz, year: "numeric", month: "long", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+    const zone = new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value || "";   // EDT, where en-GB says GMT-4
+    const now = `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute} ${zone}`;   // 06 September 2026 14:45 EDT
+    const live = ageMin < 15;
+    // the tooltip: when each source last had anything
+    const src = M.sources || {};
+    const when = (iso) => iso ? `${fmtTs(Date.parse(iso)).slice(11)} (${ago(iso)})` : "—";
+    const tip = [["FULL_CSV (ACSD)", src.full_csv], ["TSG file", src.tsg], ["intranet schedule", src.schedule], ["event log", src.event_log], ["Google calendars", src.calendars]]
+      .map(([k, v]) => `${k}: ${when(v)}`).join("\n") + (M.provisional ? `\nprovisional TSG tail since ${fmtTs(Date.parse(M.provisional.from)).slice(11)}` : "");
+    const gen = Date.parse(M.generated_utc);
+    $("#status").innerHTML = `<b>${now}</b> · <span class="refresh" title="${tip.replace(/"/g, "&quot;")}">last refresh ${fmtTs(gen).slice(11)}${live ? "" : ` · <span class="stale">data ${ago(end)}</span>`}</span>` +
+      (live ? ` · <span class="live">LIVE</span>` : "");
+    $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
+  setInterval(() => { if (M?.data_range) renderStatus(); }, 20000);
 
   function renderControls() {
     const r = $("#span"), ticks = $("#spanticks");
@@ -249,7 +276,7 @@
     r.value = idx;
     $("#spanlabel").textContent = labels[idx];
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
-    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); requestFit(); reconcileLegsToSpan(); loadWindow(); };
+    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); loadWindow(); };
 
     // every Time/Distance pill (the underway pane's and the cast section's) shows and sets the same mode
     for (const b of document.querySelectorAll(".xmode button")) {
@@ -258,13 +285,13 @@
     }
     const sel = $("#colour");
     sel.innerHTML = "";
-    for (const v of M.variables) {
+    for (const v of [...M.variables, ...extraColours.values()]) {
       if (!v.resolved) continue;
       const o = document.createElement("option");
       o.value = v.name; o.textContent = v.name;
       sel.appendChild(o);
     }
-    if (!VAR[state.colour]?.resolved) state.colour = M.variables.find((v) => v.resolved && !v.derived)?.name || M.variables[0].name;
+    if (!VAR[state.colour]?.resolved && !extraColours.has(state.colour)) state.colour = M.variables.find((v) => v.resolved && !v.derived)?.name || M.variables[0].name;
     sel.value = state.colour;
     sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
 
@@ -272,6 +299,18 @@
     $("#cameras").checked = state.cameras;
     $("#cameras").onchange = (e) => { state.cameras = e.target.checked; store.set("cameras", state.cameras); closeCamera(); renderMap(); };
     $("#track").onchange = (e) => { state.track = e.target.checked; store.set("track", state.track); renderMap(); };
+    {
+      const r = $("#trackstep"), out = $("#tracksteplabel");
+      if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
+      let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = 0;
+      r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]);
+      r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); };
+      r.onchange = () => {
+        const before = windowFile(currentWindow());
+        setTrackDetail(TRACK_STEPS[r.value]);
+        if (windowFile(currentWindow()) !== before) loadWindow(); else renderMap();   // "all points" may mean the fine file
+      };
+    }
     $("#stations").checked = state.stations;
     $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
     $("#events").checked = state.events;
@@ -390,7 +429,7 @@
     const colour = (a) => acts.indexOf(a) % PALETTE_EV.length;         // index into the sprite's tri-N icons
     const pts = [...groups.values()].map((es) => {
       es.sort((a, b) => tms(b.time_utc) - tms(a.time_utc));
-      const lines = es.slice(0, 10).map((e) => `${fmtUTC(tms(e.time_utc))} · <b>${esc(e.station || "")}</b> ${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? " <i>" + esc(e.label) + "</i>" : ""}${e.comment ? "<br>&nbsp;&nbsp;" + esc(e.comment) : ""}`);
+      const lines = es.slice(0, 10).map((e) => `${fmtTs(tms(e.time_utc))} · <b>${esc(e.station || "")}</b> ${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? " <i>" + esc(e.label) + "</i>" : ""}${e.comment ? "<br>&nbsp;&nbsp;" + esc(e.comment) : ""}`);
       if (es.length > 10) lines.push(`… +${es.length - 10} more`);
       return { lat: +es[0].lat, lon: +es[0].lon, n: es.length, text: (es.length > 1 ? `<b>${es.length} events here</b><br>` : "") + lines.join("<br>"), colour: colour(es[0].activity || "other") };
     });
@@ -428,7 +467,7 @@
     const cs = camsShown(); const at = cs.findIndex((x) => x.i === i);
     $("#camtitle").textContent = `${c.day.slice(0, 4)}-${c.day.slice(4, 6)}-${c.day.slice(6, 8)}`;
     $("#camsub").textContent = `${legById(c.leg)?.label || c.leg || ""} · ${c.frames} shots${c.complete ? "" : " so far"}`;
-    $("#camfoot").innerHTML = `${c.start_utc ? fmtUTC(Date.parse(c.start_utc)) : ""} → ${c.end_utc ? fmtUTC(Date.parse(c.end_utc)).slice(11) : ""} · ` +
+    $("#camfoot").innerHTML = `${c.start_utc ? fmtTs(Date.parse(c.start_utc)) : ""} → ${c.end_utc ? fmtTs(Date.parse(c.end_utc)).slice(11) : ""} ${tzAbbr()} · ` +
       `<a href="${c.url}" target="_blank" rel="noopener">open video</a>`;
     $("#camprev").disabled = at <= 0; $("#camnext").disabled = at < 0 || at >= cs.length - 1;
     $("#camprev").onclick = () => { if (at > 0) openCamera(cs[at - 1].i); };
@@ -511,34 +550,95 @@
       sp.map.setLayoutProperty(layer, "icon-rotation-alignment", "map");
     }
   }
-  let lastLabelZoom = null;
+  // Station labels: one per station name (the latest visit), thinned to one
+  // per map cell so they never pile up; far out only the stations without a
+  // cast and the most recent casts survive, close in every name shows.
+  function stationLabels(st, zoom) {
+    if (zoom < 2.5) return st.map(() => "");
+    const cell = 40 / Math.pow(2, zoom);                      // degrees of latitude per label cell
+    const order = st.map((s, i) => i).sort((a, b) => (st[b].kind === "event") - (st[a].kind === "event") || String(st[b].time).localeCompare(String(st[a].time)));
+    const names = new Set(), cells = new Set(), out = st.map(() => "");
+    for (const i of order) {
+      const s = st[i], name = (s.station || "").trim();
+      if (!name || names.has(`${s.leg}:${name}`)) continue;
+      const key = `${Math.floor(s.lat / cell)}:${Math.floor(s.lon * Math.cos(s.lat * Math.PI / 180) / cell)}`;
+      if (zoom < 8 && cells.has(key)) continue;
+      names.add(`${s.leg}:${name}`); cells.add(key); out[i] = name;
+    }
+    return out;
+  }
+  let lastLabelZoom = null, lastStationZoom = null;
   setInterval(() => {
     try { aimShip(); } catch { /* next tick */ }
     const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
-    if (z == null || !state.communities || !el.data) return;
+    if (z == null || !el.data) return;
     const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
-    if (bucket === lastLabelZoom) return;
-    lastLabelZoom = bucket;
-    const fresh = placeTraces(z);
-    const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
-    if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
+    if (state.communities && bucket !== lastLabelZoom) {
+      lastLabelZoom = bucket;
+      const fresh = placeTraces(z);
+      const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
+      if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
+    }
+    const sz = Math.round(z * 2) / 2;
+    if (state.stationList?.length && sz !== lastStationZoom) {
+      lastStationZoom = sz;
+      const idx = el.data.findIndex((t) => t.name === "stations");
+      if (idx >= 0 && el.data[idx].lat.length === state.stationList.length) Plotly.restyle(el, { text: [stationLabels(state.stationList, z)] }, [idx]);
+    }
   }, 1500);
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
+  // Track detail: the window's points thinned to one per so many km along
+  // the track (the gap markers, and the last fix, always stay). Every array
+  // of the window is cut the same way, so hover, colours and the pump marks
+  // line up with the points drawn.
+  const TRACK_STEPS = [0, 0.5, 1, 2, 5, 10, 20, 50];
+  // the span picks a starting detail (a day: every point; a week: a point a
+  // km; months: 5 km; years: 20 km) that the slider then overrides
+  const detailFor = (hours) => hours <= 24 ? 0 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
+  const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
+  const currentWindow = () => M.windows.find((x) => x.label === state.win);
+  // "all points" loads the window's fine variant when the build made one
+  const windowFile = (w) => (state.trackKm === 0 && w?.fine_file) ? w.fine_file : w?.file;
+  function setTrackDetail(km) {
+    state.trackKm = km; store.set("trackKm", km);
+    const r = $("#trackstep"), out = $("#tracksteplabel");
+    if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? 0 : i; out.textContent = detailLabel(km); }
+  }
+  let thinCache = { src: null, km: null, out: null };
+  function thinTrack(d, km) {
+    if (!d || !km) return d;
+    if (thinCache.src === d && thinCache.km === km) return thinCache.out;
+    const n = d.t.length, keep = [];
+    let last = -1, bucket = null;
+    for (let i = n - 1; i >= 0; i--) if (d.lat[i] != null) { last = i; break; }
+    for (let i = 0; i < n; i++) {
+      if (d.lat[i] == null) { keep.push(i); continue; }
+      const b = Math.floor((d.dist_km[i] ?? 0) / km);
+      if (b !== bucket || i === last) { keep.push(i); bucket = b; }
+    }
+    const cut = (a) => Array.isArray(a) && a.length === n ? keep.map((i) => a[i]) : a;
+    const out = {};
+    for (const [k, v] of Object.entries(d)) out[k] = k === "vars" ? Object.fromEntries(Object.entries(v).map(([name, a]) => [name, cut(a)])) : cut(v);
+    out.shown = keep.filter((i) => d.lat[i] != null).length;
+    thinCache = { src: d, km, out };
+    return out;
+  }
   let mapDrawing = false, mapAgain = false;
   function renderMap() {
     if (mapDrawing) { mapAgain = true; return; }
-    const d = state.data;
+    const d = thinTrack(state.data, state.trackKm);
     const el = $("#map");
     if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
-    const v = VAR[state.colour];
-    const c = d.vars[state.colour] || [];
+    const v = VAR[state.colour] || extraColours.get(state.colour);
+    const customColour = extraColours.get(state.colour)?.values(d);
+    const c = customColour || d.vars[state.colour] || [];
     const lim = d.limits[state.colour] || minmax(c);
     const hover = d.t.map((ms, i) => d.lat[i] == null ? "" :
-      `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtUTC(ms)}<br>${state.colour}: <b>${fmtVal(c[i], v?.unit)}</b>` +
-      `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track`);
+      `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtTs(ms)} ${tzAbbr()}<br>${state.colour}: <b>${v?.rgb ? (c[i] === '#000000' ? 'no nearby photo' : c[i]) : fmtVal(c[i], v?.unit)}</b>` +
+      `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track${d.provisional?.[i] ? "<br><i>provisional (TSG file, ahead of the ACSD flush)</i>" : ""}`);
 
     // draw order is click order: MVP tows from the cast tab go under the
     // track, and the station markers stay on top so they get the clicks
@@ -552,11 +652,17 @@
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: true,
+      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
+                opacity: d.provisional ? d.provisional.map((q) => (q ? .4 : .95)) : .95,
                 colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
                   tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
+    if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
+      type:'scattermap',mode:'markers',name:'no nearby photo',showlegend:false,
+      lat:d.lat.map((q,i)=>c[i]==null?q:null),lon:d.lon.map((q,i)=>c[i]==null?q:null),
+      marker:{size:6,color:'#000000'},hovertemplate:'No matching photo<extra></extra>'
+    });
     const lowMap = v?.tsg ? pumpLow(d) : null;
     if (state.track && lowMap && lowMap.some(Boolean)) traces.push({
       type: "scattermap", mode: "markers", name: "pump off", showlegend: false,
@@ -575,24 +681,32 @@
     if (li >= 0) traces.push({
       type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
       lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text",
-      text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}`],
+      text: [`CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}`],
       marker: heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
                               : { size: 12, color: "#d52b1e", opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const f = currentFilter();
+    // CTD casts (white; orange when selected) and the stations the event log
+    // records without a cast (green), each a click target
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
     const selected = window.UW?.selectedCastKeys?.() || new Set();
-    if (st.length) traces.push({
-      type: "scattermap", mode: "markers", name: "CTD stations", showlegend: false,
-      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
-      customdata: st.map((s) => `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`),
-      text: st.map((s) => `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
+    const stKey = (s) => s.kind === "event" ? `ev:${s.leg}:${s.station}` : `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`;
+    const stText = (s) => s.kind === "event"
+      ? `<b>${s.station}</b>${s.type ? " · " + s.type : ""} · ${legById(s.leg)?.label || s.leg}<br>${(s.time || "").slice(0, 16)}${s.time_end && s.time_end !== s.time ? " → " + s.time_end.slice(0, 16) : ""}` +
+        `<br>${(s.activities || []).join(", ")}${s.bottom_m != null ? `<br>depth ${Math.round(s.bottom_m)} m` : ""}${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`
+      : `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
         `<br>${s.time || ""}${s.type ? "<br>" + s.type : ""}${s.bottom_m != null ? `<br>bottom ${s.bottom_m} m` : ""}` +
-        `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`),
-      marker: { size: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? 14 : 9),
-                color: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? "#ffb454" : "rgba(255,255,255,.9)"),
+        `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`;
+    state.stationList = st;
+    if (st.length) traces.push({
+      type: "scattermap", mode: "markers+text", name: "stations", showlegend: false,
+      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
+      customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, (state.view || fitView(d.lat, d.lon)).zoom),
+      textposition: "top right", textfont: { size: 11, color: "#e8f4ff", family: "Open Sans Regular" },
+      marker: { size: st.map((s) => selected.has(stKey(s)) ? 14 : 9),
+                color: st.map((s) => selected.has(stKey(s)) ? "#ffb454" : s.kind === "event" ? "#7ee787" : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
     // an all-but-invisible oversized copy on top gives each station a generous
@@ -600,7 +714,7 @@
     if (st.length) traces.push({
       type: "scattermap", mode: "markers", name: "station hit targets", showlegend: false, hoverinfo: "skip",
       lat: st.map((s) => s.lat), lon: st.map((s) => s.lon),
-      customdata: st.map((s) => `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`),
+      customdata: st.map(stKey),
       marker: { size: 26, color: "rgba(255,255,255,0.02)" },
     });
 
@@ -637,6 +751,7 @@
       el.removeAllListeners?.("plotly_click");
       el.on("plotly_click", (ev) => {
         const p = ev.points?.[0];
+        if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
@@ -647,28 +762,32 @@
       if (mapAgain) { mapAgain = false; renderMap(); }
     });
 
-    const km = lastFinite(d.dist_km) ?? 0;
-    const spd = lastFinite(d.vars["Ship speed (kn)"] || []);
-    const legsIn = new Set(d.leg.filter((x, i) => x != null && d.lat[i] != null)).size;
+    // distance travelled: the along-track extent of each selected leg's
+    // points in the span (dist_km runs on through the whole record)
+    const ext = new Map();
+    d.dist_km.forEach((x, i) => { if (x == null || d.lat[i] == null || d.leg[i] == null) return; const e = ext.get(d.leg[i]); if (!e) ext.set(d.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
+    const km = [...ext.values()].reduce((a, [lo, hi]) => a + hi - lo, 0);
+    const nLegs = shownLegs().length;
     $("#mapfoot").innerHTML =
-      `<span><b>${d.label}</b> span · <b>${km.toFixed(0)} km</b> travelled · ${legsIn} leg${legsIn === 1 ? "" : "s"}</span>` +
-      (spd != null ? `<span>speed <b>${spd.toFixed(1)} kn</b></span>` : "") +
-      (st.length ? `<span><b>${st.length}</b> CTD casts</span>` : "") +
-      `<span class="mono">${d.start.slice(0, 16)}Z → ${d.end.slice(0, 16)}Z</span>` +
+      `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
+      (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
+      `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
 
   // ------------------------------------------------------------ panels
   function panelNames() {
-    const all = M.variables.map((v) => v.name).filter((n) => !NOT_PANELS.has(n));
+    const all = [...M.variables.map((v) => v.name), ...extraPanels.keys()].filter((n) => !NOT_PANELS.has(n));
     const ordered = state.order.filter((n) => all.includes(n));
-    return [...ordered, ...all.filter((n) => !ordered.includes(n))];
+    const result=[...ordered, ...all.filter((n) => !ordered.includes(n))];
+    for(const [name,spec] of extraPanels)if(spec.after&&!ordered.includes(name)){const i=result.indexOf(name);if(i>=0)result.splice(i,1);const at=result.indexOf(spec.after);result.splice(at<0?result.length:at+1,0,name);}
+    return result;
   }
 
   function panelEl(name) {
     let el = document.getElementById("p-" + cssId(name));
     if (el) return el;
-    const v = VAR[name];
+    const v = VAR[name] || extraPanels.get(name);
     el = document.createElement("section");
     el.className = "panel card"; el.id = "p-" + cssId(name); el.dataset.name = name; el.draggable = true;
     if (name.startsWith("Surprise")) el.classList.add("surprise");
@@ -682,6 +801,7 @@
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
     el.querySelector("h3").onclick = () => { state.colour = name; store.set("colour", name); $("#colour").value = name; render(); };
+    if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
     el.querySelector(".reset").onclick = () => Plotly.relayout(el.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
@@ -694,9 +814,12 @@
       e.preventDefault(); el.classList.remove("over");
       const from = e.dataTransfer.getData("text/plain");
       if (!from || from === name) return;
-      const order = panelNames().filter((n) => n !== from);
-      const at = order.indexOf(name);
-      order.splice(e.offsetX < el.clientWidth / 2 ? at : at + 1, 0, from);
+      // the dragged panel and the one it lands on trade places: the result does
+      // not depend on where in the card it was dropped
+      const order = panelNames();
+      const i = order.indexOf(from), j = order.indexOf(name);
+      if (i < 0 || j < 0) return;
+      [order[i], order[j]] = [order[j], order[i]];
       state.order = order; store.set("order", order);
       layoutPanels();
     });
@@ -771,12 +894,13 @@
 
   function renderPanel(name) {
     if (state.panel[name] === "min") { layoutPanels(); return; }
-    const d = state.data, v = VAR[name], el = panelEl(name);
+    const d = state.data, v = VAR[name] || extraPanels.get(name), el = panelEl(name);
     const plot = el.querySelector(".plot");
     el.classList.toggle("on", name === state.colour);
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
+    if (extraPanels.has(name)) { extraPanels.get(name).render(el, plot); return; }
     let title = name;
     let y = d?.vars[name];
     if (name === SURPRISE) {
@@ -791,8 +915,8 @@
     if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
     el.querySelector(".now").textContent = fmtVal(lastFinite(y), v.unit);
 
-    const cv = VAR[state.colour];
-    const c = d.vars[state.colour] || [];
+    const cv = VAR[state.colour] || extraColours.get(state.colour);
+    const c = extraColours.get(state.colour)?.values(d) || d.vars[state.colour] || [];
     const lim = d.limits[state.colour] || minmax(c);
     // SVG, not WebGL: a dozen scattergl panels plus the map exceed the
     // browser's WebGL context limit (Safari's is 8) and the map is what gets
@@ -801,11 +925,14 @@
     // sea: those points go grey, in a trace of their own over the same line
     const low = v.tsg ? pumpLow(d) : null;
     const gated = !!low && low.some((l, i) => l && y[i] != null);
-    const x = xvals(d), legText = d.leg.map((i) => legByIndex(i)?.label || "");
+    // the provisional tail (TSG minutes ahead of the ACSD flush) is drawn faint and says so on hover
+    const prov = d.provisional;
+    const x = xvals(d), legText = d.leg.map((i) => (legByIndex(i)?.label || "") + (prov?.[i] ? " · provisional (TSG)" : ""));
     const trace = {
       x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
-      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false },
+      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false,
+                opacity: prov ? prov.map((q) => (q ? .4 : 1)) : 1 },
       text: legText,
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
@@ -843,7 +970,10 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot); });
+    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot);
+      plot.removeAllListeners?.('plotly_click');
+      plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
+    });
   }
 
   function renderPanels() {
@@ -863,9 +993,9 @@
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
-      `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
+      `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
-      `<p>Axes are UTC; the header shows ship time (${SITE.local_tz}). Gaps in lines are missing data, not interpolation. ` +
+      `<p>Times and time axes are ship time (${SITE.local_tz}); CSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
       `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
   }
 
@@ -887,12 +1017,13 @@
     const seq = ++loadSeq;
     windowLoading = true;
     try {
-      const raw = await fetchJSON(`${w.file}?v=${encodeURIComponent(manifest.generated_utc)}`);
+      const file = windowFile(w);
+      const raw = await fetchJSON(`${file}?v=${encodeURIComponent(manifest.generated_utc)}`);
       if (seq !== loadSeq) return false;
       // Commit the header/leg metadata and observations together only after
       // a successful download. A failed update keeps the last good pair.
       M = manifest; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
-      state.raw = raw;
+      state.raw = raw; state.rawFile = file;
       setLoadError("Underway", false);
       renderControls(); renderProvenance();
       applyAndRender(); renderAlert();
@@ -920,7 +1051,8 @@
     }
     try {
       const m = await fetchJSON(`data/manifest.json?t=${Date.now()}`);
-      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || state.raw.label !== state.win)) {
+      const want = m.windows.find((x) => x.label === state.win);
+      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || !want || state.rawFile !== windowFile(want))) {
         await loadWindow(m);
       } else if (!windowLoading) setLoadError("Underway", false);
     } catch { setLoadError("Underway", true); }
@@ -931,15 +1063,30 @@
     }
   }
 
-  // the latest change to the intranet schedule or whiteboard, until dismissed
+  // the schedule bar: the operations around now (last completed, in
+  // progress, coming up next) from the intranet schedule, in ship time, with
+  // the calendar links
   function renderAlert() {
-    const u = M.calendar?.update;
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const c = M.calendar || {}, n = c.now;
     const bar = $("#alert");
-    if (!u || !u.text || store.get("alert.seen") === u.changed_utc) { bar.hidden = true; return; }
-    $("#alerttext").innerHTML = `<b>${fmtLocal(u.changed_utc)}</b> · ${u.text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))}`;
-    bar.hidden = false;
-    $("#alertclose").onclick = () => { store.set("alert.seen", u.changed_utc); bar.hidden = true; };
-    $("#alertgo").onclick = () => { showTab("calendar"); };
+    bar.hidden = !n;
+    if (bar.hidden) return;
+    const hm = (t) => t ? new Date(tms(t)).toLocaleTimeString(undefined, { timeZone: SITE.local_tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
+    const op = (r) => `<div class="sop" title="${esc(r.comment || "")}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${hm(r.start_utc)}–${hm(r.end_utc)}</span></div>`;
+    const col = (label, rows, cls) => `<div class="scol ${cls}"><div class="slbl">${label}</div>${rows.length ? rows.map(op).join("") : '<div class="sop muted">—</div>'}</div>`;
+    // a click folds the bar to a thin strip; a click on the strip brings it back
+    const folded = !!store.get("sched.hidden", false);
+    bar.classList.toggle("folded", folded);
+    bar.title = folded ? "show the schedule" : "";
+    $("#schedrow").hidden = folded;
+    // the fold must not bubble to the bar, whose restore handler is installed by the re-render
+    $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); store.set("sched.hidden", true); renderAlert(); };
+    bar.onclick = folded ? () => { store.set("sched.hidden", false); renderAlert(); } : null;
+    if (folded) return;
+    $("#schedcols").innerHTML = col("Last completed", n.completed ? [n.completed] : [], "done") + col("In progress", n.in_progress || [], "live") + col("Coming up next", n.next ? [n.next] : [], "next");
+    const feed = (c.feeds || []).find((f) => f.key === "schedule");
+    $("#schedlinks").innerHTML = feed ? `<a class="bigcal" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open in Google Calendar">📅 ${esc(feed.label)}</a><a class="ics" href="${esc(feed.ics)}" title="subscribe (ICS feed)">ICS</a>` : "";
   }
 
   // ------------------------------------------------------------ tabs
@@ -962,8 +1109,22 @@
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
-    fmtUTC, fmtVal, dms, legById, minmax, store,
+    fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms,
+    refreshExtraData() { render(); },
+    registerPanel(name, spec) {
+      extraPanels.set(name, spec);
+      if(spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){
+        const first=spec.after,order=panelNames().filter(n=>n!==name&&n!==first);
+        state.order=[first,name,...order].filter(Boolean);store.set('order',state.order);
+        delete state.panel[name];store.set('panel',state.panel);
+        store.set('panel-layout:'+name,spec.layoutRevision);
+      }
+      layoutPanels(); renderPanel(name);
+    },
+    linkX,
+    registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); render(); },
+    selectColour(name) { state.colour=name; store.set('colour',name); renderControls(); render(); },
   });
   Object.defineProperty(window.UW, "M", { get: () => M, configurable: true });
 

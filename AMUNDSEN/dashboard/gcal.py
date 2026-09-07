@@ -3,7 +3,8 @@ tab, and the ship's operations and surprise episodes are pushed to them.
 
 * ``schedule`` ("Amundsen Schedule"): one event per event-log operation
   (station × activity × type × local day) and one per row of the intranet
-  operations schedule, updated when its status changes.
+  operations schedule (station × operation, ``calendar.row_key``), edited in
+  place as its times, status and comment change.
 * ``surprise`` ("Underway Updates"): one event per surprise episode — a run of
   minutes with the ``SURPRISE_ALERT_SCALE`` score above ``SURPRISE_ALERT``,
   runs less than half an hour apart merged — extended while it continues.
@@ -235,6 +236,9 @@ def eventlog_items(events: list[dict]) -> list[tuple[str, str, dict]]:
 
 
 def schedule_items(sched: dict) -> list[tuple[str, str, dict]]:
+    """One item per current schedule row, fingerprinted by the row's identity
+    so that an edited row is the same item."""
+    from .calendar import row_key
     out = []
     for r in sched.get("rows", []):
         if not r.get("start_utc") or not r.get("end_utc"):
@@ -245,7 +249,7 @@ def schedule_items(sched: dict) -> list[tuple[str, str, dict]]:
                                      f"Comment: {r['comment']}" if r.get("comment") else "") if x)
         body = {"summary": f"[{status}] {r.get('station', '')} — {ops}".strip(), "description": desc,
                 "start": _when(r["start_utc"]), "end": _when(r["end_utc"])}
-        out.append(("schedule", f"sch|{r.get('date')}|{r.get('start')}|{r.get('station')}|{ops}", body))
+        out.append(("schedule", f"sch|{row_key(r)}", body))
     return out
 
 
@@ -361,7 +365,8 @@ def push() -> dict:
             if inserted + patched + failed >= GCAL_MAX_CALLS:
                 break
             cal_id = GCAL[cal]["id"]
-            body = dict(body, extendedProperties={"private": {"fp": fp}})
+            priv = dict((body.get("extendedProperties") or {}).get("private") or {}, fp=fp)
+            body = dict(body, extendedProperties={"private": priv})
             try:
                 if op == "insert":
                     eid = api.insert(cal_id, body); inserted += 1

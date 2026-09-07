@@ -56,7 +56,9 @@
 
   async function poll() {
     try {
-      const r = await fetch(`api/chat?since=${st.lastId}&name=${encodeURIComponent(st.myName)}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
+      // only a chat that is open (and a page that is visible) counts as "here"; a collapsed one polls anonymously and drops its presence
+      const present = st.open && !document.hidden;
+      const r = await fetch(`api/chat?since=${st.lastId}&name=${encodeURIComponent(present ? st.myName : "")}&leave=${encodeURIComponent(present ? "" : st.myName)}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
       if (!r.ok) throw new Error(r.status);
       const j = await r.json();
       dot.className = "dot on";

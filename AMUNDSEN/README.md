@@ -14,7 +14,7 @@ The “live” leg is the discovered leg with the latest date in its
 copy/modification times do not affect that selection. This marks the latest
 available leg, not a guarantee of fresh data or a working live CTD feed.
 TSG intake flow below the 0.5 V cutoff (`LOW_FLOW_V`) marks a pump-off
-episode. Each episode is an event in Agenda, Timeline and Calendar and is
+episode. Each episode is an event in the Schedule tab's Event Log and Calendar and is
 queued on the **Underway Updates** Google calendar; it is a low-flow
 indicator, not proof that pump power is off. Missing flow telemetry and leg
 boundaries split episodes rather than implying a continuous stop. An ongoing
@@ -301,7 +301,7 @@ regenerate it on a new machine. Needs GDAL with Python bindings
 The header reports failed data updates while keeping the last successfully
 loaded observations. Requests time out after 30 seconds and retry on the next
 30-second poll, on network reconnection, or when the page becomes visible
-again. Casts, Agenda, and Table refresh while open; failed tab downloads are
+again. Casts, Stations, Schedule, and Table refresh while open; failed tab downloads are
 retried even if the build timestamp has not changed.
 
 - *Page loads but map is blank*: check `static/geo/*.geojson` served (200) and
