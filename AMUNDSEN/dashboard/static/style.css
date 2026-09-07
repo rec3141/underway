@@ -130,6 +130,11 @@ select {
 .livestate.connected { background: #34435a; color: var(--fg); }
 .livestate.offline, .livestate.off { background: #4a2a2a; color: #ff9bce; }
 .livestate.port-open { background: #5a3d10; color: var(--accent-2); }
+/* in-app alerts: the strip above the schedule bar, until cleared */
+.inapp { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; padding: 6px 20px; font-size: 13px; background: rgba(255,180,84,.16); border-bottom: 1px solid var(--accent-2); }
+.inapp .msg small { color: var(--muted); margin-left: 6px; font-family: var(--mono); }
+.inapp .clear { margin-left: auto; background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; font: inherit; cursor: pointer; }
+.inapp .clear:hover { border-color: var(--accent-2); }
 .alertbar.folded { padding: 3px 12px; cursor: pointer; background: rgba(255,180,84,.10); }
 .alertbar.folded:hover { background: rgba(255,180,84,.18); }
 /* the folded bar: one slow ticker row */
@@ -179,6 +184,12 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .group.maptoggle .xcycle { min-width: 6.5em; }
 /* the map's tool buttons, at the right end of the layer bar, like a graph's */
 .maplayers .layers { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.maplayers button.sat.on { background: #dfe7ef; color: #0b1620; border-color: #dfe7ef; }   /* a picture under the track: a pale pill, unlike the blue data layers */
+/* the stepper through the archived pictures, beside the Sat pill */
+.satnav { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+.satnav .satwhen { font-family: var(--mono); padding: 0 4px; white-space: nowrap; }
+.maplayers .satnav button { border-radius: 5px; padding: 1px 7px; font-size: 12px; color: var(--fg); background: transparent; }
+.maplayers .satnav button:disabled { color: var(--line); cursor: default; border-color: var(--line); }
 .maplayers .tools { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .maplayers .tools button { background: transparent; color: var(--muted); border: 1px solid var(--line); font-size: 11px; padding: 1px 7px; border-radius: 5px; cursor: pointer; }
 .maplayers .tools button:hover { color: var(--fg); border-color: var(--accent); }
@@ -269,8 +280,10 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
   .maplayers .mapcolour { flex: 1 1 0; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0 0 4px; order: 0; }
   .maplayers .mapcolour select { flex: 1; min-width: 0; }
   .maplayers .tools { order: 1; margin-left: 0; }
-  .maplayers .layers { order: 2; flex: 1 0 100%; flex-wrap: nowrap; gap: 5px; }
+  .maplayers .layers { order: 2; flex: 1 0 100%; flex-wrap: wrap; gap: 5px; }
   .maplayers .layers button { flex: 1 1 0; min-width: 0; }
+  .maplayers .layers .satnav { flex: 1 0 100%; justify-content: center; }        /* the stepper on its own line under the pills */
+  .maplayers .layers .satnav button { flex: none; min-width: 44px; min-height: 36px; }
   .legmenu .pop { position: absolute; top: calc(100% + 8px); left: 0; width: min(calc(100vw - 24px), 420px); min-width: 0; max-height: 60vh; overflow: auto; }   /* below the button, never over it */
   .group button, .seg button, select, .legmenu summary { padding: 8px 12px; font-size: 14px; }   /* finger-sized */
   .panel .head h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

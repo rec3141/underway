@@ -762,45 +762,58 @@
   // the bell beside an operation: follow just that one, by email (the address
   // the page remembers) or by Telegram (a t.me link carrying the row); a
   // followed row gets a 15-minute heads-up and every change
-  const bells = { rows: new Set(), for: null, pendingRow: null };
+  // rows followed by email (bells.rows, for the saved address) and in this
+  // browser (bells.web, by its own id); a bell lights for either
+  const bells = { rows: new Set(), web: new Set(), for: null, webFor: null, pendingRow: null };
   const followEmail = () => store.get("alerts.email", "");
+  const followed = (key) => bells.rows.has(key) || bells.web.has(key);
   const encodeRow = (key) => btoa(unescape(encodeURIComponent(key))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "").slice(0, 64);
   // two bells: this operation, and every operation of this kind (any station)
   const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : `follow ${kind}: 15 min heads-up and every change`;
   function bellHtml(r) {
     const a = UW.M.alerts || {};
     if (!a.email && !a.telegram_bot) return "";
-    const key = r.key || `${r.station}|${r.operation}`, on = bells.rows.has(key);
+    const key = r.key || `${r.station}|${r.operation}`, on = followed(key);
     const kind = /transit|steam/i.test(r.operation || "") ? "Transit" : (r.operation || "");     // every transit is one kind, whatever the destination
-    const opKey = `op:${kind}`, opOn = bells.rows.has(opKey), kindName = kind === "Transit" ? "every transit" : `every ${kind}`;
+    const opKey = `op:${kind}`, opOn = followed(opKey), kindName = kind === "Transit" ? "every transit" : `every ${kind}`;
     return `<button type="button" class="bell ${on ? "on" : ""}" data-key="${esc(key)}" data-name="${esc(`${r.station || ""} — ${r.operation || ""}`.trim())}" title="${esc(bellTitle("this operation", on))}">🔔</button>` +
       (kind ? `<button type="button" class="bell kind ${opOn ? "on" : ""}" data-key="${esc(opKey)}" data-name="${esc(kindName)}" title="${esc(bellTitle(kindName, opOn))}">📢</button>` : "");
   }
   async function refreshBells(host) {
-    const to = followEmail();
-    if (!to) { bells.rows = new Set(); bells.for = null; return; }
-    if (bells.for === to) return;
-    try { const j = await UW.fetchJSON(`api/alerts/following?channel=email&to=${encodeURIComponent(to)}&t=${Date.now()}`); bells.rows = new Set(j.rows || []); bells.for = to; }
-    catch { /* bells stay unlit */ }
-    for (const b of host.querySelectorAll(".bell")) b.classList.toggle("on", bells.rows.has(b.dataset.key));
+    const to = followEmail(), wid = store.get("alerts.webid", "");
+    if (!to) { bells.rows = new Set(); bells.for = null; }
+    if (to && bells.for !== to) {
+      try { const j = await UW.fetchJSON(`api/alerts/following?channel=email&to=${encodeURIComponent(to)}&t=${Date.now()}`); bells.rows = new Set(j.rows || []); bells.for = to; }
+      catch { /* bells stay unlit */ }
+    }
+    if (wid && bells.webFor !== wid) {
+      try { const j = await UW.fetchJSON(`api/alerts/following?channel=web&to=${encodeURIComponent(wid)}&t=${Date.now()}`); bells.web = new Set(j.rows || []); bells.webFor = wid; }
+      catch { /* likewise */ }
+    }
+    for (const b of host.querySelectorAll(".bell")) b.classList.toggle("on", followed(b.dataset.key));
   }
   function wireBells(host) {
     refreshBells(host);
     for (const b of host.querySelectorAll(".bell")) b.onclick = (ev) => { ev.stopPropagation(); bellMenu(host, b); };
   }
-  async function followByEmail(host, key, name, remove) {
-    const to = followEmail();
-    const r = await fetch("api/alerts/row", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: "email", to, key, name, remove }) });
+  // follow (or drop) a row by email or in this browser; the bells relight
+  async function followVia(host, channel, key, name, remove) {
+    const to = channel === "web" ? UW.webId() : followEmail();
+    const r = await fetch("api/alerts/row", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel, to, key, name, remove }) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
-    bells.rows = new Set(j.rows || []); bells.for = to;
-    for (const b of host.querySelectorAll(".bell")) { const on = bells.rows.has(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(b.classList.contains("kind") ? b.dataset.name : "this operation", on); }
+    if (channel === "web") { bells.web = new Set(j.rows || []); bells.webFor = to; askNotify(); } else { bells.rows = new Set(j.rows || []); bells.for = to; }
+    for (const b of host.querySelectorAll(".bell")) { const on = followed(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(b.classList.contains("kind") ? b.dataset.name : "this operation", on); }
   }
+  const followByEmail = (host, key, name, remove) => followVia(host, "email", key, name, remove);
+  // a browser that shows alerts in its header bar may as well notify too
+  const askNotify = () => { try { if (window.Notification && Notification.permission === "default") Notification.requestPermission(); } catch { /* not every browser */ } };
   function bellMenu(host, b) {
     host.querySelector(".bellmenu")?.remove();
-    const a = UW.M.alerts || {}, key = b.dataset.key, name = b.dataset.name, to = followEmail(), on = bells.rows.has(key);
+    const a = UW.M.alerts || {}, key = b.dataset.key, name = b.dataset.name, to = followEmail(), on = bells.rows.has(key), webOn = bells.web.has(key);
     const m = document.createElement("div"); m.className = "bellmenu";
     m.innerHTML = `<div class="bm-title">${esc(name)}</div>` +
+      (a.web ? `<button type="button" class="bm-web">${webOn ? "🖥 stop showing" : "🖥 show"} in this browser's header bar</button>` : "") +
       (a.email ? (to ? `<button type="button" class="bm-email">${on ? "✉ stop emailing" : "✉ email"} ${esc(to)}</button>` : `<button type="button" class="bm-email">✉ email me… (enter an address below)</button>`) : "") +
       (a.telegram_bot ? `<a class="bm-tg" href="https://t.me/${esc(a.telegram_bot)}?start=${encodeRow(key)}" target="_blank" rel="noopener">✈ Telegram @${esc(a.telegram_bot)}</a>` : "") +
       `<div class="bm-note">15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}</div>`;
@@ -816,39 +829,48 @@
       if (!to) { bells.pendingRow = { key, name }; close(); const det = host.querySelector("#alerts"); if (det) { det.open = true; det.querySelector("input[name=to]")?.focus(); det.querySelector("#alertmsg").textContent = `enter your email to follow ${name}`; } return; }
       try { await followByEmail(host, key, name, on); close(); } catch (err) { m.querySelector(".bm-note").textContent = `not saved: ${err.message}`; }
     };
+    const w = m.querySelector(".bm-web");
+    if (w) w.onclick = async (ev) => { ev.stopPropagation(); try { await followVia(host, "web", key, name, webOn); close(); } catch (err) { m.querySelector(".bm-note").textContent = `not saved: ${err.message}`; } };
     if (m.querySelector(".bm-tg")) m.querySelector(".bm-tg").onclick = () => setTimeout(close, 100);
   }
 
-  // alerts: subscribe by email here, or through the Telegram bot
+  // alerts: subscribe here to this browser's header bar or by email, or
+  // through the Telegram bot
   function alertsHtml() {
     const a = UW.M.alerts || {};
-    if (!a.email && !a.telegram_bot) return "";
-    const saved = store.get("alerts.email", "");
+    if (!a.email && !a.telegram_bot && !a.web) return "";
+    const saved = store.get("alerts.email", ""), viaWeb = !saved || store.get("alerts.web", false);
     return `<details class="alerts" id="alerts"><summary>🔔 Get alerts for scheduled operations</summary>
-      ${a.email ? `<form id="alertform" class="alertform">
-        <label>email <input type="email" name="to" required value="${esc(saved)}" placeholder="you@example.org"></label>
+      ${a.email || a.web ? `<form id="alertform" class="alertform">
+        <label>via <select name="channel">${a.web ? `<option value="web" ${viaWeb ? "selected" : ""}>this browser's header bar</option>` : ""}${a.email ? `<option value="email" ${viaWeb ? "" : "selected"}>email</option>` : ""}</select></label>
+        <label class="emailfield" ${viaWeb ? "hidden" : ""}>email <input type="email" name="to" ${viaWeb ? "" : "required"} value="${esc(saved)}" placeholder="you@example.org"></label>
         <label>only operations matching <input name="match" placeholder="e.g. CardS-3, CTD — blank for everything" size="34"></label>
         <label>warn <select name="lead_min"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 h</option><option value="120">2 h</option></select> ahead</label>
         <span class="evs"><label><input type="checkbox" name="events" value="upcoming" checked> starting soon</label><label><input type="checkbox" name="events" value="started" checked> started</label><label><input type="checkbox" name="events" value="finished"> finished</label><label><input type="checkbox" name="events" value="moved" checked> time changed</label></span>
         <button type="submit">subscribe</button><span class="muted" id="alertmsg"></span></form>` : ""}
       ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it.</p>` : ""}
-      <p class="muted small">Every alert email carries an unsubscribe link. Times are ship time.</p></details>`;
+      <p class="muted small">Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.</p></details>`;
   }
   function wireAlerts(host) {
     const f = host.querySelector("#alertform"); if (!f) return;
+    const ch = f.querySelector("select[name=channel]"), ef = f.querySelector(".emailfield"), ei = f.querySelector("input[name=to]");
+    const viaWeb = () => ch.value === "web";
+    ch.onchange = () => { ef.hidden = viaWeb(); ei.required = !viaWeb(); };
     f.onsubmit = async (ev) => {
       ev.preventDefault();
-      const fd = new FormData(f), msg = f.querySelector("#alertmsg");
-      const body = { channel: "email", to: fd.get("to"), match: fd.get("match"), lead_min: fd.get("lead_min"), events: fd.getAll("events") };
+      const fd = new FormData(f), msg = f.querySelector("#alertmsg"), channel = viaWeb() ? "web" : "email";
+      const body = { channel, to: channel === "web" ? UW.webId() : fd.get("to"), match: fd.get("match"), lead_min: fd.get("lead_min"), events: fd.getAll("events") };
       msg.textContent = "saving…";
       try {
         const r = await fetch("api/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || r.status);
-        store.set("alerts.email", j.to);
-        msg.textContent = `subscribed ${j.to}: ${j.match || "everything"}, ${j.lead_min} min ahead`;
-        if (bells.pendingRow) { const pr = bells.pendingRow; bells.pendingRow = null; bells.for = null; try { await followByEmail(f.closest("#calendar") || document, pr.key, pr.name, false); msg.textContent += ` · following ${pr.name}`; } catch { /* the bell shows the truth */ } }
-        else { bells.for = null; refreshBells(f.closest("#calendar") || document); }
+        if (channel === "web") { store.set("alerts.web", true); askNotify(); } else store.set("alerts.email", j.to);
+        msg.textContent = `subscribed ${channel === "web" ? "this browser" : j.to}: ${j.match || "everything"}, ${j.lead_min} min ahead`;
+        const hostEl = f.closest("#calendar") || document;
+        if (bells.pendingRow) { const pr = bells.pendingRow; bells.pendingRow = null; bells.for = null; bells.webFor = null; try { await followVia(hostEl, channel, pr.key, pr.name, false); msg.textContent += ` · following ${pr.name}`; } catch { /* the bell shows the truth */ } }
+        else { bells.for = null; bells.webFor = null; refreshBells(hostEl); }
+        if (channel === "web") UW.pollInapp?.();
       } catch (e) { msg.textContent = `not saved: ${e.message}`; }
     };
   }

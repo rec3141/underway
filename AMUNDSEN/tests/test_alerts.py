@@ -82,6 +82,19 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(msgs["42"], ["Completed: JSW-01 — Box Core"]) if "42" in msgs else self.fail("telegram subscriber should hear about JSW-01")
         self.assertIn("Moved later by 60 min", " ".join(msgs["a@example.org"]))
 
+    def test_web_channel_queues_for_the_browser(self):
+        t = lambda m: (self.now + timedelta(minutes=m)).isoformat(timespec="minutes")
+        self.rows(_row("CardS-3", "CTD-Rosette", t(20), t(80)))
+        with self.assertRaises(ValueError):
+            alerts.subscribe("web", "short", "", 30, None)
+        alerts.subscribe("web", "b0f1c2d3e4f5a6b7", "", 30, None)
+        r = alerts.run(self.now, tg=FakeTelegram(), email=lambda *a: None)
+        self.assertEqual(r["sent"], 1)                                            # queued for the browser counts as delivered
+        box = alerts.inbox("b0f1c2d3e4f5a6b7")
+        self.assertEqual(len(box), 1); self.assertIn("Starting in 20 min", box[0]["text"])
+        self.assertEqual(alerts.inbox("b0f1c2d3e4f5a6b7", since=box[0]["t"]), [])   # seen
+        self.assertEqual(alerts.inbox("other0000000000"), [])
+
     def test_telegram_commands_and_run(self):
         t = lambda m: (self.now + timedelta(minutes=m)).isoformat(timespec="minutes")
         self.rows(_row("CardS-3", "CTD-Rosette", t(20), t(80)))
@@ -123,6 +136,27 @@ class RowFollowTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         p = patch.object(alerts, "DB_DIR", Path(self.tmp.name)); p.start(); self.addCleanup(p.stop)
         self.now = datetime(2026, 9, 6, 13, 0, tzinfo=timezone.utc)
+
+    def test_whiteboard_command_and_change_notice(self):
+        db = alerts.DB_DIR
+        def board(text):
+            (db / "schedule.json").write_text(json.dumps({"rows": [], "whiteboard": text}))
+        board("Toolbox 08:30")
+        tg = FakeTelegram([{"update_id": 1, "message": {"chat": {"id": 42}, "from": {"first_name": "Ann"}, "text": "/whiteboard"}}])
+        alerts.run(self.now, tg=tg, email=lambda *a: None)
+        self.assertIn("Toolbox 08:30", tg.sent[0][1])                              # the command answers with the board
+        self.assertTrue(alerts.load_subs()[0].get("whiteboard"))
+        tg = FakeTelegram(); alerts.run(self.now + timedelta(minutes=2), tg=tg, email=lambda *a: None)
+        self.assertEqual(tg.sent, [])                                             # unchanged: quiet
+        board("Toolbox 08:30\nHelicopter brief 13:00")
+        tg = FakeTelegram(); r = alerts.run(self.now + timedelta(minutes=4), tg=tg, email=lambda *a: None)
+        self.assertEqual(r["sent"], 1); self.assertIn("Helicopter brief", tg.sent[0][1])
+        tg = FakeTelegram([{"update_id": 2, "message": {"chat": {"id": 42}, "text": "/whiteboard off"}}])
+        alerts.run(self.now + timedelta(minutes=6), tg=tg, email=lambda *a: None)
+        self.assertEqual(alerts.load_subs(), [])                                  # nothing else was subscribed: gone
+        board("cleared again")
+        tg = FakeTelegram(); alerts.run(self.now + timedelta(minutes=8), tg=tg, email=lambda *a: None)
+        self.assertEqual(tg.sent, [])
 
     def test_follow_and_drop_a_row(self):
         s = alerts.follow_row("email", "ann@example.org", "CardS-3|CTD-Rosette", name="Ann")

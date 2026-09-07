@@ -44,6 +44,7 @@
     </div>
   </div>
 </header>
+<div class="inapp" id="inapp" hidden></div>
 <div class="alertbar" id="alert" hidden>
   <div class="schedrow" id="schedrow">
     <div class="schedcols" id="schedcols"></div>
@@ -67,6 +68,8 @@
       <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
       <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
       <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
+      <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
+      <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>
       <div class="tools"><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
     </div>

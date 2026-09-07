@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 import json
+from datetime import datetime, timezone
 import urllib.request
 import re
 import logging
@@ -207,6 +208,15 @@ class Handler(SimpleHTTPRequestHandler):
             from .alerts import following
             q = parse_qs(u.query)
             return self._json(200, following(q.get("channel", ["email"])[0], q.get("to", [""])[0]))
+        if u.path == "/api/alerts/inbox":
+            # the page's own alerts: what the timer has queued for this browser since an instant
+            from .alerts import inbox
+            q = parse_qs(u.query)
+            try:
+                msgs = inbox(q.get("to", [""])[0], q.get("since", [""])[0])
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            return self._json(200, {"messages": msgs, "now": datetime.now(timezone.utc).isoformat(timespec="seconds")})
         if u.path == "/api/alerts/unsubscribe":
             from .alerts import unsubscribe
             gone = unsubscribe(parse_qs(u.query).get("token", [""])[0])

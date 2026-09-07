@@ -42,6 +42,8 @@
     events: store.get("events", false),                 // event-log entries on the map
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
     communities: store.get("communities", true),        // settlements on the map
+    sat: store.get("sat", ""),                          // satellite picture under the track: "" | "s1" | "s2"
+    satAt: null,                                        // an archived picture's scene time, or null for the newest
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
     raw: null,                                        // window payload as built
@@ -345,6 +347,7 @@
       b.setAttribute("aria-pressed", String(!!state[layer]));
       b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "cameras") closeCamera(); renderMap(); };
     }
+    renderSatPill();
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
     {
       const r = $("#trackstep"), out = $("#tracksteplabel");
@@ -387,6 +390,48 @@
     $("#mapnone").onclick = () => setMapMode("none");
     $("#mapfull").onclick = () => setMapMode(mapMode() === "full" ? "half" : "full");
     applyMapMode();
+  }
+
+  // the satellite pill cycles off → Sentinel-1 → Sentinel-2 → off through
+  // the pictures the build has published (a sensor without one is skipped)
+  const satImages = () => M?.satellite?.images || {};
+  // the pictures of the shown sensor, oldest first: the archive, which ends
+  // with the current picture (all share the current picture's corners)
+  function satSeries() {
+    const im = satImages()[state.sat]; if (!im) return [];
+    const arch = (M?.satellite?.archive || {})[state.sat] || [];
+    const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: im.corners, label: im.label }));
+    if (!rows.length || rows[rows.length - 1].scene !== (im.scene || im.fetched)) rows.push({ url: im.url, scene: im.scene || im.fetched, corners: im.corners, label: im.label });
+    return rows;
+  }
+  // the picture on the map: the one stepped back to, else the newest
+  function satPicture() {
+    const rows = satSeries(); if (!rows.length) return null;
+    const i = state.satAt ? rows.findIndex((r) => r.scene === state.satAt) : -1;
+    return { ...(i >= 0 ? rows[i] : rows[rows.length - 1]), index: i >= 0 ? i : rows.length - 1, n: rows.length };
+  }
+  function renderSatPill() {
+    const b = $("#satpill"), imgs = satImages(), kinds = ["s1", "s2"].filter((k) => imgs[k]);
+    b.hidden = !kinds.length;
+    $("#satnav").hidden = true;
+    if (!kinds.length) return;
+    if (state.sat && !imgs[state.sat]) state.sat = "";
+    const im = imgs[state.sat];
+    b.classList.toggle("on", !!im);
+    b.textContent = im ? (state.sat === "s1" ? "S1 radar" : "S2 optical") : "Sat";
+    b.title = im ? `${im.label}, newest scene ${im.scene ? fmtTs(Date.parse(im.scene)) + " " + tzAbbr() : "unknown"} · click for ${state.sat === "s1" && imgs.s2 ? "Sentinel-2" : "none"}` : "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour";
+    b.onclick = () => { const i = kinds.indexOf(state.sat); state.sat = i < 0 ? kinds[0] : (kinds[i + 1] || ""); state.satAt = null; store.set("sat", state.sat); renderSatPill(); renderMap(); };
+    // the stepper: back and forth through the archive, the newest last
+    const pic = satPicture();
+    if (!pic) return;
+    $("#satnav").hidden = false;
+    $("#satwhen").textContent = `${fmtTs(Date.parse(pic.scene)).slice(5)} ${tzAbbr()}` + (pic.n > 1 ? ` · ${pic.index + 1}/${pic.n}` : "");
+    $("#satwhen").title = pic.index === pic.n - 1 ? "the newest picture" : "an earlier picture; › steps forward";
+    $("#satprev").disabled = pic.index === 0;
+    $("#satnext").disabled = pic.index === pic.n - 1;
+    const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : rows[j].scene; renderSatPill(); renderMap(); };
+    $("#satprev").onclick = () => step(-1);
+    $("#satnext").onclick = () => step(1);
   }
 
   // ------------------------------------------------------------ basemap
@@ -830,6 +875,8 @@
     // bands stand in for the bathymetry.
     const relief = !!SITE.raster;
     const layers = [];
+    const sat = state.sat && satPicture();
+    if (sat) layers.push({ sourcetype: "image", source: sat.url, coordinates: sat.corners, opacity: .95, below: "traces", name: "sat" });
     for (const l of (state.geo || [])) {
       if (l.name === "bathy" && SITE.raster) continue;
       if (l.name === "land" && relief) continue;
@@ -871,6 +918,7 @@
       `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()} · Copernicus Sentinel data</span>` : "") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
 
@@ -1215,6 +1263,40 @@
 
   setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
 
+  // in-app alerts: this browser's id is its address for the "web" channel;
+  // the timer queues messages for it and the strip above the schedule bar
+  // shows them until cleared (and the browser notifies, when allowed)
+  function webId() {
+    let id = store.get("alerts.webid", "");
+    if (!id) { id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)); store.set("alerts.webid", id); }
+    return id;
+  }
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const inapp = { msgs: [] };
+  function renderInapp() {
+    const el = $("#inapp");
+    el.hidden = !inapp.msgs.length;
+    if (el.hidden) return;
+    el.innerHTML = inapp.msgs.map((m) => `<span class="msg">🔔 ${esc(m.text)} <small>${fmtTs(Date.parse(m.t)).slice(11)}</small></span>`).join("") +
+      `<button type="button" class="clear" title="clear these">✕</button>`;
+    el.querySelector(".clear").onclick = () => { store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+  }
+  async function pollInapp() {
+    if (!store.get("alerts.webid", "") || document.hidden) return;
+    try {
+      const j = await fetchJSON(`api/alerts/inbox?to=${encodeURIComponent(webId())}&since=${encodeURIComponent(store.get("alerts.seen", ""))}&t=${Date.now()}`);
+      const have = new Set(inapp.msgs.map((m) => m.t + m.text));
+      const fresh = (j.messages || []).filter((m) => !have.has(m.t + m.text));
+      if (!fresh.length) return;
+      inapp.msgs = [...inapp.msgs, ...fresh].slice(-8);
+      renderInapp();
+      if (window.Notification?.permission === "granted") for (const m of fresh) { try { new Notification("Amundsen schedule", { body: m.text, tag: m.t + m.text }); } catch { /* not every browser */ } }
+    } catch { /* the next poll */ }
+  }
+  setInterval(pollInapp, 60e3);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pollInapp(); });
+  setTimeout(pollInapp, 3000);
+
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
   function showTab(name) {
@@ -1237,7 +1319,7 @@
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp,
     refreshExtraData() { render(); },
     moveShip,
     registerPanel(name, spec) {

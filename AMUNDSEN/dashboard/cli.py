@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("gcal-push", help="push queued Google Calendar items and refresh the feed cache")
     sub.add_parser("alerts", help="send due schedule alerts (email and Telegram)")
     sub.add_parser("telegram-bot", help="answer the Telegram bot's commands as they arrive (runs until stopped)")
+    st = sub.add_parser("satellite", help="render recent Sentinel imagery around the ship when due")
+    st.add_argument("--force", action="store_true", help="render now regardless of age and distance")
 
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
@@ -76,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "telegram-bot":
         from .alerts import bot_loop
         bot_loop()
+        return 0
+
+    if a.cmd == "satellite":
+        from .satellite import refresh
+        refresh(force=a.force)
         return 0
 
     links = []

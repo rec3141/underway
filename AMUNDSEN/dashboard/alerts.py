@@ -172,14 +172,37 @@ def _clean_events(events) -> list[str]:
 
 
 def _check_address(channel: str, to: str) -> str:
-    if channel not in ("email", "telegram"):
-        raise ValueError("channel must be email or telegram")
+    """The address for a channel: an email, a Telegram chat id, or for
+    ``web`` (alerts shown in the page's header bar) the browser's own id."""
+    if channel not in ("email", "telegram", "web"):
+        raise ValueError("channel must be email, telegram or web")
     to = str(to or "").strip()
     if channel == "email" and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", to):
         raise ValueError("that does not look like an email address")
     if channel == "telegram" and not re.fullmatch(r"-?\d{1,20}", to):
         raise ValueError("bad Telegram chat id")
+    if channel == "web" and not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", to):
+        raise ValueError("bad browser id")
     return to
+
+
+INBOX_MAX = 40                  # messages kept per browser …
+INBOX_DAYS = 7                  # … and for how long
+
+
+def post_inbox(state: dict, to: str, text: str, now: datetime) -> None:
+    """Queue a message for a browser; the page polls it off with ``inbox``."""
+    box = state.setdefault("inbox", {}).setdefault(to, [])
+    box.append({"t": now.isoformat(timespec="seconds"), "text": text})
+    cutoff = now - timedelta(days=INBOX_DAYS)
+    box[:] = [m for m in box if datetime.fromisoformat(m["t"]) >= cutoff][-INBOX_MAX:]
+
+
+def inbox(to: str, since: str = "") -> list[dict]:
+    """A browser's queued messages after ``since`` (an ISO instant), oldest first."""
+    to = _check_address("web", to)
+    box = (load_state().get("inbox") or {}).get(to) or []
+    return [m for m in box if not since or m["t"] > since]
 
 
 def _lead(lead_min) -> int:
@@ -284,6 +307,49 @@ def matches(sub: dict, row: dict) -> bool:
 
 
 # ---------------------------------------------------------------- what is due
+
+def _whiteboard() -> str:
+    """The schedule page's whiteboard note as last fetched ("" when none)."""
+    p = DB_DIR / "schedule.json"
+    if not p.is_file():
+        return ""
+    try:
+        return (json.loads(p.read_text()).get("whiteboard") or "").strip()
+    except (OSError, ValueError):
+        return ""
+
+
+def set_whiteboard(channel: str, to: str, on: bool, name: str = "") -> dict | None:
+    """Follow (or stop following) changes to the whiteboard; the general
+    subscription and followed rows are untouched. Returns the subscription,
+    or None once nothing of it is left."""
+    to = _check_address(channel, to)
+    with locked():
+        subs = load_subs()
+        sub = _find(subs, channel, to)
+        if on:
+            if sub is None:
+                sub = _new(channel, to); sub.update(name=str(name or "").strip()[:40]); subs.append(sub)
+            sub["whiteboard"] = True
+        elif sub is not None:
+            sub.pop("whiteboard", None)
+            if not sub.get("all") and not sub.get("match") and not sub.get("rows"):
+                subs.remove(sub); sub = None
+        save_subs(subs)
+    return sub
+
+
+def whiteboard_notices(subs: list[dict], state: dict) -> list[tuple[dict, str]]:
+    """Per subscription following the whiteboard, its new text when it has
+    changed since the last run; the first run only records it."""
+    now_text = _whiteboard()
+    prev = state.get("whiteboard")
+    state["whiteboard"] = now_text
+    if prev is None or prev == now_text:
+        return []
+    text = "📋 Whiteboard\n" + (now_text or "(cleared)")
+    return [(sub, text) for sub in subs if sub.get("whiteboard")]
+
 
 def _rows() -> list[dict]:
     """The current schedule rows with UTC instants and keys."""
@@ -522,6 +588,7 @@ HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
         "/none\nNo general alerts. Operations you follow through a bell on the dashboard stay.\n\n"
         "/lead 30\nHow many minutes ahead the heads-up comes.\n\n"
         "/events upcoming, started, finished, moved\nWhich changes you hear about.\n\n"
+        "/whiteboard\nThe whiteboard on the schedule page, now and whenever it changes. /whiteboard off stops that.\n\n"
         "/status\nWhat you are subscribed to.\n\n"
         "/stop\nNo more alerts of any kind.")
 
@@ -566,10 +633,17 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                     subs2 = load_subs(); m2 = _find(subs2, "telegram", chat)
                     if m2:
                         m2.update(all=False, match="")
-                        if not m2.get("rows"):
+                        if not m2.get("rows") and not m2.get("whiteboard"):
                             subs2.remove(m2)
                         save_subs(subs2)
                 reply = "No general subscription now" + (", followed operations stay." if mine and mine.get("rows") else ". /all or a bell on the dashboard to hear about something.")
+            elif cmd == "/whiteboard":
+                if arg.strip().lower() in ("off", "stop", "no"):
+                    set_whiteboard("telegram", chat, False)
+                    reply = "No more whiteboard messages."
+                else:
+                    set_whiteboard("telegram", chat, True, who)
+                    reply = "📋 Whiteboard\n" + (_whiteboard() or "(empty)") + "\n\nYou hear whenever it changes. /whiteboard off stops that."
             elif cmd == "/lead":
                 subscribe("telegram", chat, (mine or {}).get("match", ""), arg or DEFAULT_LEAD_MIN, (mine or {}).get("events"), who)
                 reply = f"Warning {max(5, min(24 * 60, int(arg or DEFAULT_LEAD_MIN)))} min ahead."
@@ -586,7 +660,7 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                 else:
                     general = f"{mine.get('match') or ('everything' if mine.get('all') else 'no general subscription')} · {mine.get('lead_min')} min ahead · {', '.join(mine.get('events', []))}"
                     rows = "\n".join(f"• {('every transit' if k == 'op:Transit' else 'every ' + k[3:]) if k.startswith('op:') else k.replace('|', ' — ')} ({v.get('lead_min')} min ahead)" for k, v in (mine.get("rows") or {}).items())
-                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "")
+                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "") + ("\nWhiteboard changes: yes" if mine.get("whiteboard") else "")
             else:
                 reply = HELP
         except ValueError as e:
@@ -636,7 +710,7 @@ def bot_loop() -> None:
 def info() -> dict:
     """What the page tells people: the bot's name and whether email works."""
     st = load_state()
-    return {"telegram_bot": st.get("telegram_username") or ("" if not telegram_token() else None), "email": smtp_config() is not None}
+    return {"telegram_bot": st.get("telegram_username") or ("" if not telegram_token() else None), "email": smtp_config() is not None, "web": True}
 
 
 def run(now: datetime | None = None, tg: Telegram | None = None, email=send_email) -> dict:
@@ -663,10 +737,29 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
     events = due_events(_rows(), state, now)
     sent = failed = 0
     cfg = smtp_config()
+    for sub, text in whiteboard_notices(subs, state):
+        try:
+            if sub["channel"] == "web":
+                post_inbox(state, sub["to"], text, now)
+            elif sub["channel"] == "telegram":
+                if tg is None:
+                    raise RuntimeError("telegram not configured")
+                tg.send(sub["to"], text)
+            else:
+                if cfg is None:
+                    raise RuntimeError("email not configured")
+                email(cfg, sub["to"], "Amundsen whiteboard", text.replace("📋 ", "") + f"\n\nUnsubscribe: http://underway.local:8042/api/alerts/unsubscribe?token={sub['id']}")
+            sent += 1
+        except Exception as e:                  # noqa: BLE001
+            failed += 1
+            log.warning("alerts: whiteboard %s to %s failed: %s", sub["channel"], sub["to"], e)
     for sub, lines in messages_for(subs, events, state, now):
         body = "\n".join("• " + l for l in lines)
         try:
-            if sub["channel"] == "telegram":
+            if sub["channel"] == "web":
+                for l in lines:
+                    post_inbox(state, sub["to"], l, now)
+            elif sub["channel"] == "telegram":
                 if tg is None:
                     raise RuntimeError("telegram not configured")
                 tg.send(sub["to"], "🔔 Amundsen schedule\n" + body)
