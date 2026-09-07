@@ -39,11 +39,12 @@ a:hover { text-decoration: underline; }
 #connection { color: var(--accent-2); }
 /* brand left, tabs right, controls on their own full-width row: the same
    places on every tab, whatever each tab shows in the controls row */
-.top .brand { order: 1; flex: 1 1 0; min-width: 160px; }        /* the title gives way (wraps) before the tabs drop a row */
-.top .tabs { order: 2; margin-left: auto; flex: 0 0 auto; }
+.top .tabs { order: 0; flex: 1 0 100%; margin-left: 0; display: flex; }   /* the tabs first, top left, above the title */
+.top .brand { order: 1; flex: 1 1 0; min-width: 160px; }
 .tabs button { white-space: nowrap; }
 .top .pickhint { color: var(--muted); font-size: 12.5px; }
-.top .pickhint.phone { display: none; order: 3; flex: 1 0 100%; margin-bottom: -4px; }   /* its own line, phones only */
+.top .pickhint.phone { order: 3; flex: 1 0 100%; margin-bottom: -4px; }   /* the hint on its own line */
+.top .pickhint.inline { display: none; }
 .top .controls { order: 3; flex: 1 0 100%; }
 .live { color: #7ee787; font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: .5px; }
 
@@ -111,12 +112,11 @@ select {
 .scol .slbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
 .scol.live .slbl { color: #7ee787; }
 .scol.next .slbl { color: var(--accent-2); }
-.scol .sop { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.scol .sop .stm { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-left: 8px; }
-.schedlinks { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 3px; }
+.scol .sop { overflow-wrap: anywhere; }                       /* never truncated: the times wrap onto their own line if they must */
+.scol .sop .stm { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-left: 8px; display: inline-block; }
+.schedlinks { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 6px; }   /* Gcal and ICS, the same size */
 .schedlinks .bigcal { display: block; padding: 6px 14px; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
 .schedlinks .bigcal:hover { filter: brightness(1.1); }
-.schedlinks .ics { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .livestate { font-weight: 700; letter-spacing: .5px; padding: 0 7px; border-radius: 999px; font-size: 11px; }
 .livestate.live { background: #22503a; color: #7ee787; }
 .livestate.connected { background: #34435a; color: var(--fg); }
@@ -137,7 +137,16 @@ main {
   flex: 1 1 auto; min-height: 0;
   display: grid; gap: 14px; padding: 14px 20px 0;
   grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr);
+  grid-template-rows: auto 1fr auto;
 }
+/* the graph controls (x axis, colour) sit right above the map on every tab */
+.plotctl { grid-column: 1; grid-row: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+main:not(.tab-underway) .plotctl { display: none; }           /* the strip is the underway tab's: x axis and colour together; elsewhere the map holds the colour picker */
+.maplayers .mapcolour { margin-right: auto; }
+main > footer { grid-column: 2; grid-row: 3; }                  /* the provenance stays on the right half */
+.plotctl label.select { min-width: 0; }
+.map { grid-column: 1; grid-row: 2; }
+.side { grid-column: 2; grid-row: 1 / 3; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 
 .map { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 6px; margin-bottom: 14px; }
@@ -182,6 +191,10 @@ main {
   html, body { overflow: auto; height: auto; }
   body { display: block; }
   main { display: flex; flex-direction: column; padding: 10px 12px 0; }
+  main > footer { order: 9; }                          /* the provenance last of all */
+  /* the graph controls go with the map, just above it; on the underway tab they pin to the top */
+  .plotctl { order: 2; padding: 4px 0; }
+  main.tab-underway .plotctl { order: 0; position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 6px 0; margin: -10px 0 6px; }
   /* on a narrow screen the pane is the point on every tab: the map follows it, shorter */
   .map { position: relative; order: 2; height: 42vh; margin: 12px 0 14px; }
   #map { height: calc(42vh - 48px); }
@@ -197,19 +210,23 @@ main {
   .top .tabs { flex: 1 0 100%; display: flex; margin-left: 0; }
   .top .tabs button { flex: 1 1 0; min-width: 0; padding: 8px 2px; font-size: 12.5px; }
   .castside .castfilter { flex-basis: 100%; }         /* the filter and clear on their own line */
+  /* the status as a coloured dot; its word is the tooltip */
+  table.sched .status { display: inline-block; width: 11px; height: 11px; padding: 0; border-radius: 50%; font-size: 0; vertical-align: middle; border: 0; }
+  table.sched .status.s-logged { background: var(--accent); } table.sched .status.s-now { background: #7ee787; } table.sched .status.s-next { background: var(--accent-2); }
+  table.sched .status.s-later { background: #6b7787; } table.sched .status.s-done { background: #3a3f52; border: 1px solid var(--line); }
+  table.sched .status.s-canceled { background: #ff7b72; } table.sched .status.s-was { background: transparent; border: 1px dashed var(--muted); }
   /* legs, span, x-axis and colour on one row: the span as a dropdown, the labels gone; the hint above */
-  .top .pickhint.phone { display: block; }
-  .top .pickhint.inline { display: none; }
   .controls { width: 100%; gap: 6px; flex-wrap: nowrap; }
   .legmenu { flex: 0 0 auto; }
   .group.span { flex: 0 0 auto; width: auto; min-width: 0; padding: 0; background: transparent; border: 0; }
   .group.span .lbl, .group.span output, .group.span input[type=range] { display: none; }
   #spansel { display: inline-block; }
-  .group.xmode { flex: 0 0 auto; }
-  .group.xmode .lbl { display: none; }
-  .group.xmode .xcycle { min-width: 0; }
-  .controls label.select { flex: 1 1 auto; min-width: 0; font-size: 0; }   /* the "Colour by" text goes; the select stays */
-  .controls label.select select { font-size: 14px; width: 100%; min-width: 0; }
+  .plotctl { flex-wrap: nowrap; gap: 6px; }
+  .plotctl .group.xmode { flex: 0 0 auto; }
+  .plotctl label.select { flex: 1 1 auto; min-width: 0; }
+  .plotctl label.select select { flex: 1; min-width: 0; }
+  .maplayers .mapcolour { flex: 1 0 100%; margin: 0 0 4px; }   /* the map's colour picker on its own line above the pills */
+  .maplayers .mapcolour select { flex: 1; min-width: 0; }
   .legmenu .pop { position: absolute; top: calc(100% + 8px); left: 0; width: min(calc(100vw - 24px), 420px); min-width: 0; max-height: 60vh; overflow: auto; }   /* below the button, never over it */
   .group button, .seg button, select, .legmenu summary { padding: 8px 12px; font-size: 14px; }   /* finger-sized */
   .panel .plot { height: 170px; }
@@ -264,7 +281,8 @@ main {
 .tabs button { background: transparent; color: var(--muted); border: 0; padding: 6px 14px; border-radius: 6px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .tabs button:hover { color: var(--fg); }
 .tabs button.on { background: var(--card); color: var(--fg); box-shadow: 0 1px 0 var(--line); }
-.pane-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 3px 0 10px; }   /* the top clears the pane's scroll edge, so a focused search box keeps its border */
+.pane-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 3px 0 10px; }
+#pane-calendar > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }   /* the top clears the pane's scroll edge, so a focused search box keeps its border */
 .pane-tools input[type=search] { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; font: inherit; font-size: 13px; min-width: 220px; }
 .pane-tools button { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
 .pane-tools .seg button { border-radius: 0; margin-left: -1px; }
@@ -305,7 +323,12 @@ main {
 .pane-tools .lbl { color: var(--muted); font-size: 13px; }
 .group.sectionx { gap: 8px; }
 #castmode button:disabled { opacity: .4; cursor: not-allowed; }
-.castlist .livenote { padding: 8px; font-style: italic; }
+.castlist li.livesetup { display: block; grid-template-areas: none; padding: 6px 8px; cursor: default; }   /* not a cast entry: no grid, no click */
+.castlist .livesetup-title { font-weight: 650; margin-bottom: 6px; }
+.castlist .livecfgform { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.castlist .livecfgform input { flex: 1 1 140px; min-width: 0; }
+.castlist details { margin-top: 6px; font-size: 12px; }
+.castlist pre { max-height: 30vh; overflow: auto; white-space: pre-wrap; word-break: break-all; font-size: 11px; }
 /* sideways scroll for wide tables, with a bar above the big ones too */
 .hscroll { overflow-x: auto; max-width: 100%; }
 .topscroll { overflow-x: auto; overflow-y: hidden; height: 12px; margin-right: 18px; }
@@ -337,39 +360,16 @@ main {
 table.sched { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 table.sched th, table.sched td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.sched th { color: var(--muted); font-weight: 600; }
+#calendar { padding-right: 16px; }                              /* clear of the pane's scroll bar */
+table.sched td.alerts-cell { text-align: left; }
+.evlog table.sched th { position: sticky; top: 0; z-index: 2; background: var(--card); }   /* the log scrolls in its own box, so its header can pin; the Today table's sideways wrapper would pin it over the rows */
 .status { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #34435a; }
 tr.st-in-progress .status { background: #22503a; color: #7ee787; }
-tr.st-upcoming .status, .agenda .ev.sched .status:empty { background: #3a3f52; color: var(--muted); }
+tr.st-upcoming .status { background: #3a3f52; color: var(--muted); }
 tr.st-completed .status { color: var(--muted); }
 .whiteboard { background: rgba(255,180,84,.1); border-left: 3px solid var(--accent-2); padding: 8px 10px; border-radius: 4px; margin: 10px 0 6px; white-space: pre-line; }
-.agenda .day { margin-bottom: 14px; }
-.evlog { max-height: 55vh; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 8px 18px 8px 10px; scrollbar-gutter: stable; }   /* room on the right so the scroll bar sits clear of the rows */
-.agenda .ev.on { outline: 2px solid var(--accent); outline-offset: -2px; background: rgba(92,200,255,.12); }
-.agenda h4 { margin: 0 0 4px; font-size: 13px; color: var(--accent); }
-.agenda h4 small { color: var(--muted); font-weight: 400; margin-left: 8px; }
-.agenda .ev { display: grid; grid-template-columns: 52px 150px 1fr auto auto auto; gap: 4px 12px; padding: 4px 8px; border-bottom: 1px solid var(--line); font-size: 12.5px; align-items: baseline; }
-.agenda .ev .t { font-family: var(--mono); color: var(--muted); }
-.agenda .ev .st { font-weight: 600; }
-.agenda .ev .pos { font-family: var(--mono); font-size: 11.5px; }
-.agenda .ev .cm { grid-column: 2 / -1; font-style: italic; }
-.agenda .ev .alerts { white-space: nowrap; }
-.agenda .ev .status-cell { white-space: nowrap; }
-.agenda .ev .viewdata { background: transparent; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: inherit; font-size: 11px; cursor: pointer; }
-.agenda .ev .viewdata:hover { border-color: var(--accent); }
-.agenda .ev code { font-size: 11px; background: var(--card-2); padding: 0 4px; border-radius: 3px; }
-.agenda .ev[data-lat]:not([data-lat=""]) { cursor: pointer; }
-.agenda .ev[data-lat]:not([data-lat=""]):hover { background: var(--card-2); }
-.agenda .ev.sched { background: rgba(255,180,84,.06); border-left: 3px solid var(--accent-2); }
-.agenda .ev.sched.former { border-left-color: #6b5a3a; background: transparent; }
-.agenda .ev.sched .badge { font-size: 10.5px; color: var(--accent-2); border: 1px solid var(--accent-2); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
-.agenda .ev.sched.former .badge { color: var(--muted); border-color: var(--line); }
+.evlog { max-height: 55vh; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 0 14px 8px 0; scrollbar-gutter: stable; }   /* room on the right so the scroll bar sits clear of the rows */
 /* what is happening now (In progress), announced (Coming soon) or up next */
-.agenda .ev.sched.st-in-progress { background: rgba(126,231,135,.14); border-left-color: #7ee787; }
-.agenda .ev.sched.st-in-progress .status { background: #22503a; color: #7ee787; }
-.agenda .ev.sched.st-coming-soon, .agenda .ev.sched.next { background: rgba(255,180,84,.18); border-left-color: var(--accent-2); }
-.agenda .ev.sched.st-coming-soon .status { background: #5a3d10; color: var(--accent-2); }
-.agenda .ev.sched.next .badge { background: var(--accent-2); color: #2a1a00; font-weight: 700; }
-.agenda .ev.sched.st-completed, .agenda .ev.sched.st-canceled { opacity: .75; }
 tr.st-coming-soon .status { background: #5a3d10; color: var(--accent-2); }
 table.sched tr.fold td { padding: 2px 8px; }
 .alerts { margin-top: 10px; font-size: 13px; }
@@ -379,6 +379,23 @@ table.sched tr.fold td { padding: 2px 8px; }
 .bell.on { opacity: 1; filter: none; }
 .bell.kind { font-size: 11px; }
 table.sched td.alerts-cell { white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+table.sched tr.dayhead td { color: var(--accent); font-weight: 650; background: var(--card-2); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+table.sched tr.dayhead small { color: var(--muted); font-weight: 400; margin-left: 8px; }
+table.sched tr.logged[data-lat]:not([data-lat=""]) { cursor: pointer; }
+table.sched tr.logged[data-lat]:not([data-lat=""]):hover td { background: var(--card-2); }
+table.sched tr.sched.former { opacity: .7; }
+table.sched tr.st-in-progress td { background: rgba(126,231,135,.08); }
+table.sched tr.next td { background: rgba(255,180,84,.10); }
+table.sched tr.on td { background: rgba(92,200,255,.14); box-shadow: inset 0 0 0 1px var(--accent); }
+table.sched .status.s-logged { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+table.sched .status.s-now { background: #22503a; color: #7ee787; }
+table.sched .status.s-next { background: var(--accent-2); color: #2a1a00; font-weight: 700; }
+table.sched .status.s-later { background: #3a3f52; color: var(--muted); }
+table.sched .status.s-done { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+table.sched .status.s-canceled { background: #4a2a2a; color: #ff9bce; }
+table.sched .status.s-was { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+table.sched .viewdata { background: transparent; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: inherit; font-size: 11px; cursor: pointer; }
+table.sched .viewdata:hover { border-color: var(--accent); }
 table.sched td:nth-child(3), table.sched td:nth-child(6), table.sched td:nth-child(7) { white-space: nowrap; }   /* station, status, duration */
 .bellmenu { position: absolute; z-index: 30; background: var(--card-2); border: 1px solid var(--accent-2); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; box-shadow: 0 6px 18px rgba(0,0,0,.4); max-width: 320px; }
 .bellmenu .bm-title { font-weight: 650; }
@@ -477,7 +494,6 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
 /* the header and the schedule bar keep the side bar's width free on the
    right at all times, so opening and closing the chat moves no pill; only
    the main area gives way */
-@media (min-width: 901px) { .top, .alertbar { padding-right: 400px; } }
 html.chat-side main { padding-right: 400px; }
 @media (max-width: 900px) { .chat.sidebar { width: 100vw; } html.chat-side main { padding-right: 20px; } }
 .chattyping, .chatcrew { padding: 2px 10px; font-size: 11.5px; }
@@ -555,9 +571,6 @@ table#sources { border-collapse: collapse; width: 100%; font-size: 12.5px; }
   .livecfgform input[name=columns] { width: 100%; }
   .livecfgform details { min-width: 0; }
   #livecfgerror { overflow-wrap: anywhere; }
-  .agenda .ev { grid-template-columns: 52px minmax(0, 1fr); }
-  .agenda .ev > * { min-width: 0; overflow-wrap: anywhere; }
-  .agenda .ev > :not(.t):not(.st) { grid-column: 2; }
   table#sources { table-layout: fixed; }
   #sources td, #sources th { overflow-wrap: anywhere; white-space: normal; padding: 3px 4px; }
   .legmenu .span, .legmenu .n { white-space: normal; overflow-wrap: anywhere; }

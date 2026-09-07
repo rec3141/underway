@@ -139,5 +139,24 @@ class EventStationTests(unittest.TestCase):
         self.assertEqual((s["type"], s["activities"], s["n_events"], s["comments"]), ("Benthic", ["Box Core - GEO", "Mapping"], 3, "fine mud"))
 
 
+class ProvisionalTests(unittest.TestCase):
+    def test_tail_is_unbounded_and_archived(self):
+        import pandas as pd
+        from dashboard import tsg
+        idx = pd.date_range("2026-09-07T02:21Z", periods=90, freq="min")
+        frame = pd.DataFrame({"t_sbe38": 0.2, "sal": 31.3, "lat": 76.0, "lon": -89.0, "flow": 1.4}, index=idx)
+        cols = ["tsg — hull temperature (deg c)", "tsg — salinity (psu)", "posmv — latitude (deg n)", "posmv — longitude (deg e)"]
+        tail = tsg.provisional_tail(frame, pd.Timestamp("2026-09-07T02:20Z"), cols)
+        self.assertEqual(len(tail), 90)                                          # every minute the ACSD lacks, not just half an hour
+        with tempfile.TemporaryDirectory() as tmp, patch.object(tsg, "DB_DIR", Path(tmp)):
+            self.assertEqual(tsg.archive_tail(tail), 90)
+            self.assertEqual(tsg.archive_tail(tail.iloc[60:]), 0)                # the same minutes again add nothing
+            later = tsg.provisional_tail(frame, pd.Timestamp("2026-09-07T03:00Z"), cols)
+            self.assertEqual(tsg.archive_tail(later), 0)
+            import csv
+            rows = list(csv.DictReader(open(Path(tmp) / "provisional_tsg.csv")))
+            self.assertEqual(len(rows), 90); self.assertEqual(rows[0]["time_utc"], "2026-09-07T02:21:00Z")
+
+
 if __name__ == "__main__":
     unittest.main()

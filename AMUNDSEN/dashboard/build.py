@@ -413,7 +413,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
 
     # 3. derive, then slice every window
     leg_codes = df.pop("leg")
-    from .tsg import minute_frame, provisional_tail
+    from .tsg import archive_tail, minute_frame, provisional_tail
     try:
         tsg = minute_frame([leg for leg, _ in stores])
     except Exception:                       # noqa: BLE001 — the TSG files are extra, never required
@@ -429,6 +429,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         try:
             tail = provisional_tail(tsg, df.index.max(), list(df.columns))
             if len(tail):
+                archive_tail(tail)                  # the only copy, should the TSG file be lost
                 df = pd.concat([df, tail]).sort_index()
                 leg_codes = pd.concat([leg_codes, pd.Series(float(live_i), index=tail.index)])
                 prov_from = tail.index.min()

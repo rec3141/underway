@@ -27,8 +27,8 @@ Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` (or
 ``TELEGRAM_KEY``, as in ``~/.config/underway/underway.env``) or in
 ``~/.config/underway/telegram.json`` (``{"token": ...}``). Email needs an SMTP
 account in ``~/.config/underway/smtp.json`` (host, port, user, password,
-from, ssl). Without one the corresponding channel is off and said so on the
-page.
+from, ssl, and reply_to for the address replies should go to). Without one
+the corresponding channel is off and said so on the page.
 """
 
 from __future__ import annotations
@@ -436,6 +436,8 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
     m = EmailMessage()
     m["From"] = cfg.get("from") or cfg["user"]
     m["To"] = to
+    if cfg.get("reply_to"):
+        m["Reply-To"] = cfg["reply_to"]
     m["Subject"] = subject
     m.set_content(body)
     port = int(cfg.get("port") or (465 if cfg.get("ssl", True) else 587))

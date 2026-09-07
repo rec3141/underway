@@ -20,8 +20,9 @@ flushed every ten, so its minutes past the end of the ACSD record stand in
 as a provisional tail (``provisional_tail``): the TSG channels and its GPS
 position, mapped onto the ACSD columns they duplicate (the values agree to
 the fourth decimal; the position to about 15 m). The tail is recomputed at
-every build from whatever the ACSD does not yet cover, so it shrinks to
-nothing as each flush lands.
+every build from whatever the ACSD does not yet cover, however long that
+is, and every provisional row is also appended to ``db/provisional_tsg.csv``
+so nothing seen only through the TSG file is ever lost.
 """
 
 from __future__ import annotations
@@ -120,19 +121,37 @@ def minute_frame(legs) -> pd.DataFrame | None:
     return f[~f.index.duplicated(keep="last")]
 
 
-def provisional_tail(tsg: pd.DataFrame, after: pd.Timestamp, columns: list[str], max_minutes: int = 30) -> pd.DataFrame:
+def provisional_tail(tsg: pd.DataFrame, after: pd.Timestamp, columns: list[str]) -> pd.DataFrame:
     """The TSG minutes after ``after`` (the end of the ACSD record), as rows
-    in the ACSD columns they duplicate; at most ``max_minutes`` so a stalled
-    ACSD feed does not grow a long tail of guesswork."""
+    in the ACSD columns they duplicate, for as long as the ACSD stays behind."""
     import re
     if tsg is None or after is None:
         return pd.DataFrame(columns=columns)
     naive = after.tzinfo is None
     cut = after.tz_localize("UTC") if naive else after.tz_convert("UTC")
-    tail = tsg[(tsg.index > cut) & (tsg.index <= cut + pd.Timedelta(minutes=max_minutes))]
+    tail = tsg[tsg.index > cut]
     out = pd.DataFrame(index=tail.index.tz_convert(None) if naive else tail.index, columns=columns, dtype=float)
     for ch, pat in ACSD_OF.items():
         key = next((c for c in columns if re.match(pat, c)), None)
         if key and ch in tail.columns:
             out[key] = tail[ch].to_numpy()
     return out.dropna(how="all")
+
+
+def archive_tail(tail: pd.DataFrame) -> int:
+    """Keep every provisional row in ``db/provisional_tsg.csv`` (one row per
+    minute, the newest version of a minute winning); returns the rows added."""
+    if tail is None or not len(tail):
+        return 0
+    p = DB_DIR / "provisional_tsg.csv"
+    idx = tail.index.tz_convert("UTC") if tail.index.tz is not None else tail.index.tz_localize("UTC")
+    new = tail.copy(); new.index = idx.strftime("%Y-%m-%dT%H:%M:%SZ"); new.index.name = "time_utc"
+    if p.is_file():
+        old = pd.read_csv(p, index_col="time_utc")
+        added = len(new.index.difference(old.index))
+        merged = pd.concat([old, new]); merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+    else:
+        added, merged = len(new), new
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp"); merged.to_csv(tmp); tmp.replace(p)
+    return added

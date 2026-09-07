@@ -317,17 +317,19 @@
       b.textContent = state.xmode === "time" ? "Time" : "Distance";
       b.onclick = () => { state.xmode = state.xmode === "time" ? "distance" : "time"; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
     }
-    const sel = $("#colour");
-    sel.innerHTML = "";
-    for (const v of [...M.variables, ...extraColours.values()]) {
-      if (!v.resolved) continue;
-      const o = document.createElement("option");
-      o.value = v.name; o.textContent = v.name;
-      sel.appendChild(o);
-    }
+    // every colour picker (the map's, and the underway strip's) lists the same variables and sets the same choice
     if (!VAR[state.colour]?.resolved && !extraColours.has(state.colour)) state.colour = M.variables.find((v) => v.resolved && !v.derived)?.name || M.variables[0].name;
-    sel.value = state.colour;
-    sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
+    for (const sel of document.querySelectorAll("select.colourpick")) {
+      sel.innerHTML = "";
+      for (const v of [...M.variables, ...extraColours.values()]) {
+        if (!v.resolved) continue;
+        const o = document.createElement("option");
+        o.value = v.name; o.textContent = v.name;
+        sel.appendChild(o);
+      }
+      sel.value = state.colour;
+      sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); renderControls(); render(); };
+    }
 
     // the map layers: on/off toggles in the bar above the map
     for (const b of document.querySelectorAll("#maplayers button[data-layer]")) {
@@ -1029,7 +1031,7 @@
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
-      `<p>Times and time axes are ship time (${SITE.local_tz}); CSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
+      `<p>Times and time axes are ship time (${SITE.local_tz}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
       `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
   }
 
@@ -1120,7 +1122,7 @@
     if (folded) return;
     $("#schedcols").innerHTML = col("Last completed", n.completed ? [n.completed] : [], "done") + col("In progress", n.in_progress || [], "live") + col("Coming up next", n.next ? [n.next] : [], "next");
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
-    $("#schedlinks").innerHTML = feed ? `<a class="bigcal" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open in Google Calendar">📅 ${esc(feed.label)}</a><a class="ics" href="${esc(feed.ics)}" title="subscribe (ICS feed)">ICS</a>` : "";
+    $("#schedlinks").innerHTML = feed ? `<a class="bigcal" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="bigcal" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
   }
 
   // ------------------------------------------------------------ tabs

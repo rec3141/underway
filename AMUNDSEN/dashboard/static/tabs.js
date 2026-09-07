@@ -22,6 +22,7 @@
     search: "",
   };
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
+  if (casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // the live cast is out of reach until Seasave's output is back
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
   const castById = (id) => casts.idx?.casts.find((c) => c.id === parentId(id));
@@ -149,7 +150,11 @@
   }
   function renderCastList() {
     const ul = $("#castlist"); if (!casts.idx) return;
-    if (casts.kind === "live") { ul.innerHTML = '<li class="muted livenote">the cast in the water, from Seasave — pick Single or Multi</li>'; $("#castclear").textContent = "clear"; return; }
+    if (casts.kind === "live") {                                   // the list box holds the Seasave setup instead
+      if (!ul.querySelector("#livecfgbox")) ul.innerHTML = '<li class="livesetup"><div id="livecfgbox"></div></li>';
+      if (live.data) liveCfgForm(ul, live.data);
+      $("#castclear").textContent = "clear"; return;
+    }
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
     const rows = casts.idx.casts
@@ -249,15 +254,16 @@
     live.timer = setTimeout(pollLive, 2000);
   }
   function renderLive(host) {
-    host.innerHTML = `<div class="livebar" id="livebar"><div id="livestatus"></div><div id="livecfgbox"></div></div><div id="livebody"></div>`;
+    host.innerHTML = `<div class="livebar" id="livebar"><div id="livestatus"></div></div><div id="livebody"></div>`;
     pollLive();
   }
-  // the source form is built once when opened and left alone while the page
-  // refreshes, so an edit in progress survives; the field list and raw scans
-  // under it follow every poll
+  // the Seasave setup, in the cast-list box while Live is the kind: the
+  // source form is built once and left alone while the page refreshes, so an
+  // edit in progress survives; the field list and raw scans under it follow
+  // every poll
   function liveCfgForm(host, d) {
     const box = host.querySelector("#livecfgbox");
-    if (!live.showCfg) { box.innerHTML = ""; return; }
+    if (!box) return;
     const fieldsSummary = `Seasave's field list (SBE_ConvertedDataSettings)${d.fields?.length ? ` · ${d.fields.length} fields` : ""}`;
     const fieldsText = d.fields?.length ? d.fields.map((n, i) => `${(d.columns || [])[i] || ""}  ←  ${n}`).join("\n") : "none received yet — Seasave sends it when the connection opens";
     const rawText = (d.raw || []).join("\n") || "none yet";
@@ -266,11 +272,11 @@
     if (box.querySelector("form")) {                     // refresh the texts, not the elements: an open panel stays open
       const set = (id, summary, text) => { const el = box.querySelector(id); if (!el) return; if (summary) el.querySelector("summary").textContent = summary; el.querySelector("pre").textContent = text; };
       set("#livefields", fieldsSummary, fieldsText); set("#liveraw", null, rawText);
+      const stl = box.querySelector("#livesetupstatus"); if (stl) stl.innerHTML = live.statusHtml || "";
       return;
     }
-    box.innerHTML = `<form class="livecfgform" id="livecfgform"><label>Seasave TCP/IP out (host:port) <input name="tcp" value="${esc(d.tcp || "")}" size="20"></label><button type="submit">apply</button>
-        <button type="button" class="chip" id="livecfgclose">close</button><span role="alert" id="livecfgerror"></span></form><div id="livedetails">${details}</div>`;
-    box.querySelector("#livecfgclose").onclick = () => { live.showCfg = false; liveCfgForm(host, d); };
+    box.innerHTML = `<div class="livesetup-title">Live cast</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>Seasave TCP/IP out (host:port) <input name="tcp" value="${esc(d.tcp || "")}" size="18"></label><button type="submit">apply</button>
+        <span role="alert" id="livecfgerror"></span></form><div id="livedetails">${details}</div>`;
     box.querySelector("form").onsubmit = async (ev) => { ev.preventDefault(); const f = new FormData(ev.target);
       const button = ev.target.querySelector('[type="submit"]'), error = box.querySelector("#livecfgerror");
       button.disabled = true; error.textContent = "";
@@ -279,7 +285,7 @@
         const response = await fetch("api/live", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tcp: f.get("tcp") }) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || `Configuration failed (${response.status})`);
-        live.data = result; live.showCfg = false; drawLive(host); pollLive();
+        live.data = result; drawLive($("#castplots")); pollLive();
       } catch (e) { error.textContent = e.name === "AbortError" ? "Request timed out; check settings before retrying." : `Could not apply settings: ${e.message}`; }
       finally { clearTimeout(timeout); button.disabled = false; }
     };
@@ -301,14 +307,13 @@
     const why = !d.tcp ? "no source set" : state === "PORT OPEN" ? `Seasave at ${d.tcp} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off` : `Seasave at ${d.tcp}: ${d.tcp_state}`;
     const feed = `${stampL(Date.now())} ${tzAbbr()} · ${updated} · <span class="livestate ${state.toLowerCase().replace(" ", "-")}" title="${esc(why)}">${state}</span>`;
     const cols = (cast?.columns || d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
-    st.innerHTML = `<div class="livestatus"><span class="dot ${flowing ? "on" : ""}"></span><span>${feed}</span>
+    live.statusHtml = `<div class="livestatus"><span class="dot ${flowing ? "on" : ""}"></span><span>${feed}</span>
         ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
-        <button type="button" class="chip" id="livecfg" title="Seasave source, field list and raw scans">⚙</button></div>
-      <div class="livevars">${varChips(cols, live.vars, "livevar")}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
+        </div>`;
+    st.innerHTML = `<div class="livevars">${varChips(cols, live.vars, "livevar")}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
     for (const b of st.querySelectorAll(".livevar")) b.onclick = () => { live.vars = live.vars.includes(b.dataset.v) ? live.vars.filter((x) => x !== b.dataset.v) : [...live.vars, b.dataset.v]; store.set("casts.live.vars", live.vars); drawLive(host); };
     for (const b of st.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
-    st.querySelector("#livecfg").onclick = () => { live.showCfg = !live.showCfg; liveCfgForm(host, d); };
-    liveCfgForm(host, d);
+    liveCfgForm($("#castlist"), d);
     if (!cast || !cast.t.length) {
       body.innerHTML = `<div class="empty">${d.tcp_state === "connected" && !announced ? `Seasave at ${esc(d.tcp)} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).` : d.no_pressure ? "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m]." : d.packets ? "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m." : d.tcp_state === "connected" ? "Connected to Seasave; the plot begins when acquisition starts and the package goes in." : d.tcp ? `Seasave at ${esc(d.tcp)} is not answering (${esc(d.tcp_state)}); retrying.` : "No Seasave source set — use ⚙."}</div>`;
       return;
@@ -604,7 +609,7 @@
   const nextDay = (key) => dayL(localMidnight(key) + 36 * 3600e3);
   const stampL = (t) => `${dayL(t)} ${hmL(t)}`;
   const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", dayL(Date.now()).slice(0, 7)),
-    span: store.get("cal.span", "days"), day: store.get("cal.day", dayL(Date.now())) };
+    span: store.get("cal.span", "days"), day: store.get("cal.day", dayL(Date.now())), openDays: new Set(), openDone: new Set() };
   async function ensureCalendar() {
     const stamp = UW.M.generated_utc;
     if (cal.data && cal.loadedFor === stamp) return;
@@ -614,33 +619,26 @@
   function renderCalendar() {
     const host = $("#calendar"); if (!cal.data) return;
     const s = cal.data.schedule || {};
-    $("#calmeta").textContent = `${cal.data.events.length} logged events · schedule ${s.updated ? "updated " + s.updated : "unavailable"}${s.stale ? " (cached copy)" : ""} · times are ship time (${tzAbbr()})`;
     const q = cal.search.toLowerCase();
     const f = UW.currentFilter();
     const evs = cal.data.events.filter((e) => UW.inFilter(e.leg, e.time_utc, f)).filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
     if (cal.view === "timeline") return renderTimeline(host, evs, s);
     if (cal.view === "month") return renderMonth(host, q);
-    const isoDay = (r) => { const t = UW.tms(r.start_utc); return isNaN(t) ? esc(r.date) : dayL(t); };
-    // finished operations (completed or canceled, dated or not) fold into
-    // one line until asked for. The toggle is emitted ahead of the rows so it
-    // stays at the top of the table.
-    const FOLDED_STATUS = /^(completed|cancell?ed)$/i;
-    const finishedToday = (r) => FOLDED_STATUS.test((r.status || "").trim());
-    const done = (s.rows || []).filter((r) => finishedToday(r) && r.start_utc);
-    const nDone = done.filter((r) => /^completed$/i.test((r.status || "").trim())).length;
-    const nCanc = done.length - nDone;
-    const foldLabel = [nDone && `${nDone} completed`, nCanc && `${nCanc} canceled`].filter(Boolean).join(" \u00b7 ");
-    const foldToggle = done.length
-      ? `<tr class="fold"><td colspan="8"><button id="schedunfold">${cal.showDone ? "\u25be hide" : "\u25b8 show"} ${foldLabel}</button></td></tr>`
-      : "";
-    const sched = foldToggle + (s.rows || []).map((r) => {
-      if (finishedToday(r) && (!cal.showDone || !r.start_utc)) return "";
-      if (q && !`${r.station} ${r.operation} ${r.status} ${r.comment} ${isoDay(r)}`.toLowerCase().includes(q)) return "";
-      return `<tr class="${statusClass(r.status || "upcoming")}"><td>${isoDay(r)}</td><td>${esc(r.start)}–${esc(r.end)}</td><td>${esc(r.station)}</td><td>${esc(r.operation)}</td><td class="alerts-cell">${bellHtml(r)}</td><td><span class="status">${esc(r.status || "upcoming")}</span></td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td><td class="muted">${esc(r.comment)}</td></tr>`;
+    const isoDay = (r) => { const t = UW.tms(r.start_utc); return isNaN(t) ? "" : dayL(t); };
+    // the rows in page order under a header row per ship day; a day's
+    // finished operations (completed or canceled) fold under that header
+    const shown = (s.rows || []).filter((r) => !(isFinished(r) && !r.start_utc))
+      .filter((r) => !q || `${r.station} ${r.operation} ${r.status} ${r.comment} ${isoDay(r)}`.toLowerCase().includes(q));
+    const byDayT = new Map();
+    for (const r of shown) { const d = isoDay(r) || "undated"; if (!byDayT.has(d)) byDayT.set(d, []); byDayT.get(d).push(r); }
+    const sched = [...byDayT.entries()].map(([d, rs]) => {
+      const nDone = rs.filter(isFinished).length, open = cal.openDone.has(d);
+      return dayHead(d) + (nDone ? `<tr class="fold"><td colspan="7"><button type="button" class="dayfold-done" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nDone} finished</button></td></tr>` : "") +
+        rs.map((r) => schedRow(r, rowKey(r), false).replace("<tr ", isFinished(r) && !open ? "<tr hidden " : "<tr ")).join("");
     }).join("");
     let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
-      (sched ? `<div class="hscroll"><table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table></div>` : '<p class="muted">no scheduled operations listed</p>') +
+      (sched ? `<div class="hscroll"><table class="sched">${SCHED_HEAD(false)}${sched}</table></div>` : '<p class="muted">no scheduled operations listed</p>') +
       `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
       ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p>` +
       alertsHtml() + `</section>`;
@@ -648,13 +646,40 @@
     host.innerHTML = html;
     const det = host.querySelector("#alerts"); if (det && wasOpen) det.open = true;
     wireAlerts(host); wireBells(host);
-    const unfold = host.querySelector("#schedunfold"); if (unfold) unfold.onclick = () => { cal.showDone = !cal.showDone; renderCalendar(); };
+    for (const b of host.querySelectorAll(".dayfold-done")) b.onclick = () => foldDone(host, b.dataset.day, !cal.openDone.has(b.dataset.day));
+  }
+  const isFinished = (r) => /^(completed|cancell?ed)$/i.test((r.status || "").trim());
+  function foldDone(host, d, open) {
+    if (open) cal.openDone.add(d); else cal.openDone.delete(d);
+    for (const tr of host.querySelectorAll(`tr.sched.done[data-day="${CSS.escape(d)}"]`)) tr.hidden = !open;
+    const b = host.querySelector(`.dayfold-done[data-day="${CSS.escape(d)}"]`); if (b) b.textContent = b.textContent.replace(/^\S+ (show|hide)/, open ? "▾ hide" : "▸ show");
+  }
+  // ---- one table for both views. The Today table and the event log share
+  // the columns time · station · operation · alerts · status · dur. · comment
+  // and a coloured header row per ship day; the log adds the logged events
+  // (their depth in the dur. column) and folds each day's scheduled rows.
+  const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
+  // the status in a word: now (in progress), next (up next), later (upcoming), done, canceled, was (scheduled once), logged
+  const statusWord = (r, next) => { const st = (r.status || "").trim().toLowerCase();
+    return r.former ? ["was", "was scheduled"] : st === "in progress" ? ["now", "now"] : st === "completed" ? ["done", "done"] : /^cancel/.test(st) ? ["canceled", "canceled"] : st && st !== "scheduled" ? ["later", st] : next ? ["next", "next"] : ["later", "later"]; };
+  const NCOLS = (depth) => depth ? 8 : 7;
+  const dayHead = (d, note, depth) => `<tr class="dayhead"><td colspan="${NCOLS(depth)}">${esc(d)}${d === dayL(Date.now()) ? " · today" : ""}${note ? ` <small>${note}</small>` : ""}</td></tr>`;
+  const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
+  function schedRow(r, k, depth) {
+    const nextKey = UW.M.calendar?.now?.next?.key, next = !r.former && r.key === nextKey;
+    const t0 = UW.tms(r.start_utc), t1 = UW.tms(r.end_utc);
+    const when = r.start ? `${esc(r.start)}–${esc(r.end || "")}` : `${isNaN(t0) ? "" : hmL(t0)}–${isNaN(t1) ? "" : hmL(t1)}`;
+    const [cls, word] = statusWord(r, next);
+    return `<tr class="sched ${r.former ? "former" : ""} ${isFinished(r) ? "done" : ""} ${statusClass(r.status || "upcoming")} ${next ? "next" : ""}" data-key="${esc(k)}" data-day="${esc(isNaN(t0) ? "" : dayL(t0))}">` +
+      `<td class="alerts-cell">${r.former ? "" : bellHtml(r)}</td><td class="mono">${when}</td><td><span class="status s-${cls}" title="${esc(word)}">${esc(word)}</span></td>` +
+      `<td>${esc(r.station || "")}</td><td>${esc(r.operation || "")}</td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td>` +
+      `${depth ? "<td></td>" : ""}<td class="muted">${esc(r.comment || "")}</td></tr>`;
   }
   // the event log: logged events and scheduled operations (current and
-  // former) grouped by ship day, newest first; every row carries the key its
-  // timeline point uses (e:<index> / r:<row key>)
-  // every source has its own time format (the event log writes 2026/09/03
-  // 11:23:12, the schedule ISO), so group and sort on instants
+  // former) by ship day, newest first; every row carries the key its
+  // timeline point uses (e:<index> / r:<row key>). Every source has its own
+  // time format (the event log writes 2026/09/03 11:23:12, the schedule
+  // ISO), so group and sort on instants.
   function eventListHtml(evs, s, q, f) {
     const hm = (t) => isNaN(t) ? "" : hmL(t);
     const byDay = new Map();
@@ -668,48 +693,53 @@
       if (!/ctd|rosette/i.test(e.activity || "") || !e.station) return null;
       const t = UW.tms(e.time_utc), st = String(e.station).trim().toLowerCase();
       let best = null;
-      for (const s of UW.M.stations || []) {
-        if (s.kind === "event" || s.leg !== e.leg || String(s.station).trim().toLowerCase() !== st) continue;
-        const dt = Math.abs(UW.tms(s.time) - t);
-        if (dt < 6 * 3600e3 && (!best || dt < best.dt)) best = { dt, key: `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`, cast: s.cast };
+      for (const c of UW.M.stations || []) {
+        if (c.kind === "event" || c.leg !== e.leg || String(c.station).trim().toLowerCase() !== st) continue;
+        const dt = Math.abs(UW.tms(c.time) - t);
+        if (dt < 6 * 3600e3 && (!best || dt < best.dt)) best = { dt, key: `${c.leg}:CTD_${String(c.cast).padStart(3, "0")}`, cast: c.cast };
       }
       return best;
     };
-    const evHtml = (e, k) => { const c = castFor(e); return `<div class="ev" data-key="${esc(k)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
-          <span class="t">${hm(UW.tms(e.time_utc))}</span>
-          <span class="st">${esc(e.station || "")}</span>
-          <span class="what">${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</span>
-          <span class="alerts">${c ? `<button type="button" class="viewdata" data-cast="${esc(c.key)}" title="open cast ${esc(c.cast)} on the Casts tab">view data</button>` : ""}</span>
-          <span class="status-cell"></span>
-          <span class="pos muted">${e.lat != null && e.lon != null ? dms(+e.lat, +e.lon) : ""}${e.depth_m != null ? " · " + Math.round(+e.depth_m) + " m" : ""}</span>
-          ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`; };
-    const nextKey = UW.M.calendar?.now?.next?.key;
-    const schedHtml = (r, k) => `<div class="ev sched ${r.former ? "former" : ""} ${statusClass(r.status || "upcoming")} ${!r.former && r.key === nextKey ? "next" : ""}" data-key="${esc(k)}">
-          <span class="t">${hm(UW.tms(r.start_utc))}</span>
-          <span class="st">${esc(r.station || "")}</span>
-          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : !r.former && r.key === nextKey ? "up next" : "scheduled"}</span></span>
-          <span class="alerts">${r.former ? "" : bellHtml(r)}</span>
-          <span class="status-cell"><span class="status">${esc(r.status || "upcoming")}</span></span>
-          <span class="pos muted">${hm(UW.tms(r.start_utc))}–${hm(UW.tms(r.end_utc))}${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
-          ${r.comment ? `<span class="cm muted">${esc(r.comment)}</span>` : ""}</div>`;
-    return `<section class="agenda evlog" id="evlog">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t - a.t); const first = items.find((x) => x.e)?.e;
-      return `<div class="day"><h4>${esc(d)}${d === dayL(Date.now()) ? " · today" : ""} <small>${items.filter((x) => x.e).length} events · ${items.filter((x) => x.r).length} scheduled · ${esc(UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "")} · ${tzAbbr()}</small></h4>` +
-        items.map((x) => x.e ? evHtml(x.e, x.k) : schedHtml(x.r, x.k)).join("") + `</div>`; }).join("") + `</section>`;
+    const evRow = (e, k, d) => { const c = castFor(e); return `<tr class="logged" data-key="${esc(k)}" data-day="${esc(d)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="${e.lat != null ? "show on map" : ""}">` +
+      `<td class="alerts-cell">${c ? `<button type="button" class="viewdata" data-cast="${esc(c.key)}" title="open cast ${esc(c.cast)} on the Casts tab">view data</button>` : ""}</td>` +
+      `<td class="mono">${hm(UW.tms(e.time_utc))}</td><td><span class="status s-logged" title="logged">logged</span></td><td>${esc(e.station || "")}</td><td>${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</td>` +
+      `<td></td><td>${e.depth_m != null ? Math.round(+e.depth_m) + " m" : ""}</td><td class="muted">${esc(e.comment || "")}</td></tr>`; };
+    // scheduled rows show; the formerly scheduled ones (off the intranet page now) fold per day
+    const body = days.map((d) => {
+      const items = byDay.get(d).sort((a, b) => b.t - a.t);
+      const nEv = items.filter((x) => x.e).length, nSched = items.filter((x) => x.r && !x.r.former).length, nFormer = items.filter((x) => x.r?.former).length, open = cal.openDays.has(d);
+      const first = items.find((x) => x.e)?.e, leg = UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "";
+      return dayHead(d, `${nEv} events · ${nSched} scheduled${nFormer ? ` · ${nFormer} formerly` : ""}${leg ? " · " + esc(leg) : ""}`, true) +
+        (nFormer ? `<tr class="fold"><td colspan="8"><button type="button" class="dayfold" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nFormer} formerly scheduled</button></td></tr>` : "") +
+        items.map((x) => x.e ? evRow(x.e, x.k, d) : schedRow(x.r, x.k, true).replace("<tr ", open || !x.r.former ? "<tr " : "<tr hidden ")).join("");
+    }).join("");
+    return `<div class="evlog" id="evlog"><table class="sched">${SCHED_HEAD(true)}${body}</table></div>`;
   }
-  const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
   function wireEventList(host) {
-    for (const el of host.querySelectorAll(".ev[data-lat]")) el.onclick = () => { if (el.dataset.lat) UW.focusMap(el.dataset.lat, el.dataset.lon, el.querySelector(".st")?.textContent); };
-    for (const b of host.querySelectorAll(".viewdata")) b.onclick = (ev) => { ev.stopPropagation(); UW.onStationClick?.(b.dataset.cast); };
+    for (const tr of host.querySelectorAll("tr.logged[data-lat]")) tr.onclick = () => { if (tr.dataset.lat) UW.focusMap(tr.dataset.lat, tr.dataset.lon, tr.children[1]?.textContent); };
+    for (const b of host.querySelectorAll(".viewdata")) b.onclick = async (ev) => {
+      ev.stopPropagation();
+      try { await ensureCastIndex(); } catch { UW.setLoadError("Casts", true); return; }
+      UW.onStationClick?.(b.dataset.cast);
+    };
+    for (const b of host.querySelectorAll(".dayfold")) b.onclick = () => foldDay(host, b.dataset.day, !cal.openDays.has(b.dataset.day));
     wireBells(host);
+  }
+  // a day's scheduled rows shown or hidden in place, remembered for the session
+  function foldDay(host, d, open) {
+    if (open) cal.openDays.add(d); else cal.openDays.delete(d);
+    for (const tr of host.querySelectorAll(`tr.sched.former[data-day="${CSS.escape(d)}"]`)) tr.hidden = !open;
+    const b = host.querySelector(`.dayfold[data-day="${CSS.escape(d)}"]`); if (b) b.textContent = b.textContent.replace(/^\S+ (show|hide)/, open ? "▾ hide" : "▸ show");
   }
   // a click on the timeline scrolls the log to that row (the log's own scroll, not the page's)
   function showLogRow(host, key) {
-    const log = host.querySelector("#evlog"), row = log?.querySelector(`.ev[data-key="${CSS.escape(key)}"]`);
+    const log = host.querySelector("#evlog"), row = log?.querySelector(`tr[data-key="${CSS.escape(key)}"]`);
     if (!log || !row) return;
-    for (const x of log.querySelectorAll(".ev.on")) x.classList.remove("on");
+    if (row.hidden && row.dataset.day) foldDay(host, row.dataset.day, true);
+    for (const x of log.querySelectorAll("tr.on")) x.classList.remove("on");
     row.classList.add("on");
-    log.scrollTo({ top: row.offsetTop - log.offsetTop - log.clientHeight / 3, behavior: "smooth" });
-    if (row.dataset.lat) UW.focusMap(row.dataset.lat, row.dataset.lon, row.querySelector(".st")?.textContent);
+    log.scrollTo({ top: row.offsetTop - log.clientHeight / 3, behavior: "smooth" });
+    if (row.dataset.lat) UW.focusMap(row.dataset.lat, row.dataset.lon, row.children[1]?.textContent);
   }
   // the bell beside an operation: follow just that one, by email (the address
   // the page remembers) or by Telegram (a t.me link carrying the row); a
@@ -1054,12 +1084,12 @@
   // ================================================================ stations
   // one row per CTD cast from the logbook, and one per station the event
   // log records without a cast (kind "event", with what was done there)
-  const stn = { kind: store.get("stn.kind", "all"), sort: store.get("stn.sort", { key: "time", dir: -1 }), search: "" };
+  const stn = { sort: store.get("stn.sort", { key: "time", dir: -1 }), search: "" };
   const STATION_COLS = [["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
-    let rows = (UW.M.stations || []).filter((s) => UW.inFilter(s.leg, s.time, f)).filter((s) => stn.kind === "all" || (s.kind === "event") === (stn.kind === "event")).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    let rows = (UW.M.stations || []).filter((s) => UW.inFilter(s.leg, s.time, f)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
     if (q) rows = rows.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
     const k = stn.sort.key, dir = stn.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];
@@ -1096,19 +1126,18 @@
       if (!was) $("#stationtable").querySelectorAll("tbody tr")[i]?.classList.add("on");
     };
   }
-  function downloadStationsCSV() {
-    const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const rows = stationRows();
-    const lines = [STATION_COLS.map(([k]) => q(k)).join(",")].concat(rows.map((r) => STATION_COLS.map(([k]) => q(k === "leg" ? r.legLabel : r[k])).join(",")));
-    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "stations.csv"; a.click();
+  // exports are tab-separated text: a cell never holds a tab or a line break
+  const tsvCell = (s) => String(s ?? "").replace(/[\t\r\n]+/g, " ");
+  function saveTSV(name, head, rows) {
+    const lines = [head.map(tsvCell).join("\t")].concat(rows.map((r) => r.map(tsvCell).join("\t")));
+    const blob = new Blob([lines.join("\n") + "\n"], { type: "text/tab-separated-values" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
+  function downloadStationsCSV() {
+    saveTSV("stations.tsv", STATION_COLS.map(([k]) => k), stationRows().map((r) => STATION_COLS.map(([k]) => k === "leg" ? r.legLabel : r[k])));
+  }
   function wireStations() {
-    for (const b of $("#stnkind").querySelectorAll("button")) {
-      b.classList.toggle("on", b.dataset.k === stn.kind);
-      b.onclick = () => { stn.kind = b.dataset.k; store.set("stn.kind", stn.kind); for (const x of $("#stnkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderStations(); };
-    }
     $("#stnsearch").oninput = debounce((e) => { stn.search = e.target.value; renderStations(); }, 150);
     $("#stncsv").onclick = downloadStationsCSV;
   }
@@ -1164,11 +1193,7 @@
     const stat = ["mean", "min", "max", "n"][tbl.stat];
     const rows = currentRows();
     const head = ["time_utc", "leg", "lat", "lon", ...d.variables.map((v) => `${v} (${stat})`)];
-    const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const lines = [head.map(q).join(",")].concat(rows.map((r) => [new Date(r.t).toISOString(), r.legLabel, r.lat, r.lon, ...d.variables.map((v) => r[v] ? r[v][tbl.stat] : "")].map(q).join(",")));
-    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `underway_${tbl.rule}_${stat}.csv`; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    saveTSV(`underway_${tbl.rule}_${stat}.tsv`, head, rows.map((r) => [new Date(r.t).toISOString(), r.legLabel, r.lat, r.lon, ...d.variables.map((v) => r[v] ? r[v][tbl.stat] : "")]));
   }
   function wireTable() {
     for (const b of $("#aggrule").querySelectorAll("button")) {

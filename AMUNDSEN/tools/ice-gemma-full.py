@@ -6,6 +6,7 @@ from html import escape
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import time
@@ -13,7 +14,8 @@ import urllib.request
 from PIL import Image, ImageDraw
 
 ROOT=Path('/home/cryomics/Downloads')
-OUT=ROOT/'amundsen-ice-gemma-floes-v2'
+OUT=Path(os.environ.get('ICE_GEMMA_OUT',str(ROOT/'amundsen-ice-gemma-floes-40m')))
+SIZE_EVIDENCE=os.environ.get('ICE_GEMMA_SIZE_EVIDENCE')=='1'
 TOOLS=Path('/tmp/amundsen-camera-rotated/AMUNDSEN/tools')
 UNIT='ice-gemma-shared.service'
 URL='http://127.0.0.1:18043'
@@ -34,6 +36,8 @@ def audit(response,quality):
     # Existing audit implementation uses the legacy spelling; responses stay unmodified.
     parsed=json.loads(response.strip().removeprefix('```json').removesuffix('```').strip())
     surface=parsed['surface_percentages']
+    if SIZE_EVIDENCE and not isinstance(parsed.get('piece_size_assessment'),list):
+        raise ValueError('Missing piece_size_assessment array')
     if 'calm water' not in surface or 'smooth water' in surface:raise ValueError('Wrong water label')
     if not {'thin ice floe','thick ice floe'}.issubset(surface) or {'thin fyi','ice floe'} & surface.keys():raise ValueError('Wrong floe labels')
     aliases={'calm water':'smooth water','thin ice floe':'thin fyi','thick ice floe':'ice floe'}
@@ -50,8 +54,9 @@ def request(payload):
 
 def main():
     OUT.mkdir(exist_ok=True);(OUT/'images').mkdir(exist_ok=True)
-    queue_data=json.loads((ROOT/'amundsen-ice-gemma-overnight/queue.json').read_text())
-    queue=queue_data['queue'];assert len(queue)==len({r['file'] for r in queue})==470
+    queue_data=json.loads(Path(os.environ.get('ICE_GEMMA_QUEUE',str(ROOT/'amundsen-ice-gemma-overnight/queue.json'))).read_text())
+    queue=queue_data['queue'];expected=len(queue)
+    assert expected and expected==len({r['file'] for r in queue})
     atomic(OUT/'queue.json',json.dumps(queue_data,indent=2))
     atomic(OUT/'scale-assumptions.json',json.dumps(taxonomy.SCALE,indent=2))
     human=json.loads((ROOT/'amundsen-ice-qwen-k32-classes/labels-clean.json').read_text())
@@ -69,7 +74,7 @@ def main():
     done={r['file'] for r in rows if r.get('finish_reason')=='stop'}
     started=time.monotonic();deadline=started+8*3600;window=thermal.RunningTemperature()
     def status(state,**extra):
-        atomic(OUT/'status.json',json.dumps(dict(state=state,completed=len(done),expected=470,utc=datetime.now(timezone.utc).isoformat(),**extra),indent=2))
+        atomic(OUT/'status.json',json.dumps(dict(state=state,completed=len(done),expected=expected,utc=datetime.now(timezone.utc).isoformat(),**extra),indent=2))
     def temperature():
         cpu,gpu,*_=thermal.monitor.temperatures();average=window.add(time.monotonic(),cpu)
         with (OUT/'telemetry.csv').open('a') as f:f.write(f'{time.time()},{cpu},{gpu},{average}\n')
@@ -95,13 +100,16 @@ def main():
         raise RuntimeError('Shared model server unavailable')
     def render():
         page='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><title>Gemma 470 rerun</title><style>body{font:16px system-ui;max-width:1100px;margin:2rem auto;padding:1rem}img{max-width:48%;max-height:420px}pre{white-space:pre-wrap}article{border-top:1px solid #bbb;padding:1rem 0}</style><h1>Gemma · all-high · floes v2</h1>'
-        page+=f'<p>{len(done)} / 470 completed. 1120 image tokens; microbatch 2048; reasoning off. Native context, doubled ROI, rebuilt high-resolution key. Human labels withheld from prompts. Exploratory estimates only.</p>'
+        page=page.replace('Gemma 470 rerun','Gemma 40 m trial').replace('floes v2','40 m floe cutoff')
+        if SIZE_EVIDENCE:page+='<p>Size-evidence trial: explicit piece-size ranges and observable boundary evidence before classification.</p>'
+        page+=f'<p>{len(done)} / {expected} completed. 1120 image tokens; microbatch 2048; reasoning off. Native context, doubled ROI, rebuilt high-resolution key. Human labels withheld from prompts. Exploratory estimates only.</p>'
         page+='<h2>Approximate scale and size convention</h2><p>Camera height provisionally 9–12 m (three stories). ROI ground extent roughly 50 × 25 m, tapered rather than rectangular; allow about a factor-of-two uncertainty. Height, projection and tilt are not calibrated. Brash: individual pieces &lt;20 m across; thin/thick ice floes: coherent pieces &gt;20 m across. Thin/thick are appearance labels, not measured thickness. Key examples illustrate appearance, not independently verified sizes. Human label names were translated, not re-reviewed against the new size rule.</p>'
         page+='<h2>Reference key</h2><p><a href="ice-resolution/key-hires-floes-v2.png" target="_blank" rel="noopener">Open full-resolution key · 2928 × 3064</a></p><a href="ice-resolution/key-hires-floes-v2.png" target="_blank" rel="noopener"><img alt="Reference key with thin and thick ice floe labels" src="ice-resolution/key-hires-floes-v2.png" style="width:100%;max-width:100%;max-height:none"></a>'
         for r in rows:
             page+='<article><h2>'+escape(r['file'])+'</h2><p>Human: '+escape(', '.join(r['human_label']))+'</p>'
             page+=''.join('<img loading="lazy" src="'+OUT.name+'/'+escape(p,quote=True)+'">' for p in r['images'])
             page+='<h3>Response · '+str(round(r['elapsed_s'],1))+' seconds</h3><pre>'+escape(r['response'])+'</pre></article>'
+        page=page.replace('&lt;20 m','&lt;40 m').replace('&gt;20 m','&gt;40 m')
         atomic(ROOT/'gemma.html',page+'</html>')
     status('starting');render()
     subprocess.run(['systemctl','--user','start',UNIT],check=True)
@@ -125,7 +133,7 @@ def main():
                         crop=native.resize((2400,1200),Image.Resampling.LANCZOS)
                     ImageDraw.Draw(full).line(polygon+[polygon[0]],fill='orange',width=12)
                     images=[rot.uri(full),rot.uri(crop),key]
-                    texts,_=prompts.build(baseline[0]['prompt'],images);texts=taxonomy.build_prompt(texts)
+                    texts,_=prompts.build(baseline[0]['prompt'],images);texts=taxonomy.build_prompt(texts,size_evidence=SIZE_EVIDENCE)
                     content=[]
                     for text,index in zip(texts,[0,2,1]):content.extend([dict(type='text',text=text),dict(type='image_url',image_url=dict(url=images[index]))])
                     payload=dict(model='gemma-camera',messages=[dict(role='user',content=content)],temperature=0,max_tokens=2000,stream=False,seed=42,chat_template_kwargs=dict(enable_thinking=False))
@@ -146,11 +154,11 @@ def main():
                     paths=[]
                     for i,uri in enumerate(images[:2]):
                         path=f'images/{item["id"]}-{i}.jpg';(OUT/path).write_bytes(base64.b64decode(uri.split(',',1)[1]));paths.append(path)
-                    row=dict(id=item['id'],file=file,model='gemma-budget-1120-ub2048-all-high-floes-v2',reasoning='off',images=paths,scale_assumptions=taxonomy.SCALE,
-                             prompt_segments=texts,response=response,finish_reason=finish,elapsed_s=time.monotonic()-begin,
+                    row=dict(id=item['id'],file=file,model='gemma-budget-1120-ub2048-all-high-floes-40m',reasoning='off',images=paths,scale_assumptions=taxonomy.SCALE,
+                             prompt_variant='size-evidence' if SIZE_EVIDENCE else 'baseline',prompt_segments=texts,response=response,finish_reason=finish,elapsed_s=time.monotonic()-begin,
                              human_label=humans.get(file,[]),queue_metadata=item,usage=raw.get('usage'),utc=datetime.now(timezone.utc).isoformat(),**checked)
                     rows.append(row);done.add(file);atomic(OUT/'results.json',json.dumps(rows,indent=2));render()
-                    print(f'{len(done)}/470 {file} {row["elapsed_s"]:.1f}s',flush=True);break
+                    print(f'{len(done)}/{expected} {file} {row["elapsed_s"]:.1f}s',flush=True);break
                 except Exception as error:
                     status('retrying',file=file,error=str(error),attempt=attempt+1)
                     print('ERROR',file,error,flush=True)

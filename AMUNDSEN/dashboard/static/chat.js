@@ -21,7 +21,7 @@
   phone.addEventListener?.("change", () => layout());
 
   function layout() {
-    el.hidden = phone.matches && !st.open;
+    el.hidden = !st.open;                                     // closed is gone; the Chat tab brings it back
     el.classList.toggle("noai", st.noai);
     const ai = $("#chataibtn"); ai.textContent = st.noai ? "show AI" : "hide AI"; ai.title = st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names";
     el.classList.toggle("collapsed", !st.open);
@@ -93,7 +93,7 @@
   $("#chataibtn").onclick = () => { st.noai = !st.noai; store.set("chat.noai", st.noai); layout(); poll(); };
   $("#chatsidebtn").onclick = () => { st.side = !st.side; store.set("chat.side", st.side); if (!st.open) st.open = true; layout(); poll(); };
   // the Chat tab button: open as a side bar, or put it away
-  window.UW = Object.assign(window.UW || {}, { chatToggle: () => { if (st.side && st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } } });
+  window.UW = Object.assign(window.UW || {}, { chatToggle: () => { if (st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } } });
 
   nameIn.onchange = () => { st.myName = nameIn.value.trim().slice(0, 24); store.set("chat.name", st.myName); poll(); };
   pick.innerHTML = EMOJI.map((e) => `<button type="button">${e}</button>`).join("");
