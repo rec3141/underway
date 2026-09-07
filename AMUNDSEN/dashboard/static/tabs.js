@@ -15,17 +15,19 @@
   const casts = {
     idx: null, loadedFor: null,
     sel: new Set(store.get("casts.sel", [])),
-    mode: store.get("casts.mode", "profiles"),
-    kind: store.get("casts.kind", "all"),
+    mode: store.get("casts.mode", "profiles"),          // single | profiles (Multi) | section
+    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | live (the cast in the water)
+    xmode: store.get("casts.xmode", "time"),            // the section's own x axis: time | distance
     variable: store.get("casts.var", "Temperature"),
     search: "",
   };
+  if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
   const castById = (id) => casts.idx?.casts.find((c) => c.id === parentId(id));
   const dipSel = (towId) => [...casts.sel].filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
   casts.open = new Set(store.get("casts.open", []));
-  const castLabel = (c) => c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}`
+  const castLabel = (c) => c.kind === "LIVE" ? "Live cast" : c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}`
     : `${c.kind === "TM" ? "TM cast" : "Cast"} ${c.cast}${c.station ? " · " + c.station : ""}`;
   const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) + (c.time_end ? "–" + c.time_end.replace("T", " ").slice(11, 16) : "") : "";
   // a tow bundle expands into its dips — only the selected ones when dips were
@@ -147,6 +149,7 @@
   }
   function renderCastList() {
     const ul = $("#castlist"); if (!casts.idx) return;
+    if (casts.kind === "live") { ul.innerHTML = '<li class="muted livenote">the cast in the water, from Seasave — pick Single or Multi</li>'; $("#castclear").textContent = "clear"; return; }
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
     const rows = casts.idx.casts
@@ -195,7 +198,7 @@
   const live = { vars: store.get("casts.live.vars", ["temperature", "salinity"]), which: "current", data: null, timer: null, showCfg: false };
   const single = { vars: store.get("casts.single.vars", ["Temperature", "Salinity"]), id: null, dip: null };
   const LIVE_SKIP = new Set(["scan", "time", "t", "pressure", "prdm", "prm", "pr", "p", "depth", "depsm", "depth_m"]);
-  const liveVisible = () => casts.mode === "live" && !$("#pane-casts").hidden;
+  const liveVisible = () => casts.kind === "live" && !$("#pane-casts").hidden;
 
   // spec: { depth[], vars: {name: values}, units: {name}, splitAt (index of the deepest point, or null), nowDepth, sub }
   function drawOverlay(body, plotId, title, spec, chosen) {
@@ -314,6 +317,14 @@
     const depth = cast.depth_like ? P : P.map((p) => p == null ? null : depthFrom(p, lat));
     let imax = 0; for (let i = 0; i < P.length; i++) if (P[i] != null && P[i] > (P[imax] ?? -1)) imax = i;
     const li = depth.length - 1;
+    if (casts.mode === "profiles") {
+      // Multi: the live cast as one graph per variable, like archived casts
+      const vars = Object.fromEntries(Object.entries(cast.cols).filter(([k]) => !LIVE_SKIP.has(k.toLowerCase())));
+      const pseudo = { id: "live", kind: "LIVE", cast: "live", station: "", time: cast.started ? new Date(cast.started * 1000).toISOString() : "",
+        units: Object.fromEntries(Object.keys(vars).map((k) => [k, ""])), vars, depth, lat };
+      renderProfiles(body, [pseudo]);
+      return;
+    }
     drawOverlay(body, "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li],
       sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, live.vars);
     wireCastPanels(host, () => drawLive(host));
@@ -344,12 +355,14 @@
   async function renderCastPlots() {
     const seq = ++plotSeq, stamp = UW.M.generated_utc;
     fillCastVars();
-    if (casts.mode !== "live") clearTimeout(live.timer);
+    if (casts.kind !== "live") clearTimeout(live.timer);
     const host = $("#castplots");
     const sel = orderedSelection();
-    $("#castvarwrap").hidden = casts.mode !== "section";
-    $("#castxmode").hidden = casts.mode !== "section";          // the section's x axis follows Time/Distance
-    if (casts.mode === "live") { $("#castmeta").textContent = "the cast in the water, from the deck unit"; return renderLive(host); }
+    // the live cast draws as Single or Multi; a section needs casts from the archive
+    $("#castmode button[data-m=section]").disabled = casts.kind === "live";
+    if (casts.kind === "live" && casts.mode === "section") { casts.mode = "single"; store.set("casts.mode", casts.mode); for (const x of $("#castmode").querySelectorAll("button")) x.classList.toggle("on", x.dataset.m === casts.mode); }
+    $("#castrow2").hidden = casts.mode !== "section";           // the section's own x axis and the variable it colours by
+    if (casts.kind === "live") { $("#castmeta").textContent = ""; return renderLive(host); }
     if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div>'; $("#castmeta").textContent = ""; return; }
     let data;
     try {
@@ -379,7 +392,7 @@
     const g = 9.780318 * (1 + (5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * p;
     return (((-1.82e-15 * p + 2.279e-10) * p - 2.2512e-5) * p + 9.72659) * p / g;
   }
-  const depths = (prof) => prof.p.map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));
+  const depths = (prof) => prof.depth || prof.p.map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));   // a live cast carries depth already
   // Depth axes are linear or compressed (square root of depth, so the upper
   // water column gets room); the switch is shared by every cast view. yT maps
   // a depth onto the axis, depthAxis labels it in metres.
@@ -499,7 +512,7 @@
     const onDepthGrid = (prof) => onGrid({ p: depths(prof), vars: prof.vars }, v, grid);
     // x follows the header's Time/Distance switch: distance is cumulative
     // along the profiles in time order, time is each profile's own
-    const byTime = UW.state.xmode === "time";
+    const byTime = casts.xmode === "time";                       // the section's axis, apart from the underway one
     const km = [0];
     for (let i = 1; i < withVar.length; i++) {
       const a = withVar[i - 1], b = withVar[i];
@@ -566,6 +579,9 @@
     };
     for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
     $("#castvar").onchange = (e) => { casts.variable = e.target.value; store.set("casts.var", casts.variable); renderCastPlots(); };
+    const sx = $("#castxmode .xcycle");
+    sx.textContent = casts.xmode === "time" ? "Time" : "Distance";
+    sx.onclick = () => { casts.xmode = casts.xmode === "time" ? "distance" : "time"; store.set("casts.xmode", casts.xmode); sx.textContent = casts.xmode === "time" ? "Time" : "Distance"; renderCastPlots(); };
     for (const b of $("#castkind").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.k === casts.kind);
       b.onclick = () => { casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); UW.renderMap(); };
@@ -624,7 +640,7 @@
     }).join("");
     let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
-      (sched ? `<table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table>` : '<p class="muted">no scheduled operations listed</p>') +
+      (sched ? `<div class="hscroll"><table class="sched"><tr><th>date</th><th>time</th><th>station</th><th>operation</th><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>status</th><th>dur.</th><th>comment</th></tr>${sched}</table></div>` : '<p class="muted">no scheduled operations listed</p>') +
       `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
       ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p>` +
       alertsHtml() + `</section>`;
@@ -646,17 +662,34 @@
     evs.forEach((e, i) => add(UW.tms(e.time_utc), { e, k: `e:${i}` }));
     for (const r of scheduledRows(s)) if ((!q || JSON.stringify(r).toLowerCase().includes(q)) && (UW.inFilter(null, r.start_utc, f) || UW.inFilter(null, r.end_utc, f) || UW.tms(r.start_utc) > f.end)) add(UW.tms(r.start_utc), { r, k: rowKey(r) });
     const days = [...byDay.keys()].sort().reverse().slice(0, 60);
-    const evHtml = (e, k) => `<div class="ev" data-key="${esc(k)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
+    // a logged CTD event links to its cast when the logbook has one at that
+    // station within a few hours (the key the Casts tab selects by)
+    const castFor = (e) => {
+      if (!/ctd|rosette/i.test(e.activity || "") || !e.station) return null;
+      const t = UW.tms(e.time_utc), st = String(e.station).trim().toLowerCase();
+      let best = null;
+      for (const s of UW.M.stations || []) {
+        if (s.kind === "event" || s.leg !== e.leg || String(s.station).trim().toLowerCase() !== st) continue;
+        const dt = Math.abs(UW.tms(s.time) - t);
+        if (dt < 6 * 3600e3 && (!best || dt < best.dt)) best = { dt, key: `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`, cast: s.cast };
+      }
+      return best;
+    };
+    const evHtml = (e, k) => { const c = castFor(e); return `<div class="ev" data-key="${esc(k)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="show on map">
           <span class="t">${hm(UW.tms(e.time_utc))}</span>
           <span class="st">${esc(e.station || "")}</span>
           <span class="what">${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</span>
+          <span class="alerts">${c ? `<button type="button" class="viewdata" data-cast="${esc(c.key)}" title="open cast ${esc(c.cast)} on the Casts tab">view data</button>` : ""}</span>
+          <span class="status-cell"></span>
           <span class="pos muted">${e.lat != null && e.lon != null ? dms(+e.lat, +e.lon) : ""}${e.depth_m != null ? " · " + Math.round(+e.depth_m) + " m" : ""}</span>
-          ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`;
+          ${e.comment ? `<span class="cm muted">${esc(e.comment)}</span>` : ""}</div>`; };
     const nextKey = UW.M.calendar?.now?.next?.key;
-    const schedHtml = (r, k) => `<div class="ev sched ${r.former ? "former" : ""} ${statusClass(r.status)} ${!r.former && r.key === nextKey ? "next" : ""}" data-key="${esc(k)}">
+    const schedHtml = (r, k) => `<div class="ev sched ${r.former ? "former" : ""} ${statusClass(r.status || "upcoming")} ${!r.former && r.key === nextKey ? "next" : ""}" data-key="${esc(k)}">
           <span class="t">${hm(UW.tms(r.start_utc))}</span>
           <span class="st">${esc(r.station || "")}</span>
-          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : !r.former && r.key === nextKey ? "up next" : "scheduled"}</span> <span class="status">${esc(r.status || "upcoming")}</span>${r.former ? "" : bellHtml(r)}</span>
+          <span class="what">${esc(r.operation || "")} <span class="badge">${r.former ? "was scheduled" : !r.former && r.key === nextKey ? "up next" : "scheduled"}</span></span>
+          <span class="alerts">${r.former ? "" : bellHtml(r)}</span>
+          <span class="status-cell"><span class="status">${esc(r.status || "upcoming")}</span></span>
           <span class="pos muted">${hm(UW.tms(r.start_utc))}–${hm(UW.tms(r.end_utc))}${r.duration_h != null ? " · " + r.duration_h.toFixed(1) + " h" : ""}</span>
           ${r.comment ? `<span class="cm muted">${esc(r.comment)}</span>` : ""}</div>`;
     return `<section class="agenda evlog" id="evlog">` + days.map((d) => { const items = byDay.get(d).sort((a, b) => b.t - a.t); const first = items.find((x) => x.e)?.e;
@@ -666,6 +699,7 @@
   const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
   function wireEventList(host) {
     for (const el of host.querySelectorAll(".ev[data-lat]")) el.onclick = () => { if (el.dataset.lat) UW.focusMap(el.dataset.lat, el.dataset.lon, el.querySelector(".st")?.textContent); };
+    for (const b of host.querySelectorAll(".viewdata")) b.onclick = (ev) => { ev.stopPropagation(); UW.onStationClick?.(b.dataset.cast); };
     wireBells(host);
   }
   // a click on the timeline scrolls the log to that row (the log's own scroll, not the page's)
@@ -999,6 +1033,24 @@
     $("#calsearch").oninput = debounce((e) => { cal.search = e.target.value; renderCalendar(); }, 150);
   }
 
+  // a wide table gets a scroll bar above it too, kept in step with the one
+  // below, so the far columns can be reached without scrolling to the bottom
+  function topScroll(wrap) {
+    if (!wrap) return;
+    let top = wrap.previousElementSibling?.classList.contains("topscroll") ? wrap.previousElementSibling : null;
+    if (!top) {
+      top = document.createElement("div"); top.className = "topscroll"; top.innerHTML = "<div></div>";
+      wrap.parentElement.insertBefore(top, wrap);
+      top.onscroll = () => { if (wrap.scrollLeft !== top.scrollLeft) wrap.scrollLeft = top.scrollLeft; };
+      wrap.addEventListener("scroll", () => { if (top.scrollLeft !== wrap.scrollLeft) top.scrollLeft = wrap.scrollLeft; });
+    }
+    const table = wrap.querySelector("table");
+    const fit = () => { top.firstElementChild.style.width = `${table?.scrollWidth || 0}px`; top.hidden = !table || table.scrollWidth <= wrap.clientWidth + 1; };
+    fit();
+    if (!wrap._topObs) { wrap._topObs = new ResizeObserver(fit); wrap._topObs.observe(wrap); }
+    if (table && !table._topObs) { table._topObs = new ResizeObserver(fit); table._topObs.observe(table); }
+  }
+
   // ================================================================ stations
   // one row per CTD cast from the logbook, and one per station the event
   // log records without a cast (kind "event", with what was done there)
@@ -1022,6 +1074,7 @@
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
     $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    topScroll($("#stationtable").closest(".tablewrap"));
     const nsel = rows.filter((r) => r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
     const nev = rows.filter((r) => !r.cast).length;
     $("#stnmeta").textContent = `${rows.length.toLocaleString()} stations${nev ? ` (${nev} without a cast)` : ""}${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to select its cast (again to deselect), or to find a station on the map`;
@@ -1094,6 +1147,7 @@
     const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtTs(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    topScroll($("#aggtable").closest(".tablewrap"));
     const shown = rows.slice(0, 2000);
     for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
       const r = shown[i]; if (r.lat == null) return;
@@ -1128,7 +1182,7 @@
   }
 
   // ================================================================ glue
-  UW.onXMode = () => { if (!$("#pane-casts").hidden && casts.mode === "section") renderCastPlots(); };
+  UW.onXMode = () => {};                                        // the section keeps its own x axis
   UW.onFilter = () => {
     // a leg switched off takes its casts out of the selection
     if (casts.idx) {

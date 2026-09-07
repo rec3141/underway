@@ -1027,7 +1027,6 @@
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
-      `<p><b>Code</b>: <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">github.com/rec3141/underway</a> (AMUNDSEN), underway v${SITE.version}.</p>` +
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Times and time axes are ship time (${SITE.local_tz}); CSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +

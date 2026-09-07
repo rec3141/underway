@@ -24,8 +24,9 @@
     <button data-tab="table" role="tab">Table</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
   </nav>
-  <div class="pickhint">Select leg, time span, x-axis, and coloring:</div>
+  <div class="pickhint phone">Select leg, time span, x-axis, and coloring:</div>
   <div class="controls" id="controls-underway">
+    <span class="pickhint inline">Select leg, time span, x-axis, and coloring:</span>
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
       <div class="pop">
@@ -90,18 +91,21 @@
       <div class="cast-layout">
         <div class="castside">
           <div class="pane-tools compact">
-            <div class="group seg small" id="castkind"><button data-k="all" class="on">All</button><button data-k="CTD" title="Classic rosette">Rosette</button><button data-k="TM" title="trace-metal rosette">TM</button><button data-k="MVP">MVP</button></div>
-            <input type="search" id="castsearch" placeholder="filter (station, label, date)">
-            <button id="castclear" title="deselect all">clear</button>
+            <span class="lbl">Select Cast Type</span>
+            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="live" title="the cast in the water right now, from Seasave">Live</button></div>
+            <div class="castfilter"><input type="search" id="castsearch" placeholder="filter (station, label, date)"><button id="castclear" title="deselect all">clear</button></div>
           </div>
           <ul class="castlist" id="castlist"></ul>
         </div>
         <div class="castmain">
           <div class="pane-tools compact">
-            <div class="group seg" id="castmode"><button data-m="profiles" class="on">Profiles</button><button data-m="section">Section</button><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="live" title="the cast in the water, from the deck unit's network feed">Live</button></div>
-            <div class="group xmode" id="castxmode" aria-label="Section x axis" hidden><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch between time and distance along the section">Time</button></div>
-            <label class="group select" id="castvarwrap" hidden>Variable <select id="castvar"></select></label>
+            <span class="lbl">Select Graph</span>
+            <div class="group seg" id="castmode"><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="profiles" class="on" title="the selected casts as depth profiles, one graph per variable">Multi</button><button data-m="section" title="the selected casts side by side as a depth section along time or distance">Section</button></div>
             <span class="muted" id="castmeta"></span>
+          </div>
+          <div class="pane-tools compact" id="castrow2" hidden>
+            <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the section between time and distance along it">Time</button></div>
+            <label class="group select" id="castvarwrap">Color by <select id="castvar"></select></label>
           </div>
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>
         </div>
@@ -142,16 +146,16 @@
       <details class="card">
         <summary>Data sources &amp; provenance</summary>
         <div class="prov">
-          <table id="sources"></table>
+          <div class="meta">
+            <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
+            <span>Calendars: {% for l in site.links %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
+            <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD)</span>
+            <span class="right">underway v{{ site.version }} · built <time id="gen"></time></span>
+          </div>
+          <div class="hscroll"><table id="sources"></table></div>
           <div class="notes" id="notes"></div>
         </div>
       </details>
-      <div class="meta">
-        <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
-        <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD) · Basemap: Natural Earth{% if site.raster %} · GEBCO 2024{% endif %}</span>
-        {% for l in site.links %}<span>· <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a></span>{% endfor %}
-        <span class="right">underway v{{ site.version }} · <time id="gen"></time></span>
-      </div>
     </footer>
   </section>
 </main>

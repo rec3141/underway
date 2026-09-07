@@ -17,6 +17,12 @@ minutes) reads the current schedule (``db/schedule.json``), answers Telegram
 commands, works out what is due for each subscription and sends one message
 per subscription per run. Nothing is sent twice for the same row and event.
 
+An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
+else the address in the R scheduler's ``gmail_creds``, which may also carry
+the mail for it; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
+FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
+with a note when it recovers.
+
 Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` (or
 ``TELEGRAM_KEY``, as in ``~/.config/underway/underway.env``) or in
 ``~/.config/underway/telegram.json`` (``{"token": ...}``). Email needs an SMTP
@@ -54,6 +60,10 @@ STATUS_STARTED = ("in progress",)
 STATUS_FINISHED = ("completed", "canceled", "cancelled")
 TZ = ZoneInfo(LOCAL_TZ)
 TIMEOUT = 15
+STALE_MIN = 30                  # the FULL_CSV normally grows every ten minutes
+WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", "/data/underway/www"))
+OPS_EMAIL = os.environ.get("UNDERWAY_OPS_EMAIL", "")
+OPS_TELEGRAM = os.environ.get("TELEGRAM_ID", "")
 
 
 # ---------------------------------------------------------------- storage
@@ -327,6 +337,75 @@ def smtp_config() -> dict | None:
         return None
 
 
+def gmail_creds() -> dict | None:
+    """The R scheduler's Gmail settings (an R list serialised by jsonlite):
+    the keeper's own account, used only to write to the keeper."""
+    p = CONF_DIR / "gmail_creds"
+    if not p.is_file():
+        return None
+    try:
+        d = json.loads(p.read_text())
+        names = d["attributes"]["names"]["value"]
+        vals = [(v["value"][0] if isinstance(v.get("value"), list) and v["value"] else v.get("value")) for v in d["value"]]
+        c = dict(zip(names, vals))
+        return {"host": c["host"], "port": int(c.get("port") or 465), "user": c["user"], "password": c["password"],
+                "from": c["user"], "ssl": bool(c.get("use_ssl", True))}
+    except (OSError, ValueError, KeyError, TypeError, IndexError):
+        return None
+
+
+def ops_targets() -> tuple[str, dict | None, str]:
+    """(email address, its SMTP settings, Telegram chat) for operations alerts."""
+    cfg = smtp_config() or gmail_creds()
+    to = OPS_EMAIL or (cfg or {}).get("user", "") if not OPS_EMAIL else OPS_EMAIL
+    return to, cfg, OPS_TELEGRAM
+
+
+def record_age(now: datetime) -> tuple[float | None, str]:
+    """Minutes since the FULL_CSV last grew, and its last time, from the built manifest."""
+    p = WEBROOT / "data" / "manifest.json"
+    try:
+        src = json.loads(p.read_text()).get("sources") or {}
+        last = src.get("full_csv")
+        if not last:
+            return None, ""
+        return (now - datetime.fromisoformat(last)).total_seconds() / 60, last
+    except (OSError, ValueError):
+        return None, ""
+
+
+def ops_check(state: dict, now: datetime, tg=None, email=None) -> list[str]:
+    """Say once when the record goes stale, and once when it recovers.
+    Returns the messages sent."""
+    email = email or send_email
+    age, last = record_age(now)
+    ops = state.setdefault("ops", {})
+    sent = []
+    if age is None:
+        return sent
+    stale_since = ops.get("stale_since")
+    if age > STALE_MIN and not stale_since:
+        ops["stale_since"] = now.isoformat(timespec="seconds")
+        text = (f"FULL_CSV stale: the ACSD record last grew at {_local(last)} {TZ.tzname(now)} ({age:.0f} min ago). "
+                f"The dashboard runs on the TSG tail meanwhile; check logging on the acquisition PC and the share.")
+        sent.append(text)
+    elif age <= STALE_MIN and stale_since:
+        ops["stale_since"] = None
+        text = f"FULL_CSV recovered: the ACSD record is growing again (last row {_local(last)} {TZ.tzname(now)}), stale since {_local(stale_since)}."
+        sent.append(text)
+    for text in sent:
+        to, cfg, chat = ops_targets()
+        try:
+            if to and cfg:
+                email(cfg, to, "Underway dashboard: " + text.split(":")[0], text)
+            if chat and tg is not None:
+                tg.send(chat, "⚠️ " + text)
+            log.warning("alerts: ops: %s", text)
+        except Exception as e:                  # noqa: BLE001
+            log.warning("alerts: ops message failed: %s", e)
+    return sent
+
+
 class Telegram:
     def __init__(self, token: str):
         import requests
@@ -472,6 +551,7 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
             handled = handle_telegram(tg, state)
         except Exception as e:                  # noqa: BLE001
             log.warning("alerts: telegram updates failed: %s", e)
+    ops_check(state, now, tg=tg, email=email)
     subs = load_subs()
     events = due_events(_rows(), state, now)
     sent = failed = 0

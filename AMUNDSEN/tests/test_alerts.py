@@ -188,3 +188,29 @@ class RowFollowTests(unittest.TestCase):
         self.assertFalse(alerts.load_subs()[0]["all"])
         self.assertIn("Following CardS-3 — CTD-Rosette", tg.sent[0][1])
         self.assertIn("• CardS-3 — CTD-Rosette (15 min ahead)", tg.sent[1][1])
+
+
+class OpsTests(unittest.TestCase):
+    def test_stale_record_is_reported_once_and_recovery_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); (root / "data").mkdir()
+            now = datetime(2026, 9, 7, 3, 0, tzinfo=timezone.utc)
+            def manifest(last): (root / "data" / "manifest.json").write_text(json.dumps({"sources": {"full_csv": last}}))
+            mails, tgs = [], []
+            class TG:
+                def send(self, chat, text): tgs.append((chat, text))
+            with patch.object(alerts, "WEBROOT", root), patch.object(alerts, "DB_DIR", root), \
+                    patch.object(alerts, "ops_targets", lambda: ("keeper@example.org", {"host": "x", "user": "u", "password": "p"}, "99")):
+                state = alerts.load_state()
+                manifest((now - timedelta(minutes=12)).isoformat())
+                self.assertEqual(alerts.ops_check(state, now, TG(), lambda cfg, to, subject, body: mails.append((to, subject))), [])
+                manifest((now - timedelta(minutes=54)).isoformat())
+                sent = alerts.ops_check(state, now, TG(), lambda cfg, to, subject, body: mails.append((to, subject)))
+                self.assertEqual(len(sent), 1); self.assertIn("54 min ago", sent[0])
+                self.assertEqual(mails, [("keeper@example.org", "Underway dashboard: FULL_CSV stale")])
+                self.assertEqual(tgs[0][0], "99")
+                self.assertEqual(alerts.ops_check(state, now + timedelta(minutes=10), TG(), lambda *a: mails.append(a)), [])   # not again
+                manifest((now + timedelta(minutes=20)).isoformat())
+                sent = alerts.ops_check(state, now + timedelta(minutes=22), TG(), lambda cfg, to, subject, body: mails.append((to, subject)))
+                self.assertEqual(len(sent), 1); self.assertIn("recovered", sent[0])
+                self.assertIsNone(state["ops"]["stale_since"])
