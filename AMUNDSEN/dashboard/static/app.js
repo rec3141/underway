@@ -29,6 +29,7 @@
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
+  if (store.get("prefs.v", 0) < 3) { store.set("prefs.v", 3); store.set("trackKm", null); }   // track detail follows the span again (a point a km)
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
     win: store.get("win", M.default_window),
@@ -94,6 +95,33 @@
       const lo = c + (r0 - c) * k, hi = c + (r1 - c) * k;
       Plotly.relayout(gd, { [`${ax._name}.range`]: [ax.l2r(lo), ax.l2r(hi)], [`${ax._name}.autorange`]: false });
     }, { passive: false, capture: true });
+  }
+
+  // On a touch screen a swipe over a graph must scroll the page, so the axes
+  // only move after a long press: a transparent gate over the plot takes the
+  // touches (and lets the page scroll) until one is held for LONG_PRESS_MS;
+  // then the gate lifts, the panel lights up and the graph pans and zooms
+  // until RELOCK_MS after the last touch.
+  const coarsePointer = matchMedia("(pointer: coarse)").matches;
+  const LONG_PRESS_MS = 450, RELOCK_MS = 4000;
+  const unlocked = (plot) => !!plot.parentElement?.classList.contains("unlocked");
+  function longPressGate(plot) {
+    if (!coarsePointer || plot._gate) return;
+    const panel = plot.parentElement;
+    const gate = document.createElement("div"); gate.className = "gate"; gate.title = "hold to adjust the axes";
+    plot._gate = gate; panel.appendChild(gate);
+    const place = () => { gate.style.left = `${plot.offsetLeft}px`; gate.style.top = `${plot.offsetTop}px`; gate.style.width = `${plot.offsetWidth}px`; gate.style.height = `${plot.offsetHeight}px`; };
+    let press = null, relock = null;
+    const lock = () => { panel.classList.remove("unlocked"); place(); gate.hidden = false; if (plot.data) Plotly.relayout(plot, { dragmode: false }).catch(() => {}); };
+    const unlock = () => { panel.classList.add("unlocked"); gate.hidden = true; if (plot.data) Plotly.relayout(plot, { dragmode: "pan" }).catch(() => {}); };
+    gate.addEventListener("touchstart", () => { clearTimeout(press); press = setTimeout(unlock, LONG_PRESS_MS); }, { passive: true });
+    gate.addEventListener("touchmove", () => clearTimeout(press), { passive: true });
+    gate.addEventListener("touchend", () => clearTimeout(press), { passive: true });
+    gate.addEventListener("touchcancel", () => clearTimeout(press), { passive: true });
+    gate.addEventListener("contextmenu", (e) => e.preventDefault());
+    plot.addEventListener("touchend", () => { clearTimeout(relock); relock = setTimeout(lock, RELOCK_MS); }, { passive: true });
+    new ResizeObserver(place).observe(plot);
+    lock();
   }
 
   // ------------------------------------------------------------ helpers
@@ -275,13 +303,19 @@
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
     $("#spanlabel").textContent = labels[idx];
+    const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); loadWindow(); };
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
-    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); loadWindow(); };
+    r.onchange = () => pick(labels[r.value]);
+    // the same choice as a dropdown, which is what a phone shows instead of the slider
+    const sel0 = $("#spansel");
+    sel0.innerHTML = labels.map((l) => `<option value="${l}">${l === "leg" ? "this leg" : l}</option>`).join("");
+    sel0.value = labels[idx];
+    sel0.onchange = () => pick(sel0.value);
 
-    // every Time/Distance pill (the underway pane's and the cast section's) shows and sets the same mode
-    for (const b of document.querySelectorAll(".xmode button")) {
-      b.classList.toggle("on", b.dataset.x === state.xmode);
-      b.onclick = () => { state.xmode = b.dataset.x; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
+    // every X-axis toggle (the header's and the cast section's) shows the mode and cycles it
+    for (const b of document.querySelectorAll(".xmode .xcycle")) {
+      b.textContent = state.xmode === "time" ? "Time" : "Distance";
+      b.onclick = () => { state.xmode = state.xmode === "time" ? "distance" : "time"; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
     }
     const sel = $("#colour");
     sel.innerHTML = "";
@@ -295,10 +329,14 @@
     sel.value = state.colour;
     sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
 
-    $("#track").checked = state.track;
-    $("#cameras").checked = state.cameras;
-    $("#cameras").onchange = (e) => { state.cameras = e.target.checked; store.set("cameras", state.cameras); closeCamera(); renderMap(); };
-    $("#track").onchange = (e) => { state.track = e.target.checked; store.set("track", state.track); renderMap(); };
+    // the map layers: on/off toggles in the bar above the map
+    for (const b of document.querySelectorAll("#maplayers button[data-layer]")) {
+      const layer = b.dataset.layer;
+      b.classList.toggle("on", !!state[layer]);
+      b.setAttribute("aria-pressed", String(!!state[layer]));
+      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "cameras") closeCamera(); renderMap(); };
+    }
+    $("#mapattrib").innerHTML = [SITE.raster?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
     {
       const r = $("#trackstep"), out = $("#tracksteplabel");
       if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
@@ -311,12 +349,6 @@
         if (windowFile(currentWindow()) !== before) loadWindow(); else renderMap();   // "all points" may mean the fine file
       };
     }
-    $("#stations").checked = state.stations;
-    $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
-    $("#events").checked = state.events;
-    $("#events").onchange = (e) => { state.events = e.target.checked; store.set("events", state.events); renderMap(); };
-    $("#communities").checked = state.communities;
-    $("#communities").onchange = (e) => { state.communities = e.target.checked; store.set("communities", state.communities); renderMap(); };
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
   }
 
@@ -593,9 +625,10 @@
   // of the window is cut the same way, so hover, colours and the pump marks
   // line up with the points drawn.
   const TRACK_STEPS = [0, 0.5, 1, 2, 5, 10, 20, 50];
-  // the span picks a starting detail (a day: every point; a week: a point a
-  // km; months: 5 km; years: 20 km) that the slider then overrides
-  const detailFor = (hours) => hours <= 24 ? 0 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
+  // the span picks a starting detail (up to a week: a point a km; months:
+  // 5 km; years: 20 km) that the slider then overrides; "all points" is a
+  // choice, never the default
+  const detailFor = (hours) => hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
   const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
   const currentWindow = () => M.windows.find((x) => x.label === state.win);
   // "all points" loads the window's fine variant when the build made one
@@ -951,7 +984,8 @@
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const layout = {
-      ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
+      ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14,
+      dragmode: coarsePointer && !unlocked(plot) ? false : "pan",         // touch: the axes wait for a long press
       uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
                type: state.xmode === "time" ? "date" : "linear",
@@ -970,7 +1004,7 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot);
+    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot); longPressGate(plot);
       plot.removeAllListeners?.('plotly_click');
       plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
     });
@@ -993,6 +1027,7 @@
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
+      `<p><b>Code</b>: <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">github.com/rec3141/underway</a> (AMUNDSEN), underway v${SITE.version}.</p>` +
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Times and time axes are ship time (${SITE.local_tz}); CSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +

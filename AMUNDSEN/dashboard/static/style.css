@@ -42,6 +42,7 @@ a:hover { text-decoration: underline; }
 .top .brand { order: 1; flex: 1 1 0; min-width: 160px; }        /* the title gives way (wraps) before the tabs drop a row */
 .top .tabs { order: 2; margin-left: auto; flex: 0 0 auto; }
 .tabs button { white-space: nowrap; }
+.top .pickhint { order: 3; flex: 1 0 100%; color: var(--muted); font-size: 12.5px; margin-bottom: -4px; }
 .top .controls { order: 3; flex: 1 0 100%; }
 .live { color: #7ee787; font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: .5px; }
 
@@ -68,6 +69,10 @@ select {
 .group.span .lbl { color: var(--muted); font-size: 12.5px; }
 .group.span input[type=range] { width: 260px; accent-color: var(--accent); cursor: pointer; }
 .group.span output { font-family: var(--mono); font-size: 13px; min-width: 3.2em; text-align: left; color: var(--accent); font-weight: 600; }
+#spansel { display: none; }                          /* the phone's stand-in for the slider */
+.group.xmode { gap: 8px; }
+.group.xmode .lbl { color: var(--muted); font-size: 13px; }
+.group.xmode .xcycle { min-width: 5.5em; }
 /* the track-detail slider under the map */
 .maptrack { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 4px 8px 0; font-size: 12px; color: var(--muted); }
 .maptrack output { font-family: var(--mono); font-size: 12px; min-width: 5.5em; color: var(--accent); font-weight: 600; }
@@ -79,7 +84,7 @@ select {
 .legmenu summary::-webkit-details-marker { display: none; }
 .legmenu summary::after { content: " ▾"; color: var(--muted); }
 .legmenu[open] summary { border-color: var(--accent); }
-.legmenu .pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 400px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 12px 32px rgba(0,0,0,.5); padding: 8px 6px; }
+.legmenu .pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; min-width: 400px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 12px 32px rgba(0,0,0,.5); padding: 8px 6px; }
 .legmenu .pophead, .legmenu .popfoot { color: var(--muted); font-size: 12px; padding: 2px 8px 6px; }
 .legmenu .popfoot { padding-top: 6px; border-top: 1px solid var(--line); }
 .legmenu ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
@@ -141,10 +146,16 @@ main {
 .map-foot .mono { font-family: var(--mono); }
 .map-foot .hint { margin-left: auto; opacity: .7; }
 .mapmsg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
-.maptools { position: absolute; z-index: 5; top: 12px; left: 12px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; max-width: calc(100% - 24px);
-  background: rgba(22,29,37,.85); border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; font-size: 12px; color: var(--muted); }
-.maptools label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
-.maptools button { background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; cursor: pointer; }
+/* the layer toggles: a bar above the map, each button on or off */
+.maplayers { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 4px 8px; font-size: 12.5px; }
+.maplayers button { background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.maplayers button:hover { border-color: var(--accent); color: var(--fg); }
+.maplayers button.on { background: var(--accent); color: #062033; border-color: var(--accent); font-weight: 650; }
+.maplayers #mapreset { border-radius: 7px; padding: 3px 9px; color: var(--fg); }
+.maplayers .short { display: none; }
+/* the attribution sits under the map, not on it */
+#map .maplibregl-ctrl-attrib, #map .maplibregl-ctrl-bottom-right { display: none; }
+.map-attrib { flex: 0 0 auto; color: var(--muted); font-size: 10.5px; padding: 3px 8px 0; opacity: .8; }
 /* a day's camera timelapse, played over the map where its camera was clicked */
 .campop { position: absolute; z-index: 6; right: 14px; top: 14px; width: min(300px, 62%); max-height: calc(100% - 28px); display: flex; flex-direction: column;
   background: rgba(22,29,37,.96); border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px 8px; font-size: 12px; color: var(--muted); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
@@ -181,21 +192,41 @@ main {
   .top { padding: 10px 12px 8px; gap: 8px 12px; }
   .brand h1 { font-size: 17px; }
   .brand .sub { font-size: 12px; }
-  .controls { width: 100%; gap: 8px; }
-  .group.span { width: 100%; }
-  .group.span input[type=range] { flex: 1; width: auto; min-width: 0; }
-  .legmenu .pop { position: fixed; left: 8px; right: 8px; top: auto; min-width: 0; max-height: 70vh; overflow: auto; }
+  /* one row each: the tabs; legs + span; time/distance + colour */
+  .top .tabs { flex: 1 0 100%; display: flex; margin-left: 0; }
+  .top .tabs button { flex: 1 1 0; min-width: 0; padding: 8px 2px; font-size: 12.5px; }
+  /* legs, span, x-axis and colour on one row: the span as a dropdown, the labels gone */
+  .controls { width: 100%; gap: 6px; flex-wrap: nowrap; }
+  .legmenu { flex: 0 0 auto; }
+  .group.span { flex: 0 0 auto; width: auto; min-width: 0; padding: 0; background: transparent; border: 0; }
+  .group.span .lbl, .group.span output, .group.span input[type=range] { display: none; }
+  #spansel { display: inline-block; }
+  .group.xmode { flex: 0 0 auto; }
+  .group.xmode .lbl { display: none; }
+  .group.xmode .xcycle { min-width: 0; }
+  .controls label.select { flex: 1 1 auto; min-width: 0; font-size: 0; }   /* the "Colour by" text goes; the select stays */
+  .controls label.select select { font-size: 14px; width: 100%; min-width: 0; }
+  .legmenu .pop { position: absolute; top: calc(100% + 8px); left: 0; width: min(calc(100vw - 24px), 420px); min-width: 0; max-height: 60vh; overflow: auto; }   /* below the button, never over it */
   .group button, .seg button, select, .legmenu summary { padding: 8px 12px; font-size: 14px; }   /* finger-sized */
   .panel .plot { height: 170px; }
   .panel.wide .plot { height: 240px; }
   .panel .handle { display: none; }                  /* no drag-and-drop on touch */
-  .maptools { top: 8px; left: 8px; font-size: 12px; }
+  /* the five layer pills and the fit button on one row, abbreviated where a word is long */
+  .maplayers { font-size: 12px; flex-wrap: nowrap; gap: 5px; padding: 2px 2px 6px; }
+  .maplayers button { flex: 1 1 0; min-width: 0; padding: 4px 4px; font-size: 12px; white-space: nowrap; }
+  .maplayers #mapreset { flex: 0 0 auto; }
+  .maplayers .full { display: none; }
+  .maplayers .short { display: inline; }
   .map-foot .hint { display: none; }
   #sources { font-size: 11.5px; }
 }
 
 /* ---------------------------------------------------------------- panels */
-.panel { padding: 8px 8px 2px; cursor: default; transition: border-color .15s; }
+.panel { padding: 8px 8px 2px; cursor: default; transition: border-color .15s; position: relative; }
+/* touch: the gate over a graph scrolls the page until a long press lifts it */
+.panel .gate { position: absolute; z-index: 3; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.panel.unlocked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.panel.unlocked .plot { touch-action: none; }
 .panel.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .panel.surprise { border-color: var(--accent-2); }
 .panel.unresolved { opacity: .55; }
@@ -497,8 +528,8 @@ table#sources { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 @media (max-width: 640px) {
   .top .tabs { flex: 0 1 100%; min-width: 0; flex-wrap: wrap; }
   .tabs button, .pane-tools button, .month .mhead button,
-  .livecfgform button, .maptools button { min-height: 44px; }
-  .maptools button { min-width: 44px; }
+  .livecfgform button, .maplayers button { min-height: 44px; }
+  .maplayers button { min-width: 44px; }
   .pane-tools input[type=search], .livecfgform input { font-size: 16px; }
   .livecfgform label { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; }
   .livecfgform input { box-sizing: border-box; max-width: 100%; min-width: 0; }

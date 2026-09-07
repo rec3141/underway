@@ -24,6 +24,7 @@
     <button data-tab="table" role="tab">Table</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
   </nav>
+  <div class="pickhint">Select leg, time span, x-axis, and coloring:</div>
   <div class="controls" id="controls-underway">
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
@@ -38,7 +39,10 @@
       <output id="spanlabel" for="span">6h</output>
       <input type="range" id="span" min="0" max="0" step="1" value="0" list="spanticks">
       <datalist id="spanticks"></datalist>
+      <select id="spansel" title="span" aria-label="Time span"></select>
     </div>
+    <div class="group xmode" aria-label="X axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch between time and distance along track">Time</button></div>
+    <label class="group select">Colour by <select id="colour"></select></label>
   </div>
 </header>
 <div class="alertbar" id="alert" hidden>
@@ -50,14 +54,14 @@
 
 <main>
   <section class="map card">
-    <div class="maptools">
+    <div class="maplayers" id="maplayers">
       <button id="mapreset" title="fit to track">⟲</button>
-      <!-- listed top layer first -->
-      <label title="CTD casts (white) and stations worked without a cast, from the event log (green)"><input type="checkbox" id="stations" checked> Stations</label>
-      <label title="a camera for each day's timelapse; click one to play it"><input type="checkbox" id="cameras" checked> Cameras</label>
-      <label title="geolocated entries of the ship's event log, for the shown legs and span"><input type="checkbox" id="events"> Events</label>
-      <label title="settlements (GeoNames, CC BY 4.0)"><input type="checkbox" id="communities" checked> Places</label>
-      <label title="the ship's track for the shown legs and span"><input type="checkbox" id="track" checked> Track</label>
+      <!-- listed top layer first; each is an on/off toggle -->
+      <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
+      <button data-layer="cameras" title="a camera for each day's timelapse; click one to play it"><span class="full">Cameras</span><span class="short">Cams</span></button>
+      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
+      <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
+      <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
     </div>
     <div id="map"></div>
     <div id="campop" class="campop" hidden>
@@ -73,14 +77,11 @@
       <output id="tracksteplabel" for="trackstep">all points</output>
     </div>
     <div class="map-foot" id="mapfoot"></div>
+    <div class="map-attrib" id="mapattrib"></div>
   </section>
 
   <section class="side">
     <div class="pane" id="pane-underway">
-      <div class="pane-tools compact">
-        <div class="group seg xmode" aria-label="X axis"><button data-x="time" class="on">Time</button><button data-x="distance">Distance</button></div>
-        <label class="group select">Colour by <select id="colour"></select></label>
-      </div>
       <div class="panels" id="panels"></div>
       <div class="dock" id="dock" hidden></div>
     </div>
@@ -98,7 +99,7 @@
         <div class="castmain">
           <div class="pane-tools compact">
             <div class="group seg" id="castmode"><button data-m="profiles" class="on">Profiles</button><button data-m="section">Section</button><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="live" title="the cast in the water, from the deck unit's network feed">Live</button></div>
-            <div class="group seg xmode" id="castxmode" aria-label="Section x axis" hidden><button data-x="time" class="on">Time</button><button data-x="distance">Distance</button></div>
+            <div class="group xmode" id="castxmode" aria-label="Section x axis" hidden><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch between time and distance along the section">Time</button></div>
             <label class="group select" id="castvarwrap" hidden>Variable <select id="castvar"></select></label>
             <span class="muted" id="castmeta"></span>
           </div>
@@ -147,7 +148,7 @@
       </details>
       <div class="meta">
         <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
-        <span>Dashboard by Eric Collins · Data: Amundsen Science (ACSD) · Basemap: Natural Earth{% if site.raster %} · GEBCO 2024{% endif %}</span>
+        <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD) · Basemap: Natural Earth{% if site.raster %} · GEBCO 2024{% endif %}</span>
         {% for l in site.links %}<span>· <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a></span>{% endfor %}
         <span class="right">underway v{{ site.version }} · <time id="gen"></time></span>
       </div>
