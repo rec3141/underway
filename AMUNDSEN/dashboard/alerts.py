@@ -13,9 +13,15 @@ bell): each such entry carries its own lead time and events, by default a
 and the Telegram update offset live in ``db/alerts_state.json``.
 
 ``run()`` (the ``alerts`` command, underway-alerts.timer every couple of
-minutes) reads the current schedule (``db/schedule.json``), answers Telegram
-commands, works out what is due for each subscription and sends one message
-per subscription per run. Nothing is sent twice for the same row and event.
+minutes) reads the current schedule (``db/schedule.json``), works out what
+is due for each subscription and sends one message per subscription per
+run. Nothing is sent twice for the same row and event. Telegram commands
+are answered by ``bot_loop()`` (the ``telegram-bot`` command,
+underway-telegram.service): a long poll that replies within a second and
+is the only reader of the bot's updates while its heartbeat
+(``db/telegram_bot.alive``) is fresh; the timer answers them itself only
+when that service is down, so an update is never consumed twice. Writers
+of the subscription file take ``db/alerts.lock``.
 
 An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
 else the address in the R scheduler's ``gmail_creds``, which may also carry
@@ -76,26 +82,79 @@ def _state_path() -> Path:
     return DB_DIR / "alerts_state.json"
 
 
+_lock_guard = __import__("threading").RLock()
+_lock_state = {"fh": None, "depth": 0}
+
+
+class locked:
+    """``with locked():`` — the timer, the bot and the web server never write
+    the files at once. Re-entrant within a process (a command handler takes
+    it inside the timer's hold) and per process through ``db/alerts.lock``."""
+    def __enter__(self):
+        import fcntl
+        _lock_guard.acquire()
+        if _lock_state["depth"] == 0:
+            DB_DIR.mkdir(parents=True, exist_ok=True)
+            _lock_state["fh"] = open(DB_DIR / "alerts.lock", "w")
+            fcntl.flock(_lock_state["fh"], fcntl.LOCK_EX)
+        _lock_state["depth"] += 1
+        return self
+    def __exit__(self, *a):
+        import fcntl
+        _lock_state["depth"] -= 1
+        if _lock_state["depth"] == 0:
+            fcntl.flock(_lock_state["fh"], fcntl.LOCK_UN); _lock_state["fh"].close(); _lock_state["fh"] = None
+        _lock_guard.release()
+
+
+def _write(p: Path, text: str) -> None:
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp"); tmp.write_text(text); tmp.replace(p)
+
+
 def load_subs() -> list[dict]:
     p = _subs_path()
     return json.loads(p.read_text()) if p.is_file() else []
 
 
 def save_subs(subs: list[dict]) -> None:
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-    _subs_path().write_text(json.dumps(subs, indent=1))
+    _write(_subs_path(), json.dumps(subs, indent=1))
 
 
 def load_state() -> dict:
     p = _state_path()
     st = json.loads(p.read_text()) if p.is_file() else {}
-    st.setdefault("sent", {}); st.setdefault("rows", {}); st.setdefault("telegram_offset", 0)
+    st.setdefault("sent", {}); st.setdefault("rows", {})
     return st
 
 
 def save_state(st: dict) -> None:
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-    _state_path().write_text(json.dumps(st))
+    _write(_state_path(), json.dumps(st))
+
+
+# the bot's place in Telegram's update stream, apart from the timer's state
+def load_offset() -> int:
+    p = DB_DIR / "telegram_offset.json"
+    try:
+        return int(json.loads(p.read_text()).get("offset", 0)) if p.is_file() else 0
+    except (OSError, ValueError):
+        return 0
+
+
+def save_offset(offset: int) -> None:
+    _write(DB_DIR / "telegram_offset.json", json.dumps({"offset": offset}))
+
+
+BOT_ALIVE_S = 90
+
+
+def bot_alive() -> bool:
+    """Whether the bot service has polled within BOT_ALIVE_S."""
+    p = DB_DIR / "telegram_bot.alive"
+    try:
+        return time.time() - p.stat().st_mtime < BOT_ALIVE_S
+    except OSError:
+        return False
 
 
 # ---------------------------------------------------------------- subscriptions
@@ -145,13 +204,14 @@ def subscribe(channel: str, to: str, match: str = "", lead_min=DEFAULT_LEAD_MIN,
     address already follows stay."""
     to = _check_address(channel, to)
     lead = _lead(lead_min)
-    subs = load_subs()
-    sub = _find(subs, channel, to)
-    if sub is None:
-        sub = _new(channel, to); subs.append(sub)
-    match = _clean_match(match)
-    sub.update(match=match, all=not match, lead_min=lead, events=_clean_events(events), name=str(name or "").strip()[:40] or sub.get("name", ""))
-    save_subs(subs)
+    with locked():
+        subs = load_subs()
+        sub = _find(subs, channel, to)
+        if sub is None:
+            sub = _new(channel, to); subs.append(sub)
+        match = _clean_match(match)
+        sub.update(match=match, all=not match, lead_min=lead, events=_clean_events(events), name=str(name or "").strip()[:40] or sub.get("name", ""))
+        save_subs(subs)
     return sub
 
 
@@ -164,22 +224,23 @@ def follow_row(channel: str, to: str, key: str, remove: bool = False, lead_min=R
         raise ValueError("no operation given")
     if key.startswith("op:"):                          # a kind: transits are one kind whatever the destination
         key = "op:" + kind_of(key[3:])
-    subs = load_subs()
-    sub = _find(subs, channel, to)
-    if remove:
-        if sub is None:
-            return None
-        sub.setdefault("rows", {}).pop(key, None)
-        if not sub["rows"] and not sub.get("all") and not sub.get("match"):
-            subs.remove(sub); save_subs(subs)
-            return None
-    else:
-        if sub is None:
-            sub = _new(channel, to); subs.append(sub)
-        if name and not sub.get("name"):
-            sub["name"] = str(name).strip()[:40]
-        sub.setdefault("rows", {})[key] = {"lead_min": _lead(lead_min), "events": _clean_events(events)}
-    save_subs(subs)
+    with locked():
+        subs = load_subs()
+        sub = _find(subs, channel, to)
+        if remove:
+            if sub is None:
+                return None
+            sub.setdefault("rows", {}).pop(key, None)
+            if not sub["rows"] and not sub.get("all") and not sub.get("match"):
+                subs.remove(sub); save_subs(subs)
+                return None
+        else:
+            if sub is None:
+                sub = _new(channel, to); subs.append(sub)
+            if name and not sub.get("name"):
+                sub["name"] = str(name).strip()[:40]
+            sub.setdefault("rows", {})[key] = {"lead_min": _lead(lead_min), "events": _clean_events(events)}
+        save_subs(subs)
     return sub
 
 
@@ -197,10 +258,11 @@ def following(channel: str, to: str) -> dict:
 
 
 def unsubscribe(token: str) -> dict | None:
-    subs = load_subs()
-    gone = next((s for s in subs if s["id"] == token), None)
-    if gone:
-        save_subs([s for s in subs if s is not gone])
+    with locked():
+        subs = load_subs()
+        gone = next((s for s in subs if s["id"] == token), None)
+        if gone:
+            save_subs([s for s in subs if s is not gone])
     return gone
 
 
@@ -425,8 +487,13 @@ class Telegram:
             self.username = self.call("getMe").get("username", "")
         return self.username
 
-    def updates(self, offset: int) -> list[dict]:
-        return self.call("getUpdates", offset=offset, timeout=0, allowed_updates=["message"])
+    def updates(self, offset: int, wait: int = 0) -> list[dict]:
+        """Updates after ``offset``; ``wait`` seconds of long polling."""
+        r = self.rq.post(f"{self.base}/getUpdates", json={"offset": offset, "timeout": wait, "allowed_updates": ["message"]}, timeout=TIMEOUT + wait)
+        j = r.json()
+        if not j.get("ok"):
+            raise RuntimeError(j.get("description") or r.text[:200])
+        return j["result"]
 
     def send(self, chat_id: str, text: str) -> None:
         self.call("sendMessage", chat_id=chat_id, text=text, disable_web_page_preview=True)
@@ -449,21 +516,22 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
             s.starttls(); s.login(cfg["user"], cfg["password"]); s.send_message(m)
 
 
-HELP = ("Amundsen schedule alerts.\n"
-        "/all — everything on the schedule\n"
-        "(a bell on the dashboard follows one operation: 15 min heads-up and every change)\n"
-        "/only CardS-3, CTD — only operations whose station or name contains one of these\n"
-        "/lead 30 — warn this many minutes ahead\n"
-        "/events upcoming,started,finished,moved — which changes to hear about\n"
-        "/status — what you are subscribed to\n"
-        "/stop — no more alerts")
+HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
+        "/all\nEvery operation on the schedule.\n\n"
+        "/only CardS-3, CTD\nOnly the operations whose station or name contains one of these words.\n\n"
+        "/none\nNo general alerts. Operations you follow through a bell on the dashboard stay.\n\n"
+        "/lead 30\nHow many minutes ahead the heads-up comes.\n\n"
+        "/events upcoming, started, finished, moved\nWhich changes you hear about.\n\n"
+        "/status\nWhat you are subscribed to.\n\n"
+        "/stop\nNo more alerts of any kind.")
 
 
-def handle_telegram(tg: Telegram, state: dict) -> int:
-    """Answer commands; returns how many were handled."""
+def handle_telegram(tg: Telegram, wait: int = 0) -> int:
+    """Fetch and answer commands; returns how many were handled. The offset
+    is saved after every update so a crash never replays one."""
     n = 0
-    for u in tg.updates(state.get("telegram_offset", 0)):
-        state["telegram_offset"] = u["update_id"] + 1
+    for u in tg.updates(load_offset(), wait):
+        save_offset(u["update_id"] + 1)
         msg = u.get("message") or {}
         chat = str((msg.get("chat") or {}).get("id") or "")
         text = (msg.get("text") or "").strip()
@@ -482,12 +550,26 @@ def handle_telegram(tg: Telegram, state: dict) -> int:
                 key = "op:" + kind_of(key[3:]) if key.startswith("op:") else key
                 what = ("every transit" if key == "op:Transit" else f"every {key[3:]}") if key.startswith("op:") else key.replace("|", " — ")
                 reply = f"Following {what}: a heads-up 15 min ahead and every change.\n/status shows everything you follow, /stop ends it all."
-            elif cmd in ("/start", "/all"):
+            elif cmd == "/start":                        # a greeting: nothing is subscribed until asked
+                reply = "Hello. Nothing is subscribed yet.\n\n" + HELP
+            elif cmd == "/all":
                 subscribe("telegram", chat, "", (mine or {}).get("lead_min", DEFAULT_LEAD_MIN), (mine or {}).get("events"), who)
-                reply = "Subscribed to every scheduled operation.\n\n" + HELP
+                reply = "Subscribed to every scheduled operation. /none turns that off again."
             elif cmd == "/only":
-                subscribe("telegram", chat, arg, (mine or {}).get("lead_min", DEFAULT_LEAD_MIN), (mine or {}).get("events"), who)
-                reply = f"Only operations matching: {_clean_match(arg) or 'everything'}"
+                if not _clean_match(arg):
+                    reply = "Say what to match, e.g. /only CardS-3, CTD"
+                else:
+                    subscribe("telegram", chat, arg, (mine or {}).get("lead_min", DEFAULT_LEAD_MIN), (mine or {}).get("events"), who)
+                    reply = f"Only operations matching: {_clean_match(arg)}"
+            elif cmd == "/none":
+                with locked():
+                    subs2 = load_subs(); m2 = _find(subs2, "telegram", chat)
+                    if m2:
+                        m2.update(all=False, match="")
+                        if not m2.get("rows"):
+                            subs2.remove(m2)
+                        save_subs(subs2)
+                reply = "No general subscription now" + (", followed operations stay." if mine and mine.get("rows") else ". /all or a bell on the dashboard to hear about something.")
             elif cmd == "/lead":
                 subscribe("telegram", chat, (mine or {}).get("match", ""), arg or DEFAULT_LEAD_MIN, (mine or {}).get("events"), who)
                 reply = f"Warning {max(5, min(24 * 60, int(arg or DEFAULT_LEAD_MIN)))} min ahead."
@@ -497,7 +579,7 @@ def handle_telegram(tg: Telegram, state: dict) -> int:
             elif cmd == "/stop":
                 if mine:
                     unsubscribe(mine["id"])
-                reply = "Unsubscribed. /start to come back."
+                reply = "Unsubscribed from everything, followed operations included. /start to come back."
             elif cmd == "/status":
                 if not mine:
                     reply = "Not subscribed. /start to subscribe."
@@ -530,6 +612,27 @@ def decode_row(payload: str) -> str:
         return payload
 
 
+def bot_loop() -> None:
+    """The ``telegram-bot`` command: answer commands as they arrive, for as
+    long as the process lives; the heartbeat tells the timer to stand back."""
+    token = telegram_token()
+    if not token:
+        log.warning("telegram bot: no token; nothing to do")
+        return
+    tg = Telegram(token)
+    alive = DB_DIR / "telegram_bot.alive"
+    log.info("telegram bot: @%s answering", tg.me())
+    while True:
+        try:
+            DB_DIR.mkdir(parents=True, exist_ok=True); alive.touch()
+            n = handle_telegram(tg, wait=25)
+            if n:
+                log.info("telegram bot: %d command(s) answered", n)
+        except Exception as e:                  # noqa: BLE001
+            log.warning("telegram bot: %s; retrying", e)
+            time.sleep(10)
+
+
 def info() -> dict:
     """What the page tells people: the bot's name and whether email works."""
     st = load_state()
@@ -550,7 +653,9 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
     if tg is not None:
         try:
             state["telegram_username"] = tg.me()
-            handled = handle_telegram(tg, state)
+            if not bot_alive():                # the bot service answers commands; the timer only when it is down
+                with locked():
+                    handled = handle_telegram(tg)
         except Exception as e:                  # noqa: BLE001
             log.warning("alerts: telegram updates failed: %s", e)
     ops_check(state, now, tg=tg, email=email)

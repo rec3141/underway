@@ -39,6 +39,7 @@
       unit:'PC1',resolved:true,log_ok:false,
       after:'Surprise (−log10 p)',
       layoutRevision:'camera-second-v1',
+      colours:cycle,
       description:'Texture, Brightness, Colorfulness, Patchiness are provisional interpretations of PC1–4, not ice concentration.',
       onTitle(){UW.selectColour(cycle[(cycle.indexOf(UW.state.colour)+1)%cycle.length]);},
       render(el,plot){
@@ -81,6 +82,7 @@
       values:d=>matches(d).map(p=>iceValue(p,name))}));
     UW.registerPanel('Camera ice · experimental',{
       unit:'score / %',resolved:true,log_ok:false,
+      colours:iceModes,
       description:'Human-label presence scores are not area fractions. Area estimates are teacher-distilled and unvalidated. Review-flagged photos leave gaps.',
       onTitle(){UW.selectColour(iceModes[(iceModes.indexOf(UW.state.colour)+1)%iceModes.length]);},
       render(el,plot){

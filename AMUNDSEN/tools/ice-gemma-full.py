@@ -72,13 +72,13 @@ def main():
     key='data:image/png;base64,'+base64.b64encode(key_bytes).decode()
     rows=json.loads((OUT/'results.json').read_text()) if (OUT/'results.json').exists() else []
     done={r['file'] for r in rows if r.get('finish_reason')=='stop'}
-    started=time.monotonic();deadline=started+8*3600;window=thermal.RunningTemperature()
+    started=time.monotonic();deadline=started+float(os.environ.get('ICE_GEMMA_MAX_HOURS','8'))*3600;window=thermal.RunningTemperature()
     def status(state,**extra):
         atomic(OUT/'status.json',json.dumps(dict(state=state,completed=len(done),expected=expected,utc=datetime.now(timezone.utc).isoformat(),**extra),indent=2))
     def temperature():
         cpu,gpu,*_=thermal.monitor.temperatures();average=window.add(time.monotonic(),cpu)
         with (OUT/'telemetry.csv').open('a') as f:f.write(f'{time.time()},{cpu},{gpu},{average}\n')
-        if time.monotonic()>deadline:raise TimeoutError('Eight-hour run bound reached')
+        if time.monotonic()>deadline:raise TimeoutError('Configured run time bound reached')
         return cpu,gpu,average
     def cool():
         status('cooling')

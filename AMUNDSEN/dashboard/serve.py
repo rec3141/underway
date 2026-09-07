@@ -75,10 +75,19 @@ class IntranetLive:
         while not self._stop.is_set():
             try:
                 with urllib.request.urlopen(self.url, timeout=6) as r:
-                    text = r.read().decode("latin-1")
+                    raw = r.read()
+                try:
+                    text = raw.decode("utf-8")               # the page's "mg/m³" is UTF-8 despite its charset header
+                except UnicodeDecodeError:
+                    text = raw.decode("latin-1")
                 sections = self.parse(text)
                 with self.lock:
                     self.sections, self.fetched, self.error = sections, time.time(), "" if sections else "no tables on the page"
+                try:
+                    from .livescrape import record
+                    record(sections)                     # the page keeps no history; we do
+                except Exception as e:                   # noqa: BLE001
+                    log.warning("live page not recorded: %s", e)
             except Exception as e:                       # noqa: BLE001
                 with self.lock:
                     self.error = str(e)[:120]

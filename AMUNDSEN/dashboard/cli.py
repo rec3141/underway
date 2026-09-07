@@ -4,7 +4,8 @@
     python -m dashboard build --root DIR          ingest new files from every leg, rebuild DIR
     python -m dashboard serve --root DIR [--port N]
     python -m dashboard gcal-push                 push queued calendar items, refresh the feeds
-    python -m dashboard alerts                    answer the Telegram bot, send due schedule alerts
+    python -m dashboard alerts                    send due schedule alerts (email, Telegram)
+    python -m dashboard telegram-bot              answer the Telegram bot's commands as they arrive
 """
 
 from __future__ import annotations
@@ -40,7 +41,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--bind", default="0.0.0.0")
 
     sub.add_parser("gcal-push", help="push queued Google Calendar items and refresh the feed cache")
-    sub.add_parser("alerts", help="answer the Telegram bot and send due schedule alerts (email and Telegram)")
+    sub.add_parser("alerts", help="send due schedule alerts (email and Telegram)")
+    sub.add_parser("telegram-bot", help="answer the Telegram bot's commands as they arrive (runs until stopped)")
 
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
@@ -69,6 +71,11 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "alerts":
         from .alerts import run
         run()
+        return 0
+
+    if a.cmd == "telegram-bot":
+        from .alerts import bot_loop
+        bot_loop()
         return 0
 
     links = []

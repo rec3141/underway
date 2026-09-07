@@ -83,6 +83,8 @@
     gd._axisZoom = true;
     const allowX = opts.x !== false, allowY = opts.y !== false;
     gd.addEventListener("wheel", (ev) => {
+      const panel = gd.closest(".panel");
+      if (panel && !panel.classList.contains("on")) { ev.stopPropagation(); return; }   // an unselected panel: the page scrolls
       const fl = gd._fullLayout;
       if (!((ev.shiftKey && allowX) || (ev.ctrlKey && allowY)) || !fl || !fl.xaxis || !fl.yaxis) return;
       ev.preventDefault(); ev.stopPropagation();
@@ -97,31 +99,16 @@
     }, { passive: false, capture: true });
   }
 
-  // On a touch screen a swipe over a graph must scroll the page, so the axes
-  // only move after a long press: a transparent gate over the plot takes the
-  // touches (and lets the page scroll) until one is held for LONG_PRESS_MS;
-  // then the gate lifts, the panel lights up and the graph pans and zooms
-  // until RELOCK_MS after the last touch.
-  const coarsePointer = matchMedia("(pointer: coarse)").matches;
-  const LONG_PRESS_MS = 450, RELOCK_MS = 4000;
-  const unlocked = (plot) => !!plot.parentElement?.classList.contains("unlocked");
-  function longPressGate(plot) {
-    if (!coarsePointer || plot._gate) return;
-    const panel = plot.parentElement;
-    const gate = document.createElement("div"); gate.className = "gate"; gate.title = "hold to adjust the axes";
-    plot._gate = gate; panel.appendChild(gate);
-    const place = () => { gate.style.left = `${plot.offsetLeft}px`; gate.style.top = `${plot.offsetTop}px`; gate.style.width = `${plot.offsetWidth}px`; gate.style.height = `${plot.offsetHeight}px`; };
-    let press = null, relock = null;
-    const lock = () => { panel.classList.remove("unlocked"); place(); gate.hidden = false; if (plot.data) Plotly.relayout(plot, { dragmode: false }).catch(() => {}); };
-    const unlock = () => { panel.classList.add("unlocked"); gate.hidden = true; if (plot.data) Plotly.relayout(plot, { dragmode: "pan" }).catch(() => {}); };
-    gate.addEventListener("touchstart", () => { clearTimeout(press); press = setTimeout(unlock, LONG_PRESS_MS); }, { passive: true });
-    gate.addEventListener("touchmove", () => clearTimeout(press), { passive: true });
-    gate.addEventListener("touchend", () => clearTimeout(press), { passive: true });
-    gate.addEventListener("touchcancel", () => clearTimeout(press), { passive: true });
-    gate.addEventListener("contextmenu", (e) => e.preventDefault());
-    plot.addEventListener("touchend", () => { clearTimeout(relock); relock = setTimeout(lock, RELOCK_MS); }, { passive: true });
-    new ResizeObserver(place).observe(plot);
-    lock();
+  // Only the selected panel (the one whose variable colours the map, or a
+  // camera panel showing one of its modes) pans and zooms; on the others a
+  // drag or a wheel scrolls the page, and a click selects them. That keeps
+  // touch gestures for scrolling and drag-and-drop.
+  const panelOn = (name) => { const x = extraPanels.get(name); return x ? (x.colours || []).includes(state.colour) : name === state.colour; };
+  function selectPanel(name) {
+    const x = extraPanels.get(name);
+    const colour = x ? (x.colours || [])[0] : name;
+    if (!colour || colour === state.colour) return;
+    state.colour = colour; store.set("colour", colour); renderControls(); render();
   }
 
   // ------------------------------------------------------------ helpers
@@ -200,6 +187,20 @@
     state.win = w.label; store.set("win", state.win);
     toast(`Span widened to ${w.label} to reach ${justShown ? justShown.label : "the shown legs"}`);
     return true;
+  }
+  // a span picked by a table's "show all" link (the same path as the slider)
+  function setSpan(label) {
+    if (label === state.win || !M.windows.some((w) => w.label === label)) return;
+    state.win = label; store.set("win", state.win);
+    setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); renderControls(); loadWindow();
+  }
+  // the smallest span that reaches the first day of every shown leg
+  function widenSpan() {
+    const f = currentFilter(), shown = shownLegs();
+    if (!shown.length) return;
+    const need = Math.min(...shown.map((l) => legRange(l).start));
+    const w = M.windows.find((x) => f.end - x.hours * 3600e3 <= need) || M.windows[M.windows.length - 1];
+    setSpan(w.label);
   }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
@@ -282,14 +283,20 @@
     const zone = new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value || "";   // EDT, where en-GB says GMT-4
     const now = `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute} ${zone}`;   // 06 September 2026 14:45 EDT
     const live = ageMin < 15;
-    // the tooltip: when each source last had anything
-    const src = M.sources || {};
-    const when = (iso) => iso ? `${fmtTs(Date.parse(iso)).slice(11)} (${ago(iso)})` : "—";
-    const tip = [["FULL_CSV (ACSD)", src.full_csv], ["TSG file", src.tsg], ["intranet schedule", src.schedule], ["event log", src.event_log], ["Google calendars", src.calendars]]
-      .map(([k, v]) => `${k}: ${when(v)}`).join("\n") + (M.provisional ? `\nprovisional TSG tail since ${fmtTs(Date.parse(M.provisional.from)).slice(11)}` : "");
+    // "last refresh" opens a list of the sources: each folder on the share (a
+    // link) or the live page it is scraped from, and when it last had anything
+    // the age coloured from green (fresh) through amber to red (three hours or more)
+    const ageColour = (iso) => { const m = (Date.now() - Date.parse(iso)) / 60000; return `hsl(${Math.round(120 * (1 - Math.min(1, Math.max(0, m) / 180)))}, 70%, 60%)`; };
+    const when = (iso) => iso ? `${fmtTs(Date.parse(iso)).slice(11)} <span style="color:${ageColour(iso)}">(${esc(ago(iso))})</span>` : "—";
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const rows = (M.source_info || []).map((s) => {
+      const t = s.key === "live" && window.UW?.intranetLatest?.fetched ? new Date(window.UW.intranetLatest.fetched * 1000).toISOString() : s.time;
+      return `<tr><td>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>` : esc(s.label)}</td><td class="mono">${when(t)}</td></tr>`;
+    }).join("");
     const gen = Date.parse(M.generated_utc);
-    $("#status").innerHTML = `<b>${now}</b> · <span class="refresh" title="${tip.replace(/"/g, "&quot;")}">last refresh ${fmtTs(gen).slice(11)}${live ? "" : ` · <span class="stale">data ${ago(end)}</span>`}</span>` +
-      (live ? ` · <span class="live">LIVE</span>` : "");
+    const open = $("#srcpop")?.open;
+    // the sources box opens on hover, or on a click on "last refresh" or LIVE
+    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>`;
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
   setInterval(() => { if (M?.data_range) renderStatus(); }, 20000);
@@ -659,6 +666,33 @@
     thinCache = { src: d, km, out };
     return out;
   }
+  // the ship's position: the intranet live page when it is newer than the
+  // record's last fix, else that fix (with the build's averaged heading)
+  function shipNow(d, li) {
+    const live = window.UW?.shipLive;
+    const recT = li >= 0 ? d.t[li] : -Infinity;
+    if (live && live.lat != null && live.t > recT) {
+      return { lat: live.lat, lon: live.lon, heading: live.heading, t: live.t,
+        text: `CCGS Amundsen · live · ${fmtTs(live.t)} ${tzAbbr()} · heading ${live.heading != null ? live.heading.toFixed(0) + "°" : "unknown"}${live.speed != null ? ` · ${live.speed.toFixed(1)} kn` : ""}` };
+    }
+    if (li < 0) return { lat: null };
+    const heading = M.latest?.heading ?? null;
+    return { lat: d.lat[li], lon: d.lon[li], heading, t: recT,
+      text: `CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}` };
+  }
+  // called by the live poller: move the marker without redrawing the map
+  function moveShip() {
+    const el = $("#map"); const d = state.data;
+    if (!el?.data || !d) return;
+    const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
+    const ship = shipNow(d, li);
+    const idx = el.data.findIndex((t) => t.name === "latest");
+    if (idx < 0 || ship.lat == null) return;
+    const had = el.data[idx].marker?.symbol === "ship";
+    if ((ship.heading != null) !== had) { renderMap(); return; }        // the glyph itself changes: a full draw
+    state.shipHeading = ship.heading;
+    Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]] }, [idx]).catch(() => {});
+  }
   let mapDrawing = false, mapAgain = false;
   function renderMap() {
     if (mapDrawing) { mapAgain = true; return; }
@@ -673,7 +707,7 @@
     const lim = d.limits[state.colour] || minmax(c);
     const hover = d.t.map((ms, i) => d.lat[i] == null ? "" :
       `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtTs(ms)} ${tzAbbr()}<br>${state.colour}: <b>${v?.rgb ? (c[i] === '#000000' ? 'no nearby photo' : c[i]) : fmtVal(c[i], v?.unit)}</b>` +
-      `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track${d.provisional?.[i] ? "<br><i>provisional (TSG file, ahead of the ACSD flush)</i>" : ""}`);
+      `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track`);
 
     // draw order is click order: MVP tows from the cast tab go under the
     // track, and the station markers stay on top so they get the clicks
@@ -688,7 +722,7 @@
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
       marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
-                opacity: d.provisional ? d.provisional.map((q) => (q ? .4 : .95)) : .95,
+                opacity: .95,
                 colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
                   tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
@@ -711,14 +745,15 @@
     // ten minutes (a window's last bin swings with the bin width). With no
     // heading to turn it to, a plain red dot stands in. allowoverlap keeps
     // the glyph from losing the collision pass to labels when zoomed out.
-    const heading = M.latest?.heading ?? null;
-    state.shipHeading = heading;
-    if (li >= 0) traces.push({
+    // The intranet's live page, polled every few seconds, is fresher than
+    // any file: while it is, the ship stands where it says.
+    const ship = shipNow(d, li);
+    state.shipHeading = ship.heading;
+    if (ship.lat != null) traces.push({
       type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
-      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text",
-      text: [`CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}`],
-      marker: heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
-                              : { size: 12, color: "#d52b1e", opacity: 1 },
+      lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
+      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
+                                   : { size: 12, color: "#d52b1e", opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
@@ -835,8 +870,9 @@
           <button class="min" title="minimise to the bottom bar">—</button>
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
-    el.querySelector("h3").onclick = () => { state.colour = name; store.set("colour", name); $("#colour").value = name; render(); };
+    el.querySelector("h3").onclick = () => selectPanel(name);
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
+    el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
     el.querySelector(".reset").onclick = () => Plotly.relayout(el.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
@@ -931,11 +967,17 @@
     if (state.panel[name] === "min") { layoutPanels(); return; }
     const d = state.data, v = VAR[name] || extraPanels.get(name), el = panelEl(name);
     const plot = el.querySelector(".plot");
-    el.classList.toggle("on", name === state.colour);
+    const on = panelOn(name);
+    el.classList.toggle("on", on);
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
-    if (extraPanels.has(name)) { extraPanels.get(name).render(el, plot); return; }
+    if (extraPanels.has(name)) {
+      extraPanels.get(name).render(el, plot);
+      // their own draw queues before this, so the drag mode lands after it
+      Promise.resolve().then(() => { if (plot.data) Plotly.relayout(plot, { dragmode: on ? "pan" : false }).catch(() => {}); });
+      return;
+    }
     let title = name;
     let y = d?.vars[name];
     if (name === SURPRISE) {
@@ -960,14 +1002,12 @@
     // sea: those points go grey, in a trace of their own over the same line
     const low = v.tsg ? pumpLow(d) : null;
     const gated = !!low && low.some((l, i) => l && y[i] != null);
-    // the provisional tail (TSG minutes ahead of the ACSD flush) is drawn faint and says so on hover
-    const prov = d.provisional;
-    const x = xvals(d), legText = d.leg.map((i) => (legByIndex(i)?.label || "") + (prov?.[i] ? " · provisional (TSG)" : ""));
+    const x = xvals(d), legText = d.leg.map((i) => legByIndex(i)?.label || "");
     const trace = {
       x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
       marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false,
-                opacity: prov ? prov.map((q) => (q ? .4 : 1)) : 1 },
+                opacity: 1 },
       text: legText,
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
@@ -987,7 +1027,7 @@
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const layout = {
       ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14,
-      dragmode: coarsePointer && !unlocked(plot) ? false : "pan",         // touch: the axes wait for a long press
+      dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
       uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
                type: state.xmode === "time" ? "date" : "linear",
@@ -1006,7 +1046,7 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot); longPressGate(plot);
+    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot);
       plot.removeAllListeners?.('plotly_click');
       plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
     });
@@ -1109,8 +1149,12 @@
     bar.hidden = !n;
     if (bar.hidden) return;
     const hm = (t) => t ? new Date(tms(t)).toLocaleTimeString(undefined, { timeZone: SITE.local_tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
-    const op = (r) => `<div class="sop" title="${esc(r.comment || "")}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${hm(r.start_utc)}–${hm(r.end_utc)}</span></div>`;
-    const col = (label, rows, cls) => `<div class="scol ${cls}"><div class="slbl">${label}</div>${rows.length ? rows.map(op).join("") : '<div class="sop muted">—</div>'}</div>`;
+    // an operation in progress shows what is left of its slot rather than its times
+    const left = (r) => { const m = Math.round((tms(r.end_utc) - Date.now()) / 60000); if (isNaN(m)) return "";
+      const d = (n) => n >= 60 ? `${Math.floor(n / 60)} h ${String(n % 60).padStart(2, "0")} min` : `${n} min`;
+      return m >= 0 ? `${d(m)} left` : `${d(-m)} over`; };
+    const op = (r, live) => `<div class="sop" title="${esc(r.comment || "")}${live ? ` (${hm(r.start_utc)}–${hm(r.end_utc)})` : ""}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${live ? left(r) : `${hm(r.start_utc)}–${hm(r.end_utc)}`}</span></div>`;
+    const col = (label, rows, cls) => `<div class="scol ${cls}"><div class="slbl">${label}</div>${rows.length ? rows.map((r) => op(r, cls === "live")).join("") : '<div class="sop muted">—</div>'}</div>`;
     // a click folds the bar to a thin strip; a click on the strip brings it back
     const folded = !!store.get("sched.hidden", false);
     bar.classList.toggle("folded", folded);
@@ -1124,6 +1168,8 @@
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
     $("#schedlinks").innerHTML = feed ? `<a class="bigcal" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="bigcal" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
   }
+
+  setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
 
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
@@ -1146,8 +1192,9 @@
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan,
     refreshExtraData() { render(); },
+    moveShip,
     registerPanel(name, spec) {
       extraPanels.set(name, spec);
       if(spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){

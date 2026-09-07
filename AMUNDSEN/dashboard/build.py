@@ -68,6 +68,23 @@ def read_stations(path: Path | None, leg_id: str) -> list[dict]:
     return out
 
 
+def _source_info(acsd_end, tsg, cal: dict) -> list[dict]:
+    from .config import DATA_SHARE_URL
+    folder = lambda sub: (f"Data/{sub}", f"{DATA_SHARE_URL}/{sub}")     # the folder of every leg, not just the live one
+    cs = cal.get("sources") or {}
+    feeds = cal.get("feeds") or []
+    out = []
+    for sub, t in (("FULL_CSV", acsd_end.isoformat() if acsd_end is not None else None),
+                   ("TSG", tsg.index.max().isoformat() if tsg is not None and len(tsg) else None),
+                   ("EventLog", cs.get("event_log"))):
+        label, url = folder(sub)
+        out.append({"label": label, "url": url, "time": t})
+    out.append({"label": "intranet schedule", "url": f"{INTRANET_BASE}/Schedule.html", "time": cs.get("schedule")})
+    out.append({"label": "intranet live", "url": f"{INTRANET_BASE}/live.html", "time": None, "key": "live"})   # the page fills its time from the server's poll
+    out.append({"label": "Google calendars", "url": feeds[0]["url"] if feeds else None, "time": cs.get("calendars")})
+    return out
+
+
 def _alerts_info() -> dict:
     """Which alert channels the page can offer (never fails the build)."""
     try:
@@ -414,20 +431,28 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # 3. derive, then slice every window
     leg_codes = df.pop("leg")
     from .tsg import archive_tail, minute_frame, provisional_tail
+    from . import livescrape
     try:
         tsg = minute_frame([leg for leg, _ in stores])
     except Exception:                       # noqa: BLE001 — the TSG files are extra, never required
         log.exception("TSG files not read")
         tsg = None
-    # the TSG file's minutes past the end of the ACSD record fill the wait
-    # for the next ten-minute flush; they are marked provisional and drop out
-    # as soon as the ACSD covers them
+    # past the end of the ACSD record, the TSG file's minutes and the recorded
+    # intranet live page fill in (the TSG's values first where both have a
+    # minute); marked provisional, they drop out as the ACSD catches up
     live_i = next((i for i, (leg, _) in enumerate(stores) if leg.live), None)
     prov_from = None
+    prov_src = []
     acsd_end = df.index.max()
-    if tsg is not None and live_i is not None:
+    if live_i is not None:
         try:
-            tail = provisional_tail(tsg, df.index.max(), list(df.columns))
+            tail = provisional_tail(tsg, acsd_end, list(df.columns)) if tsg is not None else pd.DataFrame(columns=df.columns)
+            if len(tail):
+                prov_src.append("TSG")
+            scraped = livescrape.provisional_tail(acsd_end, list(df.columns))
+            if len(scraped):
+                prov_src.append("intranet live")
+                tail = tail.combine_first(scraped) if len(tail) else scraped
             if len(tail):
                 archive_tail(tail)                  # the only copy, should the TSG file be lost
                 df = pd.concat([df, tail]).sort_index()
@@ -530,10 +555,12 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "stations": stations,
         "alerts": _alerts_info(),
         "data_range": {"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
-        "provisional": {"from": prov_from.isoformat(), "source": "TSG"} if prov_from is not None else None,
+        "provisional": {"from": prov_from.isoformat(), "source": " + ".join(prov_src)} if prov_from is not None else None,
         # when each source last had anything, for the subtitle's tooltip
         "sources": {"full_csv": acsd_end.isoformat(), "tsg": tsg.index.max().isoformat() if tsg is not None and len(tsg) else None,
                     **(cal.get("sources") or {})},
+        # the same, for people: where each source lives and when it last had anything
+        "source_info": _source_info(acsd_end, tsg, cal),
         "latest": latest,
         "files": {"total": files_total, "latest": latest_file,
                   "inputs": sorted({str(p) for leg, _ in stores for p in leg.indirs})},

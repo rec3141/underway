@@ -19,7 +19,7 @@ class FakeTelegram:
     def __init__(self, updates=()):
         self.updates_q = list(updates); self.sent = []
     def me(self): return "amundsen_bot"
-    def updates(self, offset): u = [x for x in self.updates_q if x["update_id"] >= offset]; return u
+    def updates(self, offset, wait=0): return [x for x in self.updates_q if x["update_id"] >= offset]
     def send(self, chat_id, text): self.sent.append((chat_id, text))
 
 
@@ -85,7 +85,7 @@ class AlertTests(unittest.TestCase):
     def test_telegram_commands_and_run(self):
         t = lambda m: (self.now + timedelta(minutes=m)).isoformat(timespec="minutes")
         self.rows(_row("CardS-3", "CTD-Rosette", t(20), t(80)))
-        upd = [{"update_id": 7, "message": {"chat": {"id": 42}, "from": {"first_name": "Ann"}, "text": "/start"}},
+        upd = [{"update_id": 7, "message": {"chat": {"id": 42}, "from": {"first_name": "Ann"}, "text": "/all"}},
                {"update_id": 8, "message": {"chat": {"id": 42}, "text": "/lead 60"}},
                {"update_id": 9, "message": {"chat": {"id": 43}, "text": "/only JSW"}},
                {"update_id": 10, "message": {"chat": {"id": 43}, "text": "/status"}}]
@@ -100,7 +100,7 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(len(alert_msgs), 1)                                    # chat 42 hears about the CTD; 43 wants JSW only
         self.assertEqual(alert_msgs[0][0], "42"); self.assertIn("Starting in 20 min", alert_msgs[0][1])
         self.assertTrue(any("/status" in x[1] or "Subscribed:" in x[1] for x in tg.sent))
-        self.assertEqual(alerts.load_state()["telegram_offset"], 11)
+        self.assertEqual(alerts.load_offset(), 11)
         self.assertEqual(alerts.load_state()["telegram_username"], "amundsen_bot")
         self.assertEqual(emails, [])
         # a second run sends nothing new
@@ -182,12 +182,27 @@ class RowFollowTests(unittest.TestCase):
         self.assertEqual(alerts.decode_row("not base64!"), "not base64!")
         tg = FakeTelegram([{"update_id": 1, "message": {"chat": {"id": 7}, "from": {"first_name": "Ann"}, "text": f"/start {payload}"}},
                            {"update_id": 2, "message": {"chat": {"id": 7}, "text": "/status"}}])
-        state = alerts.load_state()
-        alerts.handle_telegram(tg, state)
+        alerts.handle_telegram(tg)
         self.assertEqual(alerts.following("telegram", "7")["rows"], [key])
         self.assertFalse(alerts.load_subs()[0]["all"])
         self.assertIn("Following CardS-3 — CTD-Rosette", tg.sent[0][1])
         self.assertIn("• CardS-3 — CTD-Rosette (15 min ahead)", tg.sent[1][1])
+
+
+class BotTests(unittest.TestCase):
+    def test_timer_leaves_commands_to_a_live_bot(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(alerts, "DB_DIR", Path(tmp)), patch.object(alerts, "WEBROOT", Path(tmp)):
+            (Path(tmp) / "schedule.json").write_text(json.dumps({"rows": []}))
+            tg = FakeTelegram([{"update_id": 3, "message": {"chat": {"id": 8}, "text": "/all"}}])
+            (Path(tmp) / "telegram_bot.alive").touch()                   # the bot service is polling
+            r = alerts.run(datetime(2026, 9, 7, 3, 0, tzinfo=timezone.utc), tg=tg, email=lambda *a: None)
+            self.assertEqual(r["commands"], 0); self.assertEqual(alerts.load_subs(), [])
+            self.assertFalse(alerts.bot_alive.__wrapped__() if hasattr(alerts.bot_alive, "__wrapped__") else not alerts.bot_alive())
+            import os
+            os.utime(Path(tmp) / "telegram_bot.alive", (0, 0))            # the heartbeat has gone stale: the timer takes over
+            r = alerts.run(datetime(2026, 9, 7, 3, 2, tzinfo=timezone.utc), tg=tg, email=lambda *a: None)
+            self.assertEqual(r["commands"], 1); self.assertEqual(alerts.load_subs()[0]["to"], "8")
+            self.assertEqual(alerts.load_offset(), 4)
 
 
 class OpsTests(unittest.TestCase):

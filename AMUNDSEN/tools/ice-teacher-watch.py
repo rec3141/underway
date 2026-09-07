@@ -26,7 +26,7 @@ cpu,gpu,_,_=m.temperatures()
 state.update(saved=saved,expected=expected,service=active,cpu=cpu,gpu=gpu,checked_utc=datetime.now(timezone.utc).isoformat())
 if saved>=expected:
     state['status']='complete';subprocess.run(['systemctl','--user','stop',TIMER],check=False)
-elif time.time()-state['started']>=8*3600:
+elif time.time()-state['started']>=float(os.environ.get('ICE_TEACHER_MAX_HOURS','8'))*3600:
     state['status']='overnight deadline reached';subprocess.run(['systemctl','--user','stop',UNIT],check=False)
     subprocess.run(['systemctl','--user','stop',TIMER],check=False)
 elif PAUSE.exists():state['status']='explicitly paused'

@@ -35,7 +35,15 @@ a:hover { text-decoration: underline; }
 .brand .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
-.brand .sub .refresh { cursor: help; border-bottom: 1px dotted var(--line); }
+.brand .sub .refresh { cursor: pointer; border-bottom: 1px dotted var(--line); list-style: none; }
+.brand .sub .refresh::-webkit-details-marker { display: none; }
+.brand .sub .srcpop { display: inline-block; position: relative; vertical-align: baseline; }   /* a details element is block by default: it would break the line */
+.brand .sub .srcpop > summary { display: inline; }
+.brand .sub .srcpop:not([open]):not(:hover) table { display: none; }        /* hover shows the box; a click pins it */
+.brand .sub .srcpop:hover::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; }   /* bridges the gap so the pointer can reach the box */
+.brand .sub .srcpop table { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 6px 4px; border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
+.brand .sub .srcpop td { padding: 3px 10px; }
+.brand .sub .srcpop td.mono { font-family: var(--mono); color: var(--fg); }
 #connection { color: var(--accent-2); }
 /* brand left, tabs right, controls on their own full-width row: the same
    places on every tab, whatever each tab shows in the controls row */
@@ -114,7 +122,7 @@ select {
 .scol.next .slbl { color: var(--accent-2); }
 .scol .sop { overflow-wrap: anywhere; }                       /* never truncated: the times wrap onto their own line if they must */
 .scol .sop .stm { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-left: 8px; display: inline-block; }
-.schedlinks { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 6px; }   /* Gcal and ICS, the same size */
+.schedlinks { display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 6px; }   /* Gcal and ICS, the same size, side by side */
 .schedlinks .bigcal { display: block; padding: 6px 14px; border-radius: 8px; background: var(--accent); color: #041018; font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
 .schedlinks .bigcal:hover { filter: brightness(1.1); }
 .livestate { font-weight: 700; letter-spacing: .5px; padding: 0 7px; border-radius: 999px; font-size: 11px; }
@@ -124,7 +132,7 @@ select {
 .livestate.port-open { background: #5a3d10; color: var(--accent-2); }
 .alertbar.folded { padding: 0; height: 7px; cursor: pointer; background: rgba(255,180,84,.18); }
 .alertbar.folded:hover { background: rgba(255,180,84,.4); }
-@media (max-width: 640px) { .schedrow { flex-direction: column; } .schedcols { grid-template-columns: 1fr; } .schedlinks { flex-direction: row; justify-content: space-between; } }
+@media (max-width: 640px) { .schedrow { flex-direction: column; } .schedcols { grid-template-columns: 1fr; } .schedlinks { justify-content: space-between; } }
 
 /* toast: a brief note when legs and span nudge each other */
 .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 60; max-width: min(90vw, 560px);
@@ -140,13 +148,13 @@ main {
   grid-template-rows: auto 1fr auto;
 }
 /* the graph controls (x axis, colour) sit right above the map on every tab */
-.plotctl { grid-column: 1; grid-row: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+.plotctl { grid-column: 2; grid-row: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; padding-right: 14px; }   /* the underway pickers: top of the right half */
 main:not(.tab-underway) .plotctl { display: none; }           /* the strip is the underway tab's: x axis and colour together; elsewhere the map holds the colour picker */
-.maplayers .mapcolour { margin-right: auto; }
+.maplayers .mapcolour { flex: 1 0 100%; margin-bottom: 2px; }   /* the colour picker on its own line above the layer pills */
 main > footer { grid-column: 2; grid-row: 3; }                  /* the provenance stays on the right half */
 .plotctl label.select { min-width: 0; }
-.map { grid-column: 1; grid-row: 2; }
-.side { grid-column: 2; grid-row: 1 / 3; }
+.map { grid-column: 1; grid-row: 1 / 3; }
+.side { grid-column: 2; grid-row: 2; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 
 .map { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 6px; margin-bottom: 14px; }
@@ -178,7 +186,7 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
 .campop .foot { padding-top: 5px; font-size: 11.5px; }
 .campop .foot a { color: var(--accent); }
 
-.side { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-right: 2px; }
+.side { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-right: 14px; }   /* the panels clear the scroll bar */
 .panels { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-content: start; }
 /* a panel holding one of the intranet's live tables instead of a graph */
 .panel .plot.table { overflow: auto; display: block; }
@@ -213,7 +221,7 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
   /* the status as a coloured dot; its word is the tooltip */
   table.sched .status { display: inline-block; width: 11px; height: 11px; padding: 0; border-radius: 50%; font-size: 0; vertical-align: middle; border: 0; }
   table.sched .status.s-logged { background: var(--accent); } table.sched .status.s-now { background: #7ee787; } table.sched .status.s-next { background: var(--accent-2); }
-  table.sched .status.s-later { background: #6b7787; } table.sched .status.s-done { background: #3a3f52; border: 1px solid var(--line); }
+  table.sched .status.s-later { background: #6b7787; } table.sched .status.s-soon { background: var(--warn); } table.sched .status.s-done { background: #3a3f52; border: 1px solid var(--line); }
   table.sched .status.s-canceled { background: #ff7b72; } table.sched .status.s-was { background: transparent; border: 1px dashed var(--muted); }
   /* legs, span, x-axis and colour on one row: the span as a dropdown, the labels gone; the hint above */
   .controls { width: 100%; gap: 6px; flex-wrap: nowrap; }
@@ -244,10 +252,7 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
 
 /* ---------------------------------------------------------------- panels */
 .panel { padding: 8px 8px 2px; cursor: default; transition: border-color .15s; position: relative; }
-/* touch: the gate over a graph scrolls the page until a long press lifts it */
-.panel .gate { position: absolute; z-index: 3; touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.panel.unlocked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.panel.unlocked .plot { touch-action: none; }
+.panel:not(.on) .plot { touch-action: pan-y; cursor: pointer; }   /* an unselected panel scrolls the page; a click selects it */
 .panel.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .panel.surprise { border-color: var(--accent-2); }
 .panel.unresolved { opacity: .55; }
@@ -320,6 +325,7 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
 .castside .pane-tools.compact { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 .castside .castfilter { flex: 1 1 260px; display: flex; gap: 6px; min-width: 0; }
 .castside .castfilter input[type=search] { flex: 1 1 auto; min-width: 0; }
+.castside #castclear { background: var(--accent); color: #062033; border-color: var(--accent); font-weight: 650; }
 .pane-tools .lbl { color: var(--muted); font-size: 13px; }
 .group.sectionx { gap: 8px; }
 #castmode button:disabled { opacity: .4; cursor: not-allowed; }
@@ -368,6 +374,8 @@ tr.st-in-progress .status { background: #22503a; color: #7ee787; }
 tr.st-upcoming .status { background: #3a3f52; color: var(--muted); }
 tr.st-completed .status { color: var(--muted); }
 .whiteboard { background: rgba(255,180,84,.1); border-left: 3px solid var(--accent-2); padding: 8px 10px; border-radius: 4px; margin: 10px 0 6px; white-space: pre-line; }
+.evlog table.sched { width: auto; min-width: 100%; }                 /* as wide as its rows need; the box scrolls sideways */
+.evlog table.sched td { white-space: nowrap; }
 .evlog { max-height: 55vh; overflow: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 0 14px 8px 0; scrollbar-gutter: stable; }   /* room on the right so the scroll bar sits clear of the rows */
 /* what is happening now (In progress), announced (Coming soon) or up next */
 tr.st-coming-soon .status { background: #5a3d10; color: var(--accent-2); }
@@ -391,6 +399,7 @@ table.sched .status.s-logged { background: transparent; color: var(--muted); bor
 table.sched .status.s-now { background: #22503a; color: #7ee787; }
 table.sched .status.s-next { background: var(--accent-2); color: #2a1a00; font-weight: 700; }
 table.sched .status.s-later { background: #3a3f52; color: var(--muted); }
+table.sched .status.s-soon { background: var(--warn); color: #2a0000; font-weight: 700; }
 table.sched .status.s-done { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 table.sched .status.s-canceled { background: #4a2a2a; color: #ff9bce; }
 table.sched .status.s-was { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
@@ -578,3 +587,8 @@ table#sources { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 .notes p { margin: 0 0 6px; }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 2px 0 10px; margin-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .meta .right { margin-left: auto; font-family: var(--mono); font-size: 12px; }
+
+/* the amber first row of a table the span has trimmed */
+tr.spannote td, li.spannote { background: rgba(255, 180, 84, .13); color: var(--accent-2); font-size: 12.5px; padding: 6px 10px; cursor: default; }
+li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
+.spannote a { color: var(--accent-2); text-decoration: underline; font-weight: 600; }

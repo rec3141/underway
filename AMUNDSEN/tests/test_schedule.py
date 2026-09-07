@@ -160,3 +160,36 @@ class ProvisionalTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveScrapeTests(unittest.TestCase):
+    def test_snapshots_are_recorded_and_replayed_as_minutes(self):
+        import pandas as pd
+        from dashboard import livescrape
+        secs = lambda t, lat, sst: [
+            {"title": "Navigation data", "rows": [["Time (UTC)", t], ["Latitude", lat], ["Longitude", "89° 12.6412' W"], ["Speed (knt)", "9.90"], ["Heading (deg)", "322.80"], ["Depth (m)", "139.82"]]},
+            {"title": "Atmospheric data (21.6 meters high)", "rows": [["Wind speed (knt)", "11.64"], ["Wind direction (deg)", "326.40"], ["Pressure (hPa)", "997.20"], ["Temperature (deg C)", "0.70"], ["Humidity (%)", "90.21"]]},
+            {"title": "Sea water surface data (7 meters depth)", "rows": [["Temperature (deg C)", sst], ["Salinity (psu)", "31.65"], ["Oxygene (ml/L)", "8.43"], ["EcoCdom (mg/m³)", "5.78"]]},
+            {"title": "Rosette data", "rows": [["Rosette Depth (m)", "19.79"]]}]
+        with tempfile.TemporaryDirectory() as tmp, patch.object(livescrape, "DB_DIR", Path(tmp)):
+            livescrape._last_t = None
+            self.assertTrue(livescrape.record(secs("2026/09/07 07:46:57", "76° 45.1293' N", "0.01")))
+            self.assertFalse(livescrape.record(secs("2026/09/07 07:46:57", "76° 45.1293' N", "0.01")))   # the clock did not move
+            self.assertTrue(livescrape.record(secs("2026/09/07 07:47:02", "76° 45.1400' N", "0.03")))
+            self.assertTrue(livescrape.record(secs("2026/09/07 07:48:10", "76° 45.2000' N", "0.05")))
+            files = list((Path(tmp) / "live_scrape").glob("*.jsonl"))
+            self.assertEqual([p.name for p in files], ["20260907.jsonl"])
+            cols = ["posmv — latitude (deg n)", "posmv — longitude (deg e)", "tsg — hull temperature (deg c)", "avos — air temperature (deg c)",
+                    "multibeam — bottom depth (m)", "avos — true wind direction (deg)", "ctd-rosette — rosette depth (m)"]
+            tail = livescrape.provisional_tail(pd.Timestamp("2026-09-07T07:46:00Z"), cols)
+            self.assertEqual(len(tail), 3)                                            # the 07:46, 07:47 and 07:48 minutes
+            first = tail.iloc[0]
+            self.assertAlmostEqual(first["posmv — latitude (deg n)"], 76 + 45.1293 / 60, places=5)
+            self.assertAlmostEqual(first["posmv — longitude (deg e)"], -(89 + 12.6412 / 60), places=5)
+            self.assertAlmostEqual(first["tsg — hull temperature (deg c)"], 0.01, places=6)
+            self.assertEqual(first["avos — air temperature (deg c)"], 0.7)
+            self.assertEqual(first["multibeam — bottom depth (m)"], 139.82)
+            self.assertTrue(pd.isna(first["avos — true wind direction (deg)"]))    # the page's wind direction is not true wind
+            self.assertEqual(len(livescrape.provisional_tail(pd.Timestamp("2026-09-07T07:49:00Z"), cols)), 0)
+            naive = livescrape.provisional_tail(pd.Timestamp("2026-09-07T07:46:00"), cols)
+            self.assertIsNone(naive.index.tz)

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 root=Path('/home/cryomics/Downloads')
-source=root/'amundsen-ice-gemma-floes-v2/results.json'
+source=root/'amundsen-ice-gemma-leg4-size-evidence/results.json'
 if source.exists():
     spec=importlib.util.spec_from_file_location('explorer','/tmp/amundsen-camera-rotated/AMUNDSEN/tools/ice-region-explorer.py')
     explorer=importlib.util.module_from_spec(spec);spec.loader.exec_module(explorer)

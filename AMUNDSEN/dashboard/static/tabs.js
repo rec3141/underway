@@ -148,19 +148,36 @@
     if (!vars.includes(casts.variable)) casts.variable = vars.includes("Temperature") ? "Temperature" : (vars[0] || "Temperature");
     sel.value = casts.variable;
   }
+  // A table the span has trimmed says so in its first row: how many rows of
+  // the shown legs fall outside the span, with a link that widens it. The
+  // link picks the "leg" span, or, when that is already on, the smallest
+  // span reaching every shown leg.
+  function spanNote(kept, all, f, tag = "tr", colspan = 1) {
+    const n = all - kept; if (n <= 0) return "";
+    const legs = UW.M.legs.filter((l) => f.legs.has(l.id)).map((l) => l.label).join(", ") || "the shown legs";
+    const link = f.label === "leg" ? '<a href="#" class="spanall" data-widen="1">show all data for the shown legs</a>' : '<a href="#" class="spanall">show all data for this leg</a>';
+    const text = `${n.toLocaleString()} ${n === 1 ? "row" : "rows"} from ${esc(legs)} hidden by the ${esc(f.label)} span · ${link}`;
+    return tag === "li" ? `<li class="spannote">${text}</li>` : `<tr class="spannote"><td colspan="${colspan}">${text}</td></tr>`;
+  }
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a.spanall"); if (!a) return;
+    e.preventDefault(); a.dataset.widen ? UW.widenSpan() : UW.setSpan("leg");
+  });
   function renderCastList() {
     const ul = $("#castlist"); if (!casts.idx) return;
     if (casts.kind === "live") {                                   // the list box holds the Seasave setup instead
       if (!ul.querySelector("#livecfgbox")) ul.innerHTML = '<li class="livesetup"><div id="livecfgbox"></div></li>';
       if (live.data) liveCfgForm(ul, live.data);
-      $("#castclear").textContent = "clear"; return;
+      $("#castclear").textContent = "clear selection"; return;
     }
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
-    const rows = casts.idx.casts
-      .filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
+    const inLegs = casts.idx.casts
+      .filter((c) => f.legs.has(c.leg))
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
-      .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q))
+      .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q));
+    const rows = inLegs
+      .filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
       .sort((a, b) => (b.time || "").localeCompare(a.time || ""));
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
@@ -181,7 +198,7 @@
       }
       return html;
     };
-    ul.innerHTML = rows.map(row).join("") + (!rows.length ? '<li class="more">no casts match</li>' : "");
+    ul.innerHTML = spanNote(rows.length, inLegs.length, f, "li") + rows.map(row).join("") + (!rows.length ? '<li class="more">no casts match</li>' : "");
     for (const li of ul.querySelectorAll("li[data-id]")) li.onclick = (e) => {
       if (e.target.closest(".tog")) return;
       e.preventDefault(); toggleCast(li.dataset.id);
@@ -192,7 +209,7 @@
       store.set("casts.open", [...casts.open]); renderCastList();
     };
     const nsel = new Set([...casts.sel].map(parentId)).size;
-    $("#castclear").textContent = nsel ? `clear (${nsel})` : "clear";
+    $("#castclear").textContent = nsel ? `clear selection (${nsel})` : "clear selection";
   }
 
   // ------------------------------------------------------------ overlay views
@@ -545,7 +562,7 @@
       return za + (zb - za) * t;
     }));
     const xPlot = byTime ? xg.map((t) => new Date(t)) : xg;
-    const xPts = byTime ? tms.map((t) => new Date(t)) : km;
+    const xPts = byTime ? xs.map((t) => new Date(t)) : km;          // the same ship-time shift as the heatmap
     const dense = withVar.length > 24;      // a tow: label only every few dips
     host.innerHTML = castPanelHtml("cs-plot", `${v} section`, `${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${unit}`, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
       (dense ? "" : `<div class="castlegend">${withVar.map((d, i) => `<span><b>${i + 1}</b> ${esc(d.label)} <small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span>`).join("")}</div>`);
@@ -555,7 +572,7 @@
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
-        hovertext: withVar.map((d) => `${d.label}<br>${d.time ? d.time.replace("T", " ").slice(0, 16) : ""}`), hoverinfo: "text", cliponaxis: false },
+        hovertext: withVar.map((d, i) => `${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
     // echo-sounder bottom where there is one, else the deepest sample; the
     // fill is clipped to the frame so a bottom far below the casts stays out of it
@@ -621,8 +638,9 @@
     const s = cal.data.schedule || {};
     const q = cal.search.toLowerCase();
     const f = UW.currentFilter();
-    const evs = cal.data.events.filter((e) => UW.inFilter(e.leg, e.time_utc, f)).filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
-    if (cal.view === "timeline") return renderTimeline(host, evs, s);
+    const evAll = cal.data.events.filter((e) => f.legs.has(e.leg)).filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
+    const evs = evAll.filter((e) => UW.inFilter(e.leg, e.time_utc, f));
+    if (cal.view === "timeline") return renderTimeline(host, evs, s, evAll.length - evs.length);
     if (cal.view === "month") return renderMonth(host, q);
     const isoDay = (r) => { const t = UW.tms(r.start_utc); return isNaN(t) ? "" : dayL(t); };
     // the rows in page order under a header row per ship day; a day's
@@ -661,7 +679,7 @@
   const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
   // the status in a word: now (in progress), next (up next), later (upcoming), done, canceled, was (scheduled once), logged
   const statusWord = (r, next) => { const st = (r.status || "").trim().toLowerCase();
-    return r.former ? ["was", "was scheduled"] : st === "in progress" ? ["now", "now"] : st === "completed" ? ["done", "done"] : /^cancel/.test(st) ? ["canceled", "canceled"] : st && st !== "scheduled" ? ["later", st] : next ? ["next", "next"] : ["later", "later"]; };
+    return r.former ? ["was", "was scheduled"] : st === "in progress" ? ["now", "now"] : st === "completed" ? ["done", "done"] : /^cancel/.test(st) ? ["canceled", "canceled"] : st === "coming soon" ? ["soon", "soon"] : st && st !== "scheduled" ? ["later", st] : next ? ["next", "next"] : ["later", "later"]; };
   const NCOLS = (depth) => depth ? 8 : 7;
   const dayHead = (d, note, depth) => `<tr class="dayhead"><td colspan="${NCOLS(depth)}">${esc(d)}${d === dayL(Date.now()) ? " · today" : ""}${note ? ` <small>${note}</small>` : ""}</td></tr>`;
   const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
@@ -680,7 +698,7 @@
   // timeline point uses (e:<index> / r:<row key>). Every source has its own
   // time format (the event log writes 2026/09/03 11:23:12, the schedule
   // ISO), so group and sort on instants.
-  function eventListHtml(evs, s, q, f) {
+  function eventListHtml(evs, s, q, f, nHidden = 0) {
     const hm = (t) => isNaN(t) ? "" : hmL(t);
     const byDay = new Map();
     const add = (t, x) => { const d = isNaN(t) ? "undated" : dayL(t); if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push({ t: isNaN(t) ? 0 : t, ...x }); };
@@ -713,7 +731,7 @@
         (nFormer ? `<tr class="fold"><td colspan="8"><button type="button" class="dayfold" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nFormer} formerly scheduled</button></td></tr>` : "") +
         items.map((x) => x.e ? evRow(x.e, x.k, d) : schedRow(x.r, x.k, true).replace("<tr ", open || !x.r.former ? "<tr " : "<tr hidden ")).join("");
     }).join("");
-    return `<div class="evlog" id="evlog"><table class="sched">${SCHED_HEAD(true)}${body}</table></div>`;
+    return `<div class="evlog" id="evlog"><table class="sched">${SCHED_HEAD(true)}${spanNote(evs.length, evs.length + nHidden, f, "tr", NCOLS(true))}${body}</table></div>`;
   }
   function wireEventList(host) {
     for (const tr of host.querySelectorAll("tr.logged[data-lat]")) tr.onclick = () => { if (tr.dataset.lat) UW.focusMap(tr.dataset.lat, tr.dataset.lon, tr.children[1]?.textContent); };
@@ -863,7 +881,7 @@
     return s ? s.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1)) : "other";
   };
   const opColour = (name, fallback) => OP_COLOUR[opKind(name)] || fallback;
-  function renderTimeline(host, evs, s) {
+  function renderTimeline(host, evs, s, nHidden = 0) {
     const now = Date.now();
     const shifted = (t) => new Date(t + offsetMs(t));      // the axis reads as ship time
     const when = (e) => shifted(UW.tms(e.time_utc));
@@ -890,7 +908,7 @@
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${stampL(UW.tms(b.r.start_utc))}–${hmL(UW.tms(b.r.end_utc))} ${tzAbbr()}`),
       hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => rgba(barColour(b), b.r.former ? .3 : .8)), line: { color: rows.map(barColour), width: 1 } }, width: .5 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span · click a point for its log entry`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
-      eventListHtml(evs, s, cal.search.toLowerCase(), f);
+      eventListHtml(evs, s, cal.search.toLowerCase(), f, nHidden);
     wireEventList(host);
     const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 28, b: 58 }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: 12 } }, tickfont: { size: 12 } },
@@ -1089,8 +1107,10 @@
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
-    let rows = (UW.M.stations || []).filter((s) => UW.inFilter(s.leg, s.time, f)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
-    if (q) rows = rows.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
+    let all = (UW.M.stations || []).filter((s) => f.legs.has(s.leg)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    if (q) all = all.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
+    const rows = all.filter((s) => UW.inFilter(s.leg, s.time, f));
+    stn.hidden = all.length - rows.length;
     const k = stn.sort.key, dir = stn.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
@@ -1103,7 +1123,7 @@
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
-    $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + stn.hidden, UW.currentFilter(), "tr", STATION_COLS.length)}${body}</tbody>`;
     topScroll($("#stationtable").closest(".tablewrap"));
     const nsel = rows.filter((r) => r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
     const nev = rows.filter((r) => !r.cast).length;
@@ -1113,7 +1133,7 @@
     };
     // a click selects the cast (and shows the station on the map); a click on
     // a selected row deselects it
-    for (const [i, tr] of [...$("#stationtable").querySelectorAll("tbody tr")].entries()) tr.onclick = async () => {
+    for (const [i, tr] of [...$("#stationtable").querySelectorAll("tbody tr:not(.spannote)")].entries()) tr.onclick = async () => {
       const r = rows[i], key = `${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`;
       if (!r.cast) {                                      // a station without a cast: just find it on the map
         for (const x of $("#stationtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
@@ -1123,7 +1143,7 @@
       if (!was) UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
       await UW.onStationClick?.(key, { quiet: true, toggle: true });
       renderStations();
-      if (!was) $("#stationtable").querySelectorAll("tbody tr")[i]?.classList.add("on");
+      if (!was) $("#stationtable").querySelectorAll("tbody tr:not(.spannote)")[i]?.classList.add("on");
     };
   }
   // exports are tab-separated text: a cell never holds a tab or a line break
@@ -1159,8 +1179,10 @@
     const f = UW.currentFilter();
     // A failed refresh can leave older table data visible; its numeric leg
     // codes must still be interpreted with the matching manifest.
-    let rows = d.rows.filter((r) => UW.inFilter(tbl.legs[r.leg]?.id, r.t, f)).map((r) => ({ ...r, legLabel: tbl.legs[r.leg]?.label || "" }));
-    if (q) rows = rows.filter((r) => `${fmtTs(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
+    let all = d.rows.filter((r) => f.legs.has(tbl.legs[r.leg]?.id)).map((r) => ({ ...r, legLabel: tbl.legs[r.leg]?.label || "" }));
+    if (q) all = all.filter((r) => `${fmtTs(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
+    const rows = all.filter((r) => UW.inFilter(tbl.legs[r.leg]?.id, r.t, f));
+    tbl.hidden = all.length - rows.length;
     const k = tbl.sort.key, dir = tbl.sort.dir;
     const val = (r) => k === "t" ? r.t : k === "leg" ? r.legLabel : k === "lat" || k === "lon" ? r[k] : (r[k] ? r[k][tbl.stat] : null);
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
@@ -1175,10 +1197,10 @@
     const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
     const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtTs(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
-    $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+    $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + tbl.hidden, UW.currentFilter(), "tr", cols.length)}${body}</tbody>`;
     topScroll($("#aggtable").closest(".tablewrap"));
     const shown = rows.slice(0, 2000);
-    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr")].entries()) tr.onclick = () => {
+    for (const [i, tr] of [...$("#aggtable").querySelectorAll("tbody tr:not(.spannote)")].entries()) tr.onclick = () => {
       const r = shown[i]; if (r.lat == null) return;
       for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
       tr.classList.add("on"); UW.focusMap(r.lat, r.lon, `${fmtTs(r.t)} · ${r.legLabel}`);
