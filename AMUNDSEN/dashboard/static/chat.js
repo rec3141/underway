@@ -108,12 +108,15 @@
     return (d.toDateString() === now.toDateString() ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " ") + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); };
   // links: Markdown links to History pages, bare URLs, and @handles
   const linkify = (s) => esc(s)
+    .replace(/\[(\d{1,2})\]\(#history\/([^)\s]+)\)/g, (m, n, slug) => `<sup><a href="#history/${slug}" data-slug="${slug}" class="ref" title="reference ${n}">${n}</a></sup>`)
     .replace(/\[([^\]]+)\]\(#history\/([^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/(^|[^"'>])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
     .replace(/(^|\s)@(\w+)/g, '$1<span class="at">@$2</span>');
   const isCrew = (name) => st.crew.some((c) => c.name === name);
-  const pagesHTML = (m) => m.meta?.pages?.length
+  const pagesHTML = (m) => m.meta?.refs?.length
+    ? `<ol class="refs">${m.meta.refs.map((p) => `<li value="${p.n}"><a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a></li>`).join("")}</ol>`
+    : m.meta?.pages?.length
     ? `<div class="pages"><span class="lbl">read</span>${m.meta.pages.map((p) => `<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a>`).join("")}</div>` : "";
 
   function append(msgs, room) {

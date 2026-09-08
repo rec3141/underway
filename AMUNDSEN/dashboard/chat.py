@@ -302,37 +302,64 @@ def typing(channel: str, handle: str, on: bool) -> None:
 
 
 # ---------------------------------------------------------------- citations
-_CITE_RX = re.compile(r"\[([^\[\]\n]{3,140})\](?!\()")
+_NUM_RX = re.compile(r"\[(\d{1,2}(?:\s*[,;]\s*\d{1,2})*)\](?!\()")
+_CITE_RX = re.compile(r"\[([^\[\]\n\d][^\[\]\n]{2,140})\](?!\()")
 
 
 def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
 
 
-def link_citations(text: str, pages: list[dict]) -> str:
-    """A page the answer cites as [Its Title], exactly or nearly, becomes a
-    Markdown link to that page; anything in brackets that is no page is left."""
-    if not pages:
-        return text
-    titles = [(p, _norm(p["title"])) for p in pages if p.get("title")]
+def link_citations(text: str, pages: list[dict]) -> tuple[str, list[dict]]:
+    """Turn an answer's citations into links, and say which pages it cited.
 
-    def sub(m):
-        raw = m.group(1)
-        q = _norm(raw)
-        if not q:
+    A number in brackets, [2], refers to the excerpt with that number and
+    becomes a small link to the page. A title in brackets, which the model is
+    told not to write, is matched to a page and turned into a number too. A
+    person or place whose page was read and whose name appears plainly in the
+    prose gets its first mention linked, so the ordinary sentence carries the
+    link. Returns the text and the cited pages in citation order, numbered."""
+    if not pages:
+        return text, []
+    cited: list[int] = []                      # excerpt numbers in the order first cited
+
+    def number_for(idx: int) -> int:
+        if idx not in cited:
+            cited.append(idx)
+        return cited.index(idx) + 1
+
+    def sub_num(m):
+        out = []
+        for tok in re.split(r"\s*[,;]\s*", m.group(1)):
+            i = int(tok)
+            if 1 <= i <= len(pages):
+                out.append(f"[{number_for(i)}](#history/{pages[i - 1]['slug']})")
+        return "".join(out) if out else m.group(0)
+
+    titles = [(i, _norm(p["title"])) for i, p in enumerate(pages, 1) if p.get("title")]
+
+    def sub_title(m):
+        q = _norm(m.group(1))
+        hit = next((i for i, t in titles if q == t), None) or next((i for i, t in titles if len(q) >= 8 and (q in t or t in q)), None)
+        if hit is None:
+            hit = next((i for i, p in enumerate(pages, 1) if m.group(1).strip() in (p["slug"], p["slug"].split("/")[-1])), None)
+        if hit is None:
             return m.group(0)
-        for p, t in titles:
-            if q == t:
-                return f"[{p['title']}](#history/{p['slug']})"
-        for p, t in titles:
-            if len(q) >= 8 and (q in t or t in q):
-                return f"[{p['title']}](#history/{p['slug']})"
-        # a slug cited as such
-        for p, _ in titles:
-            if raw.strip() in (p["slug"], p["slug"].split("/")[-1]):
-                return f"[{p['title']}](#history/{p['slug']})"
-        return m.group(0)
-    return _CITE_RX.sub(sub, text)
+        return f"[{number_for(hit)}](#history/{pages[hit - 1]['slug']})"
+
+    text = _NUM_RX.sub(sub_num, text)
+    text = _CITE_RX.sub(sub_title, text)
+    # people and places read: the first plain mention of the name becomes the link
+    for p in pages:
+        if p.get("kind") not in ("person", "place") or len(p.get("title", "")) < 4:
+            continue
+        name = p["title"]
+        rx = re.compile(r"(?<![\[\w/#-])" + re.escape(name) + r"(?![\w\]/(-])")
+        m = rx.search(text)
+        if m:
+            text = text[:m.start()] + f"[{name}](#history/{p['slug']})" + text[m.end():]
+    refs = [{**pages[i - 1], "n": n} for n, i in enumerate(cited, 1)]
+    return text, refs
 
 
 def new_token() -> str:

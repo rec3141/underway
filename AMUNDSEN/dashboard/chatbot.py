@@ -79,8 +79,10 @@ PERSONAS = {
                       "from. Two to four sentences, more when a source has hold of her, never pompous."),
             "brief": ("Your beat is the past of these waters: what happened on this date in other years, who wintered or wrecked or "
                       "wandered near where the ship is now, and the people, Inuit and European, whose record it is. Answer from the "
-                      "WIKI EXCERPTS below when they bear on the question, and cite the page by its title in square brackets; say so "
-                      "when the wiki is silent and then give what you know, marked as such. One tangent per answer, at most, and "
+                      "WIKI EXCERPTS below when they bear on the question, and cite by number in square brackets, [1] or [2], the numbers "
+                      "of the excerpts you draw on, after the sentence they support; never write a page's title in brackets, and "
+                      "name people and places plainly in the prose. Say so when the wiki is silent and then give what you know, "
+                      "marked as such. One tangent per answer, at most, and "
                       "always back to the point. Current readings are Doc's and the schedule is the Cap'n's: point people to @doc "
                       "or @capn for those.")},
     "polly": {"name": "Polly", "emoji": "🦜", "beat": "meta", "room": "Crow's nest",
@@ -354,8 +356,9 @@ def places_named(root: Path, text: str) -> list[dict]:
 
 
 def excerpt_block(excerpts: list[dict]) -> str:
-    # the header carries the title only: a slug in it and the model cites the slug
-    return "\n\n".join(f"### {e['title']}  (a {e['kind']} page)\n{e['excerpt']}" for e in excerpts)
+    # numbered, so the answer can cite [n]; the header carries no slug, or the
+    # model cites the slug
+    return "\n\n".join(f"### [{i}] {e['title']}  (a {e['kind']} page)\n{e['excerpt']}" for i, e in enumerate(excerpts, 1))
 
 
 def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str]:
@@ -568,8 +571,10 @@ class Crew:
             try:
                 text, pages = self._generate(handle, task, channel, query, long)
                 if text:
-                    meta = {"pages": [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages]} if pages else None
-                    text = chat.link_citations(text, meta["pages"]) if meta else text
+                    meta = None
+                    if pages:
+                        text, refs = chat.link_citations(text, [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages])
+                        meta = {"refs": refs} if refs else None
                     self.post(p["name"], p["emoji"], text, channel, meta)
                     self.last_bot = time.time()
             except ModelOffline as e:
@@ -609,8 +614,9 @@ class Crew:
             speakers = handles or ([random.choice(room_bots)] if room_bots else [])
         elif channel == "ada":
             speakers = ["ada"] if "ada" in room_bots else []
-            task = (f"{name} asks in the Library: \"{text}\". Answer fully from the wiki excerpts, citing each page you draw on "
-                    f"by its title in square brackets, and say plainly where the wiki is silent.")
+            task = (f"{name} asks in the Library: \"{text}\". Answer fully from the wiki excerpts, citing each excerpt you draw on "
+                    f"by its number in square brackets after the sentence it supports, never by title, and say plainly where the "
+                    f"wiki is silent.")
             long = True
         else:
             speakers = room_bots

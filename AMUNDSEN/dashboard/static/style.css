@@ -790,3 +790,9 @@ body.tab-history #maplayers button[data-layer="history"] { display: inline-block
 .mapinfo .x { position: absolute; top: 4px; right: 6px; background: transparent; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; }
 .mapinfo .x:hover { color: var(--fg); }
 @media (max-width: 640px) { .mapinfo { bottom: 60px; width: calc(100% - 28px); } }
+
+/* an answer's references: [n] in the prose as a small link, the list under the message */
+.chat .msg sup { line-height: 0; }
+.chat .msg .ref { font-size: 10px; padding: 0 2px; border: 1px solid var(--line); border-radius: 4px; color: var(--accent); }
+.chat .msg .refs { margin: 5px 0 0; padding-left: 18px; font-size: 11.5px; color: var(--muted); }
+.chat .msg .refs li { margin: 1px 0; }
