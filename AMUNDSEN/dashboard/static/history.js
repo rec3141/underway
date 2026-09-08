@@ -453,18 +453,42 @@
     const years = debounce(() => { hist.from = $("#histfrom").value; hist.to = $("#histto").value; store.set("hist.from", hist.from); store.set("hist.to", hist.to); render(); }, 300);
     $("#histfrom").value = hist.from; $("#histto").value = hist.to;
     $("#histfrom").oninput = years; $("#histto").oninput = years;
-    $("#histmap").onclick = () => { UW.state.history = !UW.state.history; store.set("history", UW.state.history);
-      document.querySelector('#maplayers button[data-layer="history"]')?.classList.toggle("on", UW.state.history); renderMeta(); UW.renderMap(); };
+    $("#histmap").hidden = true;                            // the history layer is always on here
     $("#histtl").onclick = () => { hist.timelineOn = !hist.timelineOn; store.set("hist.timeline", hist.timelineOn); renderMeta(); if (hist.timelineOn) renderTimeline(); };
     $("#histask").onclick = () => UW.chatRoom?.("historian");
     // the map's own History pill appears once there is history to show
     const pill = document.querySelector('#maplayers button[data-layer="history"]');
     if (pill) pill.hidden = !UW.M.history;
   }
+  // On the History tab the map is the history's: the ship's own layers
+  // (track, stations, cameras, events, satellite) step aside and come back
+  // when the tab is left; plan, places and history stay. The header's leg
+  // and span controls hide with them, by a class on the body.
+  const SHIP_LAYERS = ["stations", "cameras", "events", "track"];
+  let stashed = null;
+  function historyMap(on) {
+    const pill = (layer, state) => { const b = document.querySelector(`#maplayers button[data-layer="${layer}"]`); if (b) { b.classList.toggle("on", !!state); b.setAttribute("aria-pressed", String(!!state)); } };
+    if (on && !stashed) {
+      stashed = { sat: UW.state.sat, satAt: UW.state.satAt, history: UW.state.history };
+      for (const l of SHIP_LAYERS) { stashed[l] = UW.state[l]; UW.state[l] = false; pill(l, false); }
+      UW.state.sat = ""; UW.state.satAt = null;
+      UW.state.history = true; pill("history", true);
+    } else if (!on && stashed) {
+      for (const l of SHIP_LAYERS) { UW.state[l] = stashed[l]; pill(l, stashed[l]); }
+      UW.state.sat = stashed.sat; UW.state.satAt = stashed.satAt;
+      UW.state.history = stashed.history; pill("history", stashed.history);
+      stashed = null;
+    }
+    document.body.classList.toggle("tab-history", on);
+  }
   const prevTab = UW.onTab;
   UW.onTab = (name) => {
     prevTab?.(name);
-    if (name !== "history") return;
+    const on = name === "history";
+    const was = !!stashed;
+    historyMap(on);
+    if (on !== was) UW.renderMap();
+    if (!on) return;
     ensure().then((ok) => { if (ok) render(); else renderMain(); }).catch(() => { UW.setLoadError("History", true); });
   };
   const prevRefresh = UW.refreshExtraData;

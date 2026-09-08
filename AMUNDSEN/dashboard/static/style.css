@@ -750,3 +750,9 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .chat .msg .cite { border-bottom: 1px dotted var(--accent); }
 .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
 @media (max-width: 640px) { .chat .chatrooms button { padding: 0 7px; font-size: 11.5px; } }
+/* the History tab's map: plan, places and history only; the ship's controls step aside */
+body.tab-history #maplayers button[data-layer="stations"], body.tab-history #maplayers button[data-layer="cameras"],
+body.tab-history #maplayers button[data-layer="events"], body.tab-history #maplayers button[data-layer="track"],
+body.tab-history #satpill, body.tab-history #satnav, body.tab-history .mapcolour, body.tab-history .maptrack,
+body.tab-history .legmenu, body.tab-history .group.span, body.tab-history .pickhint { display: none !important; }
+body.tab-history #maplayers button[data-layer="history"] { display: inline-block; }
