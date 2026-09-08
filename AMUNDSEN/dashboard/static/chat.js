@@ -35,7 +35,9 @@
   phone.addEventListener?.("change", () => layout());
 
   const isDM = (ch) => ch.startsWith("dm:");
-  const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: ch === "ship" ? "Ship" : ch === "crew" ? "Crew" : ch === "ada" ? "Library" : ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).join(", ") || "Me", kind: isDM(ch) ? "dm" : "room" };
+  // a private room with a crew member is named for where they are found
+  const partnerTitle = (n) => { if (!n.startsWith("@")) return n; const c = st.crew.find((x) => x.handle === n.slice(1)); return c ? (c.room || c.name) : n; };
+  const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: ch === "ship" ? "Ship" : ch === "crew" ? "Crew" : ch === "ada" ? "Library" : ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).map(partnerTitle).join(", ") || "Me", kind: isDM(ch) ? "dm" : "room" };
   const roomTitle = (ch) => roomInfo(ch).title;
   const placeholder = (ch) => ch === "ada" ? "ask Ada, the librarian · Enter to send"
     : ch === "crew" ? "talk to the crew · Enter to send"
@@ -82,7 +84,7 @@
     if (!show) { pickerEl.hidden = true; return; }
     const me = st.myName.toLowerCase();
     const people = st.online.filter((n) => n.name.toLowerCase() !== me);
-    const crew = st.crew.map((c) => ({ name: "@" + c.handle, label: `${c.emoji} ${c.name}`, sub: c.beat }));
+    const crew = st.crew.map((c) => ({ name: "@" + c.handle, label: `${c.emoji} ${c.name}`, sub: c.room ? `the ${c.room}` : c.beat }));
     pickerEl.innerHTML = `<div class="pickhead">Message…</div>` +
       (people.length ? people.map((n) => `<button type="button" data-with="${esc(n.name)}">${esc(n.emoji || "•")} ${esc(n.name)}</button>`).join("") : `<div class="muted small">nobody else has the page open</div>`) +
       `<div class="pickhead">The crew</div>` + crew.map((c) => `<button type="button" data-with="${esc(c.name)}">${esc(c.label)} <span class="muted">${esc(c.sub)}</span></button>`).join("");

@@ -122,8 +122,10 @@ def room_title(channel: str, me: str) -> str:
         return "Me"
     o = other[0]
     if o.startswith("@"):
+        # a private room with a crew member is named for where they are found:
+        # the Bridge, the Lab, the Library, the Crow's nest
         b = bots().get(o[1:])
-        return b["name"] if b else o
+        return (b.get("room") or b["name"]) if b else o
     return o
 
 
@@ -216,7 +218,7 @@ def read(since: int, name: str, token: str, emoji: str = "", leave: bool = False
     st = model_status() if bots() else {"online": False, "model": "", "why": "the crew are off"}
     return {"messages": [_row(*r) for r in rows], "online": online, "channel": channel, "rooms": rooms,
             "typing": sorted(_typing.get(channel, set())), "error": error,
-            "crew": [{"handle": h, "name": p["name"], "emoji": p["emoji"], "beat": p["beat"]} for h, p in bots().items()],
+            "crew": [{"handle": h, "name": p["name"], "emoji": p["emoji"], "beat": p["beat"], "room": p.get("room", p["name"])} for h, p in bots().items()],
             "room_bots": bots_in(channel), "model": st["model"] if st["online"] else st.get("why", ""),
             "model_online": bool(st["online"]), "now": now}
 
