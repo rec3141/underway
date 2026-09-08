@@ -681,6 +681,8 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 
 /* ---- the History tab: a side list, a reader, a timeline strip and the historian */
 .hist-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; min-height: 0; flex: 1; }
+.hist-layout.noside { grid-template-columns: minmax(0, 1fr); }
+.hist-layout.noside .histside { display: none; }
 .histside { overflow-y: auto; max-height: 70vh; border-right: 1px solid var(--line); padding-right: 10px; font-size: 13px; }
 .histside .sidehead { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 4px; }
 .histside .topic, .histside .pglink, .histside .artcard { display: block; color: var(--fg); padding: 5px 6px; border-radius: 6px; border-left: 3px solid transparent; }

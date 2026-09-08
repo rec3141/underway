@@ -34,6 +34,7 @@
     from: store.get("hist.from", ""), to: store.get("hist.to", ""),
     search: "",
     timelineOn: store.get("hist.timeline", false),
+    sideOn: store.get("hist.side", false),                 // the topics column, shown only when asked for
     pages: new Map(),                                     // slug -> page JSON, this generation
     trail: [],                                            // slugs visited, for back links
   };
@@ -339,11 +340,17 @@
   }
   function renderTypes() {
     const el = $("#histtypes");
-    el.innerHTML = Object.entries(TYPES).map(([k, t]) => `<button type="button" data-t="${k}" class="${hist.types.has(k) ? "on" : ""}" title="${t.label}"><span class="dot" style="background:${t.colour}"></span>${t.label}</button>`).join("");
-    for (const b of el.querySelectorAll("button")) b.onclick = () => {
+    el.innerHTML = `<button type="button" id="histside-btn" class="${hist.sideOn ? "on" : ""}" title="the topics column: the topics, their pages and artifacts">Topics</button>` +
+      Object.entries(TYPES).map(([k, t]) => `<button type="button" data-t="${k}" class="${hist.types.has(k) ? "on" : ""}" title="${t.label}"><span class="dot" style="background:${t.colour}"></span>${t.label}</button>`).join("");
+    for (const b of el.querySelectorAll("button[data-t]")) b.onclick = () => {
       if (hist.types.has(b.dataset.t)) hist.types.delete(b.dataset.t); else hist.types.add(b.dataset.t);
       store.set("hist.types", [...hist.types]); render();
     };
+    $("#histside-btn").onclick = () => { hist.sideOn = !hist.sideOn; store.set("hist.side", hist.sideOn); renderSideToggle(); renderTypes(); };
+  }
+  function renderSideToggle() {
+    document.querySelector(".hist-layout")?.classList.toggle("noside", !hist.sideOn);
+    $("#histside").hidden = !hist.sideOn;
   }
   function renderTopicSelect() {
     const sel = $("#histtopic"); if (!hist.index) return;
@@ -353,7 +360,7 @@
   }
 
   async function render() {
-    renderTopicSelect(); renderTypes(); renderMeta(); renderSide();
+    renderTopicSelect(); renderTypes(); renderMeta(); renderSideToggle(); renderSide();
     await renderMain();
     if (hist.timelineOn) renderTimeline();
     if (UW.state.history) UW.renderMap();
@@ -515,7 +522,7 @@
 
   // ---------------------------------------------------------------- wiring
   function wire() {
-    $("#histsearch").oninput = debounce((e) => { hist.search = e.target.value; renderSide(); }, 150);
+    $("#histsearch").oninput = debounce((e) => { hist.search = e.target.value; if (hist.search && !hist.sideOn) { hist.sideOn = true; store.set("hist.side", true); renderSideToggle(); renderTypes(); } renderSide(); }, 150);
     $("#histtopic").onchange = (e) => { hist.topic = e.target.value; store.set("hist.topic", hist.topic); if (hist.topic) open(`topic/${hist.topic}`); else { hist.slug = ""; store.set("hist.slug", ""); render(); } };
     const years = debounce(() => { hist.from = $("#histfrom").value; hist.to = $("#histto").value; store.set("hist.from", hist.from); store.set("hist.to", hist.to); render(); }, 300);
     $("#histfrom").value = hist.from; $("#histto").value = hist.to;
