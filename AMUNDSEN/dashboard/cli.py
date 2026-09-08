@@ -45,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("telegram-bot", help="answer the Telegram bot's commands as they arrive (runs until stopped)")
     st = sub.add_parser("satellite", help="render recent Sentinel imagery around the ship when due")
     st.add_argument("--force", action="store_true", help="render now regardless of age and distance")
+    st.add_argument("--backfill", metavar="YYYY-MM-DD", help="fill the archive from this day on: a picture a day per sensor of the box round the ship")
+    st.add_argument("--within-km", type=float, default=500.0, help="the backfilled box reaches this far from the ship (default 500)")
 
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
@@ -81,7 +83,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if a.cmd == "satellite":
-        from .satellite import refresh
+        from .satellite import backfill, refresh
+        if a.backfill:
+            from datetime import datetime, timezone
+            backfill(datetime.strptime(a.backfill, "%Y-%m-%d").replace(tzinfo=timezone.utc), within_km=a.within_km)
+            return 0
         refresh(force=a.force)
         return 0
 

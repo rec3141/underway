@@ -8,7 +8,10 @@ covers the fixed ``REGION`` (the Queen Elizabeth Islands and the channels
 around them: 74 °N to 83.5 °N, 130 °W to 60 °W), drawn in Web Mercator so
 the map lays it between its corners without warping. The service caps a
 request at 2500 pixels a side, so the region is fetched as ``TILES`` tiles
-and stitched into one WebP.
+and stitched into one WebP. Each sensor comes again as a ``near`` picture,
+``s1near`` and ``s2near``: a 240 by 160 km box round the ship at 50 m a
+pixel, drawn over the region picture, and taken afresh once the ship has
+moved ``NEAR_MOVE_KM`` from its centre.
 
 ``refresh()`` renders a sensor again once its picture is older than its
 ``max_age_h``; the timer runs it every half hour. The results live in
@@ -67,9 +70,14 @@ SENSORS = {
     "s1near": {"type": "sentinel-1-grd", "days": 2, "max_age_h": 3.0, "filter": {"mosaickingOrder": "mostRecent"},
                "processing": {"backCoeff": "GAMMA0_ELLIPSOID"}, "label": "Sentinel-1 radar, 50 m near the ship",
                "near": True, "box_km": (240.0, 160.0), "ground_m_per_px": 50.0},
+    # the optical the same way: the least cloudy week in the box at 50 m
+    "s2near": {"type": "sentinel-2-l2a", "days": 7, "max_age_h": 6.0, "filter": {"mosaickingOrder": "leastCC", "maxCloudCoverage": 40},
+               "processing": {}, "label": "Sentinel-2 optical, 50 m near the ship",
+               "near": True, "box_km": (240.0, 160.0), "ground_m_per_px": 50.0},
 }
 NEAR_MOVE_KM = 40.0
 EVALSCRIPTS["s1near"] = EVALSCRIPTS["s1"]
+EVALSCRIPTS["s2near"] = EVALSCRIPTS["s2"]
 
 
 def sat_dir() -> Path:
@@ -152,20 +160,27 @@ def token(creds: tuple[str, str]) -> str:
     return r.json()["access_token"]
 
 
-def newest_scene(tok: str, kind: str, bbox: list[float], start: datetime, end: datetime) -> str | None:
+def newest_scene(tok: str, kind: str, bbox: list[float], start: datetime, end: datetime, raise_errors: bool = False) -> str | None:
     """The acquisition time of the newest scene of ``kind`` touching the box
-    in the range, so the layer can say how old its picture is."""
+    in the range, so the layer can say how old its picture is. An optical
+    scene counts only under the sensor's cloud limit. A search that fails
+    answers None like an empty one, unless ``raise_errors``."""
     import requests
     w, s, e, n = bbox
     ll = from_mercator(w, s); ur = from_mercator(e, n)
     q = {"collections": [SENSORS[kind]["type"]], "bbox": [ll[0], ll[1], ur[0], ur[1]],
          "datetime": f"{start:%Y-%m-%dT%H:%M:%SZ}/{end:%Y-%m-%dT%H:%M:%SZ}", "limit": 50}
+    cc = SENSORS[kind]["filter"].get("maxCloudCoverage")
+    if cc is not None:
+        q.update({"filter": f"eo:cloud_cover < {cc}", "filter-lang": "cql2-text"})
     try:
         r = requests.post(CATALOG_URL, json=q, headers={"Authorization": f"Bearer {tok}"}, timeout=60)
         r.raise_for_status()
         times = [f["properties"]["datetime"] for f in r.json().get("features", [])]
         return max(times) if times else None
     except Exception as e:                  # noqa: BLE001 — the picture still counts without a date
+        if raise_errors:
+            raise
         log.info("satellite: catalog search failed: %s", e)
         return None
 
@@ -313,6 +328,73 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
     return info
 
 
+def backfill(since: datetime, within_km: float = 500.0, kinds=("s1", "s2"), now: datetime | None = None,
+             ship: tuple[float, float] | None = None) -> dict:
+    """Fill the archive from ``since`` on, a picture a day per sensor, of
+    the box ``within_km`` round the ship's present position at the region
+    picture's resolution: a day with an archive entry already is left, a
+    day the catalog shows no (clear enough) scene for costs nothing, and
+    the rest are rendered and dated by their newest scene. The pictures
+    carry their own corners, so the map lays them where they belong."""
+    now = now or datetime.now(timezone.utc)
+    creds = credentials()
+    if creds is None:
+        log.info("satellite: no COPERNICUS_ID/COPERNICUS_SECRET; nothing rendered")
+        return load_info()
+    ship = ship or ship_position()
+    if ship is None:
+        log.warning("satellite: no ship position; nothing rendered")
+        return load_info()
+    info = load_info()
+    info.setdefault("images", {})
+    bbox = box_around(ship[0], ship[1], (2 * within_km, 2 * within_km))
+    tok = token(creds)
+    d = sat_dir() / "archive"
+    d.mkdir(parents=True, exist_ok=True)
+    day = since.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    added = 0
+    # a token lasts minutes and a run lasts longer: a request that fails is
+    # tried once more with a fresh one, and a day that still fails is
+    # reported as failed, never as a day without a scene
+    def with_fresh_token(call):
+        nonlocal tok
+        try:
+            return call(tok)
+        except Exception as e:              # noqa: BLE001
+            log.info("satellite: request failed (%s); fresh token", str(e).split("(Caused by")[0][:100])
+            tok = token(creds)
+            return call(tok)
+    while day < now:
+        end = min(day + timedelta(days=1), now)
+        for k in kinds:
+            entries = info.setdefault("archive", {}).setdefault(k, [])
+            if any(str(e.get("scene", ""))[:10] == f"{day:%Y-%m-%d}" for e in entries):
+                continue
+            try:
+                scene = with_fresh_token(lambda t: newest_scene(t, k, bbox, day, end, raise_errors=True))
+                if scene is None:
+                    log.info("satellite: %s %s: no scene; skipped", k, f"{day:%Y-%m-%d}")
+                    continue
+                data, cost, size = with_fresh_token(lambda t: render(t, k, bbox, end, MERC_M_PER_PX))
+                stamp = "".join(ch for ch in scene if ch.isdigit())[:14]
+                name = f"{k}_{stamp}.webp"
+                (d / name).write_bytes(data)
+                entries.append({"file": name, "scene": scene, "fetched": now.isoformat(timespec="seconds"), "bytes": len(data),
+                                "corners": corners(bbox), "centre": list(ship), "within_km": within_km, "cost_pu": cost})
+                entries.sort(key=lambda e: e.get("scene") or "")
+                info["cost_pu_total"] = round(float(info.get("cost_pu_total") or 0) + cost, 2)
+                added += 1
+                log.info("satellite: %s %s rendered (%dx%d, %d kB, scene %s, %.1f PU)", k, f"{day:%Y-%m-%d}", size[0], size[1], len(data) // 1024, scene, cost)
+            except Exception as e:                  # noqa: BLE001 — one day failing must not stop the rest
+                log.warning("satellite: %s %s failed: %s", k, f"{day:%Y-%m-%d}", e)
+            tmp = sat_dir() / "sat.json.tmp"
+            tmp.write_text(json.dumps(info, indent=1))
+            os.replace(tmp, sat_dir() / "sat.json")
+        day += timedelta(days=1)
+    log.info("satellite: backfill added %d pictures; %.1f PU spent in all", added, info.get("cost_pu_total") or 0)
+    return info
+
+
 def archive(info: dict, kind: str, data: bytes, scene: str | None, now: datetime) -> None:
     """Keep the picture under ``archive/<kind>_<stamp>.webp`` when its newest
     scene is one the archive has not seen (a render that only repeats the
@@ -355,8 +437,9 @@ def publish(root: Path) -> dict | None:
             shutil.copy2(src, d)
         stamp = "".join(ch for ch in im["fetched"] if ch.isdigit())[:14]   # a cache-buster: the fetch time, digits only
         out[k] = {**im, "url": f"data/sat/{im['file']}?v={stamp}"}
-    # the archive: dated pictures the map can step back through (all of one
-    # region share the current picture's corners); only new files are copied
+    # the archive: dated pictures the map can step back through (a region
+    # picture shares the current picture's corners, a backfilled box carries
+    # its own); only new files are copied
     arch = {}
     adest = dest / "archive"
     for k, entries in (info.get("archive") or {}).items():

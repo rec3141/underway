@@ -822,3 +822,5 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 .peoplelist .person:hover { background: var(--card-2); }
 .peoplelist .person.inuit b { border-bottom: 2px solid var(--accent-2); }
 .peoplelist .role { display: block; color: var(--muted); font-size: 12px; }
+/* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
+#satpill { min-width: 7.2em; text-align: center; }

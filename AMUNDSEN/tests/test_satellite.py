@@ -33,9 +33,9 @@ class SatelliteTests(unittest.TestCase):
         self.assertEqual(sat.due({"images": {"s1": elsewhere, "s2": fresh}}, now), ["s1"])    # another region
         self.assertEqual(sat.due({}, now), ["s1", "s2"])                                        # nothing yet
         near = {"fetched": now.isoformat(), "centre": [77.5, -91.8]}
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near}}, now, ship=(77.5, -91.8)), [])
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near}}, now, ship=(77.5, -94.1)), ["s1near"])   # ~55 km east, past NEAR_MOVE_KM
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh}}, now, ship=(77.5, -91.8)), ["s1near"])
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near, "s2near": near}}, now, ship=(77.5, -91.8)), [])
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near, "s2near": near}}, now, ship=(77.5, -94.1)), ["s1near", "s2near"])   # ~55 km east, past NEAR_MOVE_KM
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh}}, now, ship=(77.5, -91.8)), ["s1near", "s2near"])
 
     def test_archive_keeps_new_scenes_only_and_prunes(self):
         now = datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)
@@ -87,6 +87,53 @@ class SatelliteTests(unittest.TestCase):
             # force buys everything regardless
             sat.refresh(force=True, now=now, kinds=("s1", "s2"))
             self.assertEqual(render.call_count, 3)
+
+    def test_backfill_fills_the_days_without_a_picture(self):
+        now = datetime(2026, 9, 8, 15, 0, tzinfo=timezone.utc)
+        scenes = {("s1", "2026-09-06"): "2026-09-06T21:06:45Z", ("s1", "2026-09-07"): "2026-09-07T20:00:00Z", ("s2", "2026-09-07"): "2026-09-07T21:11:50Z"}
+        with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)), \
+             patch.object(sat, "credentials", return_value=("id", "secret")), patch.object(sat, "token", return_value="tok"), \
+             patch.object(sat, "render", return_value=(b"webp", 4.4, (1850, 1850))) as render, \
+             patch.object(sat, "newest_scene", side_effect=lambda tok, k, bbox, start, end, **kw: scenes.get((k, f"{start:%Y-%m-%d}"))) as catalog:
+            (Path(d) / "sat" / "archive").mkdir(parents=True)
+            had = {"file": "s1_20260907103037.webp", "scene": "2026-09-07T10:30:37Z", "fetched": "x"}
+            (Path(d) / "sat" / "sat.json").write_text(json.dumps({"images": {}, "archive": {"s1": [had]}}))
+            info = sat.backfill(datetime(2026, 9, 5, tzinfo=timezone.utc), within_km=500, now=now, ship=(78.5, -92.0))
+            self.assertEqual(render.call_count, 2)                           # s1 the 6th, s2 the 7th; s1 the 7th was there, the 5th and 8th have no scene
+            self.assertEqual(catalog.call_count, 7)                          # 4 days x 2 sensors, less the day s1 already had
+            s1 = info["archive"]["s1"]
+            self.assertEqual([e["scene"] for e in s1], ["2026-09-06T21:06:45Z", "2026-09-07T10:30:37Z"])   # in scene order
+            self.assertEqual(s1[0]["file"], "s1_20260906210645.webp")
+            self.assertTrue((Path(d) / "sat" / "archive" / "s1_20260906210645.webp").is_file())
+            self.assertEqual(len(s1[0]["corners"]), 4)
+            self.assertEqual(s1[0]["centre"], [78.5, -92.0])
+            self.assertEqual(info["archive"]["s2"][0]["scene"], "2026-09-07T21:11:50Z")
+            self.assertAlmostEqual(info["cost_pu_total"], 8.8)
+            self.assertEqual(json.loads((Path(d) / "sat" / "sat.json").read_text())["archive"]["s2"][0]["file"], "s2_20260907211150.webp")
+            # the box is the wanted size: 1000 km across at the ship's latitude
+            bbox = render.call_args[0][2]
+            w, s_, e, n = bbox; lat = 78.5
+            self.assertAlmostEqual((e - w) * __import__("math").cos(__import__("math").radians(lat)) / 1000, 1000, delta=1)
+
+    def test_backfill_refreshes_an_expired_token_and_reports_failures(self):
+        now = datetime(2026, 9, 8, 15, 0, tzinfo=timezone.utc)
+        tokens = iter(["tok1", "tok2", "tok3"])
+        def catalog(tok, k, bbox, start, end, raise_errors=False):
+            if tok == "tok1":
+                raise RuntimeError("401 Unauthorized")                    # expired: tried again with a fresh token
+            if f"{start:%Y-%m-%d}" == "2026-09-07":
+                raise RuntimeError("catalog down")                        # fails twice: the day is reported failed
+            return "2026-09-06T21:06:45Z" if f"{start:%Y-%m-%d}" == "2026-09-06" else None
+        with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)), \
+             patch.object(sat, "credentials", return_value=("id", "secret")), patch.object(sat, "token", side_effect=lambda c: next(tokens)) as token, \
+             patch.object(sat, "render", return_value=(b"webp", 4.4, (10, 10))), \
+             patch.object(sat, "newest_scene", side_effect=catalog), self.assertLogs("dashboard.satellite", level="INFO") as logs:
+            (Path(d) / "sat").mkdir()
+            info = sat.backfill(datetime(2026, 9, 6, tzinfo=timezone.utc), kinds=("s1",), now=now, ship=(78.5, -92.0))
+        self.assertEqual([e["scene"][:10] for e in info["archive"]["s1"]], ["2026-09-06"])
+        self.assertEqual(token.call_count, 3)                                # the start, the expiry, the failing day
+        self.assertTrue(any("2026-09-07 failed" in m for m in logs.output))
+        self.assertFalse(any("2026-09-07: no scene" in m for m in logs.output))
 
     def test_publish_copies_pictures_and_versions_urls(self):
         with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)):
