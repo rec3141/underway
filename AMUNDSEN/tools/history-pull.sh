@@ -26,8 +26,15 @@ src = sqlite3.connect('db/history/history.sqlite'); dst = sqlite3.connect('db/hi
 src.backup(dst); dst.close(); src.close()
 PYEOF"
     rsync -a "$GRID:$REMOTE/db/history/history.snapshot.sqlite" "$LOCAL/db/history/history.sqlite.new"
-    mv "$LOCAL/db/history/history.sqlite.new" "$LOCAL/db/history/history.sqlite"
-    rm -f "$LOCAL/db/history/history.sqlite-wal" "$LOCAL/db/history/history.sqlite-shm"
+    # the swap waits for a running build to finish (the build holds this lock),
+    # so no build reads the database while it changes underneath
+    HERE=$(cd "$(dirname "$0")/.." && pwd)
+    mkdir -p "$HERE/cache"
+    (
+      flock -w 900 9 || { echo "a build has held the lock for 15 minutes; not swapping the database" >&2; exit 1; }
+      rm -f "$LOCAL/db/history/history.sqlite-wal" "$LOCAL/db/history/history.sqlite-shm"
+      mv "$LOCAL/db/history/history.sqlite.new" "$LOCAL/db/history/history.sqlite"
+    ) 9>"$HERE/cache/.run.lock"
     echo "== files"
     # only the fetched files: everything else under db/history is git's, and
     # the clone must stay a clean checkout of grid's repository

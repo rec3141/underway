@@ -25,9 +25,28 @@ if ROOT.is_dir() and str(ROOT) not in sys.path:
 
 try:
     from arctic_history import *              # noqa: F401,F403
-    from arctic_history import (HISTORY_DB, HISTORY_DIR, answer_request, connect, list_requests,   # noqa: F401
-                                publish)
+    from arctic_history import HISTORY_DB, HISTORY_DIR, answer_request, connect, list_requests   # noqa: F401
+    from arctic_history import publish as _publish
     AVAILABLE = True
+
+    def publish(root: Path, db: Path | None = None):
+        """Publish the layer; if the database cannot be read this minute (a
+        pull is replacing it, say), keep the last good publish rather than
+        blank the tab for a build."""
+        import json
+        last = root / "data" / "history" / "manifest-entry.json"
+        try:
+            entry = _publish(root, db)
+        except Exception as e:                  # noqa: BLE001
+            if last.is_file():
+                log.warning("history publish failed (%s); keeping the last good publish", e)
+                return json.loads(last.read_text())
+            log.warning("history publish failed (%s); no earlier publish to keep", e)
+            return None
+        if entry:
+            last.parent.mkdir(parents=True, exist_ok=True)
+            last.write_text(json.dumps(entry))
+        return entry
 except ImportError:
     AVAILABLE = False
     HISTORY_DIR = ROOT / "db" / "history"
