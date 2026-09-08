@@ -125,7 +125,10 @@ _wiki_cache: dict = {"stamp": None, "pages": []}
 _WORD_RX = re.compile(r"[a-zà-ÿ0-9']{3,}")
 _STOP = set("the and for with that this from were was are have has had not but his her their they them then than into "
             "over under about after before between which what when where who whom whose why how does did done been being "
-            "also there here these those such some any all more most much many very just only both each other".split())
+            "also there here these those such some any all more most much many very just only both each other "
+            "history historical happened happen tell know place places near nearby around current location "
+            "ship vessel today year years time now your our closest nearest database records record archive archives "
+            "wiki mention mentioned anything something about".split())
 
 
 def wiki_pages(root: Path) -> list[dict]:
@@ -147,7 +150,15 @@ def wiki_pages(root: Path) -> list[dict]:
         d["_text"] = text
         d["_words"] = _WORD_RX.findall((d.get("title", "") + " " + d.get("summary", "") + " " + text).lower())
         pages.append(d)
-    _wiki_cache.update(stamp=stamp, pages=pages)
+    # document frequency, so a word on every page (bay, ship, ice) counts for little
+    import math
+    df: dict[str, int] = {}
+    for d in pages:
+        for w in set(d["_words"]):
+            df[w] = df.get(w, 0) + 1
+    n = max(1, len(pages))
+    avg = sum(len(d["_words"]) for d in pages) / n
+    _wiki_cache.update(stamp=stamp, pages=pages, idf={w: math.log(1 + (n - c + 0.5) / (c + 0.5)) for w, c in df.items()}, n=n, avglen=avg)
     return pages
 
 
@@ -158,17 +169,30 @@ def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, bud
     pages = wiki_pages(root)
     if not pages:
         return []
-    q = [w for w in _WORD_RX.findall(question.lower()) if w not in _STOP]
+    import math
+    idf = _wiki_cache.get("idf") or {}
+    n = _wiki_cache.get("n") or 1
+    avg = _wiki_cache.get("avglen") or 1.0
+    q = list(dict.fromkeys(w for w in _WORD_RX.findall(question.lower()) if w not in _STOP))
+    weight = {w: idf.get(w, math.log(n + 1)) for w in q}       # a word the wiki has never seen is rare by definition
     by_slug = {p["slug"]: p for p in pages}
     current = by_slug.get(slug)
     scored = []
+    k1, b = 1.2, 0.75                                          # BM25: a term counts less the longer the page
     for p in pages:
         words = p["_words"]
         if not words:
             continue
-        hits = sum(words.count(w) for w in q)
-        title_hits = sum(1 for w in q if w in p.get("title", "").lower())
-        score = hits / (len(words) ** 0.5) + 3 * title_hits
+        # a forty-word quote page must not outscore a chapter on a single word:
+        # short pages are normalised as if they were of a modest length
+        norm = k1 * (1 - b + b * max(len(words), 300) / avg)
+        score = 0.0
+        for w in q:
+            tf = words.count(w)
+            if tf:
+                score += weight[w] * tf * (k1 + 1) / (tf + norm)
+        title = p.get("title", "").lower()
+        score += sum(weight[w] for w in q if w in title)
         if current and (p["slug"] == slug or p["slug"] in current.get("backlinks", []) or p["slug"] in current.get("html", "")):
             score += 2.0
         if p.get("kind") == "page":
@@ -176,19 +200,41 @@ def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, bud
         if score > 0:
             scored.append((score, p))
     scored.sort(key=lambda x: -x[0])
+    best = scored[0][0] if scored else 0.0
     chosen = []
     if current:
         chosen.append(current)
         budget -= len(current["_text"])
-    for _, p in scored:
+    for sc, p in scored:
         if p in chosen:
             continue
         if len(chosen) >= limit or budget <= 0:
+            break
+        # a page has to earn its place: nothing weaker than a quarter of the
+        # best match, and nothing at all when even the best is feeble, so the
+        # historian says the wiki is silent rather than reading six random bays
+        if sc < max(0.25 * best, 10.0):
             break
         chosen.append(p)
         budget -= min(len(p["_text"]), 6000)
     return [{"slug": p["slug"], "title": p["title"], "kind": p["kind"],
              "excerpt": (p["_text"] if p is current else p["_text"][:6000]).strip()} for p in chosen]
+
+
+def places_named(root: Path, text: str) -> list[dict]:
+    """The published places whose names (modern, historic or Inuktitut)
+    appear in a text, with their positions: for 'where is X' and 'what
+    happened at X', where the wiki's prose alone may not say."""
+    f = root / "data" / "history" / "places.json"
+    if not f.is_file():
+        return []
+    low = text.lower()
+    out = []
+    for p in json.loads(f.read_text()).get("places", []):
+        names = [x for x in (p.get("name"), p.get("historic"), p.get("inuktitut")) if x and len(x) >= 4]
+        if any(x.lower() in low for x in names):
+            out.append(p)
+    return out[:8]
 
 
 def excerpt_block(excerpts: list[dict]) -> str:

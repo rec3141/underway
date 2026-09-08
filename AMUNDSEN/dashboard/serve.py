@@ -480,10 +480,30 @@ _ask_lock = threading.Lock()
 def history_ask(root: Path, question: str, slug: str = "") -> dict:
     """The historian's room: the wiki pages that bear on the question go in
     front of the model, and the answer comes back with the pages it was given."""
-    from .chatbot import complete, excerpt_block, wiki_excerpts
-    excerpts = wiki_excerpts(root, question, slug)
-    if not excerpts:
+    from .chatbot import _num, complete, excerpt_block, history_lines, places_named, wiki_excerpts
+    from .chatbot import wiki_pages
+    if not wiki_pages(root):
         raise ValueError("no history has been published yet")
+    excerpts = wiki_excerpts(root, question, slug)          # may be empty: then the ship context is all there is
+    # the ship's own situation: where it is, what the history holds nearby,
+    # and any named place the question mentions, with its position
+    ship = []
+    try:
+        m = json.loads((root / "data" / "manifest.json").read_text())
+        lat = m.get("latest", {}).get("lat"); lon = m.get("latest", {}).get("lon")
+        end = (m.get("data_range", {}).get("end") or "")[:16].replace("T", " ")
+        if lat is not None:
+            ship.append(f"The ship is now at {_num(lat, 3)}, {_num(lon, 3)} (as of {end} UTC); the date today is "
+                        f"{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.")
+        ship += history_lines(root, lat, lon)
+    except Exception:                                # noqa: BLE001
+        pass
+    named = places_named(root, question)
+    if named:
+        ship.append("Named places the question mentions, from the ship's gazetteer: " + "; ".join(
+            f"{p['name']}" + (f" ({', '.join(x for x in (p.get('inuktitut'), p.get('historic')) if x and x != p['name'])})" if (p.get('inuktitut') or p.get('historic')) else "")
+            + (f" at {p['lat']:.3f}, {p['lon']:.3f}" if p.get("lat") is not None else "") + (f", {p['kind']}" if p.get("kind") else "")
+            + (f": {p['note'][:200]}" if p.get("note") else "") for p in named) + ".")
     system = ("You are the historian aboard the research icebreaker CCGS Amundsen, answering scientists' questions about the "
               "history of the Canadian Arctic Archipelago and Baffin Bay. Answer from the wiki excerpts below, which were "
               "written by the ship's research crew from primary sources; when the excerpts do not cover something, say so "
@@ -491,7 +511,8 @@ def history_ask(root: Path, question: str, slug: str = "") -> dict:
               "coordinates when the excerpts give them. Use Inuit names for people and places as the excerpts do. Where "
               "the record is disputed or rests on testimony, say whose. Cite the pages you draw on inline by their title in "
               "square brackets, like [The death march]. Plain prose, short paragraphs, no headings, no bullet lists unless "
-              "listing dates. At most about 350 words.\n\nWIKI EXCERPTS\n\n" + excerpt_block(excerpts))
+              "listing dates. At most about 350 words.\n\nSHIP\n" + ("\n".join(ship) or "The ship's position is not known to this build.")
+              + "\n\nWIKI EXCERPTS\n\n" + (excerpt_block(excerpts) or "(no page in the wiki bears on this question)"))
     with _ask_lock:
         answer = complete(system, question, max_tokens=700, temperature=0.3, num_ctx=16384, timeout=240)
     return {"answer": answer, "pages": [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in excerpts]}
