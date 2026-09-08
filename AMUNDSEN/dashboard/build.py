@@ -27,6 +27,7 @@ from . import history
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from . import plan, satellite
+from .buildcache import cached_frame, file_signature, kept_window, remember_windows, surprise_cached
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -410,7 +411,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # 2. read the needed columns from each leg and concatenate in time order
     frames, coverage, files_total, latest_file, columns_seen = [], {}, 0, None, {}
     for i, (leg, st) in enumerate(stores):
-        df = st.frame_columns(want)
+        df = cached_frame(leg.id, leg.db, want, lambda: st.frame_columns(want))
         for k in want:
             if k not in df.columns:
                 df[k] = np.nan
@@ -432,6 +433,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
 
     # 3. derive, then slice every window
     leg_codes = df.pop("leg")
+    from .surprise import score_minutes, surprise_scores
     from .tsg import archive_tail, minute_frame, provisional_tail
     from . import livescrape
     try:
@@ -468,7 +470,14 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                 log.info("provisional tail from the TSG file: %d minutes past %s", len(tail), tail.index.min().strftime("%H:%M"))
         except Exception:                   # noqa: BLE001
             log.exception("provisional tail not built")
-    a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg)
+    # surprise is scored afresh only from the live leg on, against the kept
+    # scoring of the legs before it (buildcache)
+    score = surprise_scores
+    if live_i is not None and (leg_codes == live_i).any():
+        cutoff = leg_codes.index[leg_codes == live_i].min().floor("1min")
+        frozen = "|".join(f"{leg.id}:{file_signature(leg.db)}" for i, (leg, _) in enumerate(stores) if i != live_i)
+        score = lambda minute, cfg: surprise_cached(minute, cfg, cutoff, frozen, score_minutes)
+    a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg, score=score)
     leg_codes = leg_codes[~leg_codes.index.duplicated(keep="last")]
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
     a.frame["provisional"] = (a.frame.index >= prov_from).astype(float) if prov_from is not None else 0.0
@@ -481,8 +490,12 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # map's track-detail slider), so the span decides the default detail but
     # not the finest the browser can ask for.
     def write_window(w: Window) -> dict:
-        payload = slice_window(a, w, end)
         fn = f"w-{w.label}.json"
+        kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
+        if kept:
+            log.info("window %-4s kept", w.label)
+            return kept
+        payload = slice_window(a, w, end)
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
         meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"],
                 "start": payload.get("start"), "end": payload.get("end")}
@@ -494,6 +507,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         return meta
     for w in WINDOWS:
         windows_meta.append(write_window(w))
+    remember_windows(windows_meta)
     # "leg": the whole of the live leg, sized afresh each build; it is the
     # default view, so the browser opens on the current leg
     in_leg = a.frame.index[a.frame["leg"] == live_i] if live_i is not None else []

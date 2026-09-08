@@ -173,7 +173,10 @@ class Analysis:
 
 
 def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tuple[str, str]],
-                   feats: list[str], display: dict[str, str], tsg: pd.DataFrame | None = None) -> Analysis:
+                   feats: list[str], display: dict[str, str], tsg: pd.DataFrame | None = None,
+                   score=surprise_scores) -> Analysis:
+    """``score(minute, cfg)`` gives the surprise scores for the minute
+    features (``surprise_scores``, or a cached form of it)."""
     if df.empty:
         raise SystemExit("no observations in store")
 
@@ -224,7 +227,7 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
             tsg_feats = [f for f in feats if f.startswith("tsg — ")]
             gated = int(low.sum())
             minute.loc[low, tsg_feats] = np.nan
-        sc = surprise_scores(minute, SURPRISE)
+        sc = score(minute, SURPRISE)
         if sc is not None:
             # broadcast the minute scores back onto the raw cadence
             m = df.index.floor("1min")
