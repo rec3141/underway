@@ -284,6 +284,34 @@ def wiki_pages(root: Path) -> list[dict]:
     return pages
 
 
+# the region's acronyms, as the scientists type them; expanded for retrieval
+# and spelled out to the librarian so QEI is not read as a Qikiqtani body
+ACRONYMS = {
+    "qei": "Queen Elizabeth Islands", "qeis": "Queen Elizabeth Islands", "nwp": "Northwest Passage",
+    "kwi": "King William Island", "qtc": "Qikiqtani Truth Commission", "qia": "Qikiqtani Inuit Association",
+    "hbc": "Hudson's Bay Company", "rcmp": "Royal Canadian Mounted Police", "ccgs": "Canadian Coast Guard Ship",
+    "dew": "Distant Early Warning Line", "jaws": "Joint Arctic Weather Stations", "pcsp": "Polar Continental Shelf Project",
+    "ipy": "International Polar Year", "hms": "His Majesty's Ship", "nwt": "Northwest Territories",
+    "itk": "Inuit Tapiriit Kanatami", "cae": "Canadian Arctic Expedition", "pearl": "Polar Environment Atmospheric Research Laboratory",
+    "chars": "Canadian High Arctic Research Station",
+}
+_ACRO_RX = re.compile(r"\b([A-Za-z]{2,6})\b")
+
+
+def expand_acronyms(text: str) -> tuple[str, list[str]]:
+    """The text with each known acronym followed by its expansion, and the
+    expansions used, for a glossary line."""
+    used = []
+
+    def sub(m):
+        full = ACRONYMS.get(m.group(1).lower())
+        if not full or full in used:
+            return m.group(0) if not full else m.group(0)
+        used.append(full)
+        return f"{m.group(0)} ({full})"
+    return _ACRO_RX.sub(sub, text), used
+
+
 def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, budget: int = 28000) -> list[dict]:
     """The wiki pages that bear on a question, best first: matched on words,
     with the page being read and its neighbours favoured, narrative pages
@@ -295,6 +323,7 @@ def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, bud
     idf = _wiki_cache.get("idf") or {}
     n = _wiki_cache.get("n") or 1
     avg = _wiki_cache.get("avglen") or 1.0
+    question = expand_acronyms(question)[0]
     q = list(dict.fromkeys(w for w in _WORD_RX.findall(question.lower()) if w not in _STOP))
     weight = {w: idf.get(w, math.log(n + 1)) for w in q}       # a word the wiki has never seen is rare by definition
     by_slug = {p["slug"]: p for p in pages}
@@ -519,6 +548,9 @@ class Crew:
                 pass
             self._pages = []
             if beat == "history":
+                _, used = expand_acronyms(task or "")
+                if used:
+                    lines.append("Acronyms in the question: " + "; ".join(f"{k.upper()} is the {v}" for k, v in ACRONYMS.items() if v in used) + ".")
                 try:
                     ex = wiki_excerpts(self.root, task or " ".join(lines[-2:]), limit=5, budget=14000)
                     if ex:
