@@ -1,12 +1,15 @@
 """Crew members in the ship chat, played by a local model through Ollama.
 
-Each persona has an @handle. They answer when addressed (``@capn``,
-``@polly``, ``@doc``) and, every so often while someone has the page open,
-one of them peeks at the current data and says something unprompted — sooner
-when a surprise episode or a schedule change has just appeared — and now and
-then a second one riffs on what the first said. They see a
-compact summary of what the dashboard shows (latest values, position, intake
-flow, surprise, schedule, whiteboard) and the recent chat.
+Each persona has an @handle and a beat, and sees only their own slice of the
+dashboard: the Cap'n has the schedule, the weather and the logistics; Doc has
+the water and the air; the Librarian has the History wiki, with what happened
+on this date and near the ship; Polly reports on the reporting, riffing on what
+the others just said. They answer when addressed (``@capn``, ``@doc``,
+``@lib``, ``@polly``) and, every so often while someone has the page open, the
+one whose beat has news says something unprompted, sooner when a surprise
+episode or a schedule change has just appeared; now and then Polly, or another,
+riffs on what was said. All four are the one local model with different
+prompts; there is one GPU.
 
 Everything here is best-effort: no Ollama, no GPU, or a slow reply simply
 means silence. One generation runs at a time.
@@ -39,19 +42,50 @@ NUM_CTX = 16384               # room for the dashboard summary and a long chat
 TIMEOUT = 240
 
 PERSONAS = {
-    "capn": {"name": "Cap'n Barnacle", "emoji": "🏴‍☠️",
+    "capn": {"name": "Cap'n Barnacle", "emoji": "🏴‍☠️", "beat": "schedule",
+             "type": ("ESTJ, the Executive: organiser, decider, keeper of the plan; measures the day in tasks done. Kegan stage 3, "
+                      "the socialised mind: the ship's standing, the crew's regard and the way things are properly done are what "
+                      "the Cap'n is made of, and a plan kept is a point of honour"),
              "voice": ("a swarthy old sea captain who has sailed the Arctic for forty years: gruff, salty, full of tall tales and "
                        "nautical idiom, always has an opinion and a hunch, calls people 'shipmate' or by name, never more than three "
-                       "sentences. Happy to guess and to be wrong with style.")},
-    "polly": {"name": "Polly", "emoji": "🦜",
-              "voice": ("the ship's parrot: squawky one-liners, repeats the key number twice, 'SQUAWK', 'pretty bird', mangles a "
-                        "word now and then, cheeky. One or two lines at most.")},
-    "doc": {"name": "Doc", "emoji": "🔬",
+                       "sentences. Happy to guess and to be wrong with style."),
+             "brief": ("Your beat is the running of the ship: the operations schedule and what is next, the weather and the sea state, "
+                       "the wind, the ship's speed and heading, distances and ETAs, the whiteboard, the logistics of getting the work "
+                       "done. Water chemistry is Doc's, the past is the Librarian's: point people to @doc or @lib for those.")},
+    "doc": {"name": "Doc", "emoji": "🔬", "beat": "environment",
+            "type": ("INFP, the Mediator: the idealist naturalist who reads meaning in a number and wanders, gladly, off the point. "
+                     "Kegan stage 4, the self-authoring mind: Doc has his own framework for what matters and judges the day by it, "
+                     "unbothered by whether the ship agrees"),
             "voice": ("the ship's biologist in the mould of Ed Ricketts of Cannery Row: warm, unhurried, endlessly curious, a "
                       "tide-pool naturalist who sees the whole ecology in one number and drifts happily from a salinity reading to "
                       "Thoreau, Bach, beer and the holistic 'breaking through'. Quick with a back-of-the-envelope estimate done out "
                       "loud, gentle humour, generous with the young scientists, never pompous. Two to four sentences, more if the "
-                      "question earns it.")},
+                      "question earns it."),
+            "brief": ("Your beat is the environment the ship is moving through: the sea surface temperature, salinity, fluorescence, "
+                      "oxygen, the air, the surprise score and what a change in the water means ecologically. The schedule is the "
+                      "Cap'n's and the past is the Librarian's: point people to @capn or @lib for those.")},
+    "lib": {"name": "Ada", "emoji": "📚", "beat": "history",
+            "type": ("ISTJ, the Logistician: exact, dutiful, trusting of the record over the anecdote, and quietly delighted by a good "
+                     "primary source. Kegan stage 4, the self-authoring mind: the librarian has settled principles about evidence "
+                     "and provenance and applies them to captains and parrots alike"),
+            "voice": ("the ship's librarian: precise, dry, fond of a date and a page number, never pompous and never long. Reads the "
+                      "ship's own History wiki, which the research crew wrote from journals, logs and Inuit testimony, and says "
+                      "where a thing comes from. Two to four sentences; a little more for a real question, still with the source "
+                      "named."),
+            "brief": ("Your beat is the past of these waters: what happened on this date in other years, who wintered or wrecked or "
+                      "wandered near where the ship is now, and the people, Inuit and European, whose record it is. Answer from the "
+                      "WIKI EXCERPTS below when they bear on the question, and cite the page by its title in square brackets; say so "
+                      "when the wiki is silent and then give what you know, marked as such. Current readings are Doc's and the "
+                      "schedule is the Cap'n's: point people to @doc or @capn for those.")},
+    "polly": {"name": "Polly", "emoji": "🦜", "beat": "meta",
+              "type": ("ENTP, the Debater: quick, contrary, allergic to a hedge, cannot let a claim go by unremarked. Kegan stage 5, the "
+                       "self-transforming mind, in the trickster's key: Polly holds every frame at once, the Cap'n's rules, Doc's "
+                       "meanings, the librarian's sources, and plays them off each other, loyal to none and fond of all"),
+              "voice": ("the ship's parrot: squawky one-liners, repeats the key number twice, 'SQUAWK', 'pretty bird', mangles a "
+                        "word now and then, cheeky. One or two lines at most."),
+              "brief": ("Your beat is the reporting itself: you report on what the other crew members just said, echo the number "
+                        "that mattered, needle a hedge, applaud a good line, notice when two of them disagree. You have no data of "
+                        "your own beyond the recent chat; when asked a real question, squawk it on to @capn, @doc or @lib.")},
 }
 HANDLE_RX = re.compile(r"@(\w+)")
 
@@ -83,6 +117,80 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
     result = r.json()
     message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
     return (message.get('content') or '').strip()
+
+
+_wiki_cache: dict = {"stamp": None, "pages": []}
+_WORD_RX = re.compile(r"[a-zà-ÿ0-9']{3,}")
+_STOP = set("the and for with that this from were was are have has had not but his her their they them then than into "
+            "over under about after before between which what when where who whom whose why how does did done been being "
+            "also there here these those such some any all more most much many very just only both each other".split())
+
+
+def wiki_pages(root: Path) -> list[dict]:
+    """Every published History page, held in memory until the build publishes anew."""
+    idx = root / "data" / "history" / "index.json"
+    if not idx.is_file():
+        return []
+    stamp = idx.stat().st_mtime
+    if _wiki_cache["stamp"] == stamp:
+        return _wiki_cache["pages"]
+    pages = []
+    for f in sorted((root / "data" / "history" / "pages").glob("*.json")):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        text = re.sub(r"<[^>]+>", " ", d.get("html", ""))
+        text = re.sub(r"\]\([^)]*\)", "]", text)              # link targets are noise for matching
+        d["_text"] = text
+        d["_words"] = _WORD_RX.findall((d.get("title", "") + " " + d.get("summary", "") + " " + text).lower())
+        pages.append(d)
+    _wiki_cache.update(stamp=stamp, pages=pages)
+    return pages
+
+
+def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, budget: int = 28000) -> list[dict]:
+    """The wiki pages that bear on a question, best first: matched on words,
+    with the page being read and its neighbours favoured, narrative pages
+    weighted up. Each comes back with an ``excerpt`` sized to the budget."""
+    pages = wiki_pages(root)
+    if not pages:
+        return []
+    q = [w for w in _WORD_RX.findall(question.lower()) if w not in _STOP]
+    by_slug = {p["slug"]: p for p in pages}
+    current = by_slug.get(slug)
+    scored = []
+    for p in pages:
+        words = p["_words"]
+        if not words:
+            continue
+        hits = sum(words.count(w) for w in q)
+        title_hits = sum(1 for w in q if w in p.get("title", "").lower())
+        score = hits / (len(words) ** 0.5) + 3 * title_hits
+        if current and (p["slug"] == slug or p["slug"] in current.get("backlinks", []) or p["slug"] in current.get("html", "")):
+            score += 2.0
+        if p.get("kind") == "page":
+            score *= 1.5                                    # the narrative pages carry the story
+        if score > 0:
+            scored.append((score, p))
+    scored.sort(key=lambda x: -x[0])
+    chosen = []
+    if current:
+        chosen.append(current)
+        budget -= len(current["_text"])
+    for _, p in scored:
+        if p in chosen:
+            continue
+        if len(chosen) >= limit or budget <= 0:
+            break
+        chosen.append(p)
+        budget -= min(len(p["_text"]), 6000)
+    return [{"slug": p["slug"], "title": p["title"], "kind": p["kind"],
+             "excerpt": (p["_text"] if p is current else p["_text"][:6000]).strip()} for p in chosen]
+
+
+def excerpt_block(excerpts: list[dict]) -> str:
+    return "\n\n".join(f"### {e['title']}  [{e['kind']} · {e['slug']}]\n{e['excerpt']}" for e in excerpts)
 
 
 def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str]:
@@ -154,7 +262,10 @@ class Crew:
                 return _num(y, nd)
         return "n/a"
 
-    def context(self) -> str:
+    def context(self, beat: str = "all", task: str = "") -> str:
+        """The dashboard summary for one beat: the Cap'n sees the schedule and
+        the weather, Doc the water, the Librarian the past, Polly nothing but
+        the clock. ``all`` is everything, for tests and for a look."""
         try:
             m = json.loads((self.root / "data" / "manifest.json").read_text())
         except Exception:                   # noqa: BLE001
@@ -167,40 +278,56 @@ class Crew:
         local = datetime.now(ZoneInfo("America/Toronto")).strftime("%Y-%m-%d %H:%M %Z")
         lines.append(f"Now (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} (ship time {local}). Latest data at {end[:16].replace('T', ' ')} UTC"
                      + (f", position {_num(lat, 3)}, {_num(lon, 3)}" if lat is not None else "") + (f", leg {live}" if live else "") + ".")
-        try:
-            w = next(x for x in m["windows"] if x["label"] == "3h")
-            d = json.loads((self.root / w["file"]).read_text())
-            keys = [("SST (°C)", 2), ("Salinity (PSU)", 2), ("Fluorescence (µg/L)", 2), ("Oxygen (mL/L)", 2), ("Air temperature (°C)", 1),
-                    ("Relative wind speed (kn)", 0), ("Ship speed (kn)", 1), ("Bottom depth (m)", 0), ("TSG flow (V)", 2), ("TSG line warming (°C)", 2),
-                    ("Sea state · 4σ heave (m)", 2), ("Roll & pitch RMS (°)", 2), ("Surprise · 3 h", 1), ("Surprise · 48 h", 1)]
-            lines.append("Latest values: " + "; ".join(f"{k} = {self._last(d, k, nd)}" for k, nd in keys if k in d.get("vars", {})) + ".")
-            sst = [y for y in d["vars"].get("SST (°C)", []) if y is not None]; sal = [y for y in d["vars"].get("Salinity (PSU)", []) if y is not None]
-            if len(sst) > 10:
-                lines.append(f"Over the last 3 h: SST {_num(min(sst))}..{_num(max(sst))} °C, salinity {_num(min(sal))}..{_num(max(sal))} PSU.")
-        except Exception as e:              # noqa: BLE001
-            lines.append(f"(window data unavailable: {e})")
-        try:
-            c = json.loads((self.root / "data" / "calendar.json").read_text())
-            s = c.get("schedule", {})
-            rows = s.get("rows", [])
-            if rows:
-                lines.append("Operations schedule: " + "; ".join(f"{r.get('station')} {r.get('operation')} {r.get('date')} {r.get('start')}-{r.get('end')} ({r.get('status')})" for r in rows[:6]) + ".")
-            if s.get("whiteboard"):
-                lines.append(f"Whiteboard: {s['whiteboard']}")
-            ev = c.get("events", [])[-3:]
-            if ev:
-                lines.append("Last logged events: " + "; ".join(f"{e.get('time_utc', '')[:16]} {e.get('station', '')} {e.get('activity', '')} {e.get('event', '')}" for e in ev) + ".")
-        except Exception:                   # noqa: BLE001
-            pass
-        # the History tab's vignettes: what happened on this date in any year,
-        # and what lies near the ship, so the crew can bring the past up unprompted
-        try:
-            lines += history_lines(self.root, lat, lon)
-        except Exception:                   # noqa: BLE001
-            pass
-        note = m.get("surprise", {}).get("note", "")
-        if "flow below" in note:
-            lines.append("Note: the surprise score ignores TSG readings while the intake flow is below 0.5 V (pump off or line choked).")
+        if beat == "meta":
+            return "\n".join(lines)
+        want = {"schedule": [("Air temperature (°C)", 1), ("Relative wind speed (kn)", 0), ("Ship speed (kn)", 1), ("Bottom depth (m)", 0),
+                             ("Sea state · 4σ heave (m)", 2), ("Roll & pitch RMS (°)", 2)],
+                "environment": [("SST (°C)", 2), ("Salinity (PSU)", 2), ("Fluorescence (µg/L)", 2), ("Oxygen (mL/L)", 2), ("Air temperature (°C)", 1),
+                                ("Bottom depth (m)", 0), ("TSG flow (V)", 2), ("TSG line warming (°C)", 2), ("Surprise · 3 h", 1), ("Surprise · 48 h", 1)],
+                "history": [("Bottom depth (m)", 0), ("Ship speed (kn)", 1)]}
+        keys = want.get(beat) or sorted(set(sum(want.values(), [])))
+        if beat in ("all", "schedule", "environment", "history"):
+            try:
+                w = next(x for x in m["windows"] if x["label"] == "3h")
+                d = json.loads((self.root / w["file"]).read_text())
+                lines.append("Latest values: " + "; ".join(f"{k} = {self._last(d, k, nd)}" for k, nd in keys if k in d.get("vars", {})) + ".")
+                if beat in ("all", "environment"):
+                    sst = [y for y in d["vars"].get("SST (°C)", []) if y is not None]; sal = [y for y in d["vars"].get("Salinity (PSU)", []) if y is not None]
+                    if len(sst) > 10:
+                        lines.append(f"Over the last 3 h: SST {_num(min(sst))}..{_num(max(sst))} °C, salinity {_num(min(sal))}..{_num(max(sal))} PSU.")
+                    note = m.get("surprise", {}).get("note", "")
+                    if "flow below" in note:
+                        lines.append("Note: the surprise score ignores TSG readings while the intake flow is below 0.5 V (pump off or line choked).")
+            except Exception as e:              # noqa: BLE001
+                lines.append(f"(window data unavailable: {e})")
+        if beat in ("all", "schedule"):
+            try:
+                c = json.loads((self.root / "data" / "calendar.json").read_text())
+                sch = c.get("schedule", {})
+                rows = sch.get("rows", [])
+                if rows:
+                    lines.append("Operations schedule: " + "; ".join(f"{r.get('station')} {r.get('operation')} {r.get('date')} {r.get('start')}-{r.get('end')} ({r.get('status')})" for r in rows[:6]) + ".")
+                if sch.get("whiteboard"):
+                    lines.append(f"Whiteboard: {sch['whiteboard']}")
+                ev = c.get("events", [])[-3:]
+                if ev:
+                    lines.append("Last logged events: " + "; ".join(f"{e.get('time_utc', '')[:16]} {e.get('station', '')} {e.get('activity', '')} {e.get('event', '')}" for e in ev) + ".")
+            except Exception:                   # noqa: BLE001
+                pass
+        if beat in ("all", "history"):
+            # the History tab's vignettes: this date in other years, and what
+            # lies near the ship; then the wiki pages that bear on the task
+            try:
+                lines += history_lines(self.root, lat, lon)
+            except Exception:                   # noqa: BLE001
+                pass
+            if beat == "history":
+                try:
+                    ex = wiki_excerpts(self.root, task or " ".join(lines[-2:]), limit=5, budget=14000)
+                    if ex:
+                        lines.append("\nWIKI EXCERPTS\n\n" + excerpt_block(ex))
+                except Exception:               # noqa: BLE001
+                    pass
         return "\n".join(lines)
 
     # ------------------------------------------------------------ generation
@@ -208,7 +335,9 @@ class Crew:
         p = PERSONAS[handle]
         chat = self.read()
         recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-40:])
-        system = (f"You are {p['name']}, {p['voice']} You are one of several crew members in the chat of the CCGS Amundsen underway "
+        others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
+        system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
+                  f"You are one of four crew members in the chat of the CCGS Amundsen underway "
                   f"dashboard, read by the scientists aboard, who like a laugh. The crew is mixed, and you never assume anyone's gender: "
                   f"address people by name or as shipmate, and speak of others in neutral terms unless they have said otherwise. "
                   f"Speak as your character in plain text, no markdown, no "
@@ -220,7 +349,7 @@ class Crew:
                   f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
                   f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
-                  f"DASHBOARD SUMMARY\n{self.context()}\n\nRECENT CHAT (oldest first)\n{recent}")
+                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], task)}\n\nRECENT CHAT (oldest first)\n{recent}")
         text = complete(system, task, MAX_TOKENS, 1.0)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return text[:2500] or None
@@ -244,7 +373,8 @@ class Crew:
             finally:
                 self.typing.discard(handle)
         if text and banter and random.random() < BANTER_P:
-            other = random.choice([h for h in PERSONAS if h != handle])
+            # the reporting gets reported on: Polly, usually; another now and then
+            other = "polly" if handle != "polly" and random.random() < 0.7 else random.choice([h for h in PERSONAS if h not in (handle, "polly")])
             time.sleep(random.uniform(8, 25))
             self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
                                f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
@@ -297,12 +427,18 @@ class Crew:
                 someone = bool(chat.get("online"))
                 event = self._events()
                 if someone and event and now - self.last_bot > EVENT_MIN_S:
-                    h = random.choice(list(PERSONAS))
+                    h = "capn" if "schedule" in event else "doc"
                     self._speak(h, f"{event}. Remark on it for the crew in your own way; be brief and cite the relevant number.")
                 elif someone and now - self.last_bot > CHIME_MIN_S:
-                    h = random.choice(list(PERSONAS))
-                    self._speak(h, "Peek at the dashboard summary and chime in with one short, characterful remark for the crew about the "
-                                   "current conditions — pick one detail worth noticing and cite its number. Do not greet, do not ask questions.")
+                    # the three with a beat take turns; Polly only ever reports on them
+                    h = random.choice(["capn", "doc", "lib"])
+                    self._speak(h, {"lib": "Peek at your slice of the summary and chime in with one short remark for the crew about the past: "
+                                           "something that happened on this date in another year, or near where the ship is now, with its "
+                                           "year and its source. If there is nothing, pick the most striking thing in the wiki excerpts. "
+                                           "Do not greet, do not ask questions."}.get(h,
+                                   "Peek at your slice of the dashboard summary and chime in with one short, characterful remark for the crew "
+                                   "about the current conditions on your beat — pick one detail worth noticing and cite its number. Do not "
+                                   "greet, do not ask questions."))
             except Exception as e:          # noqa: BLE001
                 log.info("crew loop: %s", e)
             time.sleep(300)

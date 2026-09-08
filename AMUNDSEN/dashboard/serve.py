@@ -474,79 +474,16 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 # ---------------------------------------------------------------- the historian
-_wiki_cache: dict = {"stamp": None, "pages": []}
 _ask_lock = threading.Lock()
-_WORD_RX = re.compile(r"[a-zà-ÿ0-9']{3,}")
-_STOP = set("the and for with that this from were was are have has had not but his her their they them then than into "
-            "over under about after before between which what when where who whom whose why how does did done been being "
-            "also there here these those such some any all more most much many very just only both each other".split())
-
-
-def _wiki_pages(root: Path) -> list[dict]:
-    """Every published page, held in memory until the build publishes anew."""
-    idx = root / "data" / "history" / "index.json"
-    if not idx.is_file():
-        return []
-    stamp = idx.stat().st_mtime
-    if _wiki_cache["stamp"] == stamp:
-        return _wiki_cache["pages"]
-    pages = []
-    for f in sorted((root / "data" / "history" / "pages").glob("*.json")):
-        try:
-            d = json.loads(f.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        text = re.sub(r"<[^>]+>", " ", d.get("html", ""))
-        text = re.sub(r"\]\([^)]*\)", "]", text)              # link targets are noise for matching
-        d["_text"] = text
-        d["_words"] = _WORD_RX.findall((d.get("title", "") + " " + d.get("summary", "") + " " + text).lower())
-        pages.append(d)
-    _wiki_cache.update(stamp=stamp, pages=pages)
-    return pages
 
 
 def history_ask(root: Path, question: str, slug: str = "") -> dict:
-    """Pick the wiki pages that bear on the question, put them in front of the
-    model, and return its answer with the pages it was given."""
-    from .chatbot import complete
-    pages = _wiki_pages(root)
-    if not pages:
+    """The historian's room: the wiki pages that bear on the question go in
+    front of the model, and the answer comes back with the pages it was given."""
+    from .chatbot import complete, excerpt_block, wiki_excerpts
+    excerpts = wiki_excerpts(root, question, slug)
+    if not excerpts:
         raise ValueError("no history has been published yet")
-    q = [w for w in _WORD_RX.findall(question.lower()) if w not in _STOP]
-    by_slug = {p["slug"]: p for p in pages}
-    current = by_slug.get(slug)
-    scored = []
-    for p in pages:
-        words = p["_words"]
-        if not words:
-            continue
-        n = len(words)
-        hits = sum(words.count(w) for w in q)
-        title_hits = sum(1 for w in q if w in p.get("title", "").lower())
-        score = hits / (n ** 0.5) + 3 * title_hits
-        if current and (p["slug"] == slug or p["slug"] in current.get("backlinks", []) or p["slug"] in current.get("html", "")):
-            score += 2.0
-        if p.get("kind") == "page":
-            score *= 1.5                                    # the narrative pages carry the story
-        if score > 0:
-            scored.append((score, p))
-    scored.sort(key=lambda x: -x[0])
-    chosen, budget = [], 28000
-    if current:
-        chosen.append(current)
-        budget -= len(current["_text"])
-    for _, p in scored:
-        if p in chosen:
-            continue
-        if len(chosen) >= 8 or budget <= 0:
-            break
-        chosen.append(p)
-        budget -= min(len(p["_text"]), 6000)
-    excerpts = []
-    for p in chosen:
-        body = p["_text"]
-        body = body if p is current else body[:6000]
-        excerpts.append(f"### {p['title']}  [{p['kind']} · {p['slug']}]\n{body.strip()}")
     system = ("You are the historian aboard the research icebreaker CCGS Amundsen, answering scientists' questions about the "
               "history of the Canadian Arctic Archipelago and Baffin Bay. Answer from the wiki excerpts below, which were "
               "written by the ship's research crew from primary sources; when the excerpts do not cover something, say so "
@@ -554,10 +491,10 @@ def history_ask(root: Path, question: str, slug: str = "") -> dict:
               "coordinates when the excerpts give them. Use Inuit names for people and places as the excerpts do. Where "
               "the record is disputed or rests on testimony, say whose. Cite the pages you draw on inline by their title in "
               "square brackets, like [The death march]. Plain prose, short paragraphs, no headings, no bullet lists unless "
-              "listing dates. At most about 350 words.\n\nWIKI EXCERPTS\n\n" + "\n\n".join(excerpts))
+              "listing dates. At most about 350 words.\n\nWIKI EXCERPTS\n\n" + excerpt_block(excerpts))
     with _ask_lock:
         answer = complete(system, question, max_tokens=700, temperature=0.3, num_ctx=16384, timeout=240)
-    return {"answer": answer, "pages": [{"slug": p["slug"], "title": p["title"], "kind": p["kind"]} for p in chosen]}
+    return {"answer": answer, "pages": [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in excerpts]}
 
 
 def requests_page(rows: list[dict]) -> str:
