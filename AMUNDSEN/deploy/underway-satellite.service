@@ -8,6 +8,8 @@ Type=oneshot
 User=cryomics
 Group=cryomics
 WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+# numpy's BLAS starts a thread per core at import (32 here) and that alone costs 8 s CPU a run
+Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 Environment=TZ=America/Toronto
 EnvironmentFile=-/home/cryomics/.config/underway/underway.env
 ExecStart=/opt/miniforge3/bin/python3 -m dashboard satellite

@@ -250,7 +250,8 @@ def due(info: dict, now: datetime, kinds=tuple(SENSORS), ship: tuple[float, floa
 
 
 def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSORS)) -> dict:
-    """Render what is due (everything with ``force``); returns the info written."""
+    """Render what is due and has a new scene (everything with ``force``);
+    returns the info written."""
     now = now or datetime.now(timezone.utc)
     creds = credentials()
     if creds is None:
@@ -268,6 +269,7 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
     except Exception as e:                  # noqa: BLE001 — the link is down or the service is: the next run
         log.warning("satellite: no token (%s); nothing rendered", str(e).split("(Caused by")[0][:160])
         return info
+    changed = False
     for k in wanted:
         sp = SENSORS[k]
         try:
@@ -276,8 +278,21 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
                 m_per_px = sp["ground_m_per_px"] / math.cos(math.radians(ship[0]))
             else:
                 bbox, m_per_px = region_bbox(), MERC_M_PER_PX
-            data, cost, size = render(tok, k, bbox, now, m_per_px)
+            # the catalog is free and a render costs processing units: a
+            # picture is bought only when the newest scene in the box is not
+            # the one already on the map (or, near the ship, the box moved)
             scene = newest_scene(tok, k, bbox, now - timedelta(days=sp["days"]), now)
+            cur = info["images"].get(k) or {}
+            if not force and cur:
+                moved = distance_km(ship[0], ship[1], cur["centre"][0], cur["centre"][1]) if sp.get("near") and cur.get("centre") else 0.0
+                if scene is None:
+                    log.info("satellite: %s kept: the catalog did not answer, the picture stays", k)
+                    continue
+                if scene == cur.get("scene") and moved < NEAR_MOVE_KM:
+                    log.info("satellite: %s unchanged (newest scene %s); not rendered", k, scene)
+                    continue
+            data, cost, size = render(tok, k, bbox, now, m_per_px)
+            changed = True
             tmp = sat_dir() / f"{k}.webp.tmp"
             tmp.write_bytes(data)
             os.replace(tmp, sat_dir() / f"{k}.webp")
@@ -290,6 +305,8 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
             log.info("satellite: %s rendered (%dx%d, %d kB, newest scene %s, %.1f PU)", k, size[0], size[1], len(data) // 1024, scene, cost)
         except Exception as e:                  # noqa: BLE001 — one sensor failing must not stop the other
             log.warning("satellite: %s failed: %s", k, e)
+    if not changed:
+        return info
     tmp = sat_dir() / "sat.json.tmp"
     tmp.write_text(json.dumps(info, indent=1))
     os.replace(tmp, sat_dir() / "sat.json")
