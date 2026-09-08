@@ -42,7 +42,7 @@ NUM_CTX = 16384               # room for the dashboard summary and a long chat
 TIMEOUT = 240
 
 PERSONAS = {
-    "capn": {"name": "Cap'n Barnacle", "emoji": "🏴‍☠️", "beat": "schedule",
+    "capn": {"name": "Cap'n Barnacle", "emoji": "🏴‍☠️", "beat": "schedule", "room": "Bridge",
              "type": ("ESTJ, the Executive: organiser, decider, keeper of the plan; measures the day in tasks done. Kegan stage 3, "
                       "the socialised mind: the ship's standing, the crew's regard and the way things are properly done are what "
                       "the Cap'n is made of, and a plan kept is a point of honour"),
@@ -54,7 +54,7 @@ PERSONAS = {
              "brief": ("Your beat is the running of the ship: the operations schedule and what is next, the weather and the sea state, "
                        "the wind, the ship's speed and heading, distances and ETAs, the whiteboard, the logistics of getting the work "
                        "done. Water chemistry is Doc's, the past is the Librarian's: point people to @doc or @ada for those.")},
-    "doc": {"name": "Doc", "emoji": "🔬", "beat": "environment",
+    "doc": {"name": "Doc", "emoji": "🔬", "beat": "environment", "room": "Lab",
             "type": ("INFP, the Mediator: the idealist naturalist who reads meaning in a number and wanders, gladly, off the point. "
                      "Kegan stage 4, the self-authoring mind: Doc has his own framework for what matters and judges the day by it, "
                      "unbothered by whether the ship agrees"),
@@ -66,7 +66,7 @@ PERSONAS = {
             "brief": ("Your beat is the environment the ship is moving through: the sea surface temperature, salinity, fluorescence, "
                       "oxygen, the air, the surprise score and what a change in the water means ecologically. The schedule is the "
                       "Cap'n's and the past is the Librarian's: point people to @capn or @ada for those.")},
-    "ada": {"name": "Ada", "emoji": "📚", "beat": "history",
+    "ada": {"name": "Ada", "emoji": "📚", "beat": "history", "room": "Library",
             "type": ("INTJ, the Architect, with an ADHD cast: sees the shape of a story at once and the pattern behind three "
                      "voyages, leaps from a date to a connection nobody asked about, hyperfocuses on a good primary source and "
                      "has to be pulled off it, loses the thread mid-sentence and finds it again a beat later. Kegan stage 4, "
@@ -78,12 +78,18 @@ PERSONAS = {
                       "wiki, which the research crew wrote from journals, logs and Inuit testimony, and says where a thing comes "
                       "from. Two to four sentences, more when a source has hold of her, never pompous."),
             "brief": ("Your beat is the past of these waters: what happened on this date in other years, who wintered or wrecked or "
-                      "wandered near where the ship is now, and the people, Inuit and European, whose record it is. Answer from the "
-                      "WIKI EXCERPTS below when they bear on the question, and cite the page by its title in square brackets; say so "
-                      "when the wiki is silent and then give what you know, marked as such. One tangent per answer, at most, and "
-                      "always back to the point. Current readings are Doc's and the schedule is the Cap'n's: point people to @doc "
-                      "or @capn for those.")},
-    "polly": {"name": "Polly", "emoji": "🦜", "beat": "meta",
+                      "wandered near where the ship is now, and the people, Inuit and European, whose record it is. The WIKI "
+                      "EXCERPTS below are pages from the ship's Library, written by the research crew from journals, logs, reports "
+                      "and Inuit testimony; answer from them when they bear on the question, and cite by number in square "
+                      "brackets, [1] or [2], the numbers of the excerpts you draw on, after the sentence they support. Never write "
+                      "a page's title in brackets, and name people and places plainly in the prose. Never speak of 'the wiki', "
+                      "'the excerpts', 'the records' or 'the files' as if they were a person with opinions: you are a librarian, "
+                      "so point at the thing itself, as in 'Sverdrup's own account says', 'the Qikiqtani Truth Commission found', "
+                      "'Parry's journal for that week has'. When nothing on the shelves bears on a question, say so as yourself, "
+                      "'I have nothing on that', and then give what you know, marked as your own. One tangent per answer, at "
+                      "most, and always back to the point. Current readings are Doc's and the schedule is the Cap'n's: point "
+                      "people to @doc or @capn for those.")},
+    "polly": {"name": "Polly", "emoji": "🦜", "beat": "meta", "room": "Crow's nest",
               "type": ("ENTP, the Debater: quick, contrary, allergic to a hedge, cannot let a claim go by unremarked. Kegan stage 5, the "
                        "self-transforming mind, in the trickster's key: Polly holds every frame at once, the Cap'n's rules, Doc's "
                        "meanings, the librarian's sources, and plays them off each other, loyal to none and fond of all"),
@@ -96,29 +102,141 @@ PERSONAS = {
 HANDLE_RX = re.compile(r"@(\w+)")
 
 
-def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
-             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT) -> str:
-    """One answer from the local model. The chat crew and the History tab's
-    historian both come through here, so the backend choice (Ollama, or the
-    OpenAI-style server the camera pipeline runs) is made in one place."""
+class ModelOffline(RuntimeError):
+    """No loaded model to talk to. The chat never loads one itself: the GPU is
+    shared with the camera pipeline, and a load is an operator's decision."""
+
+
+_status_cache: dict = {"at": 0.0, "value": None}
+STATUS_TTL = 20.0                      # seconds a status answer is trusted, so polls do not hammer the servers
+ALERT_MIN_S = 6 * 3600                 # one Telegram alert per this long, however often the crew are asked
+_alerted_at = 0.0
+
+
+def _config() -> dict:
+    return json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
+
+
+def _ollama_loaded(url: str, model: str) -> bool:
+    """Whether Ollama already holds the model in memory (``/api/ps``), which is
+    the only state in which the chat will send it a request."""
     import requests
-    config = json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
+    try:
+        r = requests.get(url.rstrip('/') + '/api/ps', timeout=5)
+        names = {m.get("name", "") for m in r.json().get("models", [])}
+    except Exception:                       # noqa: BLE001
+        return False
+    return model in names or f"{model}:latest" in names or any(n.split(":")[0] == model.split(":")[0] for n in names)
+
+
+def model_status(fresh: bool = False) -> dict:
+    """Where a request can go right now, without loading anything: the
+    configured server if it answers, else the resident Ollama model if it is
+    already loaded, else nowhere. Cached briefly."""
+    import requests
+    now = time.time()
+    if not fresh and _status_cache["value"] and now - _status_cache["at"] < STATUS_TTL:
+        return _status_cache["value"]
+    config = _config()
     backend = config.get('api', LLM_API)
     url = config.get('url', LLM_URL).rstrip('/')
     model = config.get('model', LLM_MODEL)
+    status = {"backend": backend, "url": url, "model": model, "online": False, "why": ""}
+    if backend == 'openai':
+        try:
+            r = requests.get(url + '/v1/models', timeout=5)
+            status["online"] = r.ok
+        except Exception:                   # noqa: BLE001
+            status["why"] = f"{url} refused"
+        if not status["online"] and _ollama_loaded(LLM_URL, LLM_MODEL):
+            status.update(backend='ollama', url=LLM_URL.rstrip('/'), model=LLM_MODEL, online=True,
+                          why=f"{url} refused; using the resident Ollama model")
+    elif backend == 'ollama':
+        status["online"] = _ollama_loaded(url, model)
+        if not status["online"]:
+            status["why"] = f"{model} is not loaded in Ollama at {url}"
+    else:
+        status["why"] = f"unknown chat API backend {backend!r}"
+    if not status["online"] and not status["why"]:
+        status["why"] = "no model loaded"
+    _status_cache.update(at=now, value=status)
+    return status
+
+
+def _ops_telegram() -> tuple[str, str]:
+    """The bot token and the operator's chat id: from the environment, else
+    from ~/.config/underway/underway.env, which the server unit does not load."""
+    token = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
+    chat_id = os.environ.get("TELEGRAM_ID", "")
+    env = Path.home() / '.config/underway/underway.env'
+    if (not token or not chat_id) and env.is_file():
+        for line in env.read_text().splitlines():
+            k, _, v = line.partition("=")
+            k, v = k.strip(), v.strip().strip('"').strip("'")
+            if k == "TELEGRAM_KEY" and not token:
+                token = v
+            if k == "TELEGRAM_ID" and not chat_id:
+                chat_id = v
+    if not token:
+        try:
+            from .alerts import telegram_token
+            token = telegram_token()
+        except Exception:                   # noqa: BLE001
+            pass
+    return token, chat_id
+
+
+def alert_offline(status: dict, what: str = "the chat crew") -> None:
+    """Tell the operator, once in a long while, that the crew have no model:
+    loading one is theirs to decide, given the GPU."""
+    global _alerted_at
+    now = time.time()
+    if now - _alerted_at < ALERT_MIN_S:
+        return
+    _alerted_at = now
+    token, chat_id = _ops_telegram()
+    if not token or not chat_id:
+        log.warning("%s have no model (%s) and no Telegram to say so", what, status.get("why"))
+        return
+    try:
+        from .alerts import Telegram
+        Telegram(token).send(chat_id, f"Amundsen dashboard: {what} have no model to talk to ({status.get('why')}). "
+                                      f"The chat never loads one itself. Load gemma4-local in Ollama with keep_alive -1, "
+                                      f"or start the shared server, and they will answer again.")
+        log.info("Telegram alert sent: no chat model (%s)", status.get("why"))
+    except Exception as e:                  # noqa: BLE001
+        log.warning("Telegram alert failed: %s", e)
+
+
+def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
+             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT) -> str:
+    """One answer from the local model. The chat crew and the historian both
+    come through here, so the backend choice (the shared OpenAI-style server
+    the camera pipeline runs, or the resident Ollama model) is made in one
+    place, and the rule that the chat never loads a model is kept here: a
+    request goes only to a server that is up or a model that is already in
+    memory, and ``keep_alive`` -1 leaves a resident model resident (unload it
+    with ``ollama stop``)."""
+    import requests
+    status = model_status()
+    if not status["online"]:
+        raise ModelOffline(status["why"])
+    backend, url, model = status["backend"], status["url"], status["model"]
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if backend == 'openai':
         body = dict(model=model, messages=messages, stream=False, max_tokens=max_tokens, temperature=temperature,
                     chat_template_kwargs={'enable_thinking': False})
         endpoint = '/v1/chat/completions'
-    elif backend == 'ollama':
-        body = {"model": model, "stream": False, "think": False, "keep_alive": "3h",
+    else:
+        body = {"model": model, "stream": False, "think": False, "keep_alive": -1,
                 "options": {"num_predict": max_tokens, "num_ctx": num_ctx, "temperature": temperature},
                 "messages": messages}
         endpoint = '/api/chat'
-    else:
-        raise ValueError('Unknown chat API backend')
-    r = requests.post(url + endpoint, json=body, timeout=timeout)
+    try:
+        r = requests.post(url + endpoint, json=body, timeout=timeout)
+    except requests.ConnectionError as e:
+        _status_cache["at"] = 0.0               # the picture has changed; the next call looks again
+        raise ModelOffline(f"{url} refused mid-conversation") from e
     r.raise_for_status()
     result = r.json()
     message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
@@ -166,6 +284,34 @@ def wiki_pages(root: Path) -> list[dict]:
     return pages
 
 
+# the region's acronyms, as the scientists type them; expanded for retrieval
+# and spelled out to the librarian so QEI is not read as a Qikiqtani body
+ACRONYMS = {
+    "qei": "Queen Elizabeth Islands", "qeis": "Queen Elizabeth Islands", "nwp": "Northwest Passage",
+    "kwi": "King William Island", "qtc": "Qikiqtani Truth Commission", "qia": "Qikiqtani Inuit Association",
+    "hbc": "Hudson's Bay Company", "rcmp": "Royal Canadian Mounted Police", "ccgs": "Canadian Coast Guard Ship",
+    "dew": "Distant Early Warning Line", "jaws": "Joint Arctic Weather Stations", "pcsp": "Polar Continental Shelf Project",
+    "ipy": "International Polar Year", "hms": "His Majesty's Ship", "nwt": "Northwest Territories",
+    "itk": "Inuit Tapiriit Kanatami", "cae": "Canadian Arctic Expedition", "pearl": "Polar Environment Atmospheric Research Laboratory",
+    "chars": "Canadian High Arctic Research Station",
+}
+_ACRO_RX = re.compile(r"\b([A-Za-z]{2,6})\b")
+
+
+def expand_acronyms(text: str) -> tuple[str, list[str]]:
+    """The text with each known acronym followed by its expansion, and the
+    expansions used, for a glossary line."""
+    used = []
+
+    def sub(m):
+        full = ACRONYMS.get(m.group(1).lower())
+        if not full or full in used:
+            return m.group(0) if not full else m.group(0)
+        used.append(full)
+        return f"{m.group(0)} ({full})"
+    return _ACRO_RX.sub(sub, text), used
+
+
 def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, budget: int = 28000) -> list[dict]:
     """The wiki pages that bear on a question, best first: matched on words,
     with the page being read and its neighbours favoured, narrative pages
@@ -177,6 +323,7 @@ def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, bud
     idf = _wiki_cache.get("idf") or {}
     n = _wiki_cache.get("n") or 1
     avg = _wiki_cache.get("avglen") or 1.0
+    question = expand_acronyms(question)[0]
     q = list(dict.fromkeys(w for w in _WORD_RX.findall(question.lower()) if w not in _STOP))
     weight = {w: idf.get(w, math.log(n + 1)) for w in q}       # a word the wiki has never seen is rare by definition
     by_slug = {p["slug"]: p for p in pages}
@@ -242,7 +389,9 @@ def places_named(root: Path, text: str) -> list[dict]:
 
 
 def excerpt_block(excerpts: list[dict]) -> str:
-    return "\n\n".join(f"### {e['title']}  [{e['kind']} · {e['slug']}]\n{e['excerpt']}" for e in excerpts)
+    # numbered, so the answer can cite [n]; the header carries no slug, or the
+    # model cites the slug
+    return "\n\n".join(f"### [{i}] {e['title']}  (a {e['kind']} page)\n{e['excerpt']}" for i, e in enumerate(excerpts, 1))
 
 
 def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str]:
@@ -316,12 +465,13 @@ def _num(x, nd=2):
 
 
 class Crew:
-    def __init__(self, root: Path, post, read):
+    def __init__(self, root: Path, post=None, read=None):
+        from . import chat
         self.root = root
-        self.post = post                    # (name, emoji, text) -> None
-        self.read = read                    # () -> dict with messages/online
+        self.post = post or (lambda name, emoji, text, channel, meta=None: chat.post("crew", name, text, emoji, channel, bot=True, meta=meta))
+        self.read = read or chat.context    # (channel) -> the room's recent messages, oldest first
+        self._pages: list[dict] = []        # the wiki pages the last context drew on
         self.lock = threading.Lock()        # one generation at a time
-        self.typing: set[str] = set()
         self.last_bot = 0.0
         self.seen_update = None
         self.seen_surprise = None
@@ -340,6 +490,7 @@ class Crew:
         """The dashboard summary for one beat: the Cap'n sees the schedule and
         the weather, Doc the water, the Librarian the past, Polly nothing but
         the clock. ``all`` is everything, for tests and for a look."""
+        self._pages = []                    # only a history context fills this
         try:
             m = json.loads((self.root / "data" / "manifest.json").read_text())
         except Exception:                   # noqa: BLE001
@@ -395,24 +546,37 @@ class Crew:
                 lines += history_lines(self.root, lat, lon)
             except Exception:                   # noqa: BLE001
                 pass
+            self._pages = []
             if beat == "history":
+                _, used = expand_acronyms(task or "")
+                if used:
+                    lines.append("Acronyms in the question: " + "; ".join(f"{k.upper()} is the {v}" for k, v in ACRONYMS.items() if v in used) + ".")
                 try:
                     ex = wiki_excerpts(self.root, task or " ".join(lines[-2:]), limit=5, budget=14000)
                     if ex:
                         lines.append("\nWIKI EXCERPTS\n\n" + excerpt_block(ex))
+                        self._pages = ex
                 except Exception:               # noqa: BLE001
                     pass
         return "\n".join(lines)
 
     # ------------------------------------------------------------ generation
-    def _generate(self, handle: str, task: str) -> str | None:
+    def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False) -> tuple[str | None, list[dict]]:
+        """One remark in a room. The crew member sees its beat's slice of the
+        dashboard and the last few kilobytes of that room, nothing else."""
         p = PERSONAS[handle]
-        chat = self.read()
-        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-40:])
+        recent_rows = self.read(channel)
+        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in recent_rows)
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
+        room = {"ship": "the ship's public room, where you speak only when addressed",
+                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
+                "ada": "the Library, your own room, where every message is a question put to you and deserves a full "
+                       "answer, up to about 350 words, with the pages cited"}.get(channel,
+               "a private room with one person; only the two of you see it, and you may speak first")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
-                  f"dashboard, read by the scientists aboard, who like a laugh. The crew is mixed, and you never assume anyone's gender: "
+                  f"dashboard, read by the scientists aboard, who like a laugh. This is {room}. "
+                  f"The crew is mixed, and you never assume anyone's gender: "
                   f"address people by name or as shipmate, and speak of others in neutral terms unless they have said otherwise. "
                   f"Speak as your character in plain text, no markdown, no "
                   f"lists. Be entertaining first and useful second. Use everything you know: general oceanography, rules of thumb, "
@@ -423,47 +587,79 @@ class Crew:
                   f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
                   f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
-                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], task)}\n\nRECENT CHAT (oldest first)\n{recent}")
-        text = complete(system, task, MAX_TOKENS, 1.0)
+                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task)}\n\nRECENT CHAT (oldest first)\n{recent}")
+        pages = list(self._pages)
+        text = complete(system, task, MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
-        return text[:2500] or None
+        return (text[:2500] or None), pages
 
-    def _speak(self, handle: str, task: str, banter: bool = True) -> None:
-        """Generate and post one remark; sometimes another crew member then
-        riffs on it (never more than one hop, so they cannot chain forever)."""
+    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False) -> None:
+        """Generate and post one remark in a room; in the crew's room another
+        member sometimes riffs on it, usually Polly (one hop only, so they
+        cannot chain forever)."""
         if not self.enabled:
             return
+        from . import chat
         p = PERSONAS[handle]
         text = None
         with self.lock:
-            self.typing.add(handle)
+            chat.typing(channel, handle, True)
             try:
-                text = self._generate(handle, task)
+                text, pages = self._generate(handle, task, channel, query, long)
                 if text:
-                    self.post(p["name"], p["emoji"], text)
+                    meta = None
+                    if pages:
+                        text, refs = chat.link_citations(text, [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages])
+                        meta = {"refs": refs} if refs else None
+                    if handle == "ada":
+                        text = chat.link_entities(text)     # every person and place she names, to its page
+                    self.post(p["name"], p["emoji"], text, channel, meta)
                     self.last_bot = time.time()
+            except ModelOffline as e:
+                log.info("crew %s stayed quiet: %s", handle, e)
+                alert_offline(model_status(), "the chat crew")
             except Exception as e:          # noqa: BLE001
                 log.info("crew %s stayed quiet (%s)", handle, e)
             finally:
-                self.typing.discard(handle)
-        if text and banter and random.random() < BANTER_P:
+                chat.typing(channel, handle, False)
+        if text and banter and channel == "crew" and random.random() < BANTER_P:
             # the reporting gets reported on: Polly, usually; another now and then
             other = "polly" if handle != "polly" and random.random() < 0.7 else random.choice([h for h in PERSONAS if h not in (handle, "polly")])
             time.sleep(random.uniform(8, 25))
             self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
                                f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
-                        banter=False)
+                        channel, banter=False)
 
     # ------------------------------------------------------------ triggers
-    def on_message(self, name: str, text: str) -> None:
-        """Called after a human message is stored."""
+    def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "") -> None:
+        """Called after a human message is stored. Who answers depends on the
+        room: in the public room only a member @mentioned; in the crew's room
+        whoever is mentioned, else one of them; in Ada's room, Ada, at length;
+        in a private room, the member it is with."""
+        from . import chat
         if name in {p["name"] for p in PERSONAS.values()}:
             return
         handles = [h.lower() for h in HANDLE_RX.findall(text)]
         if "crew" in handles or "all" in handles:
             handles = list(PERSONAS)
-        for h in dict.fromkeys(h for h in handles if h in PERSONAS):
-            threading.Thread(target=self._speak, args=(h, f"{name} just wrote: \"{text}\". Reply to them as yourself."), daemon=True).start()
+        handles = list(dict.fromkeys(h for h in handles if h in PERSONAS))
+        room_bots = chat.bots_in(channel)
+        task = f"{name} just wrote: \"{text}\". Reply to them as yourself."
+        long = False
+        if channel == "ship":
+            speakers = handles
+        elif channel == "crew":
+            speakers = handles or ([random.choice(room_bots)] if room_bots else [])
+        elif channel == "ada":
+            speakers = ["ada"] if "ada" in room_bots else []
+            task = (f"{name} asks in the Library: \"{text}\". Answer fully from the pages you have, citing each you draw on by "
+                    f"its number in square brackets after the sentence it supports, never by title; speak of the sources by name, "
+                    f"never of 'the wiki' or 'the excerpts'; and where you have nothing, say so as yourself.")
+            long = True
+        else:
+            speakers = room_bots
+        for h in speakers:
+            threading.Thread(target=self._speak, args=(h, task, channel, text), kwargs={"long": long}, daemon=True).start()
 
     def _events(self) -> str | None:
         """A notable change since the last look, as a short description, or None."""
@@ -493,26 +689,36 @@ class Crew:
         return None
 
     def loop(self) -> None:
+        """Unprompted remarks, only into rooms someone has open where the crew
+        belong: the crew's room, or a private room with one member. Never the
+        public room, never Ada's reading room."""
+        from . import chat
         time.sleep(90)
         while True:
             try:
                 now = time.time()
-                chat = self.read()
-                someone = bool(chat.get("online"))
-                event = self._events()
-                if someone and event and now - self.last_bot > EVENT_MIN_S:
-                    h = "capn" if "schedule" in event else "doc"
-                    self._speak(h, f"{event}. Remark on it for the crew in your own way; be brief and cite the relevant number.")
-                elif someone and now - self.last_bot > CHIME_MIN_S:
-                    # the three with a beat take turns; Polly only ever reports on them
-                    h = random.choice(["capn", "doc", "ada"])
-                    self._speak(h, {"ada": "Peek at your slice of the summary and chime in with one short remark for the crew about the past: "
-                                           "something that happened on this date in another year, or near where the ship is now, with its "
-                                           "year and its source. If there is nothing, pick the most striking thing in the wiki excerpts. "
-                                           "Do not greet, do not ask questions."}.get(h,
-                                   "Peek at your slice of the dashboard summary and chime in with one short, characterful remark for the crew "
-                                   "about the current conditions on your beat — pick one detail worth noticing and cite its number. Do not "
-                                   "greet, do not ask questions."))
+                open_rooms = [(ch, who) for ch, who in chat.open_rooms() if ch not in ("ship", "ada") and chat.bots_in(ch)]
+                if open_rooms and model_status()["online"]:
+                    event = self._events()
+                    if event and now - self.last_bot > EVENT_MIN_S:
+                        h = "capn" if "schedule" in event else "doc"
+                        rooms = [ch for ch, _ in open_rooms if h in chat.bots_in(ch)]
+                        if rooms:
+                            self._speak(h, f"{event}. Remark on it for the crew in your own way; be brief and cite the relevant number.",
+                                        random.choice(rooms))
+                    elif now - self.last_bot > CHIME_MIN_S:
+                        ch, _ = random.choice(open_rooms)
+                        # the three with a beat take turns; Polly only ever reports on them
+                        choices = [h for h in chat.bots_in(ch) if h != "polly"] or chat.bots_in(ch)
+                        h = random.choice(choices)
+                        self._speak(h, {"ada": "Peek at your slice of the summary and chime in with one short remark about the past: "
+                                               "something that happened on this date in another year, or near where the ship is now, with its "
+                                               "year and its source. If there is nothing, pick the most striking thing in the wiki excerpts. "
+                                               "Do not greet, do not ask questions.",
+                                        "polly": "Report on the last thing anyone said in this room, in one squawky line."}.get(h,
+                                       "Peek at your slice of the dashboard summary and chime in with one short, characterful remark "
+                                       "about the current conditions on your beat — pick one detail worth noticing and cite its number. Do not "
+                                       "greet, do not ask questions."), ch)
             except Exception as e:          # noqa: BLE001
                 log.info("crew loop: %s", e)
             time.sleep(300)

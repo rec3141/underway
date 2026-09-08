@@ -680,7 +680,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .spannote a { color: var(--accent-2); text-decoration: underline; font-weight: 600; }
 
 /* ---- the History tab: a side list, a reader, a timeline strip and the historian */
-.hist-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; min-height: 0; flex: 1; }
+.hist-layout { display: block; }
 .histside { overflow-y: auto; max-height: 70vh; border-right: 1px solid var(--line); padding-right: 10px; font-size: 13px; }
 .histside .sidehead { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 4px; }
 .histside .topic, .histside .pglink, .histside .artcard { display: block; color: var(--fg); padding: 5px 6px; border-radius: 6px; border-left: 3px solid transparent; }
@@ -691,7 +691,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .pglink .kind, .artcard .kind, .crumb .kind, .artmeta { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 6px; }
 .pglink .sum { display: block; color: var(--muted); font-size: 12px; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-.histmain { overflow-y: auto; max-height: 70vh; padding-right: 8px; line-height: 1.55; }
+.histmain { padding-right: 8px; line-height: 1.55; }
 .histmain h2 { font-size: 20px; margin: 4px 0 6px; } .histmain h3 { font-size: 15px; margin: 18px 0 6px; } .histmain h4 { font-size: 14px; margin: 14px 0 4px; }
 .histmain .lead { color: #c9d3de; font-size: 14.5px; }
 .histmain .crumb { color: var(--muted); font-size: 12.5px; } .histmain .crumb a { color: var(--muted); }
@@ -727,7 +727,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .histanswer .q { color: var(--muted); font-style: italic; margin-bottom: 6px; } .histanswer .a p { margin: 0 0 8px; }
 .histanswer .cite { border-bottom: 1px dotted var(--accent); }
 .histanswer .used { margin-top: 6px; font-size: 12px; display: flex; gap: 8px 12px; flex-wrap: wrap; }
-@media (max-width: 900px) { .hist-layout { grid-template-columns: 1fr; } .histside { max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); } .histmain { max-height: none; } }
+
 /* the two vignettes at the top of the History home: today in history, and here */
 .vignettes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .vigcard { background: var(--card-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
@@ -738,21 +738,87 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .vig i { color: var(--muted); font-style: normal; }
 .vig .txt { min-width: 0; }
 .small { font-size: 12.5px; }
-/* the chat's room switcher: the crew's chat and the historian's */
-.chat .chatrooms { display: flex; align-items: stretch; border-left: 1px solid var(--line); }
-.chat .chatrooms button { background: transparent; color: var(--muted); border: 0; border-right: 1px solid var(--line); padding: 0 10px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; position: relative; }
-.chat .chatrooms button:hover { color: var(--fg); }
-.chat .chatrooms button.on { color: var(--accent); font-weight: 650; box-shadow: inset 0 -2px 0 var(--accent); }
+/* the chat's rooms: Ship, Crew, Ada, then the direct messages; a dot on any with news */
+.chat .chatrooms { display: flex; gap: 4px; padding: 6px 8px 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); flex: 0 0 auto; align-items: center; }
+.chat .chatpicker { flex: 0 0 auto; }
+.chat .chatrooms .tools { margin-left: auto; display: flex; gap: 4px; flex: 0 0 auto; padding-left: 8px; }
+.chat .chatrooms .tools button { border: 0; background: transparent; color: var(--muted); padding: 2px 6px; font-size: 11.5px; }
+.chat .chatrooms .tools button:hover { color: var(--accent-2); }
+.chat.noai .chatrooms #chataibtn { color: var(--accent-2); }
+.chat .chatrooms::-webkit-scrollbar { display: none; }
+.chat .chatrooms button { flex: 0 0 auto; background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.chat .chatrooms button:hover { color: var(--fg); border-color: var(--accent); }
+.chat .chatrooms button.on { color: #062033; background: var(--accent); border-color: var(--accent); font-weight: 650; }
+.chat .chatrooms button.dm { font-style: italic; }
+.chat .chatrooms #chatnew { font-weight: 700; padding: 2px 9px; }
 .chat .chatrooms .rdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); margin-right: 5px; vertical-align: middle; }
-.chat[data-room="historian"] .chatlog .msg.bot .txt { white-space: pre-wrap; }
+.chat .chatpicker { border-bottom: 1px solid var(--line); padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 4px; background: var(--card-2); }
+.chat .chatpicker .pickhead { flex-basis: 100%; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 4px 0 2px; }
+.chat .chatpicker button { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.chat .chatpicker button:hover { border-color: var(--accent); }
+.chat .chatclear { background: transparent; color: var(--muted); border: 0; border-left: 1px solid var(--line); padding: 0 10px; font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+.chat .chatclear:hover { color: var(--accent-2); }
+.chat.collapsed .chatclear { display: none; }
+.chat .chatlog .msg .who[data-name] { cursor: pointer; }
+.chat .chatlog .msg.mine .who { cursor: default; }
+.chat #chatwho.warn { color: var(--accent-2); }
 .chat .msg .pages { margin-top: 4px; font-size: 11.5px; display: flex; gap: 6px 10px; flex-wrap: wrap; }
 .chat .msg .pages .lbl { color: var(--muted); }
 .chat .msg .cite { border-bottom: 1px dotted var(--accent); }
 .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
-@media (max-width: 640px) { .chat .chatrooms button { padding: 0 7px; font-size: 11.5px; } }
 /* the History tab's map: plan, places and history only; the ship's controls step aside */
 body.tab-history #maplayers button[data-layer="stations"], body.tab-history #maplayers button[data-layer="cameras"],
 body.tab-history #maplayers button[data-layer="events"], body.tab-history #maplayers button[data-layer="track"],
 body.tab-history #satpill, body.tab-history #satnav, body.tab-history .mapcolour, body.tab-history .maptrack,
 body.tab-history .legmenu, body.tab-history .group.span, body.tab-history .pickhint { display: none !important; }
 body.tab-history #maplayers button[data-layer="history"] { display: inline-block; }
+/* the crew's model light: green when a model is loaded, grey when the crew are offline */
+.chat .mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: #5a6675; box-shadow: 0 0 0 2px rgba(90,102,117,.25); }
+.chat .mdot.on { background: #7ee787; box-shadow: 0 0 0 2px rgba(126,231,135,.25); }
+.chat.model-off .chatcrew { color: var(--accent-2); }
+.chat.model-off .mention { opacity: .55; }
+/* the map's info box: what a history pin is, fixed in the corner rather than riding the cursor */
+.mapinfo { position: absolute; left: 14px; bottom: 74px; z-index: 30; width: 300px; max-width: calc(100% - 28px); background: rgba(22,29,37,.96); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.45); font-size: 12.5px; line-height: 1.4; overflow: hidden; }
+.mapinfo img { display: block; width: 100%; max-height: 140px; object-fit: cover; }
+.mapinfo .body { padding: 8px 10px 9px; }
+.mapinfo .kind { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; margin-right: 6px; }
+.mapinfo b a { color: var(--fg); }
+.mapinfo .when, .mapinfo .wp { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.mapinfo .wp { color: var(--accent-2); }
+.mapinfo .desc { margin-top: 5px; color: #c9d3de; }
+.mapinfo .credit { margin-top: 5px; color: var(--muted); font-size: 11px; }
+.mapinfo .x { position: absolute; top: 4px; right: 6px; background: transparent; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; }
+.mapinfo .x:hover { color: var(--fg); }
+@media (max-width: 640px) { .mapinfo { bottom: 60px; width: calc(100% - 28px); } }
+
+/* an answer's references: [n] in the prose as a small link, the list under the message */
+.chat .msg sup { line-height: 0; }
+.chat .msg .ref { font-size: 10px; padding: 0 2px; border: 1px solid var(--line); border-radius: 4px; color: var(--accent); }
+.chat .msg .refs { margin: 5px 0 0; padding-left: 18px; font-size: 11.5px; color: var(--muted); }
+.chat .msg .refs li { margin: 1px 0; }
+
+/* topic cards with a picture; the map's second chip row; the timeline table; MLA */
+.topiccard { display: flex; gap: 10px; align-items: stretch; padding: 0; overflow: hidden; }
+.topiccard img { width: 92px; min-height: 64px; object-fit: cover; flex: 0 0 auto; background: #0b1620; }
+.topiccard .body { padding: 8px 10px; min-width: 0; }
+.topiccard.noimg .body { padding-left: 12px; }
+.topicgrid.chips { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.topicgrid.chips .topiccard img { width: 64px; }
+.topicfig { margin: 6px 0 10px; } .topicfig img { max-width: 100%; max-height: 260px; border-radius: 8px; border: 1px solid var(--line); }
+.topicfig figcaption { color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+.chip.small { font-size: 11.5px; padding: 2px 9px; vertical-align: middle; }
+.pin { color: var(--accent); font-weight: 700; text-decoration: none; }
+.maplayers .histlayers { flex: 1 0 100%; padding-top: 4px; }
+.maplayers .histlayers button { font-size: 11.5px; padding: 1px 8px; }
+.maplayers .histlayers .dot { margin-right: 4px; }
+table.sched.timeline td:first-child { white-space: nowrap; }
+table.sched.timeline .dot { margin-right: 5px; }
+ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { margin: 4px 0; }
+.mlaline { font-size: 13px; color: #c9d3de; } .mlaline .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 6px; }
+
+/* the people list */
+.peoplelist h3 { font-size: 13px; color: var(--accent-2); margin: 14px 0 4px; }
+.peoplelist .person { display: block; color: var(--fg); padding: 3px 6px; border-radius: 6px; font-size: 13px; }
+.peoplelist .person:hover { background: var(--card-2); }
+.peoplelist .person.inuit b { border-bottom: 2px solid var(--accent-2); }
+.peoplelist .role { display: block; color: var(--muted); font-size: 12px; }
