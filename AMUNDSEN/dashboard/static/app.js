@@ -701,22 +701,25 @@
   const PLAN_COLOURS = ["#ffb454", "#ff9bce", "#7ee787", "#c9a2ff"];
   const userPlans = () => store.get("plans.user", []);
   const planOn = (i) => !!(store.get("plans.on", {})[i] ?? true);
+  // a plan's import stamp, "YYYY-MM-DD.n": the day it came and its number that day
+  const planStamp = (iso, n = 1) => `${String(iso || "").slice(0, 10) || "unknown"}.${n}`;
   function plansShown() {
     const out = [];
-    if (state.plan && state.planData) out.push({ ...state.planData, key: "plan", colour: "#454f5b", label: "#aab3bd" });
-    userPlans().forEach((pl, i) => { if (planOn(i)) out.push({ ...pl, key: `user${i}`, colour: PLAN_COLOURS[i % PLAN_COLOURS.length], label: PLAN_COLOURS[i % PLAN_COLOURS.length] }); });
+    if (state.plan && state.planData) out.push({ ...state.planData, key: "plan", colour: "#454f5b", label: "#aab3bd", imported: planStamp(M?.plan?.stamp) });
+    userPlans().forEach((pl, i) => { if (planOn(i)) out.push({ ...pl, key: `user${i}`, colour: PLAN_COLOURS[i % PLAN_COLOURS.length], label: PLAN_COLOURS[i % PLAN_COLOURS.length], imported: pl.imported || planStamp(null) }); });
     return out;
   }
   function planTraces(zoom) {
     const out = [];
     for (const pl of plansShown()) {
+      // hover boxes like the stations': the text alone, no trace name beside it
       for (const t of pl.tracks) out.push({ type: "scattermap", mode: "lines", name: `${pl.key}-${t.alternate ? "alt" : "track"}`, showlegend: false,
-        lat: t.coords.map((c) => c[1]), lon: t.coords.map((c) => c[0]), hoverinfo: "text", text: t.coords.map(() => `${t.name} · ${pl.name}`),
+        lat: t.coords.map((c) => c[1]), lon: t.coords.map((c) => c[0]), hovertext: t.coords.map(() => t.name), hovertemplate: "%{hovertext}<extra></extra>",
         line: { width: t.alternate ? 1.2 : 2.2, color: pl.colour }, opacity: t.alternate ? .45 : .95 });
       if (pl.stations.length) out.push({ type: "scattermap", mode: "markers+text", name: `${pl.key}-stations`, showlegend: false,
         lat: pl.stations.map((s) => s.lat), lon: pl.stations.map((s) => s.lon), text: planLabels(pl.stations, zoom), textposition: "top right", textfont: { size: 11, color: pl.label },
-        hovertext: pl.stations.map((s) => `<b>${s.name}</b>${s.group ? "<br>" + s.group : ""}${s.desc ? "<br>" + s.desc : ""}<br>planned station · ${pl.name}`), hoverinfo: "text",
-        marker: { size: 7, color: pl.colour, opacity: .95 } });
+        hovertext: pl.stations.map((s) => `<b>${esc(s.name)}</b>${s.type ? " · " + esc(s.type) : ""}${s.region ? "<br>" + esc(s.region) : ""}${s.group ? "<br>" + esc(s.group) : ""}${s.depth_m != null ? `<br>depth ${Math.round(s.depth_m)} m` : ""}${s.ops ? "<br>" + esc(s.ops) : s.desc ? "<br>" + esc(s.desc) : ""}<br>planned station`),
+        hovertemplate: "%{hovertext}<extra></extra>", marker: { size: 7, color: pl.colour, opacity: .95 } });
     }
     return out;
   }
@@ -759,8 +762,9 @@
         const r = await fetch("api/plan", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || r.status);
-        const all = userPlans();
-        all.push({ name: j.name, short: f.name.replace(/\.(kmz|kml)$/i, "").slice(0, 18), tracks: j.tracks, stations: j.stations, groups: j.groups });
+        const all = userPlans(), today = new Date().toISOString().slice(0, 10);
+        const nToday = all.filter((pl) => String(pl.imported || "").startsWith(today)).length + (M?.plan?.stamp?.startsWith(today) ? 1 : 0);
+        all.push({ name: j.name, short: f.name.replace(/\.(kmz|kml)$/i, "").slice(0, 18), imported: `${today}.${nToday + 1}`, tracks: j.tracks, stations: j.stations, groups: j.groups });
         store.set("plans.user", all);
         renderPlanPills(); renderMap();
         toast(`plan loaded in this browser: ${j.name} · ${j.stations.length} stations, ${j.tracks.length} tracks`);
@@ -1008,8 +1012,12 @@
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
-    }).catch(() => {
-      mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
+      mapMessage("");
+    }).catch((e) => {
+      // a draw that failed outright leaves no plot; a hiccup after a good
+      // draw (a layer, a listener) is logged and the map stays as it is
+      console.warn("map draw:", e);
+      if (!el._fullLayout?.map?._subplot?.map) mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
     }).finally(() => {
       mapDrawing = false;
       if (mapAgain) { mapAgain = false; renderMap(); }
@@ -1433,8 +1441,9 @@
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown, toast,
     refreshExtraData() { render(); },
+    clearFocus() { state.focus = null; },
     moveShip,
     registerPanel(name, spec) {
       extraPanels.set(name, spec);

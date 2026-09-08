@@ -235,14 +235,25 @@ def eventlog_items(events: list[dict]) -> list[tuple[str, str, dict]]:
     return out
 
 
-def schedule_items(sched: dict) -> list[tuple[str, str, dict]]:
+def schedule_items(sched: dict, history: dict | None = None) -> list[tuple[str, str, dict]]:
     """One item per current schedule row, fingerprinted by the row's identity
-    so that an edited row is the same item."""
+    so that an edited row is the same item. A row the page shows without
+    times (a canceled one) keeps the times the history remembers for it, so
+    its event is updated rather than left as it was."""
     from .calendar import row_key
+    if history is None:
+        p = DB_DIR / "schedule_history.json"
+        try:
+            history = json.loads(p.read_text()) if p.is_file() else {}
+        except (OSError, ValueError):
+            history = {}
     out = []
     for r in sched.get("rows", []):
         if not r.get("start_utc") or not r.get("end_utc"):
-            continue
+            h = history.get(row_key(r)) or {}
+            if not h.get("start_utc") or not h.get("end_utc"):
+                continue
+            r = dict(h, **{k: v for k, v in r.items() if v not in (None, "")}, start_utc=h["start_utc"], end_utc=h["end_utc"])
         status = r.get("status") or "Scheduled"
         ops = r.get("operation") or ""
         desc = "\n".join(x for x in (f"Operation: {ops}", f"Station: {r.get('station', '')}", f"Status: {status}",

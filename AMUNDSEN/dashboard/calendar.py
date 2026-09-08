@@ -176,9 +176,15 @@ def _remember(rows: list[dict], title: str) -> list[dict]:
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     current = set()
     for r in rows:
+        k = row_key(r)
         if not r.get("start_utc"):
+            # a canceled row loses its times on the page: the history keeps the
+            # ones it had and takes the new status and comment
+            if k in hist:
+                current.add(k)
+                hist[k].update({x: r[x] for x in ("status", "comment") if x in r}); hist[k]["last_seen"] = now
             continue
-        k = row_key(r); current.add(k)
+        current.add(k)
         h = hist.get(k, {"first_seen": now})
         h.update(r); h["last_seen"] = now; h["leg"] = title or h.get("leg", "")
         hist[k] = h

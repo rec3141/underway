@@ -103,9 +103,9 @@
           <div class="pane-tools compact">
             <span class="lbl">Select Cast Type</span>
             <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="live" title="the live cast is off until Seasave's TCP/IP output is back" disabled hidden>Live</button></div>
-            <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)"></div>
+            <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)"><button id="castcsv" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
-          <ul class="castlist" id="castlist"></ul>
+          <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
         </div>
         <div class="castmain">
           <div class="pane-tools compact">
@@ -135,6 +135,7 @@
     <div class="pane" id="pane-stations" hidden>
       <div class="pane-tools">
         <input type="search" id="stnsearch" placeholder="filter stations">
+        <button id="stnclear" title="deselect every cast and drop the map focus">clear selection</button>
         <button id="stncsv" title="download the visible table as tab-separated text">TSV</button>
         <span class="muted" id="stnmeta"></span>
       </div>

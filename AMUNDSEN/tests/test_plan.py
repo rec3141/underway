@@ -16,7 +16,9 @@ KML = """<?xml version="1.0" encoding="UTF-8"?>
   <Placemark><name>Plan A Cruise Track Leg 3</name><LineString><coordinates>-94.8,74.7,0 -93.0,76.0,0 -91.5,77.5,0</coordinates></LineString></Placemark>
   <Placemark><name>Altern Cruise Track Leg 3</name><LineString><coordinates>-94.8,74.7,0 -92.0,76.5,0</coordinates></LineString></Placemark>
   <Folder><name>MAZE &amp; QEI Survey</name>
-    <Placemark><name>CardS-3</name><description>&lt;b&gt;CTD&lt;/b&gt; and nets</description><Point><coordinates>-91.9,76.9,0</coordinates></Point></Placemark>
+    <Placemark><name>CardS-3</name><description>&lt;b&gt;CTD&lt;/b&gt; and nets</description>
+      <ExtendedData><SchemaData schemaUrl="#S"><SimpleData name="Region">Cardigan Strait</SimpleData><SimpleData name="Station_Type">Rosette + Coring</SimpleData><SimpleData name="Depth__m_">75</SimpleData><SimpleData name="Operations">CTD-Rosette, Box Core</SimpleData></SchemaData></ExtendedData>
+      <Point><coordinates>-91.9,76.9,0</coordinates></Point></Placemark>
   </Folder>
   <Folder><name>RetroSeep</name><Folder><name>Sites</name>
     <Placemark><name>RS-1</name><Point><coordinates>-88.0,78.2,0</coordinates></Point></Placemark>
@@ -32,6 +34,7 @@ class PlanTests(unittest.TestCase):
                          [("Plan A Cruise Track Leg 3", False, 3), ("Altern Cruise Track Leg 3", True, 2)])
         self.assertEqual([(s["name"], s["group"]) for s in p["stations"]], [("CardS-3", "MAZE & QEI Survey"), ("RS-1", "RetroSeep / Sites")])
         self.assertEqual(p["stations"][0]["desc"], "CTD  and nets")           # tags stripped
+        self.assertEqual((p["stations"][0]["type"], p["stations"][0]["depth_m"], p["stations"][0]["ops"], p["stations"][0]["region"]), ("Rosette + Coring", 75.0, "CTD-Rosette, Box Core", "Cardigan Strait"))
         self.assertEqual(p["groups"], ["MAZE & QEI Survey", "RetroSeep / Sites"])
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as z:

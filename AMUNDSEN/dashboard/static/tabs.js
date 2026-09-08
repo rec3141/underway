@@ -176,47 +176,61 @@
     const a = e.target.closest("a.spanall"); if (!a) return;
     e.preventDefault(); a.dataset.widen ? UW.widenSpan() : UW.setSpan("leg");
   });
-  function renderCastList() {
-    const ul = $("#castlist"); if (!casts.idx) return;
-    if (casts.kind === "live") {                                   // the list box holds the Seasave setup instead
-      if (!ul.querySelector("#livecfgbox")) ul.innerHTML = '<li class="livesetup"><div id="livecfgbox"></div></li>';
-      if (live.data) liveCfgForm(ul, live.data);
-      $("#castclear").textContent = "clear selection"; $("#castclear").classList.remove("has"); return;
-    }
+  // the casts as a sortable table like the Stations and Underway ones: a
+  // row per cast (a tow unfolds into its dips), a click selects it
+  const CAST_COLS = [["sel", ""], ["kind", "type"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["time", "time (ship)"], ["depth", "max depth (m)"], ["bottles", "bottles"], ["leg", "leg"]];
+  casts.sort = store.get("casts.sort", { key: "time", dir: -1 });
+  function castRows() {
+    if (!casts.idx) return { rows: [], inLegs: [] };
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
     const inLegs = casts.idx.casts
       .filter((c) => f.legs.has(c.leg))
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
       .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q));
-    const rows = inLegs
-      .filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
-      .sort((a, b) => (b.time || "").localeCompare(a.time || ""));
+    const rows = inLegs.filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
+      .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg, depth: c.max_p != null ? Math.round(depthFrom(c.max_p, c.lat)) : null, bottles: c.n_bottles ?? null }));
+    const k = casts.sort.key, dir = casts.sort.dir;
+    const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : k === "sel" ? (casts.sel.has(r.id) ? 1 : 0) : r[k];
+    rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
+    return { rows, inLegs, f };
+  }
+  function renderCastList() {
+    const tbl = $("#casttable"); if (!casts.idx) return;
+    if (casts.kind === "live") {                                   // the table box holds the Seasave setup instead
+      if (!tbl.querySelector("#livecfgbox")) tbl.innerHTML = `<tbody><tr class="livesetup"><td colspan="${CAST_COLS.length}"><div id="livecfgbox"></div></td></tr></tbody>`;
+      if (live.data) liveCfgForm(tbl, live.data);
+      $("#castclear").textContent = "clear selection"; $("#castclear").classList.remove("has"); return;
+    }
+    const { rows, inLegs, f } = castRows();
+    const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
+    const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
-      const state = whole ? "on" : part ? "part" : "";
-      let html = `<li class="${state}" data-id="${esc(c.id)}">
-        ${isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : '<span class="tog"></span>'}
-        <input type="checkbox" ${whole ? "checked" : ""} ${part ? 'class="partial"' : ""} title="${isTow ? "whole tow" : "select"}">
-        <span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span>
-        <span class="name">${esc(castLabel(c))}${part ? ` <small>${dips.length}/${c.n_profiles} dips</small>` : ""}</span>
-        <span class="meta-row"><span class="when">${esc(castDate(c))}</span><span class="depth">${maxDepth(c)}</span><span class="leg">${esc(UW.legById(c.leg)?.label || c.leg)}</span></span></li>`;
+      let html = `<tr class="${whole ? "sel" : part ? "part" : ""}" data-id="${esc(c.id)}">
+        <td class="sel">${isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
+        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${esc(c.cast)}</td>
+        <td>${esc(c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
+        <td class="mono">${esc(castDate(c))}</td><td class="mono">${c.depth ?? ""}</td><td class="mono">${c.bottles ?? ""}</td><td>${esc(c.legLabel)}</td></tr>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
-        html += c.track.map((t, i) => `<li class="dip ${picked.has(i) ? "on" : ""}" data-id="${esc(c.id)}#${i}">
-          <span class="tog"></span><input type="checkbox" ${picked.has(i) ? "checked" : ""}>
-          <span class="kind dip">#${i + 1}</span><span class="name">dip ${i + 1}</span>
-          <span class="meta-row"><span class="when">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</span></span></li>`).join("");
+        html += c.track.map((t, i) => `<tr class="dip ${picked.has(i) ? "sel" : ""}" data-id="${esc(c.id)}#${i}">
+          <td class="sel"></td><td><span class="kind dip">#${i + 1}</span></td><td></td>
+          <td>dip ${i + 1}</td><td class="mono">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</td><td></td><td></td><td></td><td></td></tr>`).join("");
       }
       return html;
     };
-    ul.innerHTML = spanNote(rows.length, inLegs.length, f, "li") + rows.map(row).join("") + (!rows.length ? '<li class="more">no casts match</li>' : "");
-    for (const li of ul.querySelectorAll("li[data-id]")) li.onclick = (e) => {
-      if (e.target.closest(".tog")) return;
-      e.preventDefault(); toggleCast(li.dataset.id);
+    tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, inLegs.length, f, "tr", CAST_COLS.length)}${rows.map(row).join("")}${!rows.length ? `<tr><td colspan="${CAST_COLS.length}" class="muted">no casts match</td></tr>` : ""}</tbody>`;
+    topScroll($("#castlist"));
+    for (const th of tbl.querySelectorAll("th")) th.onclick = () => {
+      const k = th.dataset.k; casts.sort = { key: k, dir: casts.sort.key === k ? -casts.sort.dir : (k === "time" ? -1 : 1) }; store.set("casts.sort", casts.sort); renderCastList();
     };
-    for (const b of ul.querySelectorAll("button.tog")) b.onclick = (e) => {
+    for (const tr of tbl.querySelectorAll("tbody tr[data-id]")) tr.onclick = (e) => {
+      if (e.target.closest(".tog") || e.target.closest("a")) return;
+      e.preventDefault(); toggleCast(tr.dataset.id);
+    };
+    for (const b of tbl.querySelectorAll("button.tog")) b.onclick = (e) => {
       e.stopPropagation();
       const id = b.dataset.tow; casts.open.has(id) ? casts.open.delete(id) : casts.open.add(id);
       store.set("casts.open", [...casts.open]); renderCastList();
@@ -224,6 +238,11 @@
     const nsel = new Set([...casts.sel].map(parentId)).size;
     $("#castclear").textContent = nsel ? `clear selection (${nsel})` : "clear selection";
     $("#castclear").classList.toggle("has", nsel > 0);
+  }
+  function downloadCastsTSV() {
+    const { rows } = castRows();
+    saveTSV("casts.tsv", ["kind", "cast", "station", "label", "time_utc", "time_end_utc", "lat", "lon", "max_depth_m", "bottles", "leg", "selected"],
+      rows.map((r) => [r.kind, r.cast, r.station, r.label, r.time, r.time_end, r.lat, r.lon, r.depth, r.bottles, r.legLabel, casts.sel.has(r.id) ? 1 : 0]));
   }
 
   // ------------------------------------------------------------ overlay views
@@ -350,7 +369,7 @@
     st.innerHTML = `<div class="livevars">${varChips(cols, live.vars, "livevar")}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
     for (const b of st.querySelectorAll(".livevar")) b.onclick = () => { live.vars = live.vars.includes(b.dataset.v) ? live.vars.filter((x) => x !== b.dataset.v) : [...live.vars, b.dataset.v]; store.set("casts.live.vars", live.vars); drawLive(host); };
     for (const b of st.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
-    liveCfgForm($("#castlist"), d);
+    liveCfgForm($("#casttable"), d);
     if (!cast || !cast.t.length) {
       body.innerHTML = `<div class="empty">${d.tcp_state === "connected" && !announced ? `Seasave at ${esc(d.tcp)} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).` : d.no_pressure ? "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m]." : d.packets ? "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m." : d.tcp_state === "connected" ? "Connected to Seasave; the plot begins when acquisition starts and the package goes in." : d.tcp ? `Seasave at ${esc(d.tcp)} is not answering (${esc(d.tcp_state)}); retrying.` : "No Seasave source set — use ⚙."}</div>`;
       return;
@@ -750,6 +769,7 @@
     }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
+    $("#castcsv").onclick = downloadCastsTSV;
     const sm = $("#castsmooth");
     sm.classList.toggle("on", casts.smooth);
     sm.onclick = () => { casts.smooth = !casts.smooth; store.set("casts.smooth", casts.smooth); sm.classList.toggle("on", casts.smooth); renderCastPlots(); };
@@ -836,7 +856,7 @@
     const [cls, word] = statusWord(r, next);
     return `<tr class="sched ${r.former ? "former" : ""} ${isFinished(r) ? "done" : ""} ${statusClass(r.status || "upcoming")} ${next ? "next" : ""}" data-key="${esc(k)}" data-day="${esc(isNaN(t0) ? "" : dayL(t0))}">` +
       `<td class="alerts-cell">${r.former ? "" : bellHtml(r)}</td><td class="mono">${when}</td><td><span class="status s-${cls}" title="${esc(word)}">${esc(word)}</span></td>` +
-      `<td>${esc(r.station || "")}</td><td>${esc(r.operation || "")}</td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td>` +
+      `<td>${r.station ? `<a href="#" class="stnlink" data-station="${esc(r.station)}" title="show ${esc(r.station)} on the map">${esc(r.station)}</a>` : ""}</td><td>${esc(r.operation || "")}</td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td>` +
       `${depth ? "<td></td>" : ""}<td class="muted">${esc(r.comment || "")}</td></tr>`;
   }
   // the event log: logged events and scheduled operations (current and
@@ -938,7 +958,26 @@
     }
     for (const b of host.querySelectorAll(".bell")) b.classList.toggle("on", followed(b.dataset.key));
   }
+  // a station named in a schedule row: found among the casts and event-log
+  // stations, else the cruise plan's, and shown on the map
+  function stationPosition(name) {
+    const want = String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!want) return null;
+    const same = (x) => String(x || "").trim().toLowerCase().replace(/\s+/g, " ") === want;
+    const st = (UW.M.stations || []).filter((s) => same(s.station) && s.lat != null).sort((a, b) => String(b.time).localeCompare(String(a.time)))[0];
+    if (st) return { lat: st.lat, lon: st.lon };
+    for (const pl of UW.plansShown?.() || []) { const p = pl.stations.find((x) => same(x.name)); if (p) return { lat: p.lat, lon: p.lon }; }
+    return null;
+  }
+  function wireStationLinks(host) {
+    for (const a of host.querySelectorAll("a.stnlink")) a.onclick = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const pos = stationPosition(a.dataset.station);
+      if (pos) UW.focusMap(pos.lat, pos.lon, a.dataset.station); else UW.toast?.(`${a.dataset.station}: no position known yet`);
+    };
+  }
   function wireBells(host) {
+    wireStationLinks(host);
     refreshBells(host);
     for (const b of host.querySelectorAll(".bell")) b.onclick = (ev) => { ev.stopPropagation(); bellMenu(host, b); };
   }
@@ -1277,7 +1316,7 @@
     const f = UW.currentFilter();
     let all = (UW.M.stations || []).filter((s) => f.legs.has(s.leg)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
     // the planned stations (the cruise plan KMZ): no time or leg, so never filtered out
-    for (const pl of UW.plansShown?.() || []) all = all.concat(pl.stations.map((st) => ({ station: st.name, kind: `plan · ${pl.name}`.slice(0, 40), type: st.group, comments: st.desc || "", lat: st.lat, lon: st.lon, legLabel: "", time: null, leg: null, activities: "" })));
+    for (const pl of UW.plansShown?.() || []) all = all.concat(pl.stations.map((st) => ({ station: st.name, kind: `kmz ${pl.imported}`, legLabel: st.group, type: st.type || "", bottom_m: st.depth_m ?? null, activities: st.ops || "", label: st.region || "", comments: st.desc || "", lat: st.lat, lon: st.lon, time: null, leg: null })));
     if (q) all = all.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
     const rows = all.filter((s) => UW.inFilter(s.leg, s.time, f));
     stn.hidden = all.length - rows.length;
@@ -1294,6 +1333,9 @@
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
     $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + stn.hidden, UW.currentFilter(), "tr", STATION_COLS.length)}${body}</tbody>`;
+    const nsel0 = new Set([...casts.sel].map(parentId)).size;
+    $("#stnclear").textContent = nsel0 ? `clear selection (${nsel0})` : "clear selection";
+    $("#stnclear").classList.toggle("has", nsel0 > 0);
     topScroll($("#stationtable").closest(".tablewrap"));
     const nsel = rows.filter((r) => r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
     const nev = rows.filter((r) => !r.cast).length;
@@ -1329,6 +1371,7 @@
   }
   function wireStations() {
     $("#stnsearch").oninput = debounce((e) => { stn.search = e.target.value; renderStations(); }, 150);
+    $("#stnclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); UW.clearFocus?.(); renderStations(); renderCastList(); if (!$("#pane-casts").hidden) renderCastPlots(); UW.renderMap(); };
     $("#stncsv").onclick = downloadStationsCSV;
   }
 

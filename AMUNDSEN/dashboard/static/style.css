@@ -368,26 +368,21 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .castside, .castmain { min-width: 0; }
 /* the list sits above the figures, so it keeps its own bounded scroll (inside
    the card, away from the pane's bar at the right edge) */
-.castlist { list-style: none; margin: 0 18px 0 0; padding: 4px; max-height: 30vh; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.castlist { margin: 0 18px 0 0; max-height: 25vh; }                          /* the casts table: the tablewrap look, its own scroll */
+#casttable tbody tr { cursor: pointer; }
+#casttable tbody tr.sel td { background: rgba(255,180,84,.08); }
+#casttable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }
+#casttable tbody tr.part td { background: rgba(255,180,84,.05); }
+#casttable tbody tr.dip td { font-size: 12px; color: var(--muted); }
+#casttable tbody tr.dip td:nth-child(3) { padding-left: 22px; }
+#casttable td.sel { white-space: nowrap; width: 18px; padding-right: 0; }     /* only a tow's ▸ lives here; the row's colour says selected */
 /* two-line rows: [toggle] [box] [badge] name        then   date · depth · leg */
-.castlist li { display: grid; grid-template-columns: 18px auto auto minmax(0, 1fr); grid-template-areas: "tog box kind name" ". . . meta"; column-gap: 8px; row-gap: 1px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; }
-.castlist li .tog { grid-area: tog; } .castlist li input { grid-area: box; } .castlist li .kind { grid-area: kind; }
-.castlist li .name { grid-area: name; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.castlist li .when, .castlist li .depth, .castlist li .leg { grid-area: meta; }
-.castlist li .when { display: inline; }
-.castlist li .when::after { content: " · "; }
-.castlist li .depth:not(:empty)::after { content: " · "; }
-.castlist li .depth, .castlist li .leg { display: inline; }
-.castlist li .meta-row { grid-area: meta; }
-.castlist li:hover { background: var(--card-2); }
-.castlist li.on { background: rgba(92,200,255,.12); }
-.castlist li.part { background: rgba(255,180,84,.10); }
 .castlist li.dip { padding-left: 26px; font-size: 12px; opacity: .9; }
 .castside .pane-tools.compact { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
 .castside .castfilter { flex: 1 1 260px; display: flex; gap: 6px; min-width: 0; }
 .castside .castfilter input[type=search] { flex: 1 1 auto; min-width: 0; }
-.castside #castclear { background: var(--card-2); color: var(--muted); border-color: var(--line); font-weight: 650; }   /* grey until there is a selection to clear */
-.castside #castclear.has { background: var(--accent); color: #062033; border-color: var(--accent); }
+.castside #castclear, #stnclear { background: var(--card-2); color: var(--muted); border-color: var(--line); font-weight: 650; }   /* grey until there is a selection to clear */
+.castside #castclear.has, #stnclear.has { background: var(--accent); color: #062033; border-color: var(--accent); }
 .pane-tools .lbl { color: var(--muted); font-size: 13px; }
 .group.sectionx { gap: 8px; }
 #castmode button:disabled { opacity: .4; cursor: not-allowed; }
@@ -483,6 +478,8 @@ table.sched .status.s-soon { background: var(--warn); color: #2a0000; font-weigh
 table.sched .status.s-done { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 table.sched .status.s-canceled { background: #4a2a2a; color: #ff9bce; }
 table.sched .status.s-was { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+table.sched a.stnlink { color: inherit; border-bottom: 1px dotted var(--line); }
+table.sched a.stnlink:hover { color: var(--accent); border-bottom-color: var(--accent); }
 table.sched .viewdata { background: transparent; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: inherit; font-size: 11px; cursor: pointer; }
 table.sched .viewdata:hover { border-color: var(--accent); }
 table.sched td:nth-child(3), table.sched td:nth-child(6), table.sched td:nth-child(7) { white-space: nowrap; }   /* station, status, duration */
@@ -547,17 +544,26 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
 
 /* table */
 .tablewrap { overflow: auto; max-height: calc(100vh - 210px); margin-right: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }   /* its own scrollbar clears the pane's */
-#aggtable tbody tr, #stationtable tbody tr { cursor: pointer; }
-#aggtable tbody tr.on td, #stationtable tbody tr.on td { background: rgba(92,200,255,.14); }
-#aggtable tbody tr.sel td:first-child, #stationtable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }      /* selected for the Casts tab */
-#aggtable tbody tr.sel td, #stationtable tbody tr.sel td { background: rgba(255,180,84,.08); }
+/* the Stations and Underway table panes fill the pane's height: the table
+   scrolls inside its box and the pane itself never grows a scrollbar */
+@media (min-width: 1101px) {
+  #pane-stations, #pane-table { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+  #pane-stations .tablewrap, #pane-table .tablewrap { flex: 1 1 auto; min-height: 0; max-height: none; }
+  #pane-stations .pane-tools, #pane-table .pane-tools { flex: none; }
+}
+.tablewrap table, .evlog table { margin-bottom: 14px; }        /* the sideways scroll bar sits under the last row, not over it */
+#aggtable tbody tr, #stationtable tbody tr , #casttable tbody tr { cursor: pointer; }
+#aggtable tbody tr.on td, #stationtable tbody tr.on td , #casttable tbody tr.on td { background: rgba(92,200,255,.14); }
+#aggtable tbody tr.sel td:first-child, #stationtable tbody tr.sel td:first-child , #casttable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }      /* selected for the Casts tab */
+#aggtable tbody tr.sel td, #stationtable tbody tr.sel td , #casttable tbody tr.sel td { background: rgba(255,180,84,.08); }
 .castlist .kind.TM { background: #4a3a1e; color: #ffb454; }
-#aggtable, #stationtable { border-collapse: collapse; font-size: 12px; min-width: 100%; }
-#aggtable th, #stationtable th { position: sticky; top: 0; background: var(--card-2); color: var(--muted); text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line); }
-#aggtable th:hover, #stationtable th:hover { color: var(--fg); }
-#aggtable td, #stationtable td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-#aggtable td.mono, #stationtable td.mono { font-family: var(--mono); font-size: 11.5px; }
-#aggtable tbody tr:hover, #stationtable tbody tr:hover { background: var(--card-2); }
+#aggtable, #stationtable , #casttable { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+#aggtable th, #stationtable th , #casttable th { position: sticky; top: 0; background: var(--card-2); color: var(--muted); text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line); }
+#aggtable th:hover, #stationtable th:hover , #casttable th:hover { color: var(--fg); }
+#aggtable td, #stationtable td , #casttable td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+#aggtable td.mono, #stationtable td.mono , #casttable td.mono { font-family: var(--mono); font-size: 11.5px; }
+#stationtable td:nth-child(8) { white-space: normal; min-width: 220px; max-width: 420px; }   /* activities: the planned operations wrap */
+#aggtable tbody tr:hover, #stationtable tbody tr:hover , #casttable tbody tr:hover { background: var(--card-2); }
 
 /* ---------------------------------------------------------------- chat drawer */
 .chat { position: fixed; right: 16px; bottom: 0; z-index: 40; width: 340px; max-width: calc(100vw - 24px);

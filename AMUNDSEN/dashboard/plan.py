@@ -58,6 +58,29 @@ def _coords(e) -> list[list[float]]:
     return out
 
 
+# the expedition office's schema: a SimpleData per column of its station
+# sheet; the ones worth keeping, under short names
+EXTENDED = {"Station_Type": "type", "Region": "region", "Operations": "ops", "Depth__m_": "depth_m", "Operation_Time__hours_": "hours", "__of_ops": "n_ops"}
+
+
+def _extended(pm) -> dict:
+    """A placemark's ExtendedData (SimpleData name/value pairs) under the
+    EXTENDED names; depth and hours as numbers."""
+    out = {}
+    for sd in pm.iter(KML_NS + "SimpleData"):
+        key = EXTENDED.get(sd.get("name", ""))
+        val = (sd.text or "").strip()
+        if not key or not val:
+            continue
+        if key in ("depth_m", "hours"):
+            try:
+                val = float(val)
+            except ValueError:
+                continue
+        out[key] = val
+    return out
+
+
 def kml_bytes(data: bytes) -> bytes:
     """The KML inside a KMZ (its doc.kml, else the first .kml), or the bytes
     themselves when they already are KML."""
@@ -103,7 +126,9 @@ def parse(data: bytes) -> dict:
                     pts = _coords(c.find(".//" + KML_NS + "Point"))
                     if pts:
                         desc = re.sub(r"<[^>]+>", " ", _text(c, "description")).strip()
-                        stations.append({"name": pname, "group": " / ".join(path), "lon": pts[0][0], "lat": pts[0][1], **({"desc": desc[:300]} if desc else {})})
+                        st = {"name": pname, "group": " / ".join(path), "lon": pts[0][0], "lat": pts[0][1], **({"desc": desc[:300]} if desc else {})}
+                        st.update(_extended(c))
+                        stations.append(st)
     walk(doc, [])
     if not tracks and not stations:
         raise ValueError("no tracks or stations found in the file")

@@ -66,7 +66,7 @@ class HistoryTests(unittest.TestCase):
 class GcalTests(unittest.TestCase):
     def test_schedule_item_is_the_same_when_moved(self):
         r = _row("CardS-3", "CTD-Rosette", "06/09/26", "09:05", "10:05", comment="deep")
-        items = gcal.schedule_items({"rows": [r, dict(r, start_utc=None)]})
+        items = gcal.schedule_items({"rows": [r, dict(r, start_utc=None)]}, history={})
         self.assertEqual(len(items), 1)
         cal, fp, body = items[0]
         self.assertEqual((cal, fp), ("schedule", "sch|CardS-3|CTD-Rosette"))
@@ -74,6 +74,17 @@ class GcalTests(unittest.TestCase):
         self.assertEqual(moved[0][1], fp)
         self.assertNotEqual(gcal._hash(moved[0][2]), gcal._hash(body))
         self.assertEqual(gcal._pending(moved, {"items": {fp: {"cal": cal, "event_id": "e", "hash": gcal._hash(body)}}})[0][0], "patch")
+
+    def test_canceled_row_without_times_keeps_the_remembered_ones(self):
+        r = _row("Norwegian Bay 1", "Tucker Net", "07/09/26", "20:50", "21:20")
+        hist = {"Norwegian Bay 1|Tucker Net": dict(r)}
+        canceled = dict(r, status="Canceled", date="", start="", end="", start_utc=None, end_utc=None)
+        items = gcal.schedule_items({"rows": [canceled]}, history=hist)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0][1], "sch|Norwegian Bay 1|Tucker Net")
+        self.assertTrue(items[0][2]["summary"].startswith("[Canceled]"))
+        self.assertEqual(items[0][2]["start"], gcal._when(r["start_utc"]))
+        self.assertEqual(gcal.schedule_items({"rows": [canceled]}, history={}), [])       # nothing remembered: nothing to update
 
     def test_push_patches_the_moved_row(self):
         class Api:
