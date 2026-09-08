@@ -118,7 +118,19 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
         endpoint = '/api/chat'
     else:
         raise ValueError('Unknown chat API backend')
-    r = requests.post(url + endpoint, json=body, timeout=timeout)
+    try:
+        r = requests.post(url + endpoint, json=body, timeout=timeout)
+    except requests.ConnectionError:
+        # the shared server the configuration names is down (the camera
+        # pipeline runs it); Ollama, always resident, carries the crew meanwhile
+        if backend == 'ollama' or config.get('url', LLM_URL).rstrip('/') == LLM_URL.rstrip('/'):
+            raise
+        log.info("chat model at %s refused; falling back to Ollama %s", url, LLM_MODEL)
+        body = {"model": LLM_MODEL, "stream": False, "think": False, "keep_alive": "3h",
+                "options": {"num_predict": max_tokens, "num_ctx": num_ctx, "temperature": temperature},
+                "messages": messages}
+        backend, url, endpoint = 'ollama', LLM_URL.rstrip('/'), '/api/chat'
+        r = requests.post(url + endpoint, json=body, timeout=timeout)
     r.raise_for_status()
     result = r.json()
     message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
@@ -242,7 +254,8 @@ def places_named(root: Path, text: str) -> list[dict]:
 
 
 def excerpt_block(excerpts: list[dict]) -> str:
-    return "\n\n".join(f"### {e['title']}  [{e['kind']} · {e['slug']}]\n{e['excerpt']}" for e in excerpts)
+    # the header carries the title only: a slug in it and the model cites the slug
+    return "\n\n".join(f"### {e['title']}  (a {e['kind']} page)\n{e['excerpt']}" for e in excerpts)
 
 
 def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str]:
