@@ -434,7 +434,7 @@
   }
   function renderMeta() {
     const m = $("#histmeta"); if (!hist.index) { m.textContent = ""; return; }
-    m.textContent = `${shownArtifacts().length} of ${hist.artifacts.length} artifacts`;
+    m.textContent = "";
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
     $("#histpeople").classList.toggle("on", hist.slug === "people");
     $("#histtl").classList.toggle("on", hist.slug === "timeline");
