@@ -822,5 +822,25 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 .peoplelist .person:hover { background: var(--card-2); }
 .peoplelist .person.inuit b { border-bottom: 2px solid var(--accent-2); }
 .peoplelist .role { display: block; color: var(--muted); font-size: 12px; }
+
+/* links are never underlined; a chip is highlighted by its border, the same way everywhere */
+#pane-history a, .chat a { text-decoration: none; border-bottom: 0; }
+.histmain .wanted { border-bottom: 0; color: var(--muted); }
+.chat .msg .cite, .histanswer .cite { border-bottom: 0; }
+.peoplelist .person.inuit b { border-bottom: 0; color: var(--accent-2); }
+#pane-history .chip, #pane-history #histtypes button, .maplayers .histlayers button, .chat .chatrooms button, .chat .chatpicker button,
+#pane-history .pglink, #pane-history .artcard, #pane-history .topiccard, #pane-history .vig, #pane-history .person, .chatcrew .mention {
+  border: 1px solid var(--line); background: var(--card-2); color: var(--fg); border-radius: 8px; transition: border-color .12s; }
+#pane-history .chip:hover, #pane-history #histtypes button:hover, .maplayers .histlayers button:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
+#pane-history .pglink:hover, #pane-history .artcard:hover, #pane-history .topiccard:hover, #pane-history .vig:hover, #pane-history .person:hover, .chatcrew .mention:hover {
+  border-color: var(--accent); background: var(--card-2); color: var(--fg); }
+#pane-history .chip.on, #pane-history #histtypes button.on, .maplayers .histlayers button.on, .chat .chatrooms button.on {
+  border-color: var(--accent); color: var(--accent); background: var(--card-2); font-weight: 600; box-shadow: none; }
+#pane-history .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
+#pane-history .topiccard { border-left-width: 4px; }
+#pane-history .vig { border: 1px solid transparent; background: transparent; }
+#pane-history .vig:hover { border-color: var(--accent); }
+#pane-history .person { border: 1px solid transparent; background: transparent; }
+#pane-history .person:hover { border-color: var(--accent); background: transparent; }
 /* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
 #satpill { min-width: 7.2em; text-align: center; }
