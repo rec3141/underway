@@ -43,6 +43,7 @@
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
     communities: store.get("communities", true),        // settlements on the map
     plan: store.get("plan", true),                      // the leg's planned track and stations
+    history: store.get("history", false),               // the History tab's artifacts and voyage tracks
     planData: null, planStamp: null,                    // the plan as published, and which version it is
     sat: store.get("sat", ""),                          // satellite picture under the track: "" | "s1" | "s2"
     satAt: null,                                        // an archived picture's scene time, or null for the newest
@@ -1010,6 +1011,7 @@
         const p = ev.points?.[0];
         if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
+        if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5));
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
       mapMessage("");

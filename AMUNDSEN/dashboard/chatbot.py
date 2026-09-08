@@ -56,6 +56,35 @@ PERSONAS = {
 HANDLE_RX = re.compile(r"@(\w+)")
 
 
+def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
+             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT) -> str:
+    """One answer from the local model. The chat crew and the History tab's
+    historian both come through here, so the backend choice (Ollama, or the
+    OpenAI-style server the camera pipeline runs) is made in one place."""
+    import requests
+    config = json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
+    backend = config.get('api', LLM_API)
+    url = config.get('url', LLM_URL).rstrip('/')
+    model = config.get('model', LLM_MODEL)
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    if backend == 'openai':
+        body = dict(model=model, messages=messages, stream=False, max_tokens=max_tokens, temperature=temperature,
+                    chat_template_kwargs={'enable_thinking': False})
+        endpoint = '/v1/chat/completions'
+    elif backend == 'ollama':
+        body = {"model": model, "stream": False, "think": False, "keep_alive": "3h",
+                "options": {"num_predict": max_tokens, "num_ctx": num_ctx, "temperature": temperature},
+                "messages": messages}
+        endpoint = '/api/chat'
+    else:
+        raise ValueError('Unknown chat API backend')
+    r = requests.post(url + endpoint, json=body, timeout=timeout)
+    r.raise_for_status()
+    result = r.json()
+    message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
+    return (message.get('content') or '').strip()
+
+
 def _num(x, nd=2):
     try:
         return f"{float(x):.{nd}f}"
@@ -129,7 +158,6 @@ class Crew:
 
     # ------------------------------------------------------------ generation
     def _generate(self, handle: str, task: str) -> str | None:
-        import requests
         p = PERSONAS[handle]
         chat = self.read()
         recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-40:])
@@ -146,29 +174,7 @@ class Crew:
                   f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
                   f"DASHBOARD SUMMARY\n{self.context()}\n\nRECENT CHAT (oldest first)\n{recent}")
-        body = {"model": LLM_MODEL, "stream": False, "think": False, "keep_alive": "3h",
-                "options": {"num_predict": MAX_TOKENS, "num_ctx": NUM_CTX, "temperature": 1.0},
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": task}]}
-        # Optional local configuration lets chat share the camera server, without
-        # asking Ollama to auto-load another copy of the model.
-        config = json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
-        backend = config.get('api', LLM_API)
-        url = config.get('url', LLM_URL).rstrip('/')
-        body['model'] = config.get('model', LLM_MODEL)
-        if backend == 'openai':
-            body = dict(model=body['model'], messages=body['messages'], stream=False,
-                        max_tokens=MAX_TOKENS, temperature=1.0,
-                        chat_template_kwargs={'enable_thinking': False})
-            endpoint = '/v1/chat/completions'
-        elif backend == 'ollama':
-            endpoint = '/api/chat'
-        else:
-            raise ValueError('Unknown chat API backend')
-        r = requests.post(url + endpoint, json=body, timeout=TIMEOUT)
-        r.raise_for_status()
-        result = r.json()
-        message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
-        text = (message.get('content') or '').strip()
+        text = complete(system, task, MAX_TOKENS, 1.0)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return text[:2500] or None
 

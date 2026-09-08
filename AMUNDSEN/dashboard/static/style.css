@@ -678,3 +678,53 @@ table#sources { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 tr.spannote td, li.spannote { background: rgba(255, 180, 84, .13); color: var(--accent-2); font-size: 12.5px; padding: 6px 10px; cursor: default; }
 li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .spannote a { color: var(--accent-2); text-decoration: underline; font-weight: 600; }
+
+/* ---- the History tab: a side list, a reader, a timeline strip and the historian */
+.hist-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; min-height: 0; flex: 1; }
+.histside { overflow-y: auto; max-height: 70vh; border-right: 1px solid var(--line); padding-right: 10px; font-size: 13px; }
+.histside .sidehead { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 4px; }
+.histside .topic, .histside .pglink, .histside .artcard { display: block; color: var(--fg); padding: 5px 6px; border-radius: 6px; border-left: 3px solid transparent; }
+.histside .topic:hover, .histside .pglink:hover, .histside .artcard:hover { background: var(--card-2); }
+.histside .topic.on, .histside .pglink.on { border-left-color: var(--accent); background: var(--card-2); }
+.histside .topic b, .histside .pglink { font-weight: 500; }
+.histside .counts, .topiccard .counts { display: block; color: var(--muted); font-size: 11.5px; }
+.pglink .kind, .artcard .kind, .crumb .kind, .artmeta { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 6px; }
+.pglink .sum { display: block; color: var(--muted); font-size: 12px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.histmain { overflow-y: auto; max-height: 70vh; padding-right: 8px; line-height: 1.55; }
+.histmain h2 { font-size: 20px; margin: 4px 0 6px; } .histmain h3 { font-size: 15px; margin: 18px 0 6px; } .histmain h4 { font-size: 14px; margin: 14px 0 4px; }
+.histmain .lead { color: #c9d3de; font-size: 14.5px; }
+.histmain .crumb { color: var(--muted); font-size: 12.5px; } .histmain .crumb a { color: var(--muted); }
+.histmain .wiki p { margin: 0 0 10px; } .histmain .wiki blockquote { border-left: 3px solid var(--accent-2); margin: 8px 0; padding: 4px 12px; color: #d8dee6; font-style: italic; }
+.histmain .wiki ul, .histmain .wiki ol { padding-left: 22px; } .histmain .wiki li { margin: 2px 0; }
+.histmain .wiki table, .histmain .waypoints { border-collapse: collapse; font-size: 12.5px; margin: 8px 0; }
+.histmain .wiki th, .histmain .wiki td, .histmain .waypoints th, .histmain .waypoints td { border-bottom: 1px solid var(--line); padding: 3px 8px; text-align: left; vertical-align: top; }
+.histmain .wiki img { max-width: 100%; border-radius: 6px; }
+.histmain figure { margin: 8px 0 14px; } .histmain figure img { max-width: 100%; max-height: 420px; border-radius: 8px; border: 1px solid var(--line); }
+.histmain figcaption { color: var(--muted); font-size: 11.5px; margin-top: 4px; }
+.histmain .wanted { border-bottom: 1px dashed var(--muted); color: #c9d3de; cursor: help; }
+.histmain .artmeta { margin-bottom: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; text-transform: none; font-size: 12.5px; }
+.histmain .backlinks { margin-top: 18px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12.5px; display: flex; gap: 8px 12px; flex-wrap: wrap; }
+.histmain .backlinks .lbl, .histanswer .used .lbl { color: var(--muted); }
+.topicgrid, .artgrid, .pagelist { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); margin: 10px 0; }
+.topiccard { display: block; background: var(--card-2); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 8px 10px; color: var(--fg); }
+.topiccard b { display: block; margin-bottom: 2px; } .topiccard span { display: block; color: var(--muted); font-size: 12px; }
+.topiccard:hover { border-color: var(--accent); }
+.artgrid .artcard { display: grid; grid-template-columns: 1fr; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--fg); font-size: 12.5px; }
+.artgrid .artcard:hover { border-color: var(--accent); }
+.artcard .thumb { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; margin-bottom: 6px; background: #0b1620; }
+.artcard .when, .artcard .who { color: var(--muted); font-size: 11.5px; }
+.pagelist .pglink { background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--fg); }
+.histyears { gap: 6px; } .histyears .lbl { color: var(--muted); font-size: 12.5px; }
+.histyears input[type=number] { width: 68px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font: inherit; font-size: 12.5px; }
+#histtypes button .dot { margin-right: 4px; }
+.histtimeline { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+.histask { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+.histask input { flex: 1; min-width: 240px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; font: inherit; }
+.histask button { background: var(--accent); color: #062033; border: 0; border-radius: 7px; padding: 6px 14px; font: inherit; font-weight: 650; cursor: pointer; }
+.histask button:disabled { opacity: .5; cursor: wait; }
+.histanswer { flex-basis: 100%; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; line-height: 1.55; }
+.histanswer .q { color: var(--muted); font-style: italic; margin-bottom: 6px; } .histanswer .a p { margin: 0 0 8px; }
+.histanswer .cite { border-bottom: 1px dotted var(--accent); }
+.histanswer .used { margin-top: 6px; font-size: 12px; display: flex; gap: 8px 12px; flex-wrap: wrap; }
+@media (max-width: 900px) { .hist-layout { grid-template-columns: 1fr; } .histside { max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); } .histmain { max-height: none; } }

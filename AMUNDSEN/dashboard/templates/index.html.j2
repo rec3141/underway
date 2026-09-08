@@ -22,6 +22,7 @@
     <button data-tab="underway" class="on" role="tab">Underway</button>
     <button data-tab="casts" role="tab">Casts</button>
     <button data-tab="table" role="tab">Table</button>
+    <button data-tab="history" role="tab" title="the region's history: voyages, people, places and artifacts on the map, with a wiki and a historian to ask">History</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
   </nav>
   <div class="pickhint phone">Select leg and time span:</div>
@@ -69,6 +70,7 @@
       <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
       <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
       <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
+      <button data-layer="history" title="historical voyages, wrecks, winterings, places and artifacts from the History tab; click one to read about it" hidden>History</button>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>
@@ -142,6 +144,29 @@
       <div class="tablewrap"><table id="stationtable"></table></div>
     </div>
 
+    <div class="pane" id="pane-history" hidden>
+      <div class="pane-tools compact">
+        <input type="search" id="histsearch" placeholder="search the wiki: voyages, people, places, artifacts">
+        <select id="histtopic" title="one topic, or all of them"><option value="">all topics</option></select>
+        <div class="group seg small" id="histtypes" title="which kinds of artifact the map and the lists show"></div>
+        <span class="group histyears" title="only things dated inside these years (blank: all)"><span class="lbl">Years</span><input type="number" id="histfrom" placeholder="from" step="1"><input type="number" id="histto" placeholder="to" step="1"></span>
+        <button type="button" id="histmap" class="chip" title="draw the shown artifacts and tracks on the map">Map</button>
+        <button type="button" id="histtl" class="chip" title="a timeline of the shown topics: spans as bars, moments as dots">Timeline</button>
+        <a id="histbib" class="chip" href="data/history/references.bib" download title="the bibliography of everything cited, as BibTeX">BibTeX</a>
+        <span class="muted" id="histmeta"></span>
+      </div>
+      <div class="histtimeline" id="histtimeline" hidden></div>
+      <div class="hist-layout">
+        <nav class="histside" id="histside"></nav>
+        <article class="histmain" id="histmain"><div class="empty">Loading the history…</div></article>
+      </div>
+      <form class="histask" id="histask" autocomplete="off">
+        <input id="histq" placeholder="ask the historian about what you are reading, or about the region's past…" maxlength="600">
+        <button type="submit" id="histgo" title="the local model answers from the wiki and cites its pages">Ask</button>
+        <div class="histanswer" id="histanswer" hidden></div>
+      </form>
+    </div>
+
     <div class="pane" id="pane-table" hidden>
       <div class="pane-tools">
         <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
@@ -201,6 +226,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/camera-track.js?v={{ site.asset_version }}"></script>
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
+<script src="static/history.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
 </body>
 </html>

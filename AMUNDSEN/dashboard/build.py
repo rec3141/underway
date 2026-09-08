@@ -23,6 +23,7 @@ import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
+from . import history
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from . import plan, satellite
@@ -579,6 +580,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
         "satellite": satellite.publish(root),           # recent Sentinel pictures around the ship, or None
         "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
+        "history": history.publish(root),               # the History tab's wiki and artifacts, or None
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 
@@ -607,7 +609,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "app.js", "tabs.js", "chat.js", "camera-track.js", "style.css"):
+    for name in ("data.js", "app.js", "tabs.js", "chat.js", "camera-track.js", "history.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
     # too many files for the share or the repository — and the server maps
