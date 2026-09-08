@@ -325,6 +325,16 @@
       return;
     }
     if (hist.slug === "timeline") { el.innerHTML = crumb("Timeline") + timelineHTML(); wireTimeline(); return; }
+    if (hist.slug === "people") {
+      // everyone in the record, by name, with what they were and when
+      const people = [...hist.people].filter((p) => !hist.topic || p.topic === hist.topic).sort((a, b) => a.name.localeCompare(b.name));
+      const life = (p) => [p.born, p.died].some(Boolean) ? ` <span class="muted mono">${esc(dateLabel(p.born || "?"))}–${esc(dateLabel(p.died || ""))}</span>` : "";
+      let letter = "";
+      el.innerHTML = crumb("People") + `<h2>People <span class="muted">${people.length}</span></h2><div class="peoplelist">` +
+        people.map((p) => { const L = p.name[0].toUpperCase(); const head = L !== letter ? `<h3>${esc(L)}</h3>` : ""; letter = L;
+          return head + `<a class="person ${p.indigenous ? "inuit" : ""}" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${p.also ? ` <span class="muted">(${esc(p.also)})</span>` : ""}${life(p)}${p.role ? `<span class="role">${esc(p.role)}</span>` : ""}</a>`; }).join("") + `</div>`;
+      return;
+    }
     if (hist.slug === "bib") {
       const bib = await bibliography();
       const sorted = [...bib].sort((a, b) => (a.author || a.title || "").localeCompare(b.author || b.title || ""));
@@ -426,6 +436,7 @@
     const m = $("#histmeta"); if (!hist.index) { m.textContent = ""; return; }
     m.textContent = `${shownArtifacts().length} of ${hist.artifacts.length} artifacts`;
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
+    $("#histpeople").classList.toggle("on", hist.slug === "people");
     $("#histtl").classList.toggle("on", hist.slug === "timeline");
     $("#histmla").classList.toggle("on", hist.slug === "bib");
   }
@@ -503,7 +514,7 @@
   };
 
   // ---------------------------------------------------------------- Ada
-  UW.historyContext = () => (hist.slug && !["explore", "timeline", "bib"].includes(hist.slug) && !hist.slug.startsWith("topic/")) ? hist.slug : "";
+  UW.historyContext = () => (hist.slug && !["explore", "timeline", "bib", "people"].includes(hist.slug) && !hist.slug.startsWith("topic/")) ? hist.slug : "";
   UW.historyOpen = (slug) => open(slug);
 
   // ---------------------------------------------------------------- wiring
@@ -511,6 +522,7 @@
     $("#histsearch").oninput = debounce((e) => { hist.search = e.target.value; renderMain(); }, 150);
     $("#histtopic").onchange = (e) => { hist.topic = e.target.value; store.set("hist.topic", hist.topic); if (hist.topic) open(`topic/${hist.topic}`); else open(""); };
     $("#histexplore").onclick = () => open(hist.slug === "explore" ? "" : "explore");
+    $("#histpeople").onclick = () => open(hist.slug === "people" ? "" : "people");
     $("#histtl").onclick = () => open(hist.slug === "timeline" ? "" : "timeline");
     $("#histmla").onclick = () => open(hist.slug === "bib" ? "" : "bib");
     $("#histask").onclick = () => UW.chatRoom?.("ada");

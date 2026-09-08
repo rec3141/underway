@@ -815,3 +815,10 @@ table.sched.timeline td:first-child { white-space: nowrap; }
 table.sched.timeline .dot { margin-right: 5px; }
 ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { margin: 4px 0; }
 .mlaline { font-size: 13px; color: #c9d3de; } .mlaline .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 6px; }
+
+/* the people list */
+.peoplelist h3 { font-size: 13px; color: var(--accent-2); margin: 14px 0 4px; }
+.peoplelist .person { display: block; color: var(--fg); padding: 3px 6px; border-radius: 6px; font-size: 13px; }
+.peoplelist .person:hover { background: var(--card-2); }
+.peoplelist .person.inuit b { border-bottom: 2px solid var(--accent-2); }
+.peoplelist .role { display: block; color: var(--muted); font-size: 12px; }
