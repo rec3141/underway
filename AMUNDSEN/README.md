@@ -279,7 +279,7 @@ swaps them in):
 
 ```sh
 tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
-    "$UNDERWAY_TILES_DIR/gebco" -180 -90 180 90 0-8      # the globe, ~1 h on 32 cores
+    "$UNDERWAY_TILES_DIR/gebco" -180 -90 180 90 0-8      # the globe, ~6 min on 32 cores
 tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
     "$UNDERWAY_TILES_DIR/gebco" -150 45 -15 86 9-9       # the Arctic box at z9
 ```
