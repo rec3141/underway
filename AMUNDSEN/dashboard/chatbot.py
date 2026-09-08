@@ -611,6 +611,8 @@ class Crew:
                     if pages:
                         text, refs = chat.link_citations(text, [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages])
                         meta = {"refs": refs} if refs else None
+                    if handle == "ada":
+                        text = chat.link_entities(text)     # every person and place she names, to its page
                     self.post(p["name"], p["emoji"], text, channel, meta)
                     self.last_bot = time.time()
             except ModelOffline as e:

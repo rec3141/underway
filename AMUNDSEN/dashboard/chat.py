@@ -362,5 +362,68 @@ def link_citations(text: str, pages: list[dict]) -> tuple[str, list[dict]]:
     return text, refs
 
 
+# ---------------------------------------------------------------- names and places
+_gaz_cache: dict = {"stamp": None, "entries": []}
+
+
+def gazetteer() -> list[tuple[str, str]]:
+    """(name, page slug) for every published person and place, every spelling
+    the record gives, longest names first so 'James Clark Ross' is found before
+    'Ross'. Rebuilt when the publish changes."""
+    if not ROOT:
+        return []
+    files = [ROOT / "data" / "history" / "people.json", ROOT / "data" / "history" / "places.json"]
+    stamp = tuple(f.stat().st_mtime if f.is_file() else 0 for f in files)
+    if _gaz_cache["stamp"] == stamp:
+        return _gaz_cache["entries"]
+    entries: dict[str, str] = {}
+    try:
+        for p in json.loads(files[0].read_text()).get("people", []) if files[0].is_file() else []:
+            for n in [p.get("name")] + [x.strip() for x in (p.get("also") or "").split(";")]:
+                if n and len(n) >= 5 and n[0].isupper():
+                    entries.setdefault(n, p["page"])
+        for p in json.loads(files[1].read_text()).get("places", []) if files[1].is_file() else []:
+            for n in (p.get("name"), p.get("historic"), p.get("inuktitut")):
+                if n and len(n) >= 5 and n[0].isupper():
+                    entries.setdefault(n, p["page"])
+    except (OSError, ValueError) as e:
+        log.info("gazetteer unreadable: %s", e)
+    out = sorted(entries.items(), key=lambda kv: -len(kv[0]))
+    _gaz_cache.update(stamp=stamp, entries=out)
+    return out
+
+
+_LINK_SPAN_RX = re.compile(r"\[[^\]]*\]\([^)]*\)")
+
+
+def link_entities(text: str) -> str:
+    """The first plain mention of any published person or place becomes a
+    link to its page. Existing links are left alone; a name inside one is
+    not linked again."""
+    gaz = gazetteer()
+    if not gaz or not text:
+        return text
+    # work on the stretches between existing links, so a link is never nested
+    parts, last = [], 0
+    for m in _LINK_SPAN_RX.finditer(text):
+        parts.append([text[last:m.start()], True]); parts.append([m.group(0), False]); last = m.end()
+    parts.append([text[last:], True])
+    linked_text = " ".join(p[0] for p in parts if not p[1])
+    done = set()
+    for name, slug in gaz:
+        if slug in done or name in linked_text:
+            continue
+        rx = re.compile(r"(?<![\w@#/-])" + re.escape(name) + r"(?![\w/(-])")
+        for part in parts:
+            if not part[1]:
+                continue
+            m = rx.search(part[0])
+            if m:
+                part[0] = part[0][:m.start()] + f"[{name}](#history/{slug})" + part[0][m.end():]
+                done.add(slug)
+                break
+    return "".join(p[0] for p in parts)
+
+
 def new_token() -> str:
     return secrets.token_urlsafe(18)
