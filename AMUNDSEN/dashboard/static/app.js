@@ -43,6 +43,7 @@
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
     communities: store.get("communities", true),        // settlements on the map
     plan: store.get("plan", true),                      // the leg's planned track and stations
+    history: store.get("history", false),               // the History tab's artifacts and voyage tracks
     planData: null, planStamp: null,                    // the plan as published, and which version it is
     sat: store.get("sat", ""),                          // satellite picture under the track: "" | "s1" | "s2"
     satAt: null,                                        // an archived picture's scene time, or null for the newest
@@ -454,54 +455,72 @@
   const DEPTH_FILL = [[0, "#28556f"], [200, "#234b66"], [1000, "#1d405b"], [2000, "#183650"], [3000, "#142d45"],
     [4000, "#10253a"], [5000, "#0d1e30"], [6000, "#0a1828"], [7000, "#081422"], [8000, "#07111d"], [9000, "#060e19"], [10000, "#050c15"]];
 
+  // The basemap lives in the MapLibre style, not in Plotly's layer list.
+  // Plotly drops and re-adds its layout layers on every react, which made
+  // MapLibre re-tile five megabytes of coastline on each redraw; a style is
+  // loaded once and only re-diffed when its id changes. With a GEBCO raster
+  // the shaded relief carries bathymetry and land, so those files are neither
+  // fetched nor drawn.
   async function loadGeo() {
     if (state.geoComplete) return;
     if (!SITE.geo_layers?.length) { state.geoComplete = true; return; }
     const get = async (name) => {
       try { return await fetchJSON(`static/geo/${name}`, { cache: "default" }); } catch { return null; }
     };
-    const [bathy, land, glac, coast, isl, comm] = await Promise.all(
-      ["bathymetry.geojson", "land.geojson", "glaciated_areas.geojson", "coastline.geojson", "minor_islands.geojson", "communities.geojson"].map(get));
+    const relief = !!SITE.raster;
+    const names = { glac: "glaciated_areas.geojson", coast: "coastline.geojson", comm: "communities.geojson",
+                    ...(relief ? {} : { bathy: "bathymetry.geojson", land: "land.geojson", isl: "minor_islands.geojson" }) };
+    const got = Object.fromEntries(await Promise.all(Object.entries(names).map(async ([k, n]) => [k, await get(n)])));
     // settlements (GeoNames): kept as points for a marker trace, not a style layer
-    state.communities_data = comm ? comm.features.map((f) => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], ...f.properties })) : [];
-    const layers = [];
-    if (bathy) {
-      const byDepth = {};
-      for (const f of bathy.features) (byDepth[f.properties.depth] ||= []).push(f);
-      for (const [depth, color] of DEPTH_FILL) {
-        if (!byDepth[depth]) continue;
-        layers.push({ sourcetype: "geojson", source: { type: "FeatureCollection", features: byDepth[depth] },
-          type: "fill", color, opacity: 1, below: "traces", name: "bathy" });
-      }
+    state.communities_data = got.comm ? got.comm.features.map((f) => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], ...f.properties })) : [];
+    const geo = { glac: got.glac, coast: got.coast, land: got.land, isl: got.isl, bathy: {} };
+    if (got.bathy) {                                       // one source per depth band, each its own fill
+      for (const f of got.bathy.features) (geo.bathy[f.properties.depth] ||= []).push(f);
+      for (const d in geo.bathy) geo.bathy[d] = { type: "FeatureCollection", features: geo.bathy[d] };
     }
-    if (land) layers.push({ sourcetype: "geojson", source: land, type: "fill", color: "#2b3441", below: "traces", name: "land" });
-    if (isl) layers.push({ sourcetype: "geojson", source: isl, type: "fill", color: "#2b3441", below: "traces", name: "land" });
-    if (glac) layers.push({ sourcetype: "geojson", source: glac, type: "fill", color: "#dfe7ef", opacity: .9, below: "traces", name: "ice" });
-    if (coast) layers.push({ sourcetype: "geojson", source: coast, type: "line", color: "#8ea3ba", line: { width: 1 }, below: "traces", name: "coast" });
-    state.geo = layers;
-    state.geoComplete = [bathy, land, glac, coast, isl].every(Boolean);
+    state.geoSources = geo;
+    state.geoStamp = (state.geoStamp || 0) + 1;            // a new style id: the map takes the basemap in once
+    state.geoComplete = Object.keys(names).filter((k) => k !== "comm").every((k) => got[k]);
     setLoadError("Basemap", !state.geoComplete);
   }
 
   // The GEBCO pyramid goes into the style as a proper source so MapLibre knows
   // its maxzoom and scales the deepest tiles at closer zooms; a Plotly layer
   // shorthand cannot say that, and the raster simply vanished past zoom 9.
-  function mapStyle(withRaster) {
+  // The satellite pictures go in too, under the coastline, so the shore stays
+  // legible over them. The style's id names everything in it: Plotly reloads
+  // the style only when the id changes, and MapLibre applies that as a diff.
+  function mapStyle(sat, near) {
     // Plotly can drop an empty `sources` object on a subsequent react(),
     // which MapLibre rejects on installations without raster tiles.
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
-    const style = { version: 8, sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
+    const relief = !!SITE.raster;
+    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${sat?.url || ""}|${near?.url || ""}`,
+                    sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
                     sprite: base0 + (SITE.sprite || "static/geo/sprite"),   // squares, triangles, the ship (tools/make_sprite.py); versioned by the build
                     // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
                     // Open Sans Regular PBFs are served locally so it works offline
                     glyphs: base0 + "static/geo/glyphs/{fontstack}/{range}.pbf",
                     layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
-    if (withRaster && SITE.raster) {
-      const base = location.origin + location.pathname.replace(/[^/]*$/, "");
-      style.sources.gebco = { type: "raster", tiles: [base + SITE.raster.url], tileSize: 256,
+    if (relief) {
+      style.sources.gebco = { type: "raster", tiles: [base0 + SITE.raster.url], tileSize: 256,
                               minzoom: SITE.raster.minzoom, maxzoom: SITE.raster.maxzoom, attribution: SITE.raster.attribution };
       style.layers.push({ id: "gebco", type: "raster", source: "gebco", paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
     }
+    const g = state.geoSources || {};
+    const add = (id, data, layer) => { if (!data) return; style.sources[id] = { type: "geojson", data }; style.layers.push({ id, source: id, ...layer }); };
+    if (!relief) {
+      for (const [depth, color] of DEPTH_FILL) add(`bathy-${depth}`, g.bathy?.[depth], { type: "fill", paint: { "fill-color": color, "fill-opacity": 1 } });
+      add("land", g.land, { type: "fill", paint: { "fill-color": "#2b3441" } });
+      add("islands", g.isl, { type: "fill", paint: { "fill-color": "#2b3441" } });
+    }
+    add("ice", g.glac, { type: "fill", paint: { "fill-color": "#dfe7ef", "fill-opacity": relief ? .35 : .9 } });
+    for (const [id, im, op] of [["sat", sat, .95], ["satnear", near, 1]]) {
+      if (!im) continue;
+      style.sources[id] = { type: "image", url: new URL(im.url, location.href).href, coordinates: im.corners };
+      style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": op } });
+    }
+    add("coast", g.coast, { type: "line", paint: { "line-color": "#8ea3ba", "line-width": 1 } });
     return style;
   }
 
@@ -536,21 +555,39 @@
   }
   // The event log comes from data/calendar.json (the Agenda's file); fetched
   // once per build while the layer is on, then grouped by position so several
-  // events at one spot share one marker and one hover.
-  const evlog = { stamp: null, events: null, loading: false };
-  function ensureEvents() {
-    if (evlog.stamp === M.generated_utc || evlog.loading) return;
-    evlog.loading = true;
-    fetchJSON(`${M.calendar.file}?v=${encodeURIComponent(M.generated_utc)}`)
-      .then((c) => { evlog.events = c.events || []; evlog.stamp = M.generated_utc; renderMap(); })
-      .catch(() => {})
-      .finally(() => { evlog.loading = false; });
+  // events at one spot share one marker and one hover. The legs before the
+  // current ones sit in the calendar archive (M.calendar.archive), fetched
+  // only when the filter reaches them and kept across builds by its stamp.
+  const evlog = { stamp: null, events: null, loading: false, archive: { stamp: null, events: null, loading: false } };
+  function archiveWanted(f) {
+    const a = M.calendar?.archive; if (!a) return false;
+    if ((a.legs || []).some((id) => f.legs.has(id))) return true;
+    const before = tms(a.before);
+    return !isNaN(before) && f.start < before;
+  }
+  function ensureEvents(f) {
+    if (evlog.stamp !== M.generated_utc && !evlog.loading) {
+      evlog.loading = true;
+      fetchJSON(`${M.calendar.file}?v=${encodeURIComponent(M.generated_utc)}`)
+        .then((c) => { evlog.events = c.events || []; evlog.stamp = M.generated_utc; renderMap(); })
+        .catch(() => {})
+        .finally(() => { evlog.loading = false; });
+    }
+    const a = M.calendar?.archive, ar = evlog.archive;
+    if (a && archiveWanted(f) && ar.stamp !== a.stamp && !ar.loading) {
+      ar.loading = true;
+      fetchJSON(`${a.file}?v=${encodeURIComponent(a.stamp)}`)
+        .then((c) => { ar.events = c.events || []; ar.stamp = a.stamp; renderMap(); })
+        .catch(() => {})
+        .finally(() => { ar.loading = false; });
+    }
   }
   function eventTraces(f) {
     if (!state.events) return [];
-    ensureEvents();
+    ensureEvents(f);
     if (!evlog.events) return [];
-    const ok = evlog.events.filter((e) => e.lat != null && e.lon != null && isFinite(+e.lat) && isFinite(+e.lon) && Math.abs(+e.lat) <= 90 && Math.abs(+e.lon) <= 180
+    const all = archiveWanted(f) && evlog.archive.events ? [...evlog.archive.events, ...evlog.events] : evlog.events;
+    const ok = all.filter((e) => e.lat != null && e.lon != null && isFinite(+e.lat) && isFinite(+e.lon) && Math.abs(+e.lat) <= 90 && Math.abs(+e.lon) <= 180
       && !(+e.lat === 0 && +e.lon === 0) && inFilter(e.leg, e.time_utc, f));
     const groups = new Map();
     for (const e of ok) { const k = `${(+e.lat).toFixed(4)},${(+e.lon).toFixed(4)}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
@@ -977,24 +1014,12 @@
     });
 
     const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
-    // With a GEBCO tile pyramid the shaded raster carries both bathymetry and
-    // land relief, so the Natural Earth depth bands and land fills stay out of
-    // the way (glaciers become a light wash, coastlines stay); without it the
-    // bands stand in for the bathymetry.
-    const relief = !!SITE.raster;
-    const layers = [];
-    const sat = state.sat && satPicture();
-    if (sat) layers.push({ sourcetype: "image", source: sat.url, coordinates: sat.corners, opacity: .95, below: "traces", name: "sat" });
-    // the newest radar at 50 m in a box round the ship lies over the region picture
-    const near = state.sat === "s1" && !state.satAt && satImages().s1near;
-    if (near) layers.push({ sourcetype: "image", source: near.url, coordinates: near.corners, opacity: 1, below: "traces", name: "satnear" });
-    for (const l of (state.geo || [])) {
-      if (l.name === "bathy" && SITE.raster) continue;
-      if (l.name === "land" && relief) continue;
-      layers.push(l.name === "ice" && relief ? { ...l, opacity: .35 } : l);
-    }
+    // the satellite picture under the track, and the newest radar at 50 m in
+    // a box round the ship over it: both go into the style with the basemap
+    const sat = (state.sat && satPicture()) || null;
+    const near = (state.sat === "s1" && !state.satAt && satImages().s1near) || null;
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
-                     map: { style: mapStyle(true), center: view.center, zoom: view.zoom, layers } };
+                     map: { style: mapStyle(sat, near), center: view.center, zoom: view.zoom, layers: [] } };
     mapDrawing = true;
     Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(() => {
       state.fitPending = false;
@@ -1010,6 +1035,7 @@
         const p = ev.points?.[0];
         if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
+        if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5));
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
       mapMessage("");
@@ -1047,6 +1073,19 @@
     return result;
   }
 
+  // A panel draws when it is in view. Two dozen panels redraw with every
+  // build, and drawing a coloured SVG marker per point is the page's main
+  // cost, so the panels scrolled past (or behind another tab) keep their
+  // new data and draw when they are looked at.
+  const inView = new Set();
+  const panelWatch = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+    let due = false;
+    for (const e of entries) {
+      if (e.isIntersecting) { inView.add(e.target.dataset.name); if (e.target.dataset.stale) due = true; }
+      else inView.delete(e.target.dataset.name);
+    }
+    if (due) for (const el of $("#panels").children) if (el.dataset.stale && inView.has(el.dataset.name)) renderPanel(el.dataset.name);
+  }, { rootMargin: "200px 0px" }) : null;
   function panelEl(name) {
     let el = document.getElementById("p-" + cssId(name));
     if (el) return el;
@@ -1087,6 +1126,7 @@
       state.order = order; store.set("order", order);
       layoutPanels();
     });
+    panelWatch?.observe(el);
     return el;
   }
 
@@ -1165,6 +1205,8 @@
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
+    if (panelWatch && !inView.has(name)) { el.dataset.stale = "1"; return; }     // drawn when scrolled into view
+    delete el.dataset.stale;
     if (extraPanels.has(name)) {
       extraPanels.get(name).render(el, plot);
       // their own draw queues before this, so the drag mode lands after it
@@ -1240,10 +1282,35 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot);
+    // Most builds change nothing this panel shows (a long span's last bin,
+    // or nothing at all when a minute's data already arrived), so a draw
+    // whose data and layout match the one on screen is skipped; the click
+    // handler is rebound to this build's data either way.
+    const onClick = () => {
       plot.removeAllListeners?.('plotly_click');
       plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
-    });
+    };
+    const sig = drawSignature(traces, layout, on);
+    if (plot.data && plot._uwSig === sig) { onClick(); return; }
+    plot._uwSig = sig;
+    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot); onClick(); });
+  }
+  // what a draw depends on, small enough to compare every build: each
+  // array's length, ends and a weighted sum of its values (strings hashed
+  // by sample), and the layout as a whole
+  function drawSignature(traces, layout, on) {
+    const digest = (a) => {
+      if (!a || !a.length) return "-";
+      let s = 0, n = 0, h = 0;
+      for (let i = 0; i < a.length; i++) {
+        const v = a[i];
+        if (typeof v === "number") { if (isFinite(v)) { s += v * ((i % 7) + 1); n++; } }
+        else if (v != null && i % 13 === 0) { const t = String(v); for (let j = 0; j < t.length; j++) h = (h * 31 + t.charCodeAt(j)) | 0; }
+      }
+      return `${a.length}:${n}:${s.toPrecision(12)}:${h}:${a[0]}:${a[a.length - 1]}`;
+    };
+    const parts = traces.map((t) => `${t.type}/${t.mode}|${digest(t.x)}|${digest(t.y)}|${digest(t.marker?.color)}|${t.marker?.cmin}|${t.marker?.cmax}|${t.marker?.colorscale}|${t.hovertemplate}`);
+    return `${on}#${parts.join("#")}#${JSON.stringify(layout)}`;
   }
 
   function renderPanels() {
@@ -1272,6 +1339,8 @@
   // ------------------------------------------------------------ data flow
   function applyAndRender() {
     if (!state.raw) return;
+    // a remembered colour the page no longer offers (a module gone) falls back to the default
+    if (!VAR[state.colour] && !extraColours.has(state.colour)) { state.colour = VAR["SST (°C)"] ? "SST (°C)" : M.variables[0]?.name; store.set("colour", state.colour); renderControls(); }
     state.data = applyLegFilter(state.raw);
     renderLegMenu();
     render();
@@ -1442,7 +1511,10 @@
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown, toast,
-    refreshExtraData() { render(); },
+    refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
+      if (extraColours.has(state.colour)) render();
+      else for (const name of extraPanels.keys()) renderPanel(name);
+    },
     clearFocus() { state.focus = null; },
     moveShip,
     registerPanel(name, spec) {
@@ -1456,7 +1528,7 @@
       layoutPanels(); renderPanel(name);
     },
     linkX,
-    registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); render(); },
+    registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); if (state.colour === spec.name) render(); },
     selectColour(name) { state.colour=name; store.set('colour',name); renderControls(); render(); },
   });
   Object.defineProperty(window.UW, "M", { get: () => M, configurable: true });

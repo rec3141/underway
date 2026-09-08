@@ -107,7 +107,23 @@ def _chat_conn() -> sqlite3.Connection:
     cols = {r[1] for r in c.execute("PRAGMA table_info(messages)")}
     if "emoji" not in cols:
         c.execute("ALTER TABLE messages ADD COLUMN emoji TEXT")
+    if "channel" not in cols:
+        # two rooms share the one log: the crew's chat and the historian's
+        c.execute("ALTER TABLE messages ADD COLUMN channel TEXT NOT NULL DEFAULT 'crew'")
+        c.execute("CREATE INDEX IF NOT EXISTS messages_channel ON messages (channel, id)")
+    if "meta" not in cols:
+        c.execute("ALTER TABLE messages ADD COLUMN meta TEXT")       # JSON: the pages an answer drew on
     return c
+
+
+CHANNELS = ("crew", "historian")
+HISTORIAN = {"name": "Historian", "emoji": "📜", "handle": "historian"}
+ROOT: Path | None = None                    # the web root, for the historian's wiki
+_asking: set[str] = set()                   # channels with an answer in flight, for the typing line
+
+
+def _channel(v: str) -> str:
+    return v if v in CHANNELS else "crew"
 
 
 def _clean_emoji(e: str) -> str:
@@ -115,7 +131,8 @@ def _clean_emoji(e: str) -> str:
     return e[:8] if e and "<" not in e else ""
 
 
-def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None = None) -> dict:
+def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None = None, channel: str = "crew") -> dict:
+    channel = _channel(channel)
     now = time.time()
     with _chat_lock:
         if name:
@@ -130,14 +147,26 @@ def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None =
         c = _chat_conn()
         try:
             if since > 0:
-                rows = c.execute("SELECT id, t, name, text, emoji FROM messages WHERE id > ? ORDER BY id", (since,)).fetchall()
+                rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? AND id > ? ORDER BY id",
+                                 (channel, since)).fetchall()
             else:
-                rows = c.execute("SELECT id, t, name, text, emoji FROM messages ORDER BY id DESC LIMIT ?", (CHAT_PAGE,)).fetchall()[::-1]
+                rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? ORDER BY id DESC LIMIT ?",
+                                 (channel, CHAT_PAGE)).fetchall()[::-1]
+            latest = {ch: mid or 0 for ch, mid in c.execute("SELECT channel, MAX(id) FROM messages GROUP BY channel")}
         finally:
             c.close()
-    typing = sorted(CREW.typing) if CREW else []
-    return {"messages": [{"id": i, "t": t, "name": n, "text": x, "emoji": e or ""} for i, t, n, x, e in rows],
-            "online": online, "typing": typing, "crew": crew_list(), "model": crew_model(), "now": now}
+    typing = (sorted(CREW.typing) if CREW and channel == "crew" else []) + (["historian"] if channel in _asking else [])
+    msgs = []
+    for i, t, n, x, e, meta in rows:
+        m = {"id": i, "t": t, "name": n, "text": x, "emoji": e or ""}
+        if meta:
+            try:
+                m["meta"] = json.loads(meta)
+            except ValueError:
+                pass
+        msgs.append(m)
+    return {"messages": msgs, "online": online, "typing": typing, "crew": crew_list(channel), "model": crew_model(),
+            "channel": channel, "latest": {ch: latest.get(ch, 0) for ch in CHANNELS}, "now": now}
 
 
 def crew_model() -> str:
@@ -145,12 +174,16 @@ def crew_model() -> str:
     return LLM_MODEL if CREW and CREW.enabled else ""
 
 
-def crew_list() -> list[dict]:
+def crew_list(channel: str = "crew") -> list[dict]:
     from .chatbot import PERSONAS
+    if channel == "historian":
+        return [dict(HISTORIAN)] if CREW and CREW.enabled else []
     return [{"handle": h, "name": p["name"], "emoji": p["emoji"]} for h, p in PERSONAS.items()] if CREW and CREW.enabled else []
 
 
-def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False) -> dict:
+def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False, channel: str = "crew",
+              meta: dict | None = None, slug: str = "") -> dict:
+    channel = _channel(channel)
     name = " ".join(name.split())[:NAME_MAX] or "anon"
     text = text.strip()[:TEXT_MAX if not bot else 2600]
     emoji = _clean_emoji(emoji)
@@ -167,15 +200,36 @@ def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = Fals
                 _emoji[name] = emoji
         c = _chat_conn()
         try:
-            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji) VALUES (?, ?, ?, ?, ?)", (now, addr, name, text, emoji))
+            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji, channel, meta) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (now, addr, name, text, emoji, channel, json.dumps(meta) if meta else None))
             c.execute("DELETE FROM messages WHERE id <= (SELECT MAX(id) FROM messages) - ?", (CHAT_KEEP,))
             c.commit()
             mid = cur.lastrowid
         finally:
             c.close()
-    if not bot and CREW:
+    if not bot and channel == "crew" and CREW:
         CREW.on_message(name, text)
+    if not bot and channel == "historian":
+        threading.Thread(target=_historian_reply, args=(text, slug), daemon=True).start()
     return {"ok": True, "id": mid, "t": now}
+
+
+def _historian_reply(question: str, slug: str) -> None:
+    """Answer a question posted in the historian's room, from the wiki, and
+    post it as the Historian with the pages it read."""
+    if not ROOT or not (CREW and CREW.enabled):
+        return
+    _asking.add("historian")
+    try:
+        r = history_ask(ROOT, question, slug)
+        chat_post("historian", HISTORIAN["name"], r["answer"], HISTORIAN["emoji"], bot=True, channel="historian",
+                  meta={"pages": r["pages"]})
+    except ValueError as e:
+        chat_post("historian", HISTORIAN["name"], str(e), HISTORIAN["emoji"], bot=True, channel="historian")
+    except Exception as e:                   # noqa: BLE001
+        log.info("historian stayed quiet (%s)", e)
+    finally:
+        _asking.discard("historian")
 
 
 # Raster tile pyramids are hundreds of thousands of small files; they are kept
@@ -186,6 +240,11 @@ from .config import CAMERA_OUTPUT
 
 
 class Handler(SimpleHTTPRequestHandler):
+    # The basemap is GeoJSON, a megabyte a file. Served as application/geo+json
+    # the front proxy leaves it uncompressed (its compression list does not
+    # know the type); as application/json it goes out gzipped at a quarter the size.
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".geojson": "application/json"}
+
     def log_message(self, fmt, *args):          # only failures are worth a line
         if str(args[1:2]).startswith(("('4", "('5")):
             log.info("%s %s", self.address_string(), fmt % args)
@@ -229,6 +288,35 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(200, LIVE.status() if LIVE else {"tcp": "", "tcp_state": "off"})
         if u.path == "/api/intranet":
             return self._json(200, INTRANET.status() if INTRANET else {"sections": [], "error": "not polling"})
+        if u.path == "/history/requests":
+            # the review page for the research crew's requests: downloads over
+            # the limit, API keys, questions a person has to answer
+            from .history import connect, list_requests
+            try:
+                c = connect(create=False)
+                try:
+                    rows = list_requests(c)
+                finally:
+                    c.close()
+            except FileNotFoundError:
+                rows = []
+            data = requests_page(rows).encode()
+            self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data))); self.send_header("Cache-Control", "no-store")
+            SimpleHTTPRequestHandler.end_headers(self)
+            self.wfile.write(data)
+            return
+        if u.path == "/api/history/requests":
+            from .history import connect, list_requests
+            q = parse_qs(u.query)
+            try:
+                c = connect(create=False)
+                try:
+                    return self._json(200, {"requests": list_requests(c, q.get("status", [None])[0])})
+                finally:
+                    c.close()
+            except FileNotFoundError:
+                return self._json(200, {"requests": []})
         if u.path == "/api/chat":
             q = parse_qs(u.query)
             try:
@@ -238,7 +326,7 @@ class Handler(SimpleHTTPRequestHandler):
             name = (q.get("name", [""])[0] or "").strip()[:NAME_MAX] or None
             leave = (q.get("leave", [""])[0] or "").strip()[:NAME_MAX] or None
             try:
-                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0], leave))
+                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0], leave, q.get("channel", ["crew"])[0]))
             except Exception as e:                       # noqa: BLE001
                 log.warning("chat read failed: %s", e)
                 return self._json(500, {"error": "chat unavailable"})
@@ -309,12 +397,35 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("alert subscription failed: %s", e)
                 return self._json(500, {"error": "could not save the subscription"})
+        if u.path == "/api/history/ask":
+            # the History tab's historian: a question, answered by the local
+            # model from the published wiki pages, with the pages it used
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 8192:
+                    raise ValueError("a question is at most 8 KB")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                question = str(payload.get("question", "")).strip()[:600]
+                if not question:
+                    raise ValueError("ask something")
+                r = history_ask(Path(self.directory), question, str(payload.get("slug", ""))[:200])
+                return self._json(200, r)
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("history ask failed: %s", e)
+                return self._json(503, {"error": "the historian is not answering right now; the model may be busy or off"})
+        if u.path == "/api/history/requests":
+            # the ship's copy of the history database is a pulled snapshot;
+            # answers are written on grid, where the research crew works
+            return self._json(403, {"error": "the ship's history database is read-only; answer requests on grid with history-db.py answer"})
         if u.path != "/api/chat":
             return self._json(404, {"error": "not found"})
         try:
             n = min(int(self.headers.get("Content-Length", "0")), 4096)
             payload = json.loads(self.rfile.read(n) or b"{}")
-            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")), str(payload.get("emoji", "")))
+            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")), str(payload.get("emoji", "")),
+                          channel=str(payload.get("channel", "crew")), slug=str(payload.get("slug", ""))[:200])
         except Exception as e:                           # noqa: BLE001
             log.warning("chat post failed: %s", e)
             r = {"error": "bad request"}
@@ -362,8 +473,100 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+# ---------------------------------------------------------------- the historian
+_ask_lock = threading.Lock()
+
+
+def history_ask(root: Path, question: str, slug: str = "") -> dict:
+    """The historian's room: the wiki pages that bear on the question go in
+    front of the model, and the answer comes back with the pages it was given."""
+    from .chatbot import _num, complete, excerpt_block, history_lines, places_named, wiki_excerpts
+    from .chatbot import wiki_pages
+    if not wiki_pages(root):
+        raise ValueError("no history has been published yet")
+    excerpts = wiki_excerpts(root, question, slug)          # may be empty: then the ship context is all there is
+    # the ship's own situation: where it is, what the history holds nearby,
+    # and any named place the question mentions, with its position
+    ship = []
+    try:
+        m = json.loads((root / "data" / "manifest.json").read_text())
+        lat = m.get("latest", {}).get("lat"); lon = m.get("latest", {}).get("lon")
+        end = (m.get("data_range", {}).get("end") or "")[:16].replace("T", " ")
+        if lat is not None:
+            ship.append(f"The ship is now at {_num(lat, 3)}, {_num(lon, 3)} (as of {end} UTC); the date today is "
+                        f"{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.")
+        ship += history_lines(root, lat, lon)
+    except Exception:                                # noqa: BLE001
+        pass
+    named = places_named(root, question)
+    if named:
+        ship.append("Named places the question mentions, from the ship's gazetteer: " + "; ".join(
+            f"{p['name']}" + (f" ({', '.join(x for x in (p.get('inuktitut'), p.get('historic')) if x and x != p['name'])})" if (p.get('inuktitut') or p.get('historic')) else "")
+            + (f" at {p['lat']:.3f}, {p['lon']:.3f}" if p.get("lat") is not None else "") + (f", {p['kind']}" if p.get("kind") else "")
+            + (f": {p['note'][:200]}" if p.get("note") else "") for p in named) + ".")
+    system = ("You are the historian aboard the research icebreaker CCGS Amundsen, answering scientists' questions about the "
+              "history of the Canadian Arctic Archipelago and Baffin Bay. Answer from the wiki excerpts below, which were "
+              "written by the ship's research crew from primary sources; when the excerpts do not cover something, say so "
+              "plainly and then give your best general knowledge, marked as such. Be concrete: dates, names, places, "
+              "coordinates when the excerpts give them. Use Inuit names for people and places as the excerpts do. Where "
+              "the record is disputed or rests on testimony, say whose. Cite the pages you draw on inline by their title in "
+              "square brackets, like [The death march]. Plain prose, short paragraphs, no headings, no bullet lists unless "
+              "listing dates. At most about 350 words.\n\nSHIP\n" + ("\n".join(ship) or "The ship's position is not known to this build.")
+              + "\n\nWIKI EXCERPTS\n\n" + (excerpt_block(excerpts) or "(no page in the wiki bears on this question)"))
+    with _ask_lock:
+        answer = complete(system, question, max_tokens=700, temperature=0.3, num_ctx=16384, timeout=240)
+    return {"answer": answer, "pages": [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in excerpts]}
+
+
+def requests_page(rows: list[dict]) -> str:
+    """The review page: every request the research crew has filed, open ones
+    first, with the answers given so far. Read-only on the ship: the database
+    here is a pulled snapshot, and answers are written on grid."""
+    esc = html.escape
+    order = {"open": 0, "approved": 1, "done": 2, "denied": 3}
+    rows = sorted(rows, key=lambda r: (order.get(r["status"], 9), -r["id"]))
+    cards = []
+    for r in rows:
+        size = f" · {r['size_mb']:.0f} MB" if r.get("size_mb") else ""
+        link = f'<a href="{esc(r["url"])}" target="_blank" rel="noopener">{esc(r["url"])}</a>' if r.get("url") else ""
+        cards.append(
+            f'<section class="req {esc(r["status"])}" data-id="{r["id"]}">'
+            f'<div class="head"><span class="id">#{r["id"]}</span> <span class="kind">{esc(r["kind"])}</span>'
+            f'<span class="topic">{esc(r["topic"])}</span><span class="status">{esc(r["status"])}</span>'
+            f'<span class="when">{esc(r["created"][:16].replace("T", " "))}{" · " + esc(r["who"]) if r.get("who") else ""}</span></div>'
+            f'<div class="what">{esc(r["what"])}{size}</div>'
+            + (f'<div class="why">{esc(r["why"])}</div>' if r.get("why") else "")
+            + (f'<div class="url">{link}</div>' if link else "")
+            + (f'<div class="dest">to <code>db/history/{esc(r["dest"])}</code></div>' if r.get("dest") else "")
+            + (f'<div class="answer">{esc(r["answer"])}</div>' if r.get("answer") else "")
+            + f'</section>')
+    body = "\n".join(cards) or '<p class="muted">No requests. The crew files them with <code>history-db.py request</code>.</p>'
+    n_open = sum(1 for r in rows if r["status"] == "open")
+    return f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>History research requests</title>
+<style>
+body{{font:15px/1.45 system-ui,sans-serif;background:#0f1419;color:#e6ecf2;margin:0;padding:20px;max-width:900px;margin:auto}}
+h1{{font-size:20px;margin:0 0 4px}} .sub{{color:#8b9bb0;margin-bottom:18px}}
+.req{{background:#161d26;border:1px solid #263140;border-radius:10px;padding:12px 14px;margin-bottom:12px}}
+.req.open{{border-color:#ffb454}} .req.denied{{opacity:.55}} .req.done{{opacity:.7}}
+.head{{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:12.5px;color:#8b9bb0}}
+.head .id{{font-family:ui-monospace,monospace;color:#e6ecf2}} .head .kind{{color:#5cc8ff;text-transform:uppercase;letter-spacing:.5px}}
+.head .status{{margin-left:auto;font-weight:600;color:#ffb454}} .req.done .status,.req.approved .status{{color:#7ee787}} .req.denied .status{{color:#ff7b72}}
+.what{{font-size:16px;font-weight:600;margin:6px 0 2px}} .why{{color:#c9d3de}} .url,.dest{{font-size:13px;word-break:break-all;margin-top:4px}}
+a{{color:#5cc8ff;text-decoration:none}} code{{font-family:ui-monospace,monospace;font-size:12.5px}}
+.acts{{display:flex;gap:8px;margin-top:8px}} button{{background:#1c2632;color:#e6ecf2;border:1px solid #263140;border-radius:7px;padding:5px 12px;font:inherit;cursor:pointer}}
+button:hover{{border-color:#5cc8ff}} button.no:hover{{border-color:#ff7b72}} button.re{{margin-left:auto;opacity:.7}}
+.answer{{margin-top:8px;padding:8px 10px;background:#0f1419;border-left:3px solid #7ee787;border-radius:6px;font-size:14px}}
+.muted{{color:#8b9bb0}} .toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#263140;padding:8px 14px;border-radius:8px}}
+</style>
+<h1>History research requests</h1>
+<div class=sub>{n_open} waiting · what the research crew cannot do alone: downloads over 50 MB, API keys, judgement calls. This is the ship's read-only view of the last pull; answers are written on grid with <code>history-db.py answer --id N --status approved --answer "…"</code>.</div>
+{body}"""
+
+
 def serve(root: Path, port: int, bind: str) -> None:
-    global CREW, LIVE, INTRANET
+    global CREW, LIVE, INTRANET, ROOT
+    ROOT = root
     from .config import INTRANET_BASE
     INTRANET = IntranetLive(INTRANET_BASE.rstrip("/") + "/live.html")
     from .chatbot import Crew

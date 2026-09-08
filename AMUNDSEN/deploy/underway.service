@@ -7,6 +7,8 @@ After=network-online.target
 # RequiresMountsFor removed: the build reads the local mirror
 
 [Service]
+# numpy's BLAS starts a thread per core at import (32 here) and that alone costs 8 s CPU a run
+Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 Environment=UNDERWAY_LOCAL=1
 Environment=UNDERWAY_MIRROR=/data/ship
 Environment=UNDERWAY_WEBROOT=/data/underway/www
@@ -33,6 +35,8 @@ ProtectHome=read-only
 ProtectSystem=full
 ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
 ReadWritePaths=/data
+# the History tab reads the arctic-history database, and SQLite writes its journal beside it
+ReadWritePaths=/home/cryomics/Desktop/arctic-history/db
 # If you keep the service-account JSON in this dir, include it in ReadWritePaths or make it read-only there.
 # Restrict networking surface (still allows HTTP/HTTPS)
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

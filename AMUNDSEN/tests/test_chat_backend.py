@@ -11,7 +11,7 @@ class ChatBackendTests(unittest.TestCase):
             config=Path(folder)/'chat.json'
             config.write_text(json.dumps(dict(api='openai',url='http://127.0.0.1:18043',model='gemma-camera')))
             crew=chatbot.Crew(Path(folder),lambda *a:None,lambda:dict(messages=[]))
-            crew.context=lambda:'Test readings'
+            crew.context=lambda *a, **k:'Test readings'
             response=Mock();response.json.return_value={'choices':[{'message':{'content':'Ahoy'}}]}
             with patch.object(chatbot,'LLM_CONFIG',config),patch('requests.post',return_value=response) as post:
                 self.assertEqual(crew._generate('capn','hello'),'Ahoy')
@@ -23,7 +23,7 @@ class ChatBackendTests(unittest.TestCase):
 
     def test_legacy_ollama_backend(self):
         with tempfile.TemporaryDirectory() as folder:
-            crew=chatbot.Crew(Path(folder),lambda *a:None,lambda:dict(messages=[]));crew.context=lambda:''
+            crew=chatbot.Crew(Path(folder),lambda *a:None,lambda:dict(messages=[]));crew.context=lambda *a, **k:''
             response=Mock();response.json.return_value={'message':{'content':'Ahoy'}}
             with patch.object(chatbot,'LLM_CONFIG',Path(folder)/'missing'),patch.object(chatbot,'LLM_API','ollama'),patch('requests.post',return_value=response) as post:
                 self.assertEqual(crew._generate('capn','hello'),'Ahoy')

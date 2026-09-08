@@ -55,6 +55,39 @@ class SatelliteTests(unittest.TestCase):
             self.assertEqual(sat.refresh(force=True), {})
             self.assertFalse((Path(d) / "sat").exists())
 
+    def test_refresh_renders_only_a_new_scene(self):
+        now = datetime(2026, 9, 8, 15, 0, tzinfo=timezone.utc)
+        old = (now - timedelta(hours=7)).isoformat(timespec="seconds")     # past both sensors' max age
+        seen = {"s1": "2026-09-07T21:06:45Z", "s2": "2026-09-08T00:32:17Z"}
+        with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)), \
+             patch.object(sat, "credentials", return_value=("id", "secret")), patch.object(sat, "token", return_value="tok"), \
+             patch.object(sat, "ship_position", return_value=(76.0, -90.0)), \
+             patch.object(sat, "render", return_value=(b"webp", 15.0, (10, 10))) as render, \
+             patch.object(sat, "newest_scene", side_effect=lambda tok, k, *a: seen[k]) as catalog:
+            (Path(d) / "sat").mkdir()
+            info = {"images": {"s1": {"file": "s1.webp", "fetched": old, "scene": seen["s1"], "region": list(sat.REGION), "corners": []},
+                               "s2": {"file": "s2.webp", "fetched": old, "scene": "2026-09-07T00:12:33Z", "region": list(sat.REGION), "corners": []}}}
+            (Path(d) / "sat" / "sat.json").write_text(json.dumps(info))
+            out = sat.refresh(now=now, kinds=("s1", "s2"))
+            self.assertEqual(catalog.call_count, 2)                          # both were due by age
+            self.assertEqual(render.call_count, 1)                           # only the optical had a new scene
+            self.assertEqual(out["images"]["s2"]["scene"], seen["s2"])
+            self.assertEqual(out["images"]["s1"]["fetched"], old)            # the radar picture stays as it was
+            self.assertEqual(json.loads((Path(d) / "sat" / "sat.json").read_text())["images"]["s2"]["scene"], seen["s2"])
+            # the catalog down: nothing is bought, nothing is rewritten
+            catalog.side_effect = lambda *a: None
+            stamp = (Path(d) / "sat" / "sat.json").stat().st_mtime_ns
+            info2 = json.loads((Path(d) / "sat" / "sat.json").read_text())
+            for im in info2["images"].values():
+                im["fetched"] = old
+            (Path(d) / "sat" / "sat.json").write_text(json.dumps(info2)); stamp = (Path(d) / "sat" / "sat.json").stat().st_mtime_ns
+            sat.refresh(now=now, kinds=("s1", "s2"))
+            self.assertEqual(render.call_count, 1)
+            self.assertEqual((Path(d) / "sat" / "sat.json").stat().st_mtime_ns, stamp)
+            # force buys everything regardless
+            sat.refresh(force=True, now=now, kinds=("s1", "s2"))
+            self.assertEqual(render.call_count, 3)
+
     def test_publish_copies_pictures_and_versions_urls(self):
         with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)):
             (Path(d) / "sat").mkdir(); (Path(d) / "sat" / "s1.webp").write_bytes(b"webp")

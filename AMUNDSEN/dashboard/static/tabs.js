@@ -793,14 +793,58 @@
   const stampL = (t) => `${dayL(t)} ${hmL(t)}`;
   const cal = { data: null, loadedFor: null, view: store.get("cal.view", "agenda"), search: "", month: store.get("cal.month", dayL(Date.now()).slice(0, 7)),
     span: store.get("cal.span", "days"), day: store.get("cal.day", dayL(Date.now())), openDays: new Set(), openDone: new Set() };
+  // The calendar file carries the current legs; the legs before live in an
+  // archive (M.calendar.archive) fetched only when a shown leg is in it or
+  // the span or the month view reaches back before it, and kept across
+  // builds by its content stamp.
+  const arch = { stamp: null, data: null, pending: null, failedGen: null };
+  const archiveMeta = () => UW.M.calendar?.archive || null;
+  function archiveWanted() {
+    const a = archiveMeta(); if (!a) return false;
+    const f = UW.currentFilter();
+    if ((a.legs || []).some((id) => f.legs.has(id))) return true;
+    const before = UW.tms(a.before);
+    if (!isNaN(before) && f.start < before) return true;
+    return cal.view === "month" && !!a.before && cal.month < a.before.slice(0, 7);
+  }
+  function loadArchive() {
+    const a = archiveMeta();
+    if (arch.data && arch.stamp === a.stamp) return Promise.resolve(arch.data);
+    if (arch.pending && arch.stamp === a.stamp) return arch.pending;
+    arch.stamp = a.stamp; arch.data = null;
+    arch.pending = getJSON(`${a.file}?v=${encodeURIComponent(a.stamp)}`)
+      .then((d) => { arch.data = d; return d; })
+      .catch((e) => { arch.failedGen = UW.M.generated_utc; throw e; })      // tried again with the next build
+      .finally(() => { arch.pending = null; });
+    return arch.pending;
+  }
+  // the archive's events and feed items ahead of the current file's, so the
+  // rest of the tab reads one calendar
+  function withArchive(current, archive) {
+    if (!archive) return current;
+    const feeds = (current.gcal || []).map((f) => {
+      const old = (archive.gcal || []).find((g) => g.key === f.key);
+      return old ? { ...f, events: [...(old.events || []), ...(f.events || [])] } : f;
+    });
+    const events = [...(archive.events || []), ...(current.events || [])].sort((x, y) => UW.tms(x.time_utc) - UW.tms(y.time_utc));
+    return { ...current, events, gcal: feeds };
+  }
   async function ensureCalendar() {
     const stamp = UW.M.generated_utc;
-    if (cal.data && cal.loadedFor === stamp) return;
+    const want = archiveWanted() && arch.failedGen !== stamp;
+    if (cal.data && cal.loadedFor === stamp && (!want || cal.archiveStamp === archiveMeta()?.stamp)) return;
     const data = await cachedJSON("calendar", UW.M.calendar.file);
-    cal.data = data; cal.loadedFor = stamp;
+    let archive = null;
+    if (want) { try { archive = await loadArchive(); } catch { /* the current legs still show */ } }
+    cal.data = withArchive(data, archive); cal.loadedFor = stamp; cal.archiveStamp = archive ? archiveMeta()?.stamp : null;
   }
   function renderCalendar() {
     const host = $("#calendar"); if (!cal.data) return;
+    // a month or a leg stepped back into the archive: draw what is here, then again with it
+    if (archiveWanted() && cal.archiveStamp !== archiveMeta()?.stamp && arch.failedGen !== UW.M.generated_utc && !cal.archiveLoading) {
+      cal.archiveLoading = true;
+      ensureCalendar().then(() => renderCalendar()).catch(() => {}).finally(() => { cal.archiveLoading = false; });
+    }
     const s = cal.data.schedule || {};
     const q = cal.search.toLowerCase();
     const f = UW.currentFilter();
