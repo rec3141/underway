@@ -44,12 +44,17 @@
     if (hist.stamp === UW.M.history.stamp && hist.index) return true;
     if (hist.loading) return hist.loading;
     hist.loading = (async () => {
-      const [index, arts, tl] = await Promise.all([
+      // places and people are newer exports; a build without them still works
+      const maybe = (k, u) => cachedJSON(k, u).catch(() => null);
+      const [index, arts, tl, pl, pe] = await Promise.all([
         cachedJSON("index", "data/history/index.json"),
         cachedJSON("artifacts", "data/history/artifacts.json"),
         cachedJSON("timeline", "data/history/timeline.json"),
+        maybe("places", "data/history/places.json"),
+        maybe("people", "data/history/people.json"),
       ]);
       hist.index = index; hist.artifacts = arts.artifacts || []; hist.timeline = tl.timeline || [];
+      hist.places = pl?.places || []; hist.people = pe?.people || [];
       hist.stamp = UW.M.history.stamp; hist.pages = new Map();
       for (const a of hist.artifacts) a._year = yearOf(a.date_start);
       return true;
@@ -124,6 +129,13 @@
         if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: "was here", label: a.title, place: w.note || "", topic: a.topic, lat: w.lat, lon: w.lon, slug: a.page, ref: a });
       }
     }
+    // the people: born or died on this date, when the record gives the day
+    for (const p of hist.people || []) {
+      for (const [field, word] of [["born", "born"], ["died", "died"]]) {
+        const d = parts(p[field]);
+        if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: word, label: p.name, place: p.role || "", topic: p.topic, lat: null, lon: null, slug: p.page, ref: p });
+      }
+    }
     const seen = new Set();
     return out.filter((x) => { const k = `${x.year}|${x.label}|${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; })
       .sort((p, q) => p.year - q.year);
@@ -150,12 +162,18 @@
       if (e.lat == null || e.entity_kind !== "event") continue;
       cand.push({ d: km(lat, lon, e.lat, e.lon), e, when: e.date + (e.date_end ? " → " + e.date_end : ""), note: e.place || "", lat: e.lat, lon: e.lon });
     }
+    for (const p of hist.places || []) {
+      if (p.lat == null) continue;
+      const names = [p.inuktitut, p.historic].filter((n) => n && n !== p.name).join(", ");
+      cand.push({ d: km(lat, lon, p.lat, p.lon), p, when: p.kind || "place", note: names, lat: p.lat, lon: p.lon });
+    }
     cand.sort((p, q) => p.d - q.d);
     let radius = 50;
     while (radius < 400 && cand.filter((c) => c.d <= radius).length < 6) radius *= 2;
     const seen = new Set();
-    const items = cand.filter((c) => c.d <= radius).filter((c) => { const k = c.a ? c.a.id : `ev:${c.e.entity_id}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 12)
+    const items = cand.filter((c) => c.d <= radius).filter((c) => { const k = c.a ? c.a.id : c.p ? `pl:${c.p.name}` : `ev:${c.e.entity_id}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 14)
       .map((c) => c.a ? { d: c.d, label: c.a.title, when: c.when, note: c.note, topic: c.a.topic, type: c.a.type, slug: c.a.page, lat: c.lat, lon: c.lon }
+                : c.p ? { d: c.d, label: c.p.name, when: c.when, note: c.note, topic: c.p.topic, type: "place", slug: c.p.page, lat: c.lat, lon: c.lon }
                       : { d: c.d, label: c.e.label, when: c.when, note: c.note, topic: c.e.topic, type: "event", slug: "", lat: c.lat, lon: c.lon });
     return { radius, items };
   }
@@ -167,7 +185,7 @@
     const pos = UW.M.latest || {};
     const here = inThisPlace(pos.lat, pos.lon);
     const dateWord = now.toLocaleDateString(undefined, { month: "long", day: "numeric" });
-    const item = (x, extra) => `<a class="vig" href="#history/${esc(x.slug)}" data-slug="${esc(x.slug)}" data-lat="${x.lat ?? ""}" data-lon="${x.lon ?? ""}" data-topic="${esc(x.topic)}"><span class="dot" style="background:${topicColour(x.topic)}"></span>${extra}<span class="txt">${esc(x.label)}${x.kind ? ` <i>${esc(x.kind)}</i>` : ""}${x.note ? ` <span class="muted">${esc(x.note)}</span>` : ""}${x.place && !x.note ? ` <span class="muted">${esc(x.place)}</span>` : ""}</span></a>`;
+    const item = (x, extra) => `<a class="vig" href="#history/${esc(x.slug)}" data-slug="${esc(x.slug)}" data-lat="${x.lat ?? ""}" data-lon="${x.lon ?? ""}" data-topic="${esc(x.topic)}"><span class="dot" style="background:${topicColour(x.topic)}"></span>${extra}<span class="txt">${esc(x.label)}${x.kind ? ` <i>${esc(x.kind)}</i>` : x.type === "place" && x.when ? ` <i>${esc(x.when)}</i>` : ""}${x.note ? ` <span class="muted">${esc(x.note)}</span>` : ""}${x.place && !x.note ? ` <span class="muted">${esc(x.place)}</span>` : ""}</span></a>`;
     return `<div class="vignettes">
       <section class="vigcard"><h3>On this day · ${esc(dateWord)}</h3>${today.length ? today.slice(0, 14).map((x) => item(x, `<b>${x.year}</b>`)).join("") : `<div class="muted small">Nothing dated to the day on ${esc(dateWord)} yet. The crew's atomic dates fill this in as the topics are written.</div>`}</section>
       <section class="vigcard"><h3>In this place${here.radius ? ` · within ${here.radius} km` : ""}</h3>${here.items.length ? here.items.map((x) => item(x, `<b>${Math.round(x.d)} km</b>`)).join("") : `<div class="muted small">${pos.lat == null ? "The ship's position is not known to this build." : "Nothing in the history within 400 km of the ship yet."}</div>`}</section>

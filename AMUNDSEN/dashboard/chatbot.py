@@ -241,6 +241,20 @@ def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str
         near = [(d, a) for d, a in near if d <= 300][:6]
         if near:
             out.append("History near the ship: " + "; ".join(f"{a['title']} ({a.get('date_text', '')}, {d:.0f} km away)" for d, a in near) + ".")
+        # the named places, with their other names: a station, a harbour, a wintering site
+        pl_file = root / "data" / "history" / "places.json"
+        if pl_file.is_file():
+            places = []
+            for p in json.loads(pl_file.read_text()).get("places", []):
+                if p.get("lat") is None:
+                    continue
+                names = ", ".join(n for n in (p.get("inuktitut"), p.get("historic")) if n and n != p["name"])
+                places.append((km(float(lat), float(lon), p["lat"], p["lon"]), p, names))
+            places.sort(key=lambda x: x[0])
+            places = [x for x in places if x[0] <= 250][:5]
+            if places:
+                out.append("Named places near the ship: " + "; ".join(
+                    f"{p['name']}{' (' + names + ')' if names else ''}, {p.get('kind') or 'place'}, {d:.0f} km" for d, p, names in places) + ".")
     return out
 
 
