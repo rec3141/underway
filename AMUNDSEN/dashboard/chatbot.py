@@ -429,12 +429,13 @@ def _num(x, nd=2):
 
 
 class Crew:
-    def __init__(self, root: Path, post, read):
+    def __init__(self, root: Path, post=None, read=None):
+        from . import chat
         self.root = root
-        self.post = post                    # (name, emoji, text) -> None
-        self.read = read                    # () -> dict with messages/online
+        self.post = post or (lambda name, emoji, text, channel, meta=None: chat.post("crew", name, text, emoji, channel, bot=True, meta=meta))
+        self.read = read or chat.context    # (channel) -> the room's recent messages, oldest first
+        self._pages: list[dict] = []        # the wiki pages the last context drew on
         self.lock = threading.Lock()        # one generation at a time
-        self.typing: set[str] = set()
         self.last_bot = 0.0
         self.seen_update = None
         self.seen_surprise = None
@@ -453,6 +454,7 @@ class Crew:
         """The dashboard summary for one beat: the Cap'n sees the schedule and
         the weather, Doc the water, the Librarian the past, Polly nothing but
         the clock. ``all`` is everything, for tests and for a look."""
+        self._pages = []                    # only a history context fills this
         try:
             m = json.loads((self.root / "data" / "manifest.json").read_text())
         except Exception:                   # noqa: BLE001
@@ -508,24 +510,34 @@ class Crew:
                 lines += history_lines(self.root, lat, lon)
             except Exception:                   # noqa: BLE001
                 pass
+            self._pages = []
             if beat == "history":
                 try:
                     ex = wiki_excerpts(self.root, task or " ".join(lines[-2:]), limit=5, budget=14000)
                     if ex:
                         lines.append("\nWIKI EXCERPTS\n\n" + excerpt_block(ex))
+                        self._pages = ex
                 except Exception:               # noqa: BLE001
                     pass
         return "\n".join(lines)
 
     # ------------------------------------------------------------ generation
-    def _generate(self, handle: str, task: str) -> str | None:
+    def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False) -> tuple[str | None, list[dict]]:
+        """One remark in a room. The crew member sees its beat's slice of the
+        dashboard and the last few kilobytes of that room, nothing else."""
         p = PERSONAS[handle]
-        chat = self.read()
-        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in chat.get("messages", [])[-40:])
+        recent_rows = self.read(channel)
+        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in recent_rows)
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
+        room = {"ship": "the ship's public room, where you speak only when addressed",
+                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
+                "ada": "your reading room, where every message is a question put to you and deserves a full answer, "
+                       "up to about 350 words, with the pages cited"}.get(channel,
+               "a private room with one person; only the two of you see it, and you may speak first")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
-                  f"dashboard, read by the scientists aboard, who like a laugh. The crew is mixed, and you never assume anyone's gender: "
+                  f"dashboard, read by the scientists aboard, who like a laugh. This is {room}. "
+                  f"The crew is mixed, and you never assume anyone's gender: "
                   f"address people by name or as shipmate, and speak of others in neutral terms unless they have said otherwise. "
                   f"Speak as your character in plain text, no markdown, no "
                   f"lists. Be entertaining first and useful second. Use everything you know: general oceanography, rules of thumb, "
@@ -536,24 +548,29 @@ class Crew:
                   f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
                   f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
-                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], task)}\n\nRECENT CHAT (oldest first)\n{recent}")
-        text = complete(system, task, MAX_TOKENS, 1.0)
+                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task)}\n\nRECENT CHAT (oldest first)\n{recent}")
+        pages = list(self._pages)
+        text = complete(system, task, MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
-        return text[:2500] or None
+        return (text[:2500] or None), pages
 
-    def _speak(self, handle: str, task: str, banter: bool = True) -> None:
-        """Generate and post one remark; sometimes another crew member then
-        riffs on it (never more than one hop, so they cannot chain forever)."""
+    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False) -> None:
+        """Generate and post one remark in a room; in the crew's room another
+        member sometimes riffs on it, usually Polly (one hop only, so they
+        cannot chain forever)."""
         if not self.enabled:
             return
+        from . import chat
         p = PERSONAS[handle]
         text = None
         with self.lock:
-            self.typing.add(handle)
+            chat.typing(channel, handle, True)
             try:
-                text = self._generate(handle, task)
+                text, pages = self._generate(handle, task, channel, query, long)
                 if text:
-                    self.post(p["name"], p["emoji"], text)
+                    meta = {"pages": [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages]} if pages else None
+                    text = chat.link_citations(text, meta["pages"]) if meta else text
+                    self.post(p["name"], p["emoji"], text, channel, meta)
                     self.last_bot = time.time()
             except ModelOffline as e:
                 log.info("crew %s stayed quiet: %s", handle, e)
@@ -561,25 +578,44 @@ class Crew:
             except Exception as e:          # noqa: BLE001
                 log.info("crew %s stayed quiet (%s)", handle, e)
             finally:
-                self.typing.discard(handle)
-        if text and banter and random.random() < BANTER_P:
+                chat.typing(channel, handle, False)
+        if text and banter and channel == "crew" and random.random() < BANTER_P:
             # the reporting gets reported on: Polly, usually; another now and then
             other = "polly" if handle != "polly" and random.random() < 0.7 else random.choice([h for h in PERSONAS if h not in (handle, "polly")])
             time.sleep(random.uniform(8, 25))
             self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
                                f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
-                        banter=False)
+                        channel, banter=False)
 
     # ------------------------------------------------------------ triggers
-    def on_message(self, name: str, text: str) -> None:
-        """Called after a human message is stored."""
+    def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "") -> None:
+        """Called after a human message is stored. Who answers depends on the
+        room: in the public room only a member @mentioned; in the crew's room
+        whoever is mentioned, else one of them; in Ada's room, Ada, at length;
+        in a private room, the member it is with."""
+        from . import chat
         if name in {p["name"] for p in PERSONAS.values()}:
             return
         handles = [h.lower() for h in HANDLE_RX.findall(text)]
         if "crew" in handles or "all" in handles:
             handles = list(PERSONAS)
-        for h in dict.fromkeys(h for h in handles if h in PERSONAS):
-            threading.Thread(target=self._speak, args=(h, f"{name} just wrote: \"{text}\". Reply to them as yourself."), daemon=True).start()
+        handles = list(dict.fromkeys(h for h in handles if h in PERSONAS))
+        room_bots = chat.bots_in(channel)
+        task = f"{name} just wrote: \"{text}\". Reply to them as yourself."
+        long = False
+        if channel == "ship":
+            speakers = handles
+        elif channel == "crew":
+            speakers = handles or ([random.choice(room_bots)] if room_bots else [])
+        elif channel == "ada":
+            speakers = ["ada"] if "ada" in room_bots else []
+            task = (f"{name} asks in your reading room: \"{text}\". Answer fully from the wiki excerpts, citing each page you draw on "
+                    f"by its title in square brackets, and say plainly where the wiki is silent.")
+            long = True
+        else:
+            speakers = room_bots
+        for h in speakers:
+            threading.Thread(target=self._speak, args=(h, task, channel, text), kwargs={"long": long}, daemon=True).start()
 
     def _events(self) -> str | None:
         """A notable change since the last look, as a short description, or None."""
@@ -609,26 +645,36 @@ class Crew:
         return None
 
     def loop(self) -> None:
+        """Unprompted remarks, only into rooms someone has open where the crew
+        belong: the crew's room, or a private room with one member. Never the
+        public room, never Ada's reading room."""
+        from . import chat
         time.sleep(90)
         while True:
             try:
                 now = time.time()
-                chat = self.read()
-                someone = bool(chat.get("online")) and model_status()["online"]
-                event = self._events()
-                if someone and event and now - self.last_bot > EVENT_MIN_S:
-                    h = "capn" if "schedule" in event else "doc"
-                    self._speak(h, f"{event}. Remark on it for the crew in your own way; be brief and cite the relevant number.")
-                elif someone and now - self.last_bot > CHIME_MIN_S:
-                    # the three with a beat take turns; Polly only ever reports on them
-                    h = random.choice(["capn", "doc", "ada"])
-                    self._speak(h, {"ada": "Peek at your slice of the summary and chime in with one short remark for the crew about the past: "
-                                           "something that happened on this date in another year, or near where the ship is now, with its "
-                                           "year and its source. If there is nothing, pick the most striking thing in the wiki excerpts. "
-                                           "Do not greet, do not ask questions."}.get(h,
-                                   "Peek at your slice of the dashboard summary and chime in with one short, characterful remark for the crew "
-                                   "about the current conditions on your beat — pick one detail worth noticing and cite its number. Do not "
-                                   "greet, do not ask questions."))
+                open_rooms = [(ch, who) for ch, who in chat.open_rooms() if ch not in ("ship", "ada") and chat.bots_in(ch)]
+                if open_rooms and model_status()["online"]:
+                    event = self._events()
+                    if event and now - self.last_bot > EVENT_MIN_S:
+                        h = "capn" if "schedule" in event else "doc"
+                        rooms = [ch for ch, _ in open_rooms if h in chat.bots_in(ch)]
+                        if rooms:
+                            self._speak(h, f"{event}. Remark on it for the crew in your own way; be brief and cite the relevant number.",
+                                        random.choice(rooms))
+                    elif now - self.last_bot > CHIME_MIN_S:
+                        ch, _ = random.choice(open_rooms)
+                        # the three with a beat take turns; Polly only ever reports on them
+                        choices = [h for h in chat.bots_in(ch) if h != "polly"] or chat.bots_in(ch)
+                        h = random.choice(choices)
+                        self._speak(h, {"ada": "Peek at your slice of the summary and chime in with one short remark about the past: "
+                                               "something that happened on this date in another year, or near where the ship is now, with its "
+                                               "year and its source. If there is nothing, pick the most striking thing in the wiki excerpts. "
+                                               "Do not greet, do not ask questions.",
+                                        "polly": "Report on the last thing anyone said in this room, in one squawky line."}.get(h,
+                                       "Peek at your slice of the dashboard summary and chime in with one short, characterful remark "
+                                       "about the current conditions on your beat — pick one detail worth noticing and cite its number. Do not "
+                                       "greet, do not ask questions."), ch)
             except Exception as e:          # noqa: BLE001
                 log.info("crew loop: %s", e)
             time.sleep(300)

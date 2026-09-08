@@ -198,13 +198,15 @@ window.__MANIFEST__ = {{ m|tojson }};
 </script>
 <aside class="chat collapsed" id="chat" aria-label="ship chat">
   <div class="chathead">
-    <button class="chattoggle" id="chathead"><span class="dot" id="chatdot"></span><b id="chattitle">Chat</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
-    <div class="chatrooms" id="chatrooms" role="tablist" aria-label="chat rooms"><button data-ch="crew" class="on" role="tab" title="the ship's chat, with the AI crew">Crew</button><button data-ch="historian" role="tab" title="ask the historian: answers from the History wiki, with the pages it read"><span class="rdot" hidden></span>Historian</button></div>
+    <button class="chattoggle" id="chathead"><span class="dot" id="chatdot"></span><b id="chattitle">Ship</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
+    <button class="chatclear" id="chatclearbtn" title="clear this room: a private room with a crew member is forgotten by them too; any other room is cleared on this device only">clear</button>
     <button class="chatai" id="chataibtn" title="hide the AI crew's messages">hide AI</button>
     <button class="chatside" id="chatsidebtn" title="open as a side bar">⇤</button>
     <button class="chatclose" id="chatclosebtn" title="close the chat">✕</button>
   </div>
   <div class="chatbody">
+    <div class="chatrooms" id="chatrooms" role="tablist" aria-label="chat rooms"></div>
+    <div class="chatpicker" id="chatpicker" hidden></div>
     <div class="chatlog" id="chatlog"></div>
     <div class="chattyping muted" id="chattyping" hidden></div>
     <div class="chatcrew muted" id="chatcrew" hidden></div>

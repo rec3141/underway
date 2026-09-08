@@ -473,7 +473,7 @@
     $("#histfrom").oninput = years; $("#histto").oninput = years;
     $("#histmap").hidden = true;                            // the history layer is always on here
     $("#histtl").onclick = () => { hist.timelineOn = !hist.timelineOn; store.set("hist.timeline", hist.timelineOn); renderMeta(); if (hist.timelineOn) renderTimeline(); };
-    $("#histask").onclick = () => UW.chatRoom?.("historian");
+    $("#histask").onclick = () => UW.chatRoom?.("ada");
     // the map's own History pill appears once there is history to show
     const pill = document.querySelector('#maplayers button[data-layer="history"]');
     if (pill) pill.hidden = !UW.M.history;

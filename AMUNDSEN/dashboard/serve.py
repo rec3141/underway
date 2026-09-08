@@ -27,16 +27,9 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------- chat
-CHAT_DB = Path(os.environ.get("UNDERWAY_CHAT_DB", "/data/underway/chat/chat.sqlite"))
-CHAT_KEEP = 2000            # messages kept
-CHAT_PAGE = 100             # messages sent to a fresh page
-NAME_MAX, TEXT_MAX = 24, 500
-_chat_lock = threading.Lock()
-_online: dict[str, float] = {}          # name -> last poll, for "who has the page open"
-_last_post: dict[str, float] = {}       # address -> last post, a light rate limit
+# the rooms, the messages, identity and the crew's part live in dashboard.chat
+from . import chat as CHAT
 
-
-_emoji: dict[str, str] = {}             # name -> avatar last seen with
 CREW = None                             # the model-driven crew, once the server is up
 LIVE = None                             # the live CTD listener, once the server is up
 INTRANET = None                         # the intranet live-page poller, once the server is up
@@ -98,151 +91,6 @@ class IntranetLive:
         with self.lock:
             return {"url": self.url, "fetched": self.fetched, "age_s": round(time.time() - self.fetched, 1) if self.fetched else None,
                     "error": self.error, "sections": self.sections}
-
-
-def _chat_conn() -> sqlite3.Connection:
-    CHAT_DB.parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(CHAT_DB, timeout=5)
-    c.execute("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, t REAL NOT NULL, addr TEXT, name TEXT NOT NULL, text TEXT NOT NULL)")
-    cols = {r[1] for r in c.execute("PRAGMA table_info(messages)")}
-    if "emoji" not in cols:
-        c.execute("ALTER TABLE messages ADD COLUMN emoji TEXT")
-    if "channel" not in cols:
-        # two rooms share the one log: the crew's chat and the historian's
-        c.execute("ALTER TABLE messages ADD COLUMN channel TEXT NOT NULL DEFAULT 'crew'")
-        c.execute("CREATE INDEX IF NOT EXISTS messages_channel ON messages (channel, id)")
-    if "meta" not in cols:
-        c.execute("ALTER TABLE messages ADD COLUMN meta TEXT")       # JSON: the pages an answer drew on
-    return c
-
-
-CHANNELS = ("crew", "historian")
-HISTORIAN = {"name": "Historian", "emoji": "📜", "handle": "historian"}
-ROOT: Path | None = None                    # the web root, for the historian's wiki
-_asking: set[str] = set()                   # channels with an answer in flight, for the typing line
-
-
-def _channel(v: str) -> str:
-    return v if v in CHANNELS else "crew"
-
-
-def _clean_emoji(e: str) -> str:
-    e = (e or "").strip()
-    return e[:8] if e and "<" not in e else ""
-
-
-def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None = None, channel: str = "crew") -> dict:
-    channel = _channel(channel)
-    now = time.time()
-    with _chat_lock:
-        if name:
-            _online[name] = now
-            if emoji:
-                _emoji[name] = _clean_emoji(emoji)
-        if leave:                            # the chat was closed: not "here" any more
-            _online.pop(leave, None)
-        for k in [k for k, v in _online.items() if now - v > 45]:
-            del _online[k]
-        online = [{"name": n, "emoji": _emoji.get(n, "")} for n in sorted(_online)]
-        c = _chat_conn()
-        try:
-            if since > 0:
-                rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? AND id > ? ORDER BY id",
-                                 (channel, since)).fetchall()
-            else:
-                rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? ORDER BY id DESC LIMIT ?",
-                                 (channel, CHAT_PAGE)).fetchall()[::-1]
-            latest = {ch: mid or 0 for ch, mid in c.execute("SELECT channel, MAX(id) FROM messages GROUP BY channel")}
-        finally:
-            c.close()
-    typing = (sorted(CREW.typing) if CREW and channel == "crew" else []) + (["historian"] if channel in _asking else [])
-    msgs = []
-    for i, t, n, x, e, meta in rows:
-        m = {"id": i, "t": t, "name": n, "text": x, "emoji": e or ""}
-        if meta:
-            try:
-                m["meta"] = json.loads(meta)
-            except ValueError:
-                pass
-        msgs.append(m)
-    return {"messages": msgs, "online": online, "typing": typing, "crew": crew_list(channel), "model": crew_model(),
-            "model_online": crew_online(), "channel": channel, "latest": {ch: latest.get(ch, 0) for ch in CHANNELS}, "now": now}
-
-
-def crew_model() -> str:
-    from .chatbot import model_status
-    if not (CREW and CREW.enabled):
-        return ""
-    st = model_status()
-    return st["model"] if st["online"] else st["why"]
-
-
-def crew_online() -> bool:
-    """Whether the crew have a model to talk to right now (cached briefly)."""
-    from .chatbot import model_status
-    return bool(CREW and CREW.enabled and model_status()["online"])
-
-
-def crew_list(channel: str = "crew") -> list[dict]:
-    from .chatbot import PERSONAS
-    if channel == "historian":
-        return [dict(HISTORIAN)] if CREW and CREW.enabled else []
-    return [{"handle": h, "name": p["name"], "emoji": p["emoji"]} for h, p in PERSONAS.items()] if CREW and CREW.enabled else []
-
-
-def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False, channel: str = "crew",
-              meta: dict | None = None, slug: str = "") -> dict:
-    channel = _channel(channel)
-    name = " ".join(name.split())[:NAME_MAX] or "anon"
-    text = text.strip()[:TEXT_MAX if not bot else 2600]
-    emoji = _clean_emoji(emoji)
-    if not text:
-        return {"error": "empty"}
-    now = time.time()
-    with _chat_lock:
-        if not bot:
-            if now - _last_post.get(addr, 0) < 1.0:
-                return {"error": "slow down"}
-            _last_post[addr] = now
-            _online[name] = now
-            if emoji:
-                _emoji[name] = emoji
-        c = _chat_conn()
-        try:
-            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji, channel, meta) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (now, addr, name, text, emoji, channel, json.dumps(meta) if meta else None))
-            c.execute("DELETE FROM messages WHERE id <= (SELECT MAX(id) FROM messages) - ?", (CHAT_KEEP,))
-            c.commit()
-            mid = cur.lastrowid
-        finally:
-            c.close()
-    if not bot and channel == "crew" and CREW:
-        CREW.on_message(name, text)
-    if not bot and channel == "historian":
-        threading.Thread(target=_historian_reply, args=(text, slug), daemon=True).start()
-    return {"ok": True, "id": mid, "t": now}
-
-
-def _historian_reply(question: str, slug: str) -> None:
-    """Answer a question posted in the historian's room, from the wiki, and
-    post it as the Historian with the pages it read."""
-    if not ROOT or not (CREW and CREW.enabled):
-        return
-    from .chatbot import ModelOffline, alert_offline, model_status
-    _asking.add("historian")
-    try:
-        r = history_ask(ROOT, question, slug)
-        chat_post("historian", HISTORIAN["name"], r["answer"], HISTORIAN["emoji"], bot=True, channel="historian",
-                  meta={"pages": r["pages"]})
-    except ModelOffline as e:
-        log.info("historian stayed quiet: %s", e)
-        alert_offline(model_status(), "the historian and the chat crew")
-    except ValueError as e:
-        chat_post("historian", HISTORIAN["name"], str(e), HISTORIAN["emoji"], bot=True, channel="historian")
-    except Exception as e:                   # noqa: BLE001
-        log.info("historian stayed quiet (%s)", e)
-    finally:
-        _asking.discard("historian")
 
 
 # Raster tile pyramids are hundreds of thousands of small files; they are kept
@@ -332,14 +180,14 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(200, {"requests": []})
         if u.path == "/api/chat":
             q = parse_qs(u.query)
+            g = lambda k, d="": (q.get(k, [d])[0] or d)             # noqa: E731
             try:
-                since = int(q.get("since", ["0"])[0])
+                since = int(g("since", "0"))
             except ValueError:
                 since = 0
-            name = (q.get("name", [""])[0] or "").strip()[:NAME_MAX] or None
-            leave = (q.get("leave", [""])[0] or "").strip()[:NAME_MAX] or None
             try:
-                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0], leave, q.get("channel", ["crew"])[0]))
+                return self._json(200, CHAT.read(since, g("name")[:CHAT.NAME_MAX], g("token")[:64], g("emoji"),
+                                                 g("leave") == "1", g("channel", "ship")[:80]))
             except Exception as e:                       # noqa: BLE001
                 log.warning("chat read failed: %s", e)
                 return self._json(500, {"error": "chat unavailable"})
@@ -432,17 +280,28 @@ class Handler(SimpleHTTPRequestHandler):
             # the ship's copy of the history database is a pulled snapshot;
             # answers are written on grid, where the research crew works
             return self._json(403, {"error": "the ship's history database is read-only; answer requests on grid with history-db.py answer"})
-        if u.path != "/api/chat":
-            return self._json(404, {"error": "not found"})
-        try:
-            n = min(int(self.headers.get("Content-Length", "0")), 4096)
-            payload = json.loads(self.rfile.read(n) or b"{}")
-            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")), str(payload.get("emoji", "")),
-                          channel=str(payload.get("channel", "crew")), slug=str(payload.get("slug", ""))[:200])
-        except Exception as e:                           # noqa: BLE001
-            log.warning("chat post failed: %s", e)
-            r = {"error": "bad request"}
-        return self._json(200 if r.get("ok") else 400, r)
+        if u.path in ("/api/chat", "/api/chat/clear", "/api/chat/release"):
+            try:
+                n = min(int(self.headers.get("Content-Length", "0")), 4096)
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                name, token = str(payload.get("name", ""))[:CHAT.NAME_MAX], str(payload.get("token", ""))[:64]
+                channel = str(payload.get("channel", "ship"))[:80]
+                if u.path == "/api/chat/clear":
+                    r = CHAT.clear(channel, name, token)
+                elif u.path == "/api/chat/release":
+                    c = CHAT.conn()
+                    try:
+                        r = {"ok": CHAT.release(c, name, token)}
+                    finally:
+                        c.close()
+                else:
+                    r = CHAT.post(self._client(), name, str(payload.get("text", "")), str(payload.get("emoji", "")),
+                                  channel, token, str(payload.get("slug", ""))[:200])
+            except Exception as e:                           # noqa: BLE001
+                log.warning("chat post failed: %s", e)
+                r = {"error": "bad request"}
+            return self._json(200 if r.get("ok") else 400, r)
+        return self._json(404, {"error": "not found"})
 
     def translate_path(self, path):
         p = unquote(urlsplit(path).path)
@@ -578,8 +437,7 @@ button:hover{{border-color:#5cc8ff}} button.no:hover{{border-color:#ff7b72}} but
 
 
 def serve(root: Path, port: int, bind: str) -> None:
-    global CREW, LIVE, INTRANET, ROOT
-    ROOT = root
+    global CREW, LIVE, INTRANET
     from .config import INTRANET_BASE
     INTRANET = IntranetLive(INTRANET_BASE.rstrip("/") + "/live.html")
     from .chatbot import Crew
@@ -589,7 +447,9 @@ def serve(root: Path, port: int, bind: str) -> None:
     except Exception as e:                  # noqa: BLE001 — a bad source setting must not stop the site
         log.warning("live CTD listener not started: %s", e)
         LIVE = LiveCTD("")
-    CREW = Crew(root, post=lambda n, e, t: chat_post("crew", n, t, e, bot=True), read=lambda: chat_read(0, None))
+    CREW = Crew(root)
+    CHAT.CREW = CREW
+    CHAT.ROOT = root
     CREW.start()
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))
     log.info("serving %s on http://%s:%d/", root, bind or "0.0.0.0", port)
