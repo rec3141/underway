@@ -23,17 +23,29 @@
     set(k, v) { try { localStorage.setItem("uw:" + k, JSON.stringify(v)); } catch { /* private mode */ } },
   };
 
+  // the page opens on the current leg over its whole span ("leg"); later
+  // choices are remembered, and a browser with settings from before these
+  // defaults (prefs.v < 2) takes them once
+  const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
+  const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
+  if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
+  if (store.get("prefs.v", 0) < 3) { store.set("prefs.v", 3); store.set("trackKm", null); }   // track detail follows the span again (a point a km)
   const state = {
-    hidden: new Set(store.get("hiddenLegs", [])),   // leg ids switched off; default: everything shown
+    hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
     win: store.get("win", M.default_window),
     xmode: store.get("xmode", "time"),
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
+    trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the span)
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
     communities: store.get("communities", true),        // settlements on the map
+    plan: store.get("plan", true),                      // the leg's planned track and stations
+    planData: null, planStamp: null,                    // the plan as published, and which version it is
+    sat: store.get("sat", ""),                          // satellite picture under the track: "" | "s1" | "s2"
+    satAt: null,                                        // an archived picture's scene time, or null for the newest
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
     raw: null,                                        // window payload as built
@@ -43,6 +55,8 @@
   };
 
   const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)"]);
+  const extraPanels = new Map();
+  const extraColours = new Map();
   // the per-scale surprise series feed the one surprise panel, which shows
   // the scale matching the span on display (holding at the longest scale)
   const SURPRISE = "Surprise (−log10 p)";
@@ -73,6 +87,8 @@
     gd._axisZoom = true;
     const allowX = opts.x !== false, allowY = opts.y !== false;
     gd.addEventListener("wheel", (ev) => {
+      const panel = gd.closest(".panel");
+      if (panel && !panel.classList.contains("on") && !panel.classList.contains("solo")) { ev.stopPropagation(); return; }   // an unselected panel: the page scrolls (a lone panel counts as selected)
       const fl = gd._fullLayout;
       if (!((ev.shiftKey && allowX) || (ev.ctrlKey && allowY)) || !fl || !fl.xaxis || !fl.yaxis) return;
       ev.preventDefault(); ev.stopPropagation();
@@ -87,8 +103,33 @@
     }, { passive: false, capture: true });
   }
 
+  // Only the selected panel (the one whose variable colours the map, or a
+  // camera panel showing one of its modes) pans and zooms; on the others a
+  // drag or a wheel scrolls the page, and a click selects them. That keeps
+  // touch gestures for scrolling and drag-and-drop.
+  // the selected panel follows the colour variable; a click on its own title
+  // lets it go (no panel selected until the next click)
+  const panelOn = (name) => { if (state.unfocus) return false; const x = extraPanels.get(name); return x ? (x.colours || []).includes(state.colour) : name === state.colour; };
+  function selectPanel(name) {
+    if (panelOn(name)) { state.unfocus = true; renderPanels(); return; }
+    const x = extraPanels.get(name);
+    const colour = x ? (x.colours || [])[0] : name;
+    if (!colour) return;
+    state.unfocus = false;
+    if (colour === state.colour) { renderPanels(); return; }
+    state.colour = colour; store.set("colour", colour); renderControls(); render();
+  }
+
   // ------------------------------------------------------------ helpers
-  const fmtUTC = (ms) => new Date(ms).toISOString().replace("T", " ").slice(0, 16) + "Z";
+  // Every time a person reads is ship time (SITE.local_tz); the instants
+  // stay UTC underneath. Plotly has no zones, so a date axis gets instants
+  // shifted by the offset (shipAxis) and reads as ship time.
+  const _lp = new Intl.DateTimeFormat("en-CA", { timeZone: SITE.local_tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  const localParts = (ms) => { const o = {}; for (const p of _lp.formatToParts(new Date(ms))) o[p.type] = p.value; return o; };
+  const fmtTs = (ms) => { if (ms == null || isNaN(ms)) return ""; const p = localParts(ms); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`; };
+  const tzAbbr = (ms = Date.now()) => new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date(ms)).find((p) => p.type === "timeZoneName")?.value || SITE.local_tz;
+  const offsetMs = (ms) => { const p = localParts(ms); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60000) * 60000; };
+  const shipAxis = (ms) => new Date(ms + offsetMs(ms));
   const fmtLocal = (iso) => new Date(iso).toLocaleString(undefined, { timeZone: SITE.local_tz,
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const ago = (iso) => {
@@ -101,8 +142,8 @@
   const lastFinite = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i]; return null; };
   const fmtVal = (v, unit) => v == null ? "—" : `${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)}${unit ? " " + unit : ""}`;
   const dms = (lat, lon) => `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
-  const xvals = (d) => state.xmode === "time" ? d.t.map((ms) => new Date(ms)) : d.dist_km;
-  const xTitle = () => state.xmode === "time" ? "UTC" : "distance along track (km)";
+  const xvals = (d) => state.xmode === "time" ? d.t.map(shipAxis) : d.dist_km;
+  const xTitle = () => state.xmode === "time" ? `ship time (${tzAbbr()})` : "distance along track (km)";
   const minmax = (a) => { let lo = Infinity, hi = -Infinity; for (const x of a) if (x != null) { if (x < lo) lo = x; if (x > hi) hi = x; } return [lo, hi]; };
   const cssId = (s) => s.replace(/[^a-z0-9]+/gi, "_");
   const legById = (id) => M.legs.find((l) => l.id === id);
@@ -155,6 +196,20 @@
     state.win = w.label; store.set("win", state.win);
     toast(`Span widened to ${w.label} to reach ${justShown ? justShown.label : "the shown legs"}`);
     return true;
+  }
+  // a span picked by a table's "show all" link (the same path as the slider)
+  function setSpan(label) {
+    if (label === state.win || !M.windows.some((w) => w.label === label)) return;
+    state.win = label; store.set("win", state.win);
+    setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); renderControls(); loadWindow();
+  }
+  // the smallest span that reaches the first day of every shown leg
+  function widenSpan() {
+    const f = currentFilter(), shown = shownLegs();
+    if (!shown.length) return;
+    const need = Math.min(...shown.map((l) => legRange(l).start));
+    const w = M.windows.find((x) => f.end - x.hours * 3600e3 <= need) || M.windows[M.windows.length - 1];
+    setSpan(w.label);
   }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
@@ -226,18 +281,36 @@
   }
 
   // ------------------------------------------------------------ header
+  // the subtitle: the time now (ship time), when the record last updated,
+  // and LIVE while observations are still arriving. The ship's ACSD system
+  // flushes its CSV every ten minutes, so the newest observation is up to
+  // eleven minutes old in normal running; LIVE holds up to fifteen.
   function renderStatus() {
-    const d = state.data;
     const end = M.data_range.end;
-    const stale = (Date.now() - new Date(end)) > 30 * 60 * 1000;
-    const live = legById(M.live);
-    const pos = M.latest ? dms(M.latest.lat, M.latest.lon) : "position unknown";
-    $("#status").innerHTML =
-      `${live ? `<b>${live.label}</b> <span class="live">live</span> · ` : ""}latest data <b>${fmtLocal(end)}</b> ship time` +
-      ` (${stale ? `<span class="stale">${ago(end)}</span>` : ago(end)}) · <b>${pos}</b>` +
-      (d ? ` · <b>${(d.shown ?? d.n).toLocaleString()}</b> points @ ${d.step_s}s` : "");
-    $("#gen").textContent = M.generated_utc.replace("T", " ").slice(0, 16) + "Z";
+    const ageMin = (Date.now() - new Date(end)) / 60000;
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: SITE.local_tz, year: "numeric", month: "long", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+    const zone = new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value || "";   // EDT, where en-GB says GMT-4
+    const now = `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute} ${zone}`;   // 06 September 2026 14:45 EDT
+    const live = ageMin < 15;
+    // "last refresh" opens a list of the sources: each folder on the share (a
+    // link) or the live page it is scraped from, and when it last had anything
+    // the age coloured from green (fresh) through amber to red (three hours or more)
+    const ageColour = (iso) => { const m = (Date.now() - Date.parse(iso)) / 60000; return `hsl(${Math.round(120 * (1 - Math.min(1, Math.max(0, m) / 180)))}, 70%, 60%)`; };
+    const when = (iso) => iso ? `${fmtTs(Date.parse(iso)).slice(11)} <span style="color:${ageColour(iso)}">(${esc(ago(iso))})</span>` : "—";
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const rows = (M.source_info || []).map((s) => {
+      const t = s.key === "live" && window.UW?.intranetLatest?.fetched ? new Date(window.UW.intranetLatest.fetched * 1000).toISOString() : s.time;
+      return `<tr><td>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>` : esc(s.label)}</td><td class="mono">${when(t)}</td></tr>`;
+    }).join("");
+    const gen = Date.parse(M.generated_utc);
+    const open = $("#srcpop")?.open;
+    // the sources box opens on hover, or on a click on "last refresh" or LIVE
+    const schedWord = M.calendar?.now && schedMode() === "hidden" ? ` · <span class="schedlink" id="schedlink" title="show the status bar">STATUS</span>` : "";
+    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>` + schedWord;
+    const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
+    $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
+  setInterval(() => { if (M?.data_range) renderStatus(); }, 20000);
 
   function renderControls() {
     const r = $("#span"), ticks = $("#spanticks");
@@ -248,37 +321,133 @@
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
     $("#spanlabel").textContent = labels[idx];
+    const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); loadWindow(); };
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
-    r.onchange = () => { state.win = labels[r.value]; store.set("win", state.win); requestFit(); reconcileLegsToSpan(); loadWindow(); };
+    r.onchange = () => pick(labels[r.value]);
+    // the same choice as a dropdown, which is what a phone shows instead of the slider
+    const sel0 = $("#spansel");
+    sel0.innerHTML = labels.map((l) => `<option value="${l}">${l === "leg" ? "this leg" : l}</option>`).join("");
+    sel0.value = labels[idx];
+    sel0.onchange = () => pick(sel0.value);
 
-    // every Time/Distance pill (the underway pane's and the cast section's) shows and sets the same mode
-    for (const b of document.querySelectorAll(".xmode button")) {
-      b.classList.toggle("on", b.dataset.x === state.xmode);
-      b.onclick = () => { state.xmode = b.dataset.x; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
+    // every X-axis toggle (the header's and the cast section's) shows the mode and cycles it
+    for (const b of document.querySelectorAll(".xmode .xcycle")) {
+      b.textContent = state.xmode === "time" ? "Time" : "Distance";
+      b.onclick = () => { state.xmode = state.xmode === "time" ? "distance" : "time"; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
     }
-    const sel = $("#colour");
-    sel.innerHTML = "";
-    for (const v of M.variables) {
-      if (!v.resolved) continue;
-      const o = document.createElement("option");
-      o.value = v.name; o.textContent = v.name;
-      sel.appendChild(o);
+    // every colour picker (the map's, and the underway strip's) lists the same variables and sets the same choice
+    if (!VAR[state.colour]?.resolved && !extraColours.has(state.colour)) state.colour = M.variables.find((v) => v.resolved && !v.derived)?.name || M.variables[0].name;
+    for (const sel of document.querySelectorAll("select.colourpick")) {
+      sel.innerHTML = "";
+      for (const v of [...M.variables, ...extraColours.values()]) {
+        if (!v.resolved) continue;
+        const o = document.createElement("option");
+        o.value = v.name; o.textContent = v.name;
+        sel.appendChild(o);
+      }
+      sel.value = state.colour;
+      sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); renderControls(); render(); };
     }
-    if (!VAR[state.colour]?.resolved) state.colour = M.variables.find((v) => v.resolved && !v.derived)?.name || M.variables[0].name;
-    sel.value = state.colour;
-    sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); render(); };
 
-    $("#track").checked = state.track;
-    $("#cameras").checked = state.cameras;
-    $("#cameras").onchange = (e) => { state.cameras = e.target.checked; store.set("cameras", state.cameras); closeCamera(); renderMap(); };
-    $("#track").onchange = (e) => { state.track = e.target.checked; store.set("track", state.track); renderMap(); };
-    $("#stations").checked = state.stations;
-    $("#stations").onchange = (e) => { state.stations = e.target.checked; store.set("stations", state.stations); renderMap(); };
-    $("#events").checked = state.events;
-    $("#events").onchange = (e) => { state.events = e.target.checked; store.set("events", state.events); renderMap(); };
-    $("#communities").checked = state.communities;
-    $("#communities").onchange = (e) => { state.communities = e.target.checked; store.set("communities", state.communities); renderMap(); };
+    // the map layers: on/off toggles in the bar above the map
+    for (const b of document.querySelectorAll("#maplayers button[data-layer]")) {
+      const layer = b.dataset.layer;
+      b.classList.toggle("on", !!state[layer]);
+      b.setAttribute("aria-pressed", String(!!state[layer]));
+      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "cameras") closeCamera(); renderMap(); };
+    }
+    renderSatPill();
+    $("#mapattrib").innerHTML = [SITE.raster?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
+    {
+      const r = $("#trackstep"), out = $("#tracksteplabel");
+      if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
+      let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = 0;
+      r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]);
+      r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); };
+      r.onchange = () => {
+        const before = windowFile(currentWindow());
+        setTrackDetail(TRACK_STEPS[r.value]);
+        if (windowFile(currentWindow()) !== before) loadWindow(); else renderMap();   // "all points" may mean the fine file
+      };
+    }
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
+    // how much of the page the map takes: half (the left column), full (the
+    // whole page, no pane) or none (the pane takes the whole width). The
+    // header pill cycles through them; the map's own — and ⤢ buttons pick
+    // none and full (⤢ again, back to half). Every plot resizes after.
+    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half Map", full: "Full Map", none: "No Map" };
+    const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
+    // the classes and labels follow the stored mode; the plots resize and
+    // the map refits only when the mode has actually changed (this runs on
+    // every controls render, once a minute, and must not touch the view then)
+    const applyMapMode = () => {
+      const m = mapMode(), main = $("main");
+      main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
+      $("#maptoggle").textContent = MAP_WORD[m];
+      $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
+      if (main.dataset.mapmode === m) return;
+      const first = !main.dataset.mapmode;
+      main.dataset.mapmode = m;
+      if (first) return;                                              // the first draw fits on its own
+      setTimeout(() => {
+        for (const p of document.querySelectorAll(".plot")) if (p.data) Plotly.Plots.resize(p);
+        if (m !== "none" && $("#map").data) { Plotly.Plots.resize($("#map")); requestFit(); renderMap(); }
+      }, 0);
+    };
+    const setMapMode = (m) => { store.set("mapmode", m); applyMapMode(); };
+    window.UW = Object.assign(window.UW || {}, { mapMode, setMapMode });
+    // the pill swings: none, half, full, half, none, ... so half is always one click away
+    let mapDir = "up";
+    $("#maptoggle").onclick = () => {
+      const m = mapMode();
+      if (m === "half") setMapMode(mapDir === "up" ? "full" : "none");
+      else { mapDir = m === "none" ? "up" : "down"; setMapMode("half"); }
+    };
+    $("#mapnone").onclick = () => setMapMode("none");
+    $("#mapfull").onclick = () => setMapMode(mapMode() === "full" ? "half" : "full");
+    applyMapMode();
+  }
+
+  // the satellite pill cycles off → Sentinel-1 → Sentinel-2 → off through
+  // the pictures the build has published (a sensor without one is skipped)
+  const satImages = () => M?.satellite?.images || {};
+  // the pictures of the shown sensor, oldest first: the archive, which ends
+  // with the current picture (all share the current picture's corners)
+  function satSeries() {
+    const im = satImages()[state.sat]; if (!im) return [];
+    const arch = (M?.satellite?.archive || {})[state.sat] || [];
+    const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: im.corners, label: im.label }));
+    if (!rows.length || rows[rows.length - 1].scene !== (im.scene || im.fetched)) rows.push({ url: im.url, scene: im.scene || im.fetched, corners: im.corners, label: im.label });
+    return rows;
+  }
+  // the picture on the map: the one stepped back to, else the newest
+  function satPicture() {
+    const rows = satSeries(); if (!rows.length) return null;
+    const i = state.satAt ? rows.findIndex((r) => r.scene === state.satAt) : -1;
+    return { ...(i >= 0 ? rows[i] : rows[rows.length - 1]), index: i >= 0 ? i : rows.length - 1, n: rows.length };
+  }
+  function renderSatPill() {
+    const b = $("#satpill"), imgs = satImages(), kinds = ["s1", "s2"].filter((k) => imgs[k]);
+    b.hidden = !kinds.length;
+    $("#satnav").hidden = true;
+    if (!kinds.length) return;
+    if (state.sat && !imgs[state.sat]) state.sat = "";
+    const im = imgs[state.sat];
+    b.classList.toggle("on", !!im);
+    b.textContent = im ? (state.sat === "s1" ? "S1 radar" : "S2 optical") : "Sat";
+    b.title = im ? `${im.label}, newest scene ${im.scene ? fmtTs(Date.parse(im.scene)) + " " + tzAbbr() : "unknown"} · click for ${state.sat === "s1" && imgs.s2 ? "Sentinel-2" : "none"}` : "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour";
+    b.onclick = () => { const i = kinds.indexOf(state.sat); state.sat = i < 0 ? kinds[0] : (kinds[i + 1] || ""); state.satAt = null; store.set("sat", state.sat); renderSatPill(); renderMap(); };
+    // the stepper: back and forth through the archive, the newest last
+    const pic = satPicture();
+    if (!pic) return;
+    $("#satnav").hidden = false;
+    $("#satwhen").textContent = `${fmtTs(Date.parse(pic.scene)).slice(5)} ${tzAbbr()}` + (pic.n > 1 ? ` · ${pic.index + 1}/${pic.n}` : "");
+    $("#satwhen").title = pic.index === pic.n - 1 ? "the newest picture" : "an earlier picture; › steps forward";
+    $("#satprev").disabled = pic.index === 0;
+    $("#satnext").disabled = pic.index === pic.n - 1;
+    const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : rows[j].scene; renderSatPill(); renderMap(); };
+    $("#satprev").onclick = () => step(-1);
+    $("#satnext").onclick = () => step(1);
   }
 
   // ------------------------------------------------------------ basemap
@@ -390,7 +559,7 @@
     const colour = (a) => acts.indexOf(a) % PALETTE_EV.length;         // index into the sprite's tri-N icons
     const pts = [...groups.values()].map((es) => {
       es.sort((a, b) => tms(b.time_utc) - tms(a.time_utc));
-      const lines = es.slice(0, 10).map((e) => `${fmtUTC(tms(e.time_utc))} · <b>${esc(e.station || "")}</b> ${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? " <i>" + esc(e.label) + "</i>" : ""}${e.comment ? "<br>&nbsp;&nbsp;" + esc(e.comment) : ""}`);
+      const lines = es.slice(0, 10).map((e) => `${fmtTs(tms(e.time_utc))} · <b>${esc(e.station || "")}</b> ${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? " <i>" + esc(e.label) + "</i>" : ""}${e.comment ? "<br>&nbsp;&nbsp;" + esc(e.comment) : ""}`);
       if (es.length > 10) lines.push(`… +${es.length - 10} more`);
       return { lat: +es[0].lat, lon: +es[0].lon, n: es.length, text: (es.length > 1 ? `<b>${es.length} events here</b><br>` : "") + lines.join("<br>"), colour: colour(es[0].activity || "other") };
     });
@@ -428,7 +597,7 @@
     const cs = camsShown(); const at = cs.findIndex((x) => x.i === i);
     $("#camtitle").textContent = `${c.day.slice(0, 4)}-${c.day.slice(4, 6)}-${c.day.slice(6, 8)}`;
     $("#camsub").textContent = `${legById(c.leg)?.label || c.leg || ""} · ${c.frames} shots${c.complete ? "" : " so far"}`;
-    $("#camfoot").innerHTML = `${c.start_utc ? fmtUTC(Date.parse(c.start_utc)) : ""} → ${c.end_utc ? fmtUTC(Date.parse(c.end_utc)).slice(11) : ""} · ` +
+    $("#camfoot").innerHTML = `${c.start_utc ? fmtTs(Date.parse(c.start_utc)) : ""} → ${c.end_utc ? fmtTs(Date.parse(c.end_utc)).slice(11) : ""} ${tzAbbr()} · ` +
       `<a href="${c.url}" target="_blank" rel="noopener">open video</a>`;
     $("#camprev").disabled = at <= 0; $("#camnext").disabled = at < 0 || at >= cs.length - 1;
     $("#camprev").onclick = () => { if (at > 0) openCamera(cs[at - 1].i); };
@@ -511,33 +680,214 @@
       sp.map.setLayoutProperty(layer, "icon-rotation-alignment", "map");
     }
   }
-  let lastLabelZoom = null;
+  // Station labels: one per station name (the latest visit), thinned to one
+  // per map cell so they never pile up; far out only the stations without a
+  // cast and the most recent casts survive, close in every name shows.
+  // the plan's station labels: from zoom 5 in, one per label cell, the first
+  // named station of a cell winning
+  function planLabels(st, zoom) {
+    if (zoom < 5) return st.map(() => "");
+    const cell = 40 / Math.pow(2, zoom), cells = new Set();
+    return st.map((s) => {
+      const key = `${Math.floor(s.lat / cell)}:${Math.floor(s.lon * Math.cos(s.lat * Math.PI / 180) / cell)}`;
+      if (!s.name || cells.has(key)) return "";
+      cells.add(key); return s.name;
+    });
+  }
+  // Plans on the map: the leg's own (published by the build, charcoal) and
+  // any this browser has loaded by dropping a KMZ (kept in its local
+  // storage, one pill and one colour each). Every shown plan draws its
+  // tracks (the alternate dim) and its stations, labelled by zoom.
+  const PLAN_COLOURS = ["#ffb454", "#ff9bce", "#7ee787", "#c9a2ff"];
+  const userPlans = () => store.get("plans.user", []);
+  const planOn = (i) => !!(store.get("plans.on", {})[i] ?? true);
+  // a plan's import stamp, "YYYY-MM-DD.n": the day it came and its number that day
+  const planStamp = (iso, n = 1) => `${String(iso || "").slice(0, 10) || "unknown"}.${n}`;
+  function plansShown() {
+    const out = [];
+    if (state.plan && state.planData) out.push({ ...state.planData, key: "plan", colour: "#454f5b", label: "#aab3bd", imported: planStamp(M?.plan?.stamp) });
+    userPlans().forEach((pl, i) => { if (planOn(i)) out.push({ ...pl, key: `user${i}`, colour: PLAN_COLOURS[i % PLAN_COLOURS.length], label: PLAN_COLOURS[i % PLAN_COLOURS.length], imported: pl.imported || planStamp(null) }); });
+    return out;
+  }
+  function planTraces(zoom) {
+    const out = [];
+    for (const pl of plansShown()) {
+      // hover boxes like the stations': the text alone, no trace name beside it
+      for (const t of pl.tracks) out.push({ type: "scattermap", mode: "lines", name: `${pl.key}-${t.alternate ? "alt" : "track"}`, showlegend: false,
+        lat: t.coords.map((c) => c[1]), lon: t.coords.map((c) => c[0]), hovertext: t.coords.map(() => t.name), hovertemplate: "%{hovertext}<extra></extra>",
+        line: { width: t.alternate ? 1.2 : 2.2, color: pl.colour }, opacity: t.alternate ? .45 : .95 });
+      if (pl.stations.length) out.push({ type: "scattermap", mode: "markers+text", name: `${pl.key}-stations`, showlegend: false,
+        lat: pl.stations.map((s) => s.lat), lon: pl.stations.map((s) => s.lon), text: planLabels(pl.stations, zoom), textposition: "top right", textfont: { size: 11, color: pl.label },
+        hovertext: pl.stations.map((s) => `<b>${esc(s.name)}</b>${s.type ? " · " + esc(s.type) : ""}${s.region ? "<br>" + esc(s.region) : ""}${s.group ? "<br>" + esc(s.group) : ""}${s.depth_m != null ? `<br>depth ${Math.round(s.depth_m)} m` : ""}${s.ops ? "<br>" + esc(s.ops) : s.desc ? "<br>" + esc(s.desc) : ""}<br>planned station`),
+        hovertemplate: "%{hovertext}<extra></extra>", marker: { size: 7, color: pl.colour, opacity: .95 } });
+    }
+    return out;
+  }
+  // the pills for this browser's own plans, after the Plan pill; ✕ forgets one
+  function renderPlanPills() {
+    for (const b of document.querySelectorAll("#maplayers button.userplan")) b.remove();
+    const anchor = document.querySelector('#maplayers button[data-layer="plan"]'); if (!anchor) return;
+    userPlans().forEach((pl, i) => {
+      const b = document.createElement("button");
+      b.className = `userplan ${planOn(i) ? "on" : ""}`; b.type = "button"; b.title = `${pl.name} · ${pl.stations.length} stations (this browser only) · ✕ forgets it`;
+      b.innerHTML = `${esc(pl.short || `Plan ${i + 2}`)}<span class="x" title="forget this plan">✕</span>`;
+      b.onclick = (e) => {
+        if (e.target.classList.contains("x")) { const all = userPlans(); all.splice(i, 1); store.set("plans.user", all); store.set("plans.on", {}); renderPlanPills(); renderMap(); return; }
+        const on = store.get("plans.on", {}); on[i] = !planOn(i); store.set("plans.on", on); renderPlanPills(); renderMap();
+      };
+      anchor.after(b);
+    });
+  }
+  // the plan file follows the manifest: a new version (a build, or a drop
+  // on the map) is fetched and drawn
+  async function loadPlan() {
+    const p = M?.plan;
+    if (!p) { if (state.planData) { state.planData = null; state.planStamp = null; renderMap(); } return; }
+    if (p.stamp === state.planStamp) return;
+    try { state.planData = await fetchJSON(p.file); state.planStamp = p.stamp; renderMap(); }
+    catch { /* the next manifest */ }
+  }
+  // a KMZ or KML dropped on the map replaces the plan for everyone
+  function wirePlanDrop() {
+    const sec = document.querySelector("section.map"); if (!sec) return;
+    sec.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); sec.classList.add("dropping"); } });
+    sec.addEventListener("dragleave", () => sec.classList.remove("dropping"));
+    sec.addEventListener("drop", async (e) => {
+      sec.classList.remove("dropping");
+      const f = e.dataTransfer?.files?.[0]; if (!f) return;
+      e.preventDefault();
+      if (!/\.(kmz|kml)$/i.test(f.name)) { toast(`${f.name}: not a KMZ or KML`); return; }
+      toast(`reading ${f.name}…`);
+      try {
+        const r = await fetch("api/plan", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: f });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.status);
+        const all = userPlans(), today = new Date().toISOString().slice(0, 10);
+        const nToday = all.filter((pl) => String(pl.imported || "").startsWith(today)).length + (M?.plan?.stamp?.startsWith(today) ? 1 : 0);
+        all.push({ name: j.name, short: f.name.replace(/\.(kmz|kml)$/i, "").slice(0, 18), imported: `${today}.${nToday + 1}`, tracks: j.tracks, stations: j.stations, groups: j.groups });
+        store.set("plans.user", all);
+        renderPlanPills(); renderMap();
+        toast(`plan loaded in this browser: ${j.name} · ${j.stations.length} stations, ${j.tracks.length} tracks`);
+      } catch (err) { toast(`plan not loaded: ${err.message}`); }
+    });
+  }
+  function stationLabels(st, zoom) {
+    if (zoom < 2.5) return st.map(() => "");
+    const cell = 40 / Math.pow(2, zoom);                      // degrees of latitude per label cell
+    const order = st.map((s, i) => i).sort((a, b) => (st[b].kind === "event") - (st[a].kind === "event") || String(st[b].time).localeCompare(String(st[a].time)));
+    const names = new Set(), cells = new Set(), out = st.map(() => "");
+    for (const i of order) {
+      const s = st[i], name = (s.station || "").trim();
+      if (!name || names.has(`${s.leg}:${name}`)) continue;
+      const key = `${Math.floor(s.lat / cell)}:${Math.floor(s.lon * Math.cos(s.lat * Math.PI / 180) / cell)}`;
+      if (zoom < 8 && cells.has(key)) continue;
+      names.add(`${s.leg}:${name}`); cells.add(key); out[i] = name;
+    }
+    return out;
+  }
+  let lastLabelZoom = null, lastStationZoom = null;
   setInterval(() => {
     try { aimShip(); } catch { /* next tick */ }
     const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
-    if (z == null || !state.communities || !el.data) return;
+    if (z == null || !el.data) return;
     const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
-    if (bucket === lastLabelZoom) return;
-    lastLabelZoom = bucket;
-    const fresh = placeTraces(z);
-    const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
-    if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
+    if (state.communities && bucket !== lastLabelZoom) {
+      lastLabelZoom = bucket;
+      const fresh = placeTraces(z);
+      const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
+      if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
+    }
+    const sz = Math.round(z * 2) / 2;
+    if (state.stationList?.length && sz !== lastStationZoom) {
+      lastStationZoom = sz;
+      const idx = el.data.findIndex((t) => t.name === "stations");
+      if (idx >= 0 && el.data[idx].lat.length === state.stationList.length) Plotly.restyle(el, { text: [stationLabels(state.stationList, z)] }, [idx]);
+      for (const pl of plansShown()) {
+        const pi = el.data.findIndex((t) => t.name === `${pl.key}-stations`);
+        if (pi >= 0 && el.data[pi].lat.length === pl.stations.length) Plotly.restyle(el, { text: [planLabels(pl.stations, z)] }, [pi]);
+      }
+    }
   }, 1500);
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
+  // Track detail: the window's points thinned to one per so many km along
+  // the track (the gap markers, and the last fix, always stay). Every array
+  // of the window is cut the same way, so hover, colours and the pump marks
+  // line up with the points drawn.
+  const TRACK_STEPS = [0, 0.5, 1, 2, 5, 10, 20, 50];
+  // the span picks a starting detail (up to a week: a point a km; months:
+  // 5 km; years: 20 km) that the slider then overrides; "all points" is a
+  // choice, never the default
+  const detailFor = (hours) => hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
+  const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
+  const currentWindow = () => M.windows.find((x) => x.label === state.win);
+  // "all points" loads the window's fine variant when the build made one
+  const windowFile = (w) => (state.trackKm === 0 && w?.fine_file) ? w.fine_file : w?.file;
+  function setTrackDetail(km) {
+    state.trackKm = km; store.set("trackKm", km);
+    const r = $("#trackstep"), out = $("#tracksteplabel");
+    if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? 0 : i; out.textContent = detailLabel(km); }
+  }
+  let thinCache = { src: null, km: null, out: null };
+  function thinTrack(d, km) {
+    if (!d || !km) return d;
+    if (thinCache.src === d && thinCache.km === km) return thinCache.out;
+    const n = d.t.length, keep = [];
+    let last = -1, bucket = null;
+    for (let i = n - 1; i >= 0; i--) if (d.lat[i] != null) { last = i; break; }
+    for (let i = 0; i < n; i++) {
+      if (d.lat[i] == null) { keep.push(i); continue; }
+      const b = Math.floor((d.dist_km[i] ?? 0) / km);
+      if (b !== bucket || i === last) { keep.push(i); bucket = b; }
+    }
+    const cut = (a) => Array.isArray(a) && a.length === n ? keep.map((i) => a[i]) : a;
+    const out = {};
+    for (const [k, v] of Object.entries(d)) out[k] = k === "vars" ? Object.fromEntries(Object.entries(v).map(([name, a]) => [name, cut(a)])) : cut(v);
+    out.shown = keep.filter((i) => d.lat[i] != null).length;
+    thinCache = { src: d, km, out };
+    return out;
+  }
+  // the ship's position: the intranet live page when it is newer than the
+  // record's last fix, else that fix (with the build's averaged heading)
+  function shipNow(d, li) {
+    const live = window.UW?.shipLive;
+    const recT = li >= 0 ? d.t[li] : -Infinity;
+    if (live && live.lat != null && live.t > recT) {
+      return { lat: live.lat, lon: live.lon, heading: live.heading, t: live.t,
+        text: `CCGS Amundsen · live · ${fmtTs(live.t)} ${tzAbbr()} · heading ${live.heading != null ? live.heading.toFixed(0) + "°" : "unknown"}${live.speed != null ? ` · ${live.speed.toFixed(1)} kn` : ""}` };
+    }
+    if (li < 0) return { lat: null };
+    const heading = M.latest?.heading ?? null;
+    return { lat: d.lat[li], lon: d.lon[li], heading, t: recT,
+      text: `CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}` };
+  }
+  // called by the live poller: move the marker without redrawing the map
+  function moveShip() {
+    const el = $("#map"); const d = state.data;
+    if (!el?.data || !d) return;
+    const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
+    const ship = shipNow(d, li);
+    const idx = el.data.findIndex((t) => t.name === "latest");
+    if (idx < 0 || ship.lat == null) return;
+    const had = el.data[idx].marker?.symbol === "ship";
+    if ((ship.heading != null) !== had) { renderMap(); return; }        // the glyph itself changes: a full draw
+    state.shipHeading = ship.heading;
+    Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]] }, [idx]).catch(() => {});
+  }
   let mapDrawing = false, mapAgain = false;
   function renderMap() {
     if (mapDrawing) { mapAgain = true; return; }
-    const d = state.data;
+    const d = thinTrack(state.data, state.trackKm);
     const el = $("#map");
     if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
-    const v = VAR[state.colour];
-    const c = d.vars[state.colour] || [];
+    const v = VAR[state.colour] || extraColours.get(state.colour);
+    const customColour = extraColours.get(state.colour)?.values(d);
+    const c = customColour || d.vars[state.colour] || [];
     const lim = d.limits[state.colour] || minmax(c);
     const hover = d.t.map((ms, i) => d.lat[i] == null ? "" :
-      `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtUTC(ms)}<br>${state.colour}: <b>${fmtVal(c[i], v?.unit)}</b>` +
+      `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtTs(ms)} ${tzAbbr()}<br>${state.colour}: <b>${v?.rgb ? (c[i] === '#000000' ? 'no nearby photo' : c[i]) : fmtVal(c[i], v?.unit)}</b>` +
       `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track`);
 
     // draw order is click order: MVP tows from the cast tab go under the
@@ -545,18 +895,25 @@
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
     const f0 = currentFilter();
-    const traces = [...(window.UW?.extraMapTraces?.() || [])];
+    const traces = [...planTraces((state.view || fitView(d.lat, d.lon)).zoom), ...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
     const evTraces = eventTraces(f0);
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: true,
-                colorbar: { title: { text: state.colour, side: "right" }, thickness: 12, len: .55, x: 1.0,
-                  tickfont: { size: 12 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
+      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
+                opacity: .95,
+                // the scale lies along the top of the map, under the Color by picker
+                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: 12 } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
+                  tickfont: { size: 11 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
+    if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
+      type:'scattermap',mode:'markers',name:'no nearby photo',showlegend:false,
+      lat:d.lat.map((q,i)=>c[i]==null?q:null),lon:d.lon.map((q,i)=>c[i]==null?q:null),
+      marker:{size:6,color:'#000000'},hovertemplate:'No matching photo<extra></extra>'
+    });
     const lowMap = v?.tsg ? pumpLow(d) : null;
     if (state.track && lowMap && lowMap.some(Boolean)) traces.push({
       type: "scattermap", mode: "markers", name: "pump off", showlegend: false,
@@ -570,29 +927,38 @@
     // ten minutes (a window's last bin swings with the bin width). With no
     // heading to turn it to, a plain red dot stands in. allowoverlap keeps
     // the glyph from losing the collision pass to labels when zoomed out.
-    const heading = M.latest?.heading ?? null;
-    state.shipHeading = heading;
-    if (li >= 0) traces.push({
+    // The intranet's live page, polled every few seconds, is fresher than
+    // any file: while it is, the ship stands where it says.
+    const ship = shipNow(d, li);
+    state.shipHeading = ship.heading;
+    if (ship.lat != null) traces.push({
       type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
-      lat: [d.lat[li]], lon: [d.lon[li]], hoverinfo: "text",
-      text: [`CCGS Amundsen · latest · ${fmtUTC(d.t[li])} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}`],
-      marker: heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
-                              : { size: 12, color: "#d52b1e", opacity: 1 },
+      lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
+      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
+                                   : { size: 12, color: "#d52b1e", opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const f = currentFilter();
+    // CTD casts (white; orange when selected) and the stations the event log
+    // records without a cast (green), each a click target
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
     const selected = window.UW?.selectedCastKeys?.() || new Set();
-    if (st.length) traces.push({
-      type: "scattermap", mode: "markers", name: "CTD stations", showlegend: false,
-      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
-      customdata: st.map((s) => `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`),
-      text: st.map((s) => `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
+    const stKey = (s) => s.kind === "event" ? `ev:${s.leg}:${s.station}` : `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`;
+    const stText = (s) => s.kind === "event"
+      ? `<b>${s.station}</b>${s.type ? " · " + s.type : ""} · ${legById(s.leg)?.label || s.leg}<br>${(s.time || "").slice(0, 16)}${s.time_end && s.time_end !== s.time ? " → " + s.time_end.slice(0, 16) : ""}` +
+        `<br>${(s.activities || []).length > 3 ? `${s.activities.length} events` : (s.activities || []).join(", ")}${s.bottom_m != null ? `<br>depth ${Math.round(s.bottom_m)} m` : ""}${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`
+      : `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
         `<br>${s.time || ""}${s.type ? "<br>" + s.type : ""}${s.bottom_m != null ? `<br>bottom ${s.bottom_m} m` : ""}` +
-        `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`),
-      marker: { size: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? 14 : 9),
-                color: st.map((s) => selected.has(`${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`) ? "#ffb454" : "rgba(255,255,255,.9)"),
+        `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`;
+    state.stationList = st;
+    if (st.length) traces.push({
+      type: "scattermap", mode: "markers+text", name: "stations", showlegend: false,
+      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
+      customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, (state.view || fitView(d.lat, d.lon)).zoom),
+      textposition: "top right", textfont: { size: 11, color: "#e8f4ff", family: "Open Sans Regular" },
+      marker: { size: st.map((s) => selected.has(stKey(s)) ? 14 : 9),
+                color: st.map((s) => selected.has(stKey(s)) ? "#ffb454" : s.kind === "event" ? "#7ee787" : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
     // an all-but-invisible oversized copy on top gives each station a generous
@@ -600,7 +966,7 @@
     if (st.length) traces.push({
       type: "scattermap", mode: "markers", name: "station hit targets", showlegend: false, hoverinfo: "skip",
       lat: st.map((s) => s.lat), lon: st.map((s) => s.lon),
-      customdata: st.map((s) => `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`),
+      customdata: st.map(stKey),
       marker: { size: 26, color: "rgba(255,255,255,0.02)" },
     });
 
@@ -617,6 +983,11 @@
     // bands stand in for the bathymetry.
     const relief = !!SITE.raster;
     const layers = [];
+    const sat = state.sat && satPicture();
+    if (sat) layers.push({ sourcetype: "image", source: sat.url, coordinates: sat.corners, opacity: .95, below: "traces", name: "sat" });
+    // the newest radar at 50 m in a box round the ship lies over the region picture
+    const near = state.sat === "s1" && !state.satAt && satImages().s1near;
+    if (near) layers.push({ sourcetype: "image", source: near.url, coordinates: near.corners, opacity: 1, below: "traces", name: "satnear" });
     for (const l of (state.geo || [])) {
       if (l.name === "bathy" && SITE.raster) continue;
       if (l.name === "land" && relief) continue;
@@ -637,38 +1008,49 @@
       el.removeAllListeners?.("plotly_click");
       el.on("plotly_click", (ev) => {
         const p = ev.points?.[0];
+        if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });
-    }).catch(() => {
-      mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
+      mapMessage("");
+    }).catch((e) => {
+      // a draw that failed outright leaves no plot; a hiccup after a good
+      // draw (a layer, a listener) is logged and the map stays as it is
+      console.warn("map draw:", e);
+      if (!el._fullLayout?.map?._subplot?.map) mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
     }).finally(() => {
       mapDrawing = false;
       if (mapAgain) { mapAgain = false; renderMap(); }
     });
 
-    const km = lastFinite(d.dist_km) ?? 0;
-    const spd = lastFinite(d.vars["Ship speed (kn)"] || []);
-    const legsIn = new Set(d.leg.filter((x, i) => x != null && d.lat[i] != null)).size;
+    // distance travelled: the along-track extent of each selected leg's
+    // points in the span (dist_km runs on through the whole record)
+    const ext = new Map();
+    d.dist_km.forEach((x, i) => { if (x == null || d.lat[i] == null || d.leg[i] == null) return; const e = ext.get(d.leg[i]); if (!e) ext.set(d.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
+    const km = [...ext.values()].reduce((a, [lo, hi]) => a + hi - lo, 0);
+    const nLegs = shownLegs().length;
     $("#mapfoot").innerHTML =
-      `<span><b>${d.label}</b> span · <b>${km.toFixed(0)} km</b> travelled · ${legsIn} leg${legsIn === 1 ? "" : "s"}</span>` +
-      (spd != null ? `<span>speed <b>${spd.toFixed(1)} kn</b></span>` : "") +
-      (st.length ? `<span><b>${st.length}</b> CTD casts</span>` : "") +
-      `<span class="mono">${d.start.slice(0, 16)}Z → ${d.end.slice(0, 16)}Z</span>` +
+      `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
+      (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
+      `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat === "s1" && !state.satAt && satImages().s1near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages().s1near.scene || satImages().s1near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
+      plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
 
   // ------------------------------------------------------------ panels
   function panelNames() {
-    const all = M.variables.map((v) => v.name).filter((n) => !NOT_PANELS.has(n));
+    const all = [...M.variables.map((v) => v.name), ...extraPanels.keys()].filter((n) => !NOT_PANELS.has(n));
     const ordered = state.order.filter((n) => all.includes(n));
-    return [...ordered, ...all.filter((n) => !ordered.includes(n))];
+    const result=[...ordered, ...all.filter((n) => !ordered.includes(n))];
+    for(const [name,spec] of extraPanels)if(spec.after&&!ordered.includes(name)){const i=result.indexOf(name);if(i>=0)result.splice(i,1);const at=result.indexOf(spec.after);result.splice(at<0?result.length:at+1,0,name);}
+    return result;
   }
 
   function panelEl(name) {
     let el = document.getElementById("p-" + cssId(name));
     if (el) return el;
-    const v = VAR[name];
+    const v = VAR[name] || extraPanels.get(name);
     el = document.createElement("section");
     el.className = "panel card"; el.id = "p-" + cssId(name); el.dataset.name = name; el.draggable = true;
     if (name.startsWith("Surprise")) el.classList.add("surprise");
@@ -681,7 +1063,9 @@
           <button class="min" title="minimise to the bottom bar">—</button>
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
-    el.querySelector("h3").onclick = () => { state.colour = name; store.set("colour", name); $("#colour").value = name; render(); };
+    el.querySelector("h3").onclick = () => selectPanel(name);
+    if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
+    el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
     el.querySelector(".reset").onclick = () => Plotly.relayout(el.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
@@ -694,9 +1078,12 @@
       e.preventDefault(); el.classList.remove("over");
       const from = e.dataTransfer.getData("text/plain");
       if (!from || from === name) return;
-      const order = panelNames().filter((n) => n !== from);
-      const at = order.indexOf(name);
-      order.splice(e.offsetX < el.clientWidth / 2 ? at : at + 1, 0, from);
+      // the dragged panel and the one it lands on trade places: the result does
+      // not depend on where in the card it was dropped
+      const order = panelNames();
+      const i = order.indexOf(from), j = order.indexOf(name);
+      if (i < 0 || j < 0) return;
+      [order[i], order[j]] = [order[j], order[i]];
       state.order = order; store.set("order", order);
       layoutPanels();
     });
@@ -771,12 +1158,19 @@
 
   function renderPanel(name) {
     if (state.panel[name] === "min") { layoutPanels(); return; }
-    const d = state.data, v = VAR[name], el = panelEl(name);
+    const d = state.data, v = VAR[name] || extraPanels.get(name), el = panelEl(name);
     const plot = el.querySelector(".plot");
-    el.classList.toggle("on", name === state.colour);
+    const on = panelOn(name);
+    el.classList.toggle("on", on);
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
+    if (extraPanels.has(name)) {
+      extraPanels.get(name).render(el, plot);
+      // their own draw queues before this, so the drag mode lands after it
+      Promise.resolve().then(() => { if (plot.data) Plotly.relayout(plot, { dragmode: on ? "pan" : false }).catch(() => {}); });
+      return;
+    }
     let title = name;
     let y = d?.vars[name];
     if (name === SURPRISE) {
@@ -791,8 +1185,8 @@
     if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
     el.querySelector(".now").textContent = fmtVal(lastFinite(y), v.unit);
 
-    const cv = VAR[state.colour];
-    const c = d.vars[state.colour] || [];
+    const cv = VAR[state.colour] || extraColours.get(state.colour);
+    const c = extraColours.get(state.colour)?.values(d) || d.vars[state.colour] || [];
     const lim = d.limits[state.colour] || minmax(c);
     // SVG, not WebGL: a dozen scattergl panels plus the map exceed the
     // browser's WebGL context limit (Safari's is 8) and the map is what gets
@@ -805,7 +1199,8 @@
     const trace = {
       x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
-      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false },
+      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false,
+                opacity: 1 },
       text: legText,
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
@@ -824,12 +1219,14 @@
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const layout = {
-      ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14, dragmode: "pan",
+      ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14,
+      dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
       uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
-               ticksuffix: state.xmode === "time" ? "" : " km" },
+               ticksuffix: state.xmode === "time" ? "" : " km",
+               ...(window.innerWidth < 640 ? { nticks: 4, tickangle: 0 } : {}) },   // a phone's plot: few, level ticks, clear of the title
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
@@ -843,7 +1240,10 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, traces, layout, CFG).then(() => { axisZoom(plot); linkX(plot); });
+    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot);
+      plot.removeAllListeners?.('plotly_click');
+      plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
+    });
   }
 
   function renderPanels() {
@@ -863,9 +1263,9 @@
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
-      `<p><b>Record</b>: ${M.data_range.start.slice(0, 16)}Z → ${M.data_range.end.slice(0, 16)}Z. ${M.columns_seen.length} distinct columns seen; ` +
+      `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
-      `<p>Axes are UTC; the header shows ship time (${SITE.local_tz}). Gaps in lines are missing data, not interpolation. ` +
+      `<p>Times and time axes are ship time (${SITE.local_tz}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
       `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
   }
 
@@ -887,15 +1287,17 @@
     const seq = ++loadSeq;
     windowLoading = true;
     try {
-      const raw = await fetchJSON(`${w.file}?v=${encodeURIComponent(manifest.generated_utc)}`);
+      const file = windowFile(w);
+      const raw = await fetchJSON(`${file}?v=${encodeURIComponent(manifest.generated_utc)}`);
       if (seq !== loadSeq) return false;
       // Commit the header/leg metadata and observations together only after
       // a successful download. A failed update keeps the last good pair.
       M = manifest; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
-      state.raw = raw;
+      state.raw = raw; state.rawFile = file;
       setLoadError("Underway", false);
       renderControls(); renderProvenance();
       applyAndRender(); renderAlert();
+      loadPlan();
       return true;
     } catch {
       if (seq === loadSeq) setLoadError("Underway", true);
@@ -920,7 +1322,8 @@
     }
     try {
       const m = await fetchJSON(`data/manifest.json?t=${Date.now()}`);
-      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || state.raw.label !== state.win)) {
+      const want = m.windows.find((x) => x.label === state.win);
+      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || !want || state.rawFile !== windowFile(want))) {
         await loadWindow(m);
       } else if (!windowLoading) setLoadError("Underway", false);
     } catch { setLoadError("Underway", true); }
@@ -931,16 +1334,90 @@
     }
   }
 
-  // the latest change to the intranet schedule or whiteboard, until dismissed
+  // the schedule bar: the operations around now (last completed, in
+  // progress, coming up next) from the intranet schedule, in ship time, with
+  // the calendar links
+  const schedMode = () => { const m = store.get("sched.mode", null); return ["open", "ticker", "hidden"].includes(m) ? m : (store.get("sched.hidden", false) ? "ticker" : "open"); };
+  const setSchedMode = (m) => { store.set("sched.mode", m); renderAlert(); renderStatus(); };
   function renderAlert() {
-    const u = M.calendar?.update;
+    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const c = M.calendar || {}, n = c.now;
     const bar = $("#alert");
-    if (!u || !u.text || store.get("alert.seen") === u.changed_utc) { bar.hidden = true; return; }
-    $("#alerttext").innerHTML = `<b>${fmtLocal(u.changed_utc)}</b> · ${u.text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))}`;
-    bar.hidden = false;
-    $("#alertclose").onclick = () => { store.set("alert.seen", u.changed_utc); bar.hidden = true; };
-    $("#alertgo").onclick = () => { showTab("calendar"); };
+    bar.hidden = !n;
+    if (bar.hidden) return;
+    const hm = (t) => t ? new Date(tms(t)).toLocaleTimeString(undefined, { timeZone: SITE.local_tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
+    // an operation in progress shows what is left of its slot rather than its times
+    const left = (r) => { const m = Math.round((tms(r.end_utc) - Date.now()) / 60000); if (isNaN(m)) return "";
+      const d = (n) => n >= 60 ? `${Math.floor(n / 60)} h ${String(n % 60).padStart(2, "0")} min` : `${n} min`;
+      return m >= 0 ? `${d(m)} left` : `${d(-m)} over`; };
+    const op = (r, live) => `<div class="sop" title="${esc(r.comment || "")}${live ? ` (${hm(r.start_utc)}–${hm(r.end_utc)})` : ""}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${live ? left(r) : `${hm(r.start_utc)}–${hm(r.end_utc)}`}</span></div>`;
+    const col = (label, rows, cls) => `<div class="scol ${cls}"><div class="slbl">${label}</div>${rows.length ? rows.map((r) => op(r, cls === "live")).join("") : '<div class="sop muted">—</div>'}</div>`;
+    // a click folds the bar to a thin strip; a click on the strip brings it back
+    // three states: open, folded to the ticker, hidden (then SCHEDULE in the
+    // subtitle brings it back); each click on the bar goes one step
+    const mode = schedMode(), folded = mode === "ticker";
+    if (mode === "hidden") { bar.hidden = true; renderStatus(); return; }
+    bar.classList.toggle("folded", folded);
+    bar.title = folded ? "click to hide the schedule" : "";
+    $("#schedrow").hidden = folded;
+    // the fold must not bubble to the bar, whose handler is installed by the re-render
+    $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); setSchedMode("ticker"); };
+    bar.onclick = folded ? (ev) => { if (ev.target.closest("a")) return; setSchedMode("hidden"); } : null;
+    $("#schedticker").hidden = !folded;
+    const feed = (c.feeds || []).find((f) => f.key === "schedule");
+    const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
+    if (folded) {
+      // the folded bar is a one-line ticker: the three columns as a slow
+      // marquee (two copies so the loop is seamless), the links pinned on the right
+      const item = (label, rows, cls) => `<span class="tki ${cls}"><b>${label}</b> ${rows.length ? rows.map((r) => `${esc(r.station || "")} ${esc(r.operation || "")} ${cls === "live" ? `<span class="stm tkleft" data-end="${esc(r.end_utc)}"></span>` : `<span class="stm">${hm(r.start_utc)}–${hm(r.end_utc)}</span>`}`).join(" · ") : "—"}</span>`;
+      const text = item("Last completed", n.completed ? [n.completed] : [], "done") + item("In progress", n.in_progress || [], "live") + item("Coming up next", n.next ? [n.next] : [], "next");
+      const tk = $("#tk");
+      const same = tk.dataset.text === text;
+      if (!same) { tk.innerHTML = text + text; tk.dataset.text = text; }
+      for (const el of tk.querySelectorAll(".tkleft")) el.textContent = left({ end_utc: el.dataset.end });   // the minutes tick without restarting the scroll
+      tk.style.animationDuration = `${Math.max(20, tk.scrollWidth / 2 / 30)}s`;   // 30 px/s, so the row reads at a walking pace
+      $("#tickerlinks").innerHTML = links("smallcal");
+      return;
+    }
+    $("#schedcols").innerHTML = col("Last completed", n.completed ? [n.completed] : [], "done") + col("In progress", n.in_progress || [], "live") + col("Coming up next", n.next ? [n.next] : [], "next");
+    $("#schedlinks").innerHTML = links("bigcal");
   }
+
+  setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
+
+  // in-app alerts: this browser's id is its address for the "web" channel;
+  // the timer queues messages for it and the strip above the schedule bar
+  // shows them until cleared (and the browser notifies, when allowed)
+  function webId() {
+    let id = store.get("alerts.webid", "");
+    if (!id) { id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)); store.set("alerts.webid", id); }
+    return id;
+  }
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const inapp = { msgs: [] };
+  function renderInapp() {
+    const el = $("#inapp");
+    el.hidden = !inapp.msgs.length;
+    if (el.hidden) return;
+    el.innerHTML = inapp.msgs.map((m) => `<span class="msg">🔔 ${esc(m.text)} <small>${fmtTs(Date.parse(m.t)).slice(11)}</small></span>`).join("") +
+      `<button type="button" class="clear" title="clear these">✕</button>`;
+    el.querySelector(".clear").onclick = () => { store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+  }
+  async function pollInapp() {
+    if (!store.get("alerts.webid", "") || document.hidden) return;
+    try {
+      const j = await fetchJSON(`api/alerts/inbox?to=${encodeURIComponent(webId())}&since=${encodeURIComponent(store.get("alerts.seen", ""))}&t=${Date.now()}`);
+      const have = new Set(inapp.msgs.map((m) => m.t + m.text));
+      const fresh = (j.messages || []).filter((m) => !have.has(m.t + m.text));
+      if (!fresh.length) return;
+      inapp.msgs = [...inapp.msgs, ...fresh].slice(-8);
+      renderInapp();
+      if (window.Notification?.permission === "granted") for (const m of fresh) { try { new Notification("Amundsen schedule", { body: m.text, tag: m.t + m.text }); } catch { /* not every browser */ } }
+    } catch { /* the next poll */ }
+  }
+  setInterval(pollInapp, 60e3);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) pollInapp(); });
+  setTimeout(pollInapp, 3000);
 
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
@@ -948,7 +1425,8 @@
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
-    document.querySelector("main").className = "tab-" + name;
+    if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
+    const mn = document.querySelector("main"); mn.className = "tab-" + name + (mn.classList.contains("mapmin") ? " mapmin" : mn.classList.contains("mapfull") ? " mapfull" : "");   // No Map survives a tab change
     // the header row (legs, span) filters every tab; the other switches live
     // in the figure areas
     $("#controls-underway").hidden = false;
@@ -962,8 +1440,24 @@
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
-    fmtUTC, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms,
+    fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown, toast,
+    refreshExtraData() { render(); },
+    clearFocus() { state.focus = null; },
+    moveShip,
+    registerPanel(name, spec) {
+      extraPanels.set(name, spec);
+      if(spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){
+        const first=spec.after,order=panelNames().filter(n=>n!==name&&n!==first);
+        state.order=[first,name,...order].filter(Boolean);store.set('order',state.order);
+        delete state.panel[name];store.set('panel',state.panel);
+        store.set('panel-layout:'+name,spec.layoutRevision);
+      }
+      layoutPanels(); renderPanel(name);
+    },
+    linkX,
+    registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); render(); },
+    selectColour(name) { state.colour=name; store.set('colour',name); renderControls(); render(); },
   });
   Object.defineProperty(window.UW, "M", { get: () => M, configurable: true });
 
@@ -995,6 +1489,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
     window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
+    wirePlanDrop(); renderPlanPills();
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
   })();
 })();

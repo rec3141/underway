@@ -1,0 +1,12 @@
+[Unit]
+Description=Look for new Sentinel imagery every half hour
+
+[Timer]
+OnBootSec=4min
+OnCalendar=*-*-* *:07/30:00
+AccuracySec=30s
+Unit=underway-satellite.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

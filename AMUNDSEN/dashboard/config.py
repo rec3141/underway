@@ -181,6 +181,7 @@ import os  # noqa: E402  (kept with the settings that use it)
 from pathlib import Path  # noqa: E402
 
 DATA_ROOT = Path(os.environ.get("UNDERWAY_DATA_ROOT", "/mnt/ship/Data"))    # FULL_CSV/<leg>/, Rosette/<leg>/Logs/
+DATA_SHARE_URL = os.environ.get("UNDERWAY_DATA_URL", "smb://10.0.0.10/Data")  # the same folders as a link people can open
 SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <year>/<leg>/ for archived seasons
 # per-leg SQLite stores; derived data, safe to delete
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))

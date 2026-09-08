@@ -1,0 +1,6 @@
+FROM muse-glimmer-local
+RENDERER glimmer
+PARSER glimmer
+PARAMETER num_ctx 16384
+PARAMETER num_thread 4
+PARAMETER temperature 0

@@ -5,10 +5,13 @@
 * The schedule is the ship intranet page ``http://10.0.0.2/Schedule.html`` —
   a table of planned operations and a whiteboard note. It is fetched at build
   time and cached so the page keeps its last copy when the intranet is down.
-  The page only lists current and upcoming operations, so every row seen is
-  also kept in ``db/schedule_history.json``; rows no longer on the page are
-  served as ``former`` operations. Schedule times are ship wall-clock
-  (``LOCAL_TZ``) and are given to the page as UTC instants.
+  A row is identified by its station and operation (``row_key``) while its
+  times, status and comment are edited, so an edit updates the row in the
+  history and on the Google calendar instead of adding a copy. The page only
+  lists current and upcoming operations, so every row seen is also kept in
+  ``db/schedule_history.json``; rows no longer on the page are served as
+  ``former`` operations. Schedule times are ship wall-clock (``LOCAL_TZ``)
+  and are given to the page as UTC instants.
 """
 
 from __future__ import annotations
@@ -107,16 +110,20 @@ def _what_changed(prev: dict | None, new: dict) -> dict | None:
     parts = []
     if (new.get("whiteboard") or "") != (prev.get("whiteboard") or ""):
         parts.append(f"Whiteboard: {new.get('whiteboard') or '(cleared)'}")
-    key = lambda r: (r.get("date"), r.get("start"), r.get("station"), r.get("operation"))
-    old_rows = {key(r): r for r in prev.get("rows", [])}
-    new_rows = {key(r): r for r in new.get("rows", [])}
+    old_rows = {row_key(r): r for r in prev.get("rows", [])}
+    new_rows = {row_key(r): r for r in new.get("rows", [])}
     changed = []
     for k, r in new_rows.items():
         o = old_rows.get(k)
+        name = f"{r.get('station')} — {r.get('operation')}"
         if o is None:
-            changed.append(f"new: {r.get('station')} — {r.get('operation')} {r.get('date')} {r.get('start')}–{r.get('end')}")
-        elif (o.get("status"), o.get("end"), o.get("comment")) != (r.get("status"), r.get("end"), r.get("comment")):
-            changed.append(f"{r.get('station')} — {r.get('operation')}: {r.get('status')}")
+            changed.append(f"new: {name} {r.get('date')} {r.get('start')}–{r.get('end')}")
+        elif o.get("status") != r.get("status"):
+            changed.append(f"{name}: {r.get('status')}")
+        elif (o.get("date"), o.get("start"), o.get("end")) != (r.get("date"), r.get("start"), r.get("end")):
+            changed.append(f"{name} moved to {r.get('date')} {r.get('start')}–{r.get('end')}")
+        elif o.get("comment") != r.get("comment"):
+            changed.append(f"{name}: {r.get('comment')}")
     for k, o in old_rows.items():
         if k not in new_rows:
             changed.append(f"removed: {o.get('station')} — {o.get('operation')} {o.get('date')}")
@@ -154,18 +161,30 @@ def _instants(r: dict) -> dict:
             "end_utc": t1.astimezone(timezone.utc).isoformat(timespec="minutes")}
 
 
+def row_key(r: dict) -> str:
+    """What identifies a schedule row through its edits: ``station|operation``,
+    with ``|n`` for the n-th further row of the same station and operation on
+    the page (``parse_schedule`` stores it as ``key``)."""
+    return r.get("key") or f"{r.get('station') or ''}|{r.get('operation') or ''}"
+
+
 def _remember(rows: list[dict], title: str) -> list[dict]:
     """Fold the rows seen now into the history; return the former rows (seen
     before, no longer on the page), oldest first."""
     hist_p = DB_DIR / "schedule_history.json"
     hist = json.loads(hist_p.read_text()) if hist_p.is_file() else {}
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    key = lambda r: "|".join(str(r.get(k) or "") for k in ("date", "start", "station", "operation"))
     current = set()
     for r in rows:
+        k = row_key(r)
         if not r.get("start_utc"):
+            # a canceled row loses its times on the page: the history keeps the
+            # ones it had and takes the new status and comment
+            if k in hist:
+                current.add(k)
+                hist[k].update({x: r[x] for x in ("status", "comment") if x in r}); hist[k]["last_seen"] = now
             continue
-        k = key(r); current.add(k)
+        current.add(k)
         h = hist.get(k, {"first_seen": now})
         h.update(r); h["last_seen"] = now; h["leg"] = title or h.get("leg", "")
         hist[k] = h
@@ -188,6 +207,11 @@ def parse_schedule(s: str) -> dict:
             rows.append({"station": cells[0], "operation": cells[1], "status": cells[2], "date": cells[3],
                          "start": cells[4], "end": cells[5], "duration_h": _num(cells[6]),
                          "comment": cells[7] if len(cells) > 7 else ""})
+    seen: dict[str, int] = {}
+    for r in rows:
+        k = row_key(r)
+        seen[k] = seen.get(k, -1) + 1
+        r["key"] = f"{k}|{seen[k]}" if seen[k] else k
     # the whiteboard is the <p> that follows the "Whiteboard" heading, one
     # line per <br>
     wb = re.search(r"Whiteboard\s*</p>.*?<p[^>]*>(.*?)</p>", txt, flags=re.S | re.I)
@@ -207,12 +231,31 @@ def _num(s):
         return None
 
 
-def build_calendar(legs: list[Leg], root: Path, frame=None) -> dict:
+def around_now(rows: list[dict]) -> dict:
+    """The operations the header bar shows: the last completed row, the rows
+    in progress, and the next one to start (the first row after the last
+    completed or started one, in page order, since the schedule slips)."""
+    rows = [r for r in rows if r.get("start_utc")]
+    status = lambda r: (r.get("status") or "").lower()
+    brief = lambda r: dict({k: r.get(k) for k in ("station", "operation", "status", "start_utc", "end_utc", "comment")}, key=row_key(r))
+    done = [r for r in rows if status(r) == "completed"]
+    live = [r for r in rows if status(r) == "in progress"]
+    last = max((i for i, r in enumerate(rows) if status(r) in ("completed", "in progress")), default=-1)
+    now = datetime.now(timezone.utc).isoformat(timespec="minutes")
+    upcoming = [r for r in rows[last + 1:] if status(r) not in ("canceled", "cancelled", "completed", "in progress")]
+    nxt = next((r for r in upcoming if r["start_utc"] >= now), None) if last < 0 else (upcoming[0] if upcoming else None)
+    return {"completed": brief(max(done, key=lambda r: r["end_utc"])) if done else None,
+            "in_progress": [brief(r) for r in live], "next": brief(nxt) if nxt else None}
+
+
+def build_calendar(legs: list[Leg], root: Path, frame=None, events: list[dict] | None = None) -> dict:
+    """Write ``data/calendar.json``; ``events`` are the legs' event-log rows
+    (read here when not given)."""
     from .build import atomic_write
     from . import gcal
     from .pump import pump_events
     pump = pump_events(frame, legs)
-    events = [e for leg in legs for e in read_eventlog(leg)]
+    events = list(events) if events is not None else [e for leg in legs for e in read_eventlog(leg)]
     events.extend(pump)
     events.sort(key=lambda e: e.get("time_utc", ""))
     payload = {"events": events, "pump_events": pump, "schedule": fetch_schedule(),
@@ -229,5 +272,11 @@ def build_calendar(legs: list[Leg], root: Path, frame=None) -> dict:
     atomic_write(root / "data" / "calendar.json", json.dumps(payload, separators=(",", ":")))
     sched = payload["schedule"]
     log.info("calendar: %d events, %d scheduled operations (%d former)", len(events), len(sched.get("rows", [])), len(sched.get("former", [])))
+    from .config import GCAL
+    feeds = [{"key": k, "label": c["label"], "url": f"https://calendar.google.com/calendar/embed?src={c['id'].replace('@', '%40')}&ctz={LOCAL_TZ.replace('/', '%2F')}",
+              "ics": f"https://calendar.google.com/calendar/ical/{c['id'].replace('@', '%40')}/public/basic.ics"} for k, c in GCAL.items()]
+    logged = [e["time_utc"] for e in events if not str(e.get("id", "")).startswith("pump|") and e.get("time_utc")]
     return {"events": len(events), "schedule_rows": len(sched.get("rows", [])), "former": len(sched.get("former", [])),
-            "update": sched.get("update")}
+            "update": sched.get("update"), "now": around_now(sched.get("rows", [])), "feeds": feeds,
+            "sources": {"schedule": sched.get("fetched_utc"), "event_log": max(logged) if logged else None,
+                        "calendars": max((f.get("fetched_utc") or "" for f in payload["gcal"]), default=None) or None}}

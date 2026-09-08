@@ -1,0 +1,22 @@
+[Unit]
+Description=Render recent Sentinel imagery around the ship for the underway dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cryomics
+Group=cryomics
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+Environment=TZ=America/Toronto
+EnvironmentFile=-/home/cryomics/.config/underway/underway.env
+ExecStart=/opt/miniforge3/bin/python3 -m dashboard satellite
+TimeoutStartSec=10min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+StandardOutput=journal
+StandardError=journal

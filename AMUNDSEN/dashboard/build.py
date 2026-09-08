@@ -25,6 +25,7 @@ from jinja2 import Environment, FileSystemLoader
 from . import __version__
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
+from . import plan, satellite
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -40,6 +41,8 @@ def atomic_write(path: Path, text: str) -> None:
 
 
 # ---------------------------------------------------------------- stations
+
+FINE_STEP_S = 30      # the finest window step served ("all points" on the map), for spans up to a week
 
 def read_stations(path: Path | None, leg_id: str) -> list[dict]:
     """CTD logbook rows; tolerant of a missing or partial file, since a leg's
@@ -57,12 +60,85 @@ def read_stations(path: Path | None, leg_id: str) -> list[dict]:
             if not (abs(lat) <= 90 and abs(lon) <= 180):
                 continue
             out.append({
-                "leg": leg_id, "cast": row.get("cast", ""), "label": row.get("label", ""),
+                "kind": "cast", "leg": leg_id, "cast": row.get("cast", ""), "label": row.get("label", ""),
                 "station": row.get("station", ""), "time": row.get("date_utc", ""),
                 "lat": lat, "lon": lon,
                 "bottom_m": _num(row.get("bottom_m")), "depth_m": _num(row.get("depth_m")),
                 "type": row.get("type_cast", ""), "comments": row.get("comments", ""),
             })
+    return out
+
+
+def _source_info(acsd_end, tsg, cal: dict) -> list[dict]:
+    from .config import DATA_SHARE_URL
+    folder = lambda sub: (f"Data/{sub}", f"{DATA_SHARE_URL}/{sub}")     # the folder of every leg, not just the live one
+    cs = cal.get("sources") or {}
+    feeds = cal.get("feeds") or []
+    out = []
+    for sub, t in (("FULL_CSV", acsd_end.isoformat() if acsd_end is not None else None),
+                   ("TSG", tsg.index.max().isoformat() if tsg is not None and len(tsg) else None),
+                   ("EventLog", cs.get("event_log"))):
+        label, url = folder(sub)
+        out.append({"label": label, "url": url, "time": t})
+    out.append({"label": "intranet schedule", "url": f"{INTRANET_BASE}/Schedule.html", "time": cs.get("schedule")})
+    out.append({"label": "intranet live", "url": f"{INTRANET_BASE}/live.html", "time": None, "key": "live"})   # the page fills its time from the server's poll
+    out.append({"label": "Google calendars", "url": feeds[0]["url"] if feeds else None, "time": cs.get("calendars")})
+    return out
+
+
+def _alerts_info() -> dict:
+    """Which alert channels the page can offer (never fails the build)."""
+    try:
+        from .alerts import info
+        return info()
+    except Exception:                       # noqa: BLE001
+        log.exception("alerts info failed")
+        return {"telegram_bot": "", "email": False}
+
+
+def _iso_utc(s) -> str:
+    """The event log writes ``2026/09/03 11:23:12``; the stations list uses
+    the logbook's ISO form."""
+    try:
+        return pd.Timestamp(str(s).replace("/", "-")).isoformat(timespec="minutes")
+    except (ValueError, TypeError):
+        return str(s or "")
+
+
+def event_stations(events: list[dict], casts: list[dict]) -> list[dict]:
+    """Stations worked without a CTD cast (a box core, a mapping site, a
+    mooring), from the event log: one per leg × station id with the median
+    of its fixes, in the same shape as a cast row plus what was done there.
+    Stations that have a cast in the logbook are left to the logbook."""
+    known = {(c["leg"], c["station"].strip().lower()) for c in casts}
+    groups: dict[tuple, list[dict]] = {}
+    for e in events:
+        st = str(e.get("station") or "").strip()
+        if not st or st.lower() == "transit" or e.get("lat") is None or e.get("lon") is None:
+            continue
+        try:
+            lat, lon = float(e["lat"]), float(e["lon"])
+        except (TypeError, ValueError):
+            continue
+        if not (abs(lat) <= 90 and abs(lon) <= 180) or (e.get("leg"), st.lower()) in known:
+            continue
+        groups.setdefault((e.get("leg"), st), []).append(dict(e, lat=lat, lon=lon))
+    out = []
+    for (leg, st), es in groups.items():
+        es.sort(key=lambda e: str(e.get("time_utc", "")))
+        lats = sorted(e["lat"] for e in es); lons = sorted(e["lon"] for e in es)
+        depths = sorted(float(e["depth_m"]) for e in es if isinstance(e.get("depth_m"), (int, float)))
+        types = [str(e.get("station_type") or "").strip() for e in es]
+        out.append({
+            "kind": "event", "leg": leg, "cast": "", "label": "", "station": st,
+            "time": _iso_utc(es[0].get("time_utc", "")), "time_end": _iso_utc(es[-1].get("time_utc", "")),
+            "lat": lats[len(lats) // 2], "lon": lons[len(lons) // 2],
+            "bottom_m": depths[len(depths) // 2] if depths else None, "depth_m": None,
+            "type": max((t for t in types if t and t != "0"), key=types.count, default=""),
+            "activities": sorted({str(e.get("activity") or "").strip() for e in es} - {""}),
+            "n_events": len(es), "comments": next((str(e["comment"]) for e in es if e.get("comment")), ""),
+        })
+    out.sort(key=lambda s: s["time"])
     return out
 
 
@@ -149,6 +225,8 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
     agg: dict[str, object] = {"lat": "mean", "lon": "mean", "dist_km": "max", "leg": "first"}
     if "pump_low" in df.columns:
         agg["pump_low"] = "max"                     # one stopped minute marks the bin
+    if "provisional" in df.columns:
+        agg["provisional"] = "max"                  # a bin with any provisional minute is provisional
     for v in VARIABLES:
         if v.name not in df.columns or v.name in WINDOW_FILLED:
             continue
@@ -232,6 +310,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         "leg": [None if (x is None or not np.isfinite(x)) else int(x) for x in g["leg"].to_numpy()],
         "vars": vars_out,
         "pump_low": low,
+        "provisional": [bool(x >= 0.5) if np.isfinite(x) else False for x in g["provisional"].to_numpy(dtype=float)] if "provisional" in g.columns else None,
         "limits": {name: limits(name, vals) for name, vals in vars_out.items()},
     }
 
@@ -352,27 +431,78 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
 
     # 3. derive, then slice every window
     leg_codes = df.pop("leg")
-    from .tsg import minute_frame
+    from .tsg import archive_tail, minute_frame, provisional_tail
+    from . import livescrape
     try:
         tsg = minute_frame([leg for leg, _ in stores])
     except Exception:                       # noqa: BLE001 — the TSG files are extra, never required
         log.exception("TSG files not read")
         tsg = None
+    # past the end of the ACSD record, the TSG file's minutes and the recorded
+    # intranet live page fill in (the TSG's values first where both have a
+    # minute); marked provisional, they drop out as the ACSD catches up
+    live_i = next((i for i, (leg, _) in enumerate(stores) if leg.live), None)
+    prov_from = None
+    prov_src = []
+    acsd_end = df.index.max()
+    if live_i is not None:
+        try:
+            tail = provisional_tail(tsg, acsd_end, list(df.columns)) if tsg is not None else pd.DataFrame(columns=df.columns)
+            if len(tail):
+                prov_src.append("TSG")
+            scraped = livescrape.provisional_tail(acsd_end, list(df.columns))
+            if len(scraped):
+                prov_src.append("intranet live")
+                tail = tail.combine_first(scraped) if len(tail) else scraped
+            if len(tail):
+                archive_tail(tail)                  # the only copy, should the TSG file be lost
+                # one row per instant: a minute the record has since gained, or a
+                # repeated minute in a source, must not double up (the leg lookup
+                # below reindexes and refuses duplicate labels)
+                tail = tail[~tail.index.duplicated(keep="last")]
+                tail = tail[~tail.index.isin(df.index)]
+                df = pd.concat([df, tail]).sort_index()
+                leg_codes = pd.concat([leg_codes, pd.Series(float(live_i), index=tail.index)])
+                prov_from = tail.index.min()
+                log.info("provisional tail from the TSG file: %d minutes past %s", len(tail), tail.index.min().strftime("%H:%M"))
+        except Exception:                   # noqa: BLE001
+            log.exception("provisional tail not built")
     a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg)
+    leg_codes = leg_codes[~leg_codes.index.duplicated(keep="last")]
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
+    a.frame["provisional"] = (a.frame.index >= prov_from).astype(float) if prov_from is not None else 0.0
     end = a.frame.index.max()
 
     root.mkdir(parents=True, exist_ok=True)
     (root / "data").mkdir(exist_ok=True)
     windows_meta = []
-    for w in WINDOWS:
+    # Windows up to a week also come at FINE_STEP_S ("all points" on the
+    # map's track-detail slider), so the span decides the default detail but
+    # not the finest the browser can ask for.
+    def write_window(w: Window) -> dict:
         payload = slice_window(a, w, end)
         fn = f"w-{w.label}.json"
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
-        windows_meta.append({"label": w.label, "hours": w.hours, "step_s": w.step_s,
-                             "file": f"data/{fn}", "n": payload["n"],
-                             "start": payload.get("start"), "end": payload.get("end")})
-        log.info("window %-4s %6d points", w.label, payload["n"])
+        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"],
+                "start": payload.get("start"), "end": payload.get("end")}
+        if w.step_s > FINE_STEP_S and w.hours <= 24 * 7:
+            fine = slice_window(a, Window(w.label, w.hours, FINE_STEP_S), end)
+            atomic_write(root / "data" / f"w-{w.label}-fine.json", json.dumps(fine, separators=(",", ":")))
+            meta.update(fine_file=f"data/w-{w.label}-fine.json", fine_step_s=FINE_STEP_S, fine_n=fine["n"])
+        log.info("window %-4s %6d points%s", w.label, payload["n"], f" (fine {meta['fine_n']})" if "fine_n" in meta else "")
+        return meta
+    for w in WINDOWS:
+        windows_meta.append(write_window(w))
+    # "leg": the whole of the live leg, sized afresh each build; it is the
+    # default view, so the browser opens on the current leg
+    in_leg = a.frame.index[a.frame["leg"] == live_i] if live_i is not None else []
+    default_window = DEFAULT_WINDOW
+    if len(in_leg):
+        hours = max(1.0, float(math.ceil((end - in_leg.min()).total_seconds() / 3600) + 1))
+        w = Window("leg", hours, next((x.step_s for x in WINDOWS if x.hours >= hours), WINDOWS[-1].step_s))
+        windows_meta.append(write_window(w))
+        windows_meta.sort(key=lambda m: m["hours"])
+        default_window = "leg"
 
     # time-aggregated tables for the data tab
     agg_meta = {}
@@ -385,14 +515,15 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # casts and calendar are independent of the underway record; a failure in
     # either must not take the dashboard down
     from .casts import build_casts
-    from .calendar import build_calendar
+    from .calendar import build_calendar, read_eventlog
     try:
         casts_idx = build_casts([leg for leg, _ in stores], root)
     except Exception:                       # noqa: BLE001
         log.exception("cast build failed")
         casts_idx = {"casts": [], "variables": []}
+    events = [e for leg, _ in stores for e in read_eventlog(leg)]
     try:
-        cal = build_calendar([leg for leg, _ in stores], root, frame=a.frame)
+        cal = build_calendar([leg for leg, _ in stores], root, frame=a.frame, events=events)
     except Exception:                       # noqa: BLE001
         log.exception("calendar build failed")
         cal = {}
@@ -405,6 +536,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                   "heading": _latest_heading(a.frame, lt)}
 
     stations = [s for leg, _ in stores for s in read_stations(leg.stations, leg.id)]
+    stations += event_stations(events, stations)
     try:
         cameras = camera_index(CAMERA_OUTPUT, a.frame)
     except Exception:                       # noqa: BLE001 — the timelapses are extra, never required
@@ -414,7 +546,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "cameras": cameras,
         "title": title, "version": __version__,
         "generated_utc": started.isoformat(timespec="seconds"),
-        "local_tz": LOCAL_TZ, "default_window": DEFAULT_WINDOW,
+        "local_tz": LOCAL_TZ, "default_window": default_window,
         "windows": windows_meta,
         "legs": [dict(leg.meta(), index=i) for i, (leg, _) in enumerate(stores)],
         "live": next((leg.id for leg, _ in stores if leg.live), None),
@@ -428,7 +560,14 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "surprise": {"features": [union_keys.get(f, f) for f in a.surprise_features], "note": a.surprise_note,
                      "scales": [list(x) for x in SURPRISE_SCALES], "alert": {"scale": SURPRISE_ALERT_SCALE, "level": SURPRISE_ALERT}},
         "stations": stations,
+        "alerts": _alerts_info(),
         "data_range": {"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
+        "provisional": {"from": prov_from.isoformat(), "source": " + ".join(prov_src)} if prov_from is not None else None,
+        # when each source last had anything, for the subtitle's tooltip
+        "sources": {"full_csv": acsd_end.isoformat(), "tsg": tsg.index.max().isoformat() if tsg is not None and len(tsg) else None,
+                    **(cal.get("sources") or {})},
+        # the same, for people: where each source lives and when it last had anything
+        "source_info": _source_info(acsd_end, tsg, cal),
         "latest": latest,
         "files": {"total": files_total, "latest": latest_file,
                   "inputs": sorted({str(p) for leg, _ in stores for p in leg.indirs})},
@@ -438,6 +577,8 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "casts": {"index": "data/casts/index.json", "n": len(casts_idx["casts"]), "variables": casts_idx["variables"]},
         "calendar": {"file": "data/calendar.json", **cal},
         "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
+        "satellite": satellite.publish(root),           # recent Sentinel pictures around the ship, or None
+        "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 
@@ -466,7 +607,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "app.js", "tabs.js", "chat.js", "style.css"):
+    for name in ("data.js", "app.js", "tabs.js", "chat.js", "camera-track.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
     # too many files for the share or the repository — and the server maps
@@ -484,7 +625,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                       "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
-            "default_window": DEFAULT_WINDOW, "geo_layers": geo_layers, "raster": raster, "low_flow_v": LOW_FLOW_V,
+            "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "low_flow_v": LOW_FLOW_V,
             "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}

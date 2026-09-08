@@ -17,13 +17,16 @@
     <div class="sub" id="connection" role="status" hidden></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist">
+    <button data-tab="calendar" role="tab">Schedule</button>
+    <button data-tab="stations" role="tab">Stations</button>
     <button data-tab="underway" class="on" role="tab">Underway</button>
     <button data-tab="casts" role="tab">Casts</button>
-    <button data-tab="calendar" role="tab">Agenda</button>
     <button data-tab="table" role="tab">Table</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
   </nav>
+  <div class="pickhint phone">Select leg and time span:</div>
   <div class="controls" id="controls-underway">
+    <div class="group maptoggle"><button type="button" id="maptoggle" class="xcycle" title="how much of the page the map takes: half, all of it, or none">Half Map</button></div>
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
       <div class="pop">
@@ -33,28 +36,43 @@
       </div>
     </details>
     <div class="group span" aria-label="Time span">
-      <span class="lbl">Span</span>
+      <span class="lbl">Show last</span>
+      <output id="spanlabel" for="span">6h</output>
       <input type="range" id="span" min="0" max="0" step="1" value="0" list="spanticks">
       <datalist id="spanticks"></datalist>
-      <output id="spanlabel" for="span">6h</output>
+      <select id="spansel" title="span" aria-label="Time span"></select>
     </div>
   </div>
 </header>
+<div class="inapp" id="inapp" hidden></div>
 <div class="alertbar" id="alert" hidden>
-  <span class="tag">schedule update</span><span id="alerttext"></span>
-  <button id="alertgo">open agenda</button><button id="alertclose" title="dismiss">✕</button>
+  <div class="schedrow" id="schedrow">
+    <div class="schedcols" id="schedcols"></div>
+    <div class="schedlinks" id="schedlinks"></div>
+  </div>
+  <div class="ticker" id="schedticker" hidden title="show the schedule"><div class="tkwrap"><div class="tk" id="tk"></div></div><div class="tklinks" id="tickerlinks"></div></div>
 </div>
 
 <main>
+  <div class="plotctl" id="plotctl">
+    <div class="group xmode" aria-label="X axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the graphs between time and distance along track">Time</button></div>
+    <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+  </div>
   <section class="map card">
-    <div class="maptools">
-      <button id="mapreset" title="fit to track">⟲</button>
-      <!-- listed top layer first -->
-      <label title="CTD stations"><input type="checkbox" id="stations" checked> Stations</label>
-      <label title="a camera for each day's timelapse; click one to play it"><input type="checkbox" id="cameras" checked> Cameras</label>
-      <label title="geolocated entries of the ship's event log, for the shown legs and span"><input type="checkbox" id="events"> Events</label>
-      <label title="settlements (GeoNames, CC BY 4.0)"><input type="checkbox" id="communities" checked> Places</label>
-      <label title="the ship's track for the shown legs and span"><input type="checkbox" id="track" checked> Track</label>
+    <div class="maplayers" id="maplayers">
+      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+      <!-- listed top layer first; each is an on/off toggle -->
+      <div class="layers">
+      <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
+      <button data-layer="cameras" title="a camera for each day's timelapse; click one to play it"><span class="full">Cameras</span><span class="short">Cams</span></button>
+      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
+      <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
+      <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
+      <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
+      <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
+      <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
+      </div>
+      <div class="tools"><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
     </div>
     <div id="map"></div>
     <div id="campop" class="campop" hidden>
@@ -64,15 +82,17 @@
       <div class="foot" id="camfoot"></div>
     </div>
     <div id="mapmsg" class="mapmsg" hidden></div>
+    <div class="maptrack" title="how many track points to draw: every point of the span, or one per so many km along the track">
+      <span class="lbl">Track detail</span>
+      <input type="range" id="trackstep" min="0" max="7" step="1" value="0">
+      <output id="tracksteplabel" for="trackstep">all points</output>
+    </div>
     <div class="map-foot" id="mapfoot"></div>
+    <div class="map-attrib" id="mapattrib"></div>
   </section>
 
   <section class="side">
     <div class="pane" id="pane-underway">
-      <div class="pane-tools compact">
-        <div class="group seg xmode" aria-label="X axis"><button data-x="time" class="on">Time</button><button data-x="distance">Distance</button></div>
-        <label class="group select">Colour by <select id="colour"></select></label>
-      </div>
       <div class="panels" id="panels"></div>
       <div class="dock" id="dock" hidden></div>
     </div>
@@ -81,18 +101,23 @@
       <div class="cast-layout">
         <div class="castside">
           <div class="pane-tools compact">
-            <div class="group seg small" id="castkind"><button data-k="all" class="on">All</button><button data-k="CTD" title="Classic rosette">Rosette</button><button data-k="TM" title="trace-metal rosette">TM</button><button data-k="MVP">MVP</button></div>
-            <input type="search" id="castsearch" placeholder="filter (station, label, date)">
-            <button id="castclear" title="deselect all">clear</button>
+            <span class="lbl">Select Cast Type</span>
+            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="live" title="the live cast is off until Seasave's TCP/IP output is back" disabled hidden>Live</button></div>
+            <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)"><button id="castcsv" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
-          <ul class="castlist" id="castlist"></ul>
+          <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
         </div>
         <div class="castmain">
           <div class="pane-tools compact">
-            <div class="group seg" id="castmode"><button data-m="profiles" class="on">Profiles</button><button data-m="section">Section</button><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="live" title="the cast in the water, from the deck unit's network feed">Live</button></div>
-            <div class="group seg xmode" id="castxmode" aria-label="Section x axis" hidden><button data-x="time" class="on">Time</button><button data-x="distance">Distance</button></div>
-            <label class="group select" id="castvarwrap" hidden>Variable <select id="castvar"></select></label>
+            <span class="lbl">Select Graph</span>
+            <div class="group seg" id="castmode"><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="profiles" class="on" title="the selected casts as depth profiles, one graph per variable">Multi</button><button data-m="section" title="the selected casts side by side as a depth section along time or distance">Section</button></div>
+            <button type="button" id="castbottles" class="chip" title="mark the rosette's bottle firings on the casts (from the SeaBird .btl files)">Bottles</button>
+            <button type="button" id="castsmooth" class="chip" title="smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range">Smooth</button>
             <span class="muted" id="castmeta"></span>
+          </div>
+          <div class="pane-tools compact" id="castrow2" hidden>
+            <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
+            <label class="group select" id="castvarwrap">Color by <select id="castvar"></select></label>
           </div>
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>
         </div>
@@ -101,40 +126,49 @@
 
     <div class="pane" id="pane-calendar" hidden>
       <div class="pane-tools">
-        <div class="group seg" id="calview"><button data-v="agenda" class="on">Agenda</button><button data-v="timeline">Timeline</button><button data-v="month">Calendar</button></div>
+        <div class="group seg" id="calview"><button data-v="agenda" class="on">Today</button><button data-v="timeline">Event Log</button><button data-v="month">Calendar</button></div>
         <input type="search" id="calsearch" placeholder="filter events">
-        <span class="muted" id="calmeta"></span>
       </div>
       <div id="calendar"></div>
     </div>
 
+    <div class="pane" id="pane-stations" hidden>
+      <div class="pane-tools">
+        <input type="search" id="stnsearch" placeholder="filter stations">
+        <button id="stnclear" title="deselect every cast and drop the map focus">clear selection</button>
+        <button id="stncsv" title="download the visible table as tab-separated text">TSV</button>
+        <span class="muted" id="stnmeta"></span>
+      </div>
+      <div class="tablewrap"><table id="stationtable"></table></div>
+    </div>
+
     <div class="pane" id="pane-table" hidden>
       <div class="pane-tools">
-        <div class="group seg" id="aggrule"><button data-r="stations" class="on">Stations</button><button data-r="1h">Hourly</button><button data-r="1d">Daily</button></div>
+        <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
         <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
         <input type="search" id="tblsearch" placeholder="filter rows">
-        <button id="tblcsv" title="download the visible table as CSV">CSV</button>
+        <button id="tblcsv" title="download the visible table as tab-separated text">TSV</button>
         <span class="muted" id="tblmeta"></span>
       </div>
       <div class="tablewrap"><table id="aggtable"></table></div>
     </div>
 
-    <footer>
-      <details class="card">
-        <summary>Data sources &amp; provenance</summary>
-        <div class="prov">
-          <table id="sources"></table>
-          <div class="notes" id="notes"></div>
-        </div>
-      </details>
-      <div class="meta">
-        <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
-        <span>Dashboard by Eric Collins · Data: Amundsen Science (ACSD) · Basemap: Natural Earth{% if site.raster %} · GEBCO 2024{% endif %}</span>
-        {% for l in site.links %}<span>· <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a></span>{% endfor %}
-        <span class="right">underway v{{ site.version }} · <time id="gen"></time></span>
-      </div>
-    </footer>
   </section>
+  <footer>
+    <details class="card">
+      <summary>Data sources &amp; provenance</summary>
+      <div class="prov">
+        <div class="meta">
+          <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
+          <span>Calendars: {% for l in site.links %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
+          <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD)</span>
+          <span class="right">underway v{{ site.version }} · built <time id="gen"></time></span>
+        </div>
+        <div class="hscroll"><table id="sources"></table></div>
+        <div class="notes" id="notes"></div>
+      </div>
+    </details>
+  </footer>
 </main>
 
 <script>
@@ -144,7 +178,9 @@ window.__MANIFEST__ = {{ m|tojson }};
 <aside class="chat collapsed" id="chat" aria-label="ship chat">
   <div class="chathead">
     <button class="chattoggle" id="chathead"><span class="dot" id="chatdot"></span><b>Chat</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
+    <button class="chatai" id="chataibtn" title="hide the AI crew's messages">hide AI</button>
     <button class="chatside" id="chatsidebtn" title="open as a side bar">⇤</button>
+    <button class="chatclose" id="chatclosebtn" title="close the chat">✕</button>
   </div>
   <div class="chatbody">
     <div class="chatlog" id="chatlog"></div>
@@ -162,6 +198,8 @@ window.__MANIFEST__ = {{ m|tojson }};
 
 <script src="static/data.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>
+<script src="static/camera-track.js?v={{ site.asset_version }}"></script>
+<script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
 </body>

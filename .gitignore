@@ -31,3 +31,5 @@ node_modules/
 
 # python packaging artifacts
 *.egg-info/
+*.swp
+*.swo

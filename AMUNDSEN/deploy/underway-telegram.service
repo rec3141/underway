@@ -1,0 +1,26 @@
+[Unit]
+Description=Answer the underway dashboard's Telegram bot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=cryomics
+Group=cryomics
+WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+Environment=TZ=America/Toronto
+EnvironmentFile=-/home/cryomics/.config/underway/underway.env
+ExecStart=/opt/miniforge3/bin/python3 -m dashboard telegram-bot
+Restart=always
+RestartSec=10
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

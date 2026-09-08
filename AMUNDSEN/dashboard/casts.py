@@ -91,6 +91,9 @@ class Cast:
     time_end: str | None = None
     lat_end: float | None = None
     lon_end: float | None = None
+    # the rosette's bottle firings from the SeaBird .btl: bottle number,
+    # pressure (dbar), depth (m) and time, in firing order
+    bottles: list = field(default_factory=list)
 
     def meta(self) -> dict:
         ps = self.profiles
@@ -101,10 +104,11 @@ class Cast:
                 "n_profiles": len(ps) or None,
                 "track": [[pr["lat"], pr["lon"]] for pr in ps if pr.get("lat") is not None] if ps else None,
                 "vars": list(self.vars) if self.vars else sorted({v for pr in ps for v in pr["vars"]}),
+                "n_bottles": len(self.bottles) or None,
                 "file": f"data/casts/{self.leg}/{self.id.split(':')[-1]}.json"}
 
     def payload(self) -> dict:
-        return {**self.meta(), "p": self.p, "vars": self.vars, "units": self.units, "profiles": self.profiles}
+        return {**self.meta(), "p": self.p, "vars": self.vars, "units": self.units, "profiles": self.profiles, "bottles": self.bottles}
 
 
 # ---------------------------------------------------------------- cache
@@ -224,6 +228,49 @@ def read_logbook(path: Path | None) -> dict[str, dict]:
 
 CNV_DIR = DATA_ROOT / "external_proprietary" / "CTD"
 CNV_RE = re.compile(r"^CTD_(\d{4})_(\d{2})_(\d{3})\.cnv$", re.I)
+BTL_RE = re.compile(r"^CTD_(\d{4})_(\d{2})_(\d{3})\.btl$", re.I)
+MONTHS = {m: i + 1 for i, m in enumerate(("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))}
+
+
+def parse_btl(path: Path) -> list[dict]:
+    """The bottle firings of a SeaBird .btl (Data/Rosette/<leg>/Btl): the
+    header row names the columns; each firing is an "(avg)" line (bottle,
+    date, one value per column) followed by an "(sdev)" line whose first
+    token is the time. Returns bottle, pressure, depth and time per firing."""
+    cols: list[str] = []
+    out: list[dict] = []
+    cur: dict | None = None
+    for line in path.read_text(encoding="latin-1", errors="replace").splitlines():
+        if line.startswith(("*", "#")):
+            continue
+        toks = line.split()
+        if not toks:
+            continue
+        if toks[0] == "Bottle":
+            cols = toks
+            continue
+        if toks[0] == "Position" or not cols:
+            continue
+        if toks[-1] == "(avg)" and len(toks) >= 5 and toks[0].isdigit():
+            vals = toks[4:-1]                                # after bottle, month, day, year
+            names = cols[2:]                                 # after Bottle, Date
+            row = dict(zip(names, vals))
+            def num(k):
+                try:
+                    return float(row[k])
+                except (KeyError, ValueError):
+                    return None
+            try:
+                date = f"{int(toks[3]):04d}-{MONTHS[toks[1]]:02d}-{int(toks[2]):02d}"
+            except (KeyError, ValueError):
+                date = ""
+            cur = {"bottle": int(toks[0]), "p": num("PrDM"), "depth_m": num("DepSM"), "time": date}
+            out.append(cur)
+        elif toks[-1] == "(sdev)" and cur is not None:
+            if re.fullmatch(r"\d\d:\d\d:\d\d", toks[0]) and cur["time"]:
+                cur["time"] = f"{cur['time']}T{toks[0]}"
+            cur = None
+    return [b for b in out if b["p"] is not None or b["depth_m"] is not None]
 # SeaBird short names -> (display, unit), in order of preference where two
 # names map to one variable (the SBE 9 rosette CTD writes prDM/t090C, the
 # SBE 19plus writes prdM/tv290C). Anything else in the file is ignored.
@@ -333,6 +380,13 @@ def rosette_casts(leg: Leg) -> list[Cast]:
             m = CNV_RE.match(p.name)
             if m and int(m.group(1)) == leg.year and int(m.group(2)) == leg.number:
                 cnvs[m.group(3)] = p
+    btls: dict[str, Path] = {}
+    btl_dir = DATA_ROOT / "Rosette" / leg.id / "Btl"
+    if btl_dir.is_dir():
+        for p in btl_dir.iterdir():
+            m = BTL_RE.match(p.name)
+            if m:
+                btls[m.group(3)] = p
     if not files and not cnvs:
         return []
     logbook = read_logbook(leg.stations)
@@ -340,12 +394,15 @@ def rosette_casts(leg: Leg) -> list[Cast]:
     for cast_no in sorted(set(files) | set(cnvs)):
         paths = sorted(files.get(cast_no, []))
         cnv = cnvs.get(cast_no)
-        sources = ([cnv] if cnv else []) + paths
+        btl = btls.get(cast_no)
+        sources = ([cnv] if cnv else []) + paths + ([btl] if btl else [])
         cached = _cached(leg.id, f"CTD_{cast_no}", sources, logbook.get(cast_no, {}))
+        if cached and btl and "bottles" not in cached:
+            cached = None                       # a cast stored before bottles were read: once more
         if cached:
             casts.append(Cast(**cached))
         else:
-            todo.append((cast_no, paths, cnv, rosette.get(cast_no, "")))
+            todo.append((cast_no, paths, cnv, rosette.get(cast_no, ""), btl))
     # Each file costs seconds of CIFS latency, so new casts are parsed in
     # parallel and in batches: a build takes the first MAX_NEW_PER_BUILD and the
     # rest arrive on later runs, which keeps the underway page on its cadence.
@@ -353,16 +410,17 @@ def rosette_casts(leg: Leg) -> list[Cast]:
     if deferred:
         log.info("%s: %d casts deferred to later builds", leg.id, len(deferred))
     with ThreadPoolExecutor(max_workers=PARALLEL_READS) as ex:
-        for c in ex.map(lambda item: _parse_rosette_cast(leg, item[0], item[1], item[2], logbook.get(item[0], {}), item[3]), batch):
+        for c in ex.map(lambda item: _parse_rosette_cast(leg, item[0], item[1], item[2], logbook.get(item[0], {}), item[3], item[4]), batch):
             if c:
                 casts.append(c)
     casts.sort(key=lambda c: c.cast)
     return casts
 
 
-def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | None, lb: dict, rosette: str = "") -> Cast | None:
+def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | None, lb: dict, rosette: str = "", btl: Path | None = None) -> Cast | None:
     """The .cnv is the profile when there is one; the plot files add the
-    variables the .cnv does not carry (CDOM, PAR, buoyancy, nitrates)."""
+    variables the .cnv does not carry (CDOM, PAR, buoyancy, nitrates); the
+    .btl adds the bottle firings."""
     # which rosette: from the plot filenames, else the logbook's type_cast
     kind = ROSETTE_KIND.get(rosette.lower()) or ROSETTE_KIND.get(lb.get("type_cast", "").lower(), "CTD")
     base = None
@@ -422,7 +480,12 @@ def _parse_rosette_cast(leg: Leg, cast_no: str, paths: list[Path], cnv: Path | N
              station=lb.get("station", ""), label=lb.get("label", ""),
              bottom_m=num("bottom_m") if num("bottom_m") is not None else (base or {}).get("bottom_m"),
              p=[round(x, 1) for x in pres], vars=vars_, units=units)
-    _store(leg.id, f"CTD_{cast_no}", ([cnv] if cnv else []) + paths, c.__dict__, lb)
+    if btl is not None:
+        try:
+            c.bottles = parse_btl(btl)
+        except (OSError, ValueError) as e:
+            log.warning("%s: cannot parse %s (%s)", leg.id, btl.name, e)
+    _store(leg.id, f"CTD_{cast_no}", ([cnv] if cnv else []) + paths + ([btl] if btl else []), c.__dict__, lb)
     log.info("%s: parsed rosette cast %s (%d levels, %d vars, %s)", leg.id, cast_no, len(pres), len(units),
              "cnv+plots" if base and paths else "cnv" if base else "plots")
     return c
