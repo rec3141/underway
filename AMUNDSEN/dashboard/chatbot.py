@@ -229,8 +229,16 @@ def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str
             pts = [(w["lat"], w["lon"]) for w in a.get("waypoints", []) if w.get("lat") is not None] if a.get("type") == "track" else ([(a["lat"], a["lon"])] if a.get("lat") is not None else [])
             if pts:
                 near.append((min(km(float(lat), float(lon), p[0], p[1]) for p in pts), a))
+        # the dated events carry positions too: a wintering, a wreck, a death
+        seen = set()
+        for r in rows:
+            if r.get("lat") is None or r.get("entity_kind") != "event" or r.get("label") in seen:
+                continue
+            seen.add(r.get("label"))
+            when = r.get("date", "") + (" to " + r["date_end"] if r.get("date_end") else "")
+            near.append((km(float(lat), float(lon), r["lat"], r["lon"]), {"title": r.get("label", ""), "date_text": when}))
         near.sort(key=lambda x: x[0])
-        near = [(d, a) for d, a in near if d <= 300][:4]
+        near = [(d, a) for d, a in near if d <= 300][:6]
         if near:
             out.append("History near the ship: " + "; ".join(f"{a['title']} ({a.get('date_text', '')}, {d:.0f} km away)" for d, a in near) + ".")
     return out
