@@ -391,7 +391,7 @@
   });
   // a pin or a track on the map opens its page
   UW.onHistoryClick = (id) => {
-    const a = artifactById(id);
+    const a = artifactById(id.split("|")[0]);
     if (a) open(a.page);
   };
 
@@ -401,7 +401,9 @@
     const out = prevExtra ? prevExtra() : [];
     if (!UW.state.history || !hist.artifacts) { if (UW.state.history && !hist.artifacts) ensure().then(() => UW.renderMap()); return out; }
     const shown = shownArtifacts();
-    const hover = (a) => `<b>${esc(a.title)}</b><br>${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}<br><i>${esc(topicOf(a.topic)?.title || a.topic)}</i>${a.credit ? `<br><span style="font-size:11px">${esc(a.credit)}</span>` : ""}`;
+    // the tooltip is the title and the year; everything else goes to the info box
+    const year = (a) => { const y = yearOf(a.date_start); return y == null ? "" : ` · ${Math.floor(y)}`; };
+    const hover = (a) => `${esc(a.title.length > 60 ? a.title.slice(0, 57) + "…" : a.title)}${year(a)}`;
     // tracks: one line each, coloured by topic, with the dated waypoints as small markers
     for (const a of shown.filter((x) => x.type === "track" && x.geometry?.coordinates?.length > 1)) {
       const c = a.geometry.coordinates, col = topicColour(a.topic);
@@ -410,8 +412,8 @@
         line: { width: 2.4, color: col }, opacity: .85 });
       if (a.waypoints?.length) out.push({ type: "scattermap", mode: "markers", name: `hist-${a.id}-wp`, showlegend: false, hoverinfo: "text",
         lat: a.waypoints.map((w) => w.lat), lon: a.waypoints.map((w) => w.lon),
-        text: a.waypoints.map((w) => `<b>${esc(a.title)}</b><br>${esc(w.date || "")}${w.note ? "<br>" + esc(w.note) : ""}`),
-        customdata: a.waypoints.map(() => `hist:${a.id}`), marker: { size: 6, color: col, opacity: .9 } });
+        text: a.waypoints.map((w) => `${esc(w.date || "")}${w.note ? " · " + esc(w.note.length > 50 ? w.note.slice(0, 47) + "…" : w.note) : ""}`),
+        customdata: a.waypoints.map((w) => `hist:${a.id}|${w.date || ""}`), marker: { size: 6, color: col, opacity: .9 } });
     }
     // everything else: a pin coloured by kind
     const pins = shown.filter((x) => x.type !== "track" && x.lat != null);
@@ -420,6 +422,50 @@
       marker: { size: pins.map((a) => a.type === "event" ? 11 : 9), color: pins.map((a) => TYPES[a.type]?.colour || "#8b9bb0"), opacity: .92 } });
     return out;
   };
+
+  // ---------------------------------------------------------------- the info box
+  // A tooltip that follows the cursor cannot hold a credit line. Hovering a
+  // history pin or track fills a box fixed in the map's corner instead, which
+  // stays until the next hover or its close; clicking opens the page.
+  function infoBox() {
+    let box = $("#mapinfo");
+    if (!box) {
+      box = document.createElement("div"); box.id = "mapinfo"; box.className = "mapinfo"; box.hidden = true;
+      document.querySelector("section.map")?.appendChild(box);
+      box.addEventListener("click", (e) => {
+        if (e.target.closest(".x")) { box.hidden = true; return; }
+        const a = e.target.closest("a[data-slug]"); if (a) { e.preventDefault(); open(a.dataset.slug); }
+      });
+    }
+    return box;
+  }
+  function showInfo(a, wp) {
+    const box = infoBox(); if (!a) return;
+    const t = topicOf(a.topic);
+    const img = a.url && (a.type === "image" || a.type === "map") ? `<img src="${esc(a.url)}" alt="" loading="lazy">` : "";
+    box.innerHTML = `<button type="button" class="x" title="close">✕</button>${img}<div class="body"><span class="dot" style="background:${TYPES[a.type]?.colour || "#8b9bb0"}"></span><span class="kind">${esc(a.type)}</span>` +
+      `<b><a href="#history/${esc(a.page)}" data-slug="${esc(a.page)}">${esc(a.title)}</a></b>` +
+      `<div class="when">${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${t ? ` · <i>${esc(t.title)}</i>` : ""}</div>` +
+      (wp ? `<div class="wp">${esc(wp.date || "")}${wp.note ? " · " + esc(wp.note) : ""}</div>` : "") +
+      (a.description ? `<div class="desc">${esc(a.description.length > 220 ? a.description.slice(0, 217) + "…" : a.description)}</div>` : "") +
+      (a.credit ? `<div class="credit">${esc(a.credit)}${a.licence ? " · " + esc(a.licence) : ""}</div>` : "") + `</div>`;
+    box.hidden = false;
+  }
+  function wireHover() {
+    const el = $("#map"); if (!el || el._histHover) return;
+    if (!el.on) { setTimeout(wireHover, 1500); return; }              // the map is not drawn yet
+    el._histHover = true;
+    el.on("plotly_hover", (ev) => {
+      const p = ev.points?.[0]; const cd = typeof p?.customdata === "string" ? p.customdata : "";
+      if (!cd.startsWith("hist:")) return;
+      const [id, date] = cd.slice(5).split("|");
+      const a = artifactById(id); if (!a) return;
+      const wp = date && a.waypoints ? a.waypoints.find((w) => w.date === date) : null;
+      showInfo(a, wp);
+    });
+  }
+  const prevOnTabForHover = UW.onTab;
+  UW.onTab = (name) => { prevOnTabForHover?.(name); if (name === "history") wireHover(); else { const b = $("#mapinfo"); if (b) b.hidden = true; } };
 
   // ---------------------------------------------------------------- the timeline
   // Every atomic date the crew entered: spans as bars, moments as dots, one

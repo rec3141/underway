@@ -772,3 +772,16 @@ body.tab-history #maplayers button[data-layer="history"] { display: inline-block
 .chat .mdot.on { background: #7ee787; box-shadow: 0 0 0 2px rgba(126,231,135,.25); }
 .chat.model-off .chatcrew { color: var(--accent-2); }
 .chat.model-off .mention { opacity: .55; }
+/* the map's info box: what a history pin is, fixed in the corner rather than riding the cursor */
+.mapinfo { position: absolute; left: 14px; bottom: 74px; z-index: 30; width: 300px; max-width: calc(100% - 28px); background: rgba(22,29,37,.96); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.45); font-size: 12.5px; line-height: 1.4; overflow: hidden; }
+.mapinfo img { display: block; width: 100%; max-height: 140px; object-fit: cover; }
+.mapinfo .body { padding: 8px 10px 9px; }
+.mapinfo .kind { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; margin-right: 6px; }
+.mapinfo b a { color: var(--fg); }
+.mapinfo .when, .mapinfo .wp { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.mapinfo .wp { color: var(--accent-2); }
+.mapinfo .desc { margin-top: 5px; color: #c9d3de; }
+.mapinfo .credit { margin-top: 5px; color: var(--muted); font-size: 11px; }
+.mapinfo .x { position: absolute; top: 4px; right: 6px; background: transparent; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; }
+.mapinfo .x:hover { color: var(--fg); }
+@media (max-width: 640px) { .mapinfo { bottom: 60px; width: calc(100% - 28px); } }
