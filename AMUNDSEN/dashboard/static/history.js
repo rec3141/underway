@@ -441,22 +441,10 @@
   }
 
   // ---------------------------------------------------------------- the historian
-  async function ask(q) {
-    const box = $("#histanswer"), btn = $("#histgo");
-    box.hidden = false; box.innerHTML = `<div class="muted">The historian is reading… (the local model takes a minute)</div>`; btn.disabled = true;
-    try {
-      const r = await fetch("api/history/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, slug: hist.slug.startsWith("topic/") ? "" : hist.slug }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || r.status);
-      // a page cited by its title in brackets becomes a link to it
-      let html = markdown(j.answer);
-      for (const p of j.pages) html = html.split(`[${esc(p.title)}]`).join(`<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}" class="cite">${esc(p.title)}</a>`);
-      box.innerHTML = `<div class="q">${esc(q)}</div><div class="a">${html}</div>` +
-        (j.pages.length ? `<div class="used"><span class="lbl">Read</span>${j.pages.map((p) => `<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a>`).join("")}</div>` : "");
-    } catch (e) { box.innerHTML = `<div class="muted">No answer: ${esc(e.message)}</div>`; }
-    btn.disabled = false;
-  }
+  // Questions go to the historian's room in the chat; the page being read is
+  // sent along as context, and an answer's pages open here.
+  UW.historyContext = () => (hist.slug && !hist.slug.startsWith("topic/")) ? hist.slug : "";
+  UW.historyOpen = (slug) => open(slug);
 
   // ---------------------------------------------------------------- wiring
   function wire() {
@@ -468,7 +456,7 @@
     $("#histmap").onclick = () => { UW.state.history = !UW.state.history; store.set("history", UW.state.history);
       document.querySelector('#maplayers button[data-layer="history"]')?.classList.toggle("on", UW.state.history); renderMeta(); UW.renderMap(); };
     $("#histtl").onclick = () => { hist.timelineOn = !hist.timelineOn; store.set("hist.timeline", hist.timelineOn); renderMeta(); if (hist.timelineOn) renderTimeline(); };
-    $("#histask").onsubmit = (e) => { e.preventDefault(); const q = $("#histq").value.trim(); if (q) ask(q); };
+    $("#histask").onclick = () => UW.chatRoom?.("historian");
     // the map's own History pill appears once there is history to show
     const pill = document.querySelector('#maplayers button[data-layer="history"]');
     if (pill) pill.hidden = !UW.M.history;

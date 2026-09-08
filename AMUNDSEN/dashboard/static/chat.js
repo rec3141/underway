@@ -4,7 +4,9 @@
 // drawer polls every few seconds while open and less often while collapsed.
 // Everyone picks a name and an emoji, kept on the device. The crew members
 // (@capn, @polly, @doc) are played by a local model and answer when
-// mentioned.
+// mentioned. A second room, the Historian's, takes questions about the
+// region's past and answers them from the History wiki, naming the pages it
+// read; the room switcher in the drawer head moves between the two.
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
@@ -13,8 +15,17 @@
   const el = $("#chat"), log = $("#chatlog"), who = $("#chatwho"), unread = $("#chatunread"), dot = $("#chatdot");
   const nameIn = $("#chatname"), textIn = $("#chattext"), emojiBtn = $("#chatemoji"), pick = $("#emojipick"), typing = $("#chattyping"), crewEl = $("#chatcrew");
   const EMOJI = ["🙂", "😎", "🤓", "🥶", "🧊", "🐧", "🐻‍❄️", "🦭", "🐋", "🐟", "🦑", "🐙", "🦀", "🌊", "⚓", "🚢", "🛶", "🧭", "🔭", "🧪", "🧬", "☕", "🍩", "🎣", "🌌", "❄️", "🌬️", "⛈️", "🛰️", "🐾"];
-  const st = { open: store.get("chat.open", false), side: store.get("chat.side", false), lastId: 0, seen: store.get("chat.seen", 0), unread: 0, timer: null,
+  const ROOMS = { crew: { title: "Chat", placeholder: "message · Enter to send", who: "" },
+                  historian: { title: "Historian", placeholder: "ask about the region's past · Enter to send", who: "answers from the History wiki" } };
+  const st = { open: store.get("chat.open", false), side: store.get("chat.side", false), timer: null,
+    room: ROOMS[store.get("chat.room", "crew")] ? store.get("chat.room", "crew") : "crew",
+    lastId: { crew: 0, historian: 0 },                       // the newest message shown, per room
+    seen: Object.assign({ crew: 0, historian: 0 }, store.get("chat.seenRooms", {})),   // the newest message read, per room
+    latest: { crew: 0, historian: 0 },                       // the newest message that exists, per room (the server says)
+    unread: 0,
     myName: store.get("chat.name", ""), myEmoji: store.get("chat.emoji", "🙂"), crew: [], noai: store.get("chat.noai", false) };
+  // an older browser kept one seen counter for the one room there was
+  if (!store.get("chat.seenRooms")) st.seen.crew = store.get("chat.seen", 0);
   nameIn.value = st.myName; emojiBtn.textContent = st.myEmoji;
   // on a phone the drawer stays out of the way until the Chat tab opens it
   const phone = matchMedia("(max-width: 640px)");
@@ -22,8 +33,16 @@
 
   function layout() {
     el.hidden = !st.open;                                     // closed is gone; the Chat tab brings it back
-    el.classList.toggle("noai", st.noai);
-    const ai = $("#chataibtn"); ai.textContent = st.noai ? "show AI" : "hide AI"; ai.title = st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names";
+    el.classList.toggle("noai", st.noai && st.room === "crew");   // the historian's answers are the point of that room
+    el.dataset.room = st.room;
+    $("#chattitle").textContent = ROOMS[st.room].title;
+    textIn.placeholder = ROOMS[st.room].placeholder;
+    for (const b of $("#chatrooms").querySelectorAll("button")) {
+      b.classList.toggle("on", b.dataset.ch === st.room);
+      const other = b.dataset.ch !== st.room && st.latest[b.dataset.ch] > (st.seen[b.dataset.ch] || 0);
+      const d = b.querySelector(".rdot"); if (d) d.hidden = !other; else b.classList.toggle("fresh", other);
+    }
+    const ai = $("#chataibtn"); ai.hidden = st.room !== "crew"; ai.textContent = st.noai ? "show AI" : "hide AI"; ai.title = st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names";
     el.classList.toggle("collapsed", !st.open);
     el.classList.toggle("sidebar", st.side && st.open);
     document.documentElement.classList.toggle("chat-side", st.side && st.open);
@@ -41,22 +60,33 @@
     return (d.toDateString() === now.toDateString() ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " ") + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); };
   const linkify = (s) => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/(^|\s)@(\w+)/g, '$1<span class="at">@$2</span>');
   const isCrew = (name) => st.crew.some((c) => c.name === name);
+  // the historian's answers name the pages they drew on; each opens on the History tab
+  const pagesHTML = (m) => m.meta?.pages?.length
+    ? `<div class="pages"><span class="lbl">read</span>${m.meta.pages.map((p) => `<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a>`).join("")}</div>` : "";
+  // a page cited in the answer as [Title] becomes a link to it
+  const cite = (html, m) => { for (const p of (m.meta?.pages || [])) html = html.split(`[${esc(p.title)}]`).join(`<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}" class="cite">${esc(p.title)}</a>`); return html; };
 
-  function append(msgs) {
+  function append(msgs, room = st.room) {
     if (!msgs.length) return;
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
     for (const m of msgs) {
       const mine = st.myName && m.name === st.myName;
       const d = document.createElement("div");
       d.className = "msg" + (mine ? " mine" : "") + (isCrew(m.name) ? " bot" : "");
-      d.innerHTML = `<span class="av">${esc(m.emoji || (isCrew(m.name) ? "" : "•"))}</span><span class="who">${esc(m.name)}</span><span class="when">${fmtT(m.t)}</span><div class="txt">${linkify(m.text)}</div>`;
+      d.innerHTML = `<span class="av">${esc(m.emoji || (isCrew(m.name) ? "" : "•"))}</span><span class="who">${esc(m.name)}</span><span class="when">${fmtT(m.t)}</span><div class="txt">${cite(linkify(m.text), m)}${pagesHTML(m)}</div>`;
       log.appendChild(d);
-      st.lastId = Math.max(st.lastId, m.id);
+      st.lastId[room] = Math.max(st.lastId[room], m.id);
     }
     while (log.children.length > 300) log.firstChild.remove();
     if (atBottom || st.open) log.scrollTop = log.scrollHeight;
-    if (st.open) { st.seen = st.lastId; store.set("chat.seen", st.seen); st.unread = 0; }
-    else st.unread += msgs.filter((m) => m.id > st.seen && !(st.noai && isCrew(m.name))).length;
+    markSeen(msgs, room);
+  }
+  function markSeen(msgs, room) {
+    if (st.open) { st.seen[room] = Math.max(st.seen[room] || 0, st.lastId[room]); store.set("chat.seenRooms", st.seen); }
+    // the badge on the drawer counts what is unread in every room
+    st.unread = 0;
+    for (const r of Object.keys(ROOMS)) st.unread += Math.max(0, (st.latest[r] || 0) - (st.seen[r] || 0)) * (r === st.room && st.open ? 0 : 1);
+    if (!st.open && room === st.room) st.unread = Math.max(st.unread, msgs.filter((m) => m.id > (st.seen[room] || 0) && !(st.noai && isCrew(m.name))).length);
     unread.hidden = !st.unread; unread.textContent = st.unread;
   }
 
@@ -64,20 +94,28 @@
     try {
       // only a chat that is open (and a page that is visible) counts as "here"; a collapsed one polls anonymously and drops its presence
       const present = st.open && !document.hidden;
-      const r = await fetch(`api/chat?since=${st.lastId}&name=${encodeURIComponent(present ? st.myName : "")}&leave=${encodeURIComponent(present ? "" : st.myName)}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
+      const room = st.room;
+      const r = await fetch(`api/chat?channel=${room}&since=${st.lastId[room]}&name=${encodeURIComponent(present ? st.myName : "")}&leave=${encodeURIComponent(present ? "" : st.myName)}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
       if (!r.ok) throw new Error(r.status);
       const j = await r.json();
+      if (room !== st.room) return;                            // the room changed while this was in flight
       dot.className = "dot on";
       st.crew = j.crew || [];
-      append(j.messages);
+      st.latest = Object.assign(st.latest, j.latest || {});
+      append(j.messages, room);
       const others = (j.online || []).filter((n) => n.name !== st.myName);
-      who.textContent = j.online?.length ? `${j.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
+      who.textContent = room === "historian" ? ROOMS.historian.who
+        : j.online?.length ? `${j.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
       who.title = (j.online || []).map((n) => n.name).join(", ");
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
-      typing.hidden = !t.length || st.noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} typing…` : "";
-      crewEl.hidden = !st.crew.length || st.noai;
-      crewEl.innerHTML = st.crew.length ? `AI crew (${esc(j.model || "local model")}): ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ") : "";
+      const noai = st.noai && room === "crew";
+      typing.hidden = !t.length || noai; typing.textContent = t.length ? (room === "historian" ? "📜 The historian is reading the wiki…" : `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} typing…`) : "";
+      crewEl.hidden = !st.crew.length || noai;
+      crewEl.innerHTML = !st.crew.length ? "" : room === "historian"
+        ? `📜 The historian (${esc(j.model || "local model")}) answers from the History wiki and names the pages it read; every question here is answered.`
+        : `AI crew (${esc(j.model || "local model")}): ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ");
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
+      layout();
     } catch { dot.className = "dot"; who.textContent = "offline"; }
     clearTimeout(st.timer);
     st.timer = setTimeout(poll, st.open ? 4000 : 20000);
@@ -85,15 +123,29 @@
 
   function toggle(open) {
     st.open = open ?? !st.open; store.set("chat.open", st.open);
-    if (st.open) { st.seen = st.lastId; store.set("chat.seen", st.seen); st.unread = 0; unread.hidden = true; }
+    if (st.open) markSeen([], st.room);
     layout(); if (st.open) textIn.focus(); poll();
   }
+  // the room switcher: the log is refilled from the server for the new room
+  function setRoom(room) {
+    if (!ROOMS[room]) return;
+    st.room = room; store.set("chat.room", room);
+    log.innerHTML = ""; st.lastId[room] = 0;
+    if (!st.open) { st.open = true; store.set("chat.open", true); }
+    layout(); textIn.focus(); poll();
+  }
+  for (const b of $("#chatrooms").querySelectorAll("button")) b.onclick = () => setRoom(b.dataset.ch);
+  // an answer's page links open on the History tab
+  log.addEventListener("click", (e) => { const a = e.target.closest("a[data-slug]"); if (!a) return; e.preventDefault(); window.UW?.historyOpen?.(a.dataset.slug); });
   $("#chathead").onclick = () => toggle();
   $("#chatclosebtn").onclick = () => toggle(false);
   $("#chataibtn").onclick = () => { st.noai = !st.noai; store.set("chat.noai", st.noai); layout(); poll(); };
   $("#chatsidebtn").onclick = () => { st.side = !st.side; store.set("chat.side", st.side); if (!st.open) st.open = true; layout(); poll(); };
   // the Chat tab button: open as a side bar, or put it away
-  window.UW = Object.assign(window.UW || {}, { chatToggle: () => { if (st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } } });
+  window.UW = Object.assign(window.UW || {}, {
+    chatToggle: () => { if (st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } },
+    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } setRoom(room); },
+  });
 
   nameIn.onchange = () => { st.myName = nameIn.value.trim().slice(0, 24); store.set("chat.name", st.myName); poll(); };
   pick.innerHTML = EMOJI.map((e) => `<button type="button">${e}</button>`).join("");
@@ -105,7 +157,9 @@
     if (!st.myName) { nameIn.focus(); nameIn.placeholder = "name first"; return; }
     textIn.disabled = true;
     try {
-      const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: st.myName, emoji: st.myEmoji, text }) });
+      const body = { name: st.myName, emoji: st.myEmoji, text, channel: st.room };
+      if (st.room === "historian") body.slug = window.UW?.historyContext?.() || "";   // the page being read, as context
+      const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); who.textContent = j.error || "not sent"; }
     } catch { who.textContent = "offline"; }
     textIn.disabled = false; textIn.focus();

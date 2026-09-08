@@ -107,7 +107,23 @@ def _chat_conn() -> sqlite3.Connection:
     cols = {r[1] for r in c.execute("PRAGMA table_info(messages)")}
     if "emoji" not in cols:
         c.execute("ALTER TABLE messages ADD COLUMN emoji TEXT")
+    if "channel" not in cols:
+        # two rooms share the one log: the crew's chat and the historian's
+        c.execute("ALTER TABLE messages ADD COLUMN channel TEXT NOT NULL DEFAULT 'crew'")
+        c.execute("CREATE INDEX IF NOT EXISTS messages_channel ON messages (channel, id)")
+    if "meta" not in cols:
+        c.execute("ALTER TABLE messages ADD COLUMN meta TEXT")       # JSON: the pages an answer drew on
     return c
+
+
+CHANNELS = ("crew", "historian")
+HISTORIAN = {"name": "Historian", "emoji": "📜", "handle": "historian"}
+ROOT: Path | None = None                    # the web root, for the historian's wiki
+_asking: set[str] = set()                   # channels with an answer in flight, for the typing line
+
+
+def _channel(v: str) -> str:
+    return v if v in CHANNELS else "crew"
 
 
 def _clean_emoji(e: str) -> str:
@@ -115,7 +131,8 @@ def _clean_emoji(e: str) -> str:
     return e[:8] if e and "<" not in e else ""
 
 
-def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None = None) -> dict:
+def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None = None, channel: str = "crew") -> dict:
+    channel = _channel(channel)
     now = time.time()
     with _chat_lock:
         if name:
@@ -130,14 +147,26 @@ def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None =
         c = _chat_conn()
         try:
             if since > 0:
-                rows = c.execute("SELECT id, t, name, text, emoji FROM messages WHERE id > ? ORDER BY id", (since,)).fetchall()
+                rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? AND id > ? ORDER BY id",
+                                 (channel, since)).fetchall()
             else:
-                rows = c.execute("SELECT id, t, name, text, emoji FROM messages ORDER BY id DESC LIMIT ?", (CHAT_PAGE,)).fetchall()[::-1]
+                rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? ORDER BY id DESC LIMIT ?",
+                                 (channel, CHAT_PAGE)).fetchall()[::-1]
+            latest = {ch: mid or 0 for ch, mid in c.execute("SELECT channel, MAX(id) FROM messages GROUP BY channel")}
         finally:
             c.close()
-    typing = sorted(CREW.typing) if CREW else []
-    return {"messages": [{"id": i, "t": t, "name": n, "text": x, "emoji": e or ""} for i, t, n, x, e in rows],
-            "online": online, "typing": typing, "crew": crew_list(), "model": crew_model(), "now": now}
+    typing = (sorted(CREW.typing) if CREW and channel == "crew" else []) + (["historian"] if channel in _asking else [])
+    msgs = []
+    for i, t, n, x, e, meta in rows:
+        m = {"id": i, "t": t, "name": n, "text": x, "emoji": e or ""}
+        if meta:
+            try:
+                m["meta"] = json.loads(meta)
+            except ValueError:
+                pass
+        msgs.append(m)
+    return {"messages": msgs, "online": online, "typing": typing, "crew": crew_list(channel), "model": crew_model(),
+            "channel": channel, "latest": {ch: latest.get(ch, 0) for ch in CHANNELS}, "now": now}
 
 
 def crew_model() -> str:
@@ -145,12 +174,16 @@ def crew_model() -> str:
     return LLM_MODEL if CREW and CREW.enabled else ""
 
 
-def crew_list() -> list[dict]:
+def crew_list(channel: str = "crew") -> list[dict]:
     from .chatbot import PERSONAS
+    if channel == "historian":
+        return [dict(HISTORIAN)] if CREW and CREW.enabled else []
     return [{"handle": h, "name": p["name"], "emoji": p["emoji"]} for h, p in PERSONAS.items()] if CREW and CREW.enabled else []
 
 
-def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False) -> dict:
+def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = False, channel: str = "crew",
+              meta: dict | None = None, slug: str = "") -> dict:
+    channel = _channel(channel)
     name = " ".join(name.split())[:NAME_MAX] or "anon"
     text = text.strip()[:TEXT_MAX if not bot else 2600]
     emoji = _clean_emoji(emoji)
@@ -167,15 +200,36 @@ def chat_post(addr: str, name: str, text: str, emoji: str = "", bot: bool = Fals
                 _emoji[name] = emoji
         c = _chat_conn()
         try:
-            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji) VALUES (?, ?, ?, ?, ?)", (now, addr, name, text, emoji))
+            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji, channel, meta) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (now, addr, name, text, emoji, channel, json.dumps(meta) if meta else None))
             c.execute("DELETE FROM messages WHERE id <= (SELECT MAX(id) FROM messages) - ?", (CHAT_KEEP,))
             c.commit()
             mid = cur.lastrowid
         finally:
             c.close()
-    if not bot and CREW:
+    if not bot and channel == "crew" and CREW:
         CREW.on_message(name, text)
+    if not bot and channel == "historian":
+        threading.Thread(target=_historian_reply, args=(text, slug), daemon=True).start()
     return {"ok": True, "id": mid, "t": now}
+
+
+def _historian_reply(question: str, slug: str) -> None:
+    """Answer a question posted in the historian's room, from the wiki, and
+    post it as the Historian with the pages it read."""
+    if not ROOT or not (CREW and CREW.enabled):
+        return
+    _asking.add("historian")
+    try:
+        r = history_ask(ROOT, question, slug)
+        chat_post("historian", HISTORIAN["name"], r["answer"], HISTORIAN["emoji"], bot=True, channel="historian",
+                  meta={"pages": r["pages"]})
+    except ValueError as e:
+        chat_post("historian", HISTORIAN["name"], str(e), HISTORIAN["emoji"], bot=True, channel="historian")
+    except Exception as e:                   # noqa: BLE001
+        log.info("historian stayed quiet (%s)", e)
+    finally:
+        _asking.discard("historian")
 
 
 # Raster tile pyramids are hundreds of thousands of small files; they are kept
@@ -272,7 +326,7 @@ class Handler(SimpleHTTPRequestHandler):
             name = (q.get("name", [""])[0] or "").strip()[:NAME_MAX] or None
             leave = (q.get("leave", [""])[0] or "").strip()[:NAME_MAX] or None
             try:
-                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0], leave))
+                return self._json(200, chat_read(since, name, q.get("emoji", [""])[0], leave, q.get("channel", ["crew"])[0]))
             except Exception as e:                       # noqa: BLE001
                 log.warning("chat read failed: %s", e)
                 return self._json(500, {"error": "chat unavailable"})
@@ -370,7 +424,8 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             n = min(int(self.headers.get("Content-Length", "0")), 4096)
             payload = json.loads(self.rfile.read(n) or b"{}")
-            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")), str(payload.get("emoji", "")))
+            r = chat_post(self._client(), str(payload.get("name", "")), str(payload.get("text", "")), str(payload.get("emoji", "")),
+                          channel=str(payload.get("channel", "crew")), slug=str(payload.get("slug", ""))[:200])
         except Exception as e:                           # noqa: BLE001
             log.warning("chat post failed: %s", e)
             r = {"error": "bad request"}
@@ -552,7 +607,8 @@ button:hover{{border-color:#5cc8ff}} button.no:hover{{border-color:#ff7b72}} but
 
 
 def serve(root: Path, port: int, bind: str) -> None:
-    global CREW, LIVE, INTRANET
+    global CREW, LIVE, INTRANET, ROOT
+    ROOT = root
     from .config import INTRANET_BASE
     INTRANET = IntranetLive(INTRANET_BASE.rstrip("/") + "/live.html")
     from .chatbot import Crew
