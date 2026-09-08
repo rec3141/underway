@@ -371,6 +371,51 @@ def aggregate(a: Analysis, rule: str) -> dict:
     return {"rule": rule, "variables": names, "columns": ["mean", "min", "max", "n"], "rows": rows}
 
 
+def raster_pyramid(tiles: Path) -> dict | None:
+    """Describe the GEBCO tile pyramid (tools/make_gebco_tiles.sh) for the map.
+
+    The pyramid lives on local disk, too many files for the share or the
+    repository, and the server maps /static/tiles/ onto it. Its zoom levels
+    are a global run followed by a run that covers only a box (the Arctic at
+    the finest zoom), and each run is its own MapLibre source, the boxed one
+    with bounds, so the map never asks for a tile that is not there.
+    """
+    if not tiles.is_dir():
+        return None
+    zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
+    if not zooms:
+        return None
+
+    def extent(z):                    # tile extent of one zoom: x from the directories, y from the first column
+        xs = sorted(int(p.name) for p in (tiles / str(z)).iterdir() if p.name.isdigit())
+        ys = sorted(int(p.stem) for p in (tiles / str(z) / str(xs[0])).glob("*.png") if p.stem.isdigit())
+        return xs[0], ys[0], xs[-1], ys[-1]
+
+    def tile_bounds(z, x0, y0, x1, y1):
+        lon = lambda x: x / 2 ** z * 360 - 180
+        lat = lambda y: math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / 2 ** z))))
+        return [round(lon(x0), 6), round(lat(y1 + 1), 6), round(lon(x1 + 1), 6), round(lat(y0), 6)]
+
+    # a run's bounds are its finest zoom's, the tightest: a tile that touches
+    # them exists at every zoom of the run, and none outside them is asked for
+    sources, run = [], None
+    for z in zooms:
+        ext = extent(z)
+        whole = ext == (0, 0, 2 ** z - 1, 2 ** z - 1)
+        if run and run["maxzoom"] == z - 1 and (run["bounds"] is None) == whole:
+            run["maxzoom"] = z
+        else:
+            run = {"minzoom": z, "maxzoom": z, "bounds": None}
+            sources.append(run)
+        if not whole:
+            run["bounds"] = tile_bounds(z, *ext)
+    # tiles are cached for a week; the pyramid's own mtime versions the URL so
+    # a re-render is picked up by browsers immediately
+    v = int(tiles.stat().st_mtime)
+    return {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "sources": sources,
+            "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
+
+
 def _limits(vals: list) -> list | None:
     arr = np.array([v for v in vals if v is not None], dtype=float)
     if arr.size == 0:
@@ -615,16 +660,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # too many files for the share or the repository — and the server maps
     # /static/tiles/ onto it; it is used when present
     from .serve import TILES_DIR
-    tiles = TILES_DIR / "gebco"
-    raster = None
-    if tiles.is_dir():
-        zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
-        if zooms:
-            # tiles are cached for a week; the pyramid's own mtime versions the
-            # URL so a re-render is picked up by browsers immediately
-            v = int(tiles.stat().st_mtime)
-            raster = {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "minzoom": zooms[0], "maxzoom": zooms[-1],
-                      "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
+    raster = raster_pyramid(TILES_DIR / "gebco")
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
             "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "low_flow_v": LOW_FLOW_V,

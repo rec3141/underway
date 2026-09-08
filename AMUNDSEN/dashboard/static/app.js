@@ -503,9 +503,15 @@
                     glyphs: base0 + "static/geo/glyphs/{fontstack}/{range}.pbf",
                     layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
     if (relief) {
-      style.sources.gebco = { type: "raster", tiles: [base0 + SITE.raster.url], tileSize: 256,
-                              minzoom: SITE.raster.minzoom, maxzoom: SITE.raster.maxzoom, attribution: SITE.raster.attribution };
-      style.layers.push({ id: "gebco", type: "raster", source: "gebco", paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
+      // the pyramid is the globe up to one zoom and, above that, only a box (the
+      // Arctic at z9): a source per run, the boxed one with bounds, so MapLibre
+      // never asks for a tile that is not there and overzooms the globe elsewhere
+      SITE.raster.sources.forEach((s, i) => {
+        const id = i ? `gebco${i}` : "gebco";
+        style.sources[id] = { type: "raster", tiles: [base0 + SITE.raster.url], tileSize: 256, minzoom: s.minzoom, maxzoom: s.maxzoom,
+                              ...(s.bounds ? { bounds: s.bounds } : {}), attribution: SITE.raster.attribution };
+        style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
+      });
     }
     const g = state.geoSources || {};
     const add = (id, data, layer) => { if (!data) return; style.sources[id] = { type: "geojson", data }; style.layers.push({ id, source: id, ...layer }); };
