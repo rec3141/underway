@@ -439,7 +439,9 @@
     }
     return box;
   }
+  const INFO_BOX = false;                                     // the box is off for now: too much for the map
   function showInfo(a, wp) {
+    if (!INFO_BOX) return;
     const box = infoBox(); if (!a) return;
     const t = topicOf(a.topic);
     const img = a.url && (a.type === "image" || a.type === "map") ? `<img src="${esc(a.url)}" alt="" loading="lazy">` : "";
@@ -452,6 +454,7 @@
     box.hidden = false;
   }
   function wireHover() {
+    if (!INFO_BOX) return;
     const el = $("#map"); if (!el || el._histHover) return;
     if (!el.on) { setTimeout(wireHover, 1500); return; }              // the map is not drawn yet
     el._histHover = true;
