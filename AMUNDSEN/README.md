@@ -271,18 +271,26 @@ The map stays on the left; the tabs swap the right-hand pane.
 ## Higher-resolution bathymetry (optional)
 
 `tools/make_gebco_tiles.sh` turns the GEBCO 2024 GeoTIFF release (4.4 GB from
-BODC/CEDA) into a shaded-bathymetry Web Mercator tile pyramid:
+BODC/CEDA) into a shaded-bathymetry Web Mercator tile pyramid. The pyramid on
+the ship is the globe at zooms 0–8 (610 m/px, about what GEBCO's 15" grid
+supports) with the western Arctic and Labrador Sea at zoom 9 on top, built as
+two runs into one directory (`/data/gis/gebco/rerender-world.sh` does both and
+swaps them in):
 
 ```sh
 tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
-    "$WEBROOT/static/tiles/gebco" -150 45 -15 86 2-9
+    "$UNDERWAY_TILES_DIR/gebco" -180 -90 180 90 0-8      # the globe, ~6 min on 32 cores
+tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
+    "$UNDERWAY_TILES_DIR/gebco" -150 45 -15 86 9-9       # the Arctic box at z9
 ```
 
-When `static/tiles/gebco/` exists under the web root the map draws it beneath
-the vector layers instead of the Natural Earth depth bands. The pyramid is
-served with a week-long cache and is **not** committed (hundreds of MB);
-regenerate it on a new machine. Needs GDAL with Python bindings
-(`gdal-bin python3-gdal` on Ubuntu).
+When `gebco/` exists under `UNDERWAY_TILES_DIR` the map draws it beneath the
+vector layers instead of the Natural Earth depth bands. The build reads the
+directory and puts each run of zooms into the map as its own source — the
+boxed run with bounds — so the map never asks for a tile that is not there
+(`raster_pyramid` in `build.py`). The pyramid is served with a week-long cache
+and is **not** committed (a few GB); regenerate it on a new machine. Needs
+GDAL with Python bindings (`gdal-bin python3-gdal` on Ubuntu).
 
 ## Front end notes
 

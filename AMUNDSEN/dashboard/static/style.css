@@ -842,3 +842,5 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 #pane-history .vig:hover { border-color: var(--accent); }
 #pane-history .person { border: 1px solid transparent; background: transparent; }
 #pane-history .person:hover { border-color: var(--accent); background: transparent; }
+/* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
+#satpill { min-width: 7.2em; text-align: center; }

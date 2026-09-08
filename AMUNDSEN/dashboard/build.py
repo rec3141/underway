@@ -27,6 +27,7 @@ from . import history
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from . import plan, satellite
+from .buildcache import cached_frame, file_signature, kept_window, remember_windows, surprise_cached
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -371,6 +372,51 @@ def aggregate(a: Analysis, rule: str) -> dict:
     return {"rule": rule, "variables": names, "columns": ["mean", "min", "max", "n"], "rows": rows}
 
 
+def raster_pyramid(tiles: Path) -> dict | None:
+    """Describe the GEBCO tile pyramid (tools/make_gebco_tiles.sh) for the map.
+
+    The pyramid lives on local disk, too many files for the share or the
+    repository, and the server maps /static/tiles/ onto it. Its zoom levels
+    are a global run followed by a run that covers only a box (the Arctic at
+    the finest zoom), and each run is its own MapLibre source, the boxed one
+    with bounds, so the map never asks for a tile that is not there.
+    """
+    if not tiles.is_dir():
+        return None
+    zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
+    if not zooms:
+        return None
+
+    def extent(z):                    # tile extent of one zoom: x from the directories, y from the first column
+        xs = sorted(int(p.name) for p in (tiles / str(z)).iterdir() if p.name.isdigit())
+        ys = sorted(int(p.stem) for p in (tiles / str(z) / str(xs[0])).glob("*.png") if p.stem.isdigit())
+        return xs[0], ys[0], xs[-1], ys[-1]
+
+    def tile_bounds(z, x0, y0, x1, y1):
+        lon = lambda x: x / 2 ** z * 360 - 180
+        lat = lambda y: math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / 2 ** z))))
+        return [round(lon(x0), 6), round(lat(y1 + 1), 6), round(lon(x1 + 1), 6), round(lat(y0), 6)]
+
+    # a run's bounds are its finest zoom's, the tightest: a tile that touches
+    # them exists at every zoom of the run, and none outside them is asked for
+    sources, run = [], None
+    for z in zooms:
+        ext = extent(z)
+        whole = ext == (0, 0, 2 ** z - 1, 2 ** z - 1)
+        if run and run["maxzoom"] == z - 1 and (run["bounds"] is None) == whole:
+            run["maxzoom"] = z
+        else:
+            run = {"minzoom": z, "maxzoom": z, "bounds": None}
+            sources.append(run)
+        if not whole:
+            run["bounds"] = tile_bounds(z, *ext)
+    # tiles are cached for a week; the pyramid's own mtime versions the URL so
+    # a re-render is picked up by browsers immediately
+    v = int(tiles.stat().st_mtime)
+    return {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "sources": sources,
+            "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
+
+
 def _limits(vals: list) -> list | None:
     arr = np.array([v for v in vals if v is not None], dtype=float)
     if arr.size == 0:
@@ -410,7 +456,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # 2. read the needed columns from each leg and concatenate in time order
     frames, coverage, files_total, latest_file, columns_seen = [], {}, 0, None, {}
     for i, (leg, st) in enumerate(stores):
-        df = st.frame_columns(want)
+        df = cached_frame(leg.id, leg.db, want, lambda: st.frame_columns(want))
         for k in want:
             if k not in df.columns:
                 df[k] = np.nan
@@ -432,6 +478,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
 
     # 3. derive, then slice every window
     leg_codes = df.pop("leg")
+    from .surprise import score_minutes, surprise_scores
     from .tsg import archive_tail, minute_frame, provisional_tail
     from . import livescrape
     try:
@@ -468,7 +515,14 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
                 log.info("provisional tail from the TSG file: %d minutes past %s", len(tail), tail.index.min().strftime("%H:%M"))
         except Exception:                   # noqa: BLE001
             log.exception("provisional tail not built")
-    a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg)
+    # surprise is scored afresh only from the live leg on, against the kept
+    # scoring of the legs before it (buildcache)
+    score = surprise_scores
+    if live_i is not None and (leg_codes == live_i).any():
+        cutoff = leg_codes.index[leg_codes == live_i].min().floor("1min")
+        frozen = "|".join(f"{leg.id}:{file_signature(leg.db)}" for i, (leg, _) in enumerate(stores) if i != live_i)
+        score = lambda minute, cfg: surprise_cached(minute, cfg, cutoff, frozen, score_minutes)
+    a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg, score=score)
     leg_codes = leg_codes[~leg_codes.index.duplicated(keep="last")]
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
     a.frame["provisional"] = (a.frame.index >= prov_from).astype(float) if prov_from is not None else 0.0
@@ -481,8 +535,12 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # map's track-detail slider), so the span decides the default detail but
     # not the finest the browser can ask for.
     def write_window(w: Window) -> dict:
-        payload = slice_window(a, w, end)
         fn = f"w-{w.label}.json"
+        kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
+        if kept:
+            log.info("window %-4s kept", w.label)
+            return kept
+        payload = slice_window(a, w, end)
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
         meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"],
                 "start": payload.get("start"), "end": payload.get("end")}
@@ -494,6 +552,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         return meta
     for w in WINDOWS:
         windows_meta.append(write_window(w))
+    remember_windows(windows_meta)
     # "leg": the whole of the live leg, sized afresh each build; it is the
     # default view, so the browser opens on the current leg
     in_leg = a.frame.index[a.frame["leg"] == live_i] if live_i is not None else []
@@ -615,16 +674,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # too many files for the share or the repository — and the server maps
     # /static/tiles/ onto it; it is used when present
     from .serve import TILES_DIR
-    tiles = TILES_DIR / "gebco"
-    raster = None
-    if tiles.is_dir():
-        zooms = sorted(int(p.name) for p in tiles.iterdir() if p.name.isdigit())
-        if zooms:
-            # tiles are cached for a week; the pyramid's own mtime versions the
-            # URL so a re-render is picked up by browsers immediately
-            v = int(tiles.stat().st_mtime)
-            raster = {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "minzoom": zooms[0], "maxzoom": zooms[-1],
-                      "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
+    raster = raster_pyramid(TILES_DIR / "gebco")
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
             "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "low_flow_v": LOW_FLOW_V,

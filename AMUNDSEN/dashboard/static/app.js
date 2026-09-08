@@ -413,11 +413,12 @@
   // the pictures the build has published (a sensor without one is skipped)
   const satImages = () => M?.satellite?.images || {};
   // the pictures of the shown sensor, oldest first: the archive, which ends
-  // with the current picture (all share the current picture's corners)
+  // with the current picture (a region picture shares the current one's
+  // corners; a backfilled box round the ship carries its own)
   function satSeries() {
     const im = satImages()[state.sat]; if (!im) return [];
     const arch = (M?.satellite?.archive || {})[state.sat] || [];
-    const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: im.corners, label: im.label }));
+    const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: e.corners || im.corners, label: im.label }));
     if (!rows.length || rows[rows.length - 1].scene !== (im.scene || im.fetched)) rows.push({ url: im.url, scene: im.scene || im.fetched, corners: im.corners, label: im.label });
     return rows;
   }
@@ -435,7 +436,7 @@
     if (state.sat && !imgs[state.sat]) state.sat = "";
     const im = imgs[state.sat];
     b.classList.toggle("on", !!im);
-    b.textContent = im ? (state.sat === "s1" ? "S1 radar" : "S2 optical") : "Sat";
+    b.textContent = im ? (state.sat === "s1" ? "S1 radar" : "S2 optical") : "Sat off";
     b.title = im ? `${im.label}, newest scene ${im.scene ? fmtTs(Date.parse(im.scene)) + " " + tzAbbr() : "unknown"} · click for ${state.sat === "s1" && imgs.s2 ? "Sentinel-2" : "none"}` : "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour";
     b.onclick = () => { const i = kinds.indexOf(state.sat); state.sat = i < 0 ? kinds[0] : (kinds[i + 1] || ""); state.satAt = null; store.set("sat", state.sat); renderSatPill(); renderMap(); };
     // the stepper: back and forth through the archive, the newest last
@@ -503,9 +504,15 @@
                     glyphs: base0 + "static/geo/glyphs/{fontstack}/{range}.pbf",
                     layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
     if (relief) {
-      style.sources.gebco = { type: "raster", tiles: [base0 + SITE.raster.url], tileSize: 256,
-                              minzoom: SITE.raster.minzoom, maxzoom: SITE.raster.maxzoom, attribution: SITE.raster.attribution };
-      style.layers.push({ id: "gebco", type: "raster", source: "gebco", paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
+      // the pyramid is the globe up to one zoom and, above that, only a box (the
+      // Arctic at z9): a source per run, the boxed one with bounds, so MapLibre
+      // never asks for a tile that is not there and overzooms the globe elsewhere
+      SITE.raster.sources.forEach((s, i) => {
+        const id = i ? `gebco${i}` : "gebco";
+        style.sources[id] = { type: "raster", tiles: [base0 + SITE.raster.url], tileSize: 256, minzoom: s.minzoom, maxzoom: s.maxzoom,
+                              ...(s.bounds ? { bounds: s.bounds } : {}), attribution: SITE.raster.attribution };
+        style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
+      });
     }
     const g = state.geoSources || {};
     const add = (id, data, layer) => { if (!data) return; style.sources[id] = { type: "geojson", data }; style.layers.push({ id, source: id, ...layer }); };
@@ -1014,10 +1021,10 @@
     });
 
     const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
-    // the satellite picture under the track, and the newest radar at 50 m in
+    // the satellite picture under the track, and the same sensor at 50 m in
     // a box round the ship over it: both go into the style with the basemap
     const sat = (state.sat && satPicture()) || null;
-    const near = (state.sat === "s1" && !state.satAt && satImages().s1near) || null;
+    const near = (state.sat && !state.satAt && satImages()[state.sat + "near"]) || null;
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
                      map: { style: mapStyle(sat, near), center: view.center, zoom: view.zoom, layers: [] } };
     mapDrawing = true;
@@ -1059,7 +1066,7 @@
       `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
-      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat === "s1" && !state.satAt && satImages().s1near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages().s1near.scene || satImages().s1near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat && !state.satAt && satImages()[state.sat + "near"] ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages()[state.sat + "near"].scene || satImages()[state.sat + "near"].fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
       plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
