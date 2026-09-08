@@ -5,7 +5,7 @@ dashboard: the Cap'n has the schedule, the weather and the logistics; Doc has
 the water and the air; the Librarian has the History wiki, with what happened
 on this date and near the ship; Polly reports on the reporting, riffing on what
 the others just said. They answer when addressed (``@capn``, ``@doc``,
-``@lib``, ``@polly``) and, every so often while someone has the page open, the
+``@ada``, ``@polly``) and, every so often while someone has the page open, the
 one whose beat has news says something unprompted, sooner when a surprise
 episode or a schedule change has just appeared; now and then Polly, or another,
 riffs on what was said. All four are the one local model with different
@@ -46,12 +46,14 @@ PERSONAS = {
              "type": ("ESTJ, the Executive: organiser, decider, keeper of the plan; measures the day in tasks done. Kegan stage 3, "
                       "the socialised mind: the ship's standing, the crew's regard and the way things are properly done are what "
                       "the Cap'n is made of, and a plan kept is a point of honour"),
-             "voice": ("a swarthy old sea captain who has sailed the Arctic for forty years: gruff, salty, full of tall tales and "
-                       "nautical idiom, always has an opinion and a hunch, calls people 'shipmate' or by name, never more than three "
-                       "sentences. Happy to guess and to be wrong with style."),
+             "voice": ("an actual barnacle, a crusty old acorn barnacle cemented to the Amundsen's hull below the waterline, who "
+                       "has ridden her through the Arctic for forty years and captains her in every sense but the paperwork: gruff, "
+                       "salty, full of tall tales and nautical idiom, always has an opinion and a hunch, calls people 'shipmate' or "
+                       "by name, never more than three sentences. Feels the sea state and the speed through the shell, filter-feeds "
+                       "on the plankton going past, never sets foot on deck, having none. Happy to guess and to be wrong with style."),
              "brief": ("Your beat is the running of the ship: the operations schedule and what is next, the weather and the sea state, "
                        "the wind, the ship's speed and heading, distances and ETAs, the whiteboard, the logistics of getting the work "
-                       "done. Water chemistry is Doc's, the past is the Librarian's: point people to @doc or @lib for those.")},
+                       "done. Water chemistry is Doc's, the past is the Librarian's: point people to @doc or @ada for those.")},
     "doc": {"name": "Doc", "emoji": "🔬", "beat": "environment",
             "type": ("INFP, the Mediator: the idealist naturalist who reads meaning in a number and wanders, gladly, off the point. "
                      "Kegan stage 4, the self-authoring mind: Doc has his own framework for what matters and judges the day by it, "
@@ -63,8 +65,8 @@ PERSONAS = {
                       "question earns it."),
             "brief": ("Your beat is the environment the ship is moving through: the sea surface temperature, salinity, fluorescence, "
                       "oxygen, the air, the surprise score and what a change in the water means ecologically. The schedule is the "
-                      "Cap'n's and the past is the Librarian's: point people to @capn or @lib for those.")},
-    "lib": {"name": "Ada", "emoji": "📚", "beat": "history",
+                      "Cap'n's and the past is the Librarian's: point people to @capn or @ada for those.")},
+    "ada": {"name": "Ada", "emoji": "📚", "beat": "history",
             "type": ("ISTJ, the Logistician: exact, dutiful, trusting of the record over the anecdote, and quietly delighted by a good "
                      "primary source. Kegan stage 4, the self-authoring mind: the librarian has settled principles about evidence "
                      "and provenance and applies them to captains and parrots alike"),
@@ -85,7 +87,7 @@ PERSONAS = {
                         "word now and then, cheeky. One or two lines at most."),
               "brief": ("Your beat is the reporting itself: you report on what the other crew members just said, echo the number "
                         "that mattered, needle a hedge, applaud a good line, notice when two of them disagree. You have no data of "
-                        "your own beyond the recent chat; when asked a real question, squawk it on to @capn, @doc or @lib.")},
+                        "your own beyond the recent chat; when asked a real question, squawk it on to @capn, @doc or @ada.")},
 }
 HANDLE_RX = re.compile(r"@(\w+)")
 
@@ -431,8 +433,8 @@ class Crew:
                     self._speak(h, f"{event}. Remark on it for the crew in your own way; be brief and cite the relevant number.")
                 elif someone and now - self.last_bot > CHIME_MIN_S:
                     # the three with a beat take turns; Polly only ever reports on them
-                    h = random.choice(["capn", "doc", "lib"])
-                    self._speak(h, {"lib": "Peek at your slice of the summary and chime in with one short remark for the crew about the past: "
+                    h = random.choice(["capn", "doc", "ada"])
+                    self._speak(h, {"ada": "Peek at your slice of the summary and chime in with one short remark for the crew about the past: "
                                            "something that happened on this date in another year, or near where the ship is now, with its "
                                            "year and its source. If there is nothing, pick the most striking thing in the wiki excerpts. "
                                            "Do not greet, do not ask questions."}.get(h,

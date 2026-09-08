@@ -3,7 +3,7 @@
 // through the page's own server (api/chat, a SQLite file behind it); the
 // drawer polls every few seconds while open and less often while collapsed.
 // Everyone picks a name and an emoji, kept on the device. The crew members
-// (@capn, @polly, @doc) are played by a local model and answer when
+// (@capn, @doc, @ada, @polly) are played by a local model and answer when
 // mentioned. A second room, the Historian's, takes questions about the
 // region's past and answers them from the History wiki, naming the pages it
 // read; the room switcher in the drawer head moves between the two.
