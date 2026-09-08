@@ -73,6 +73,107 @@
   const topicColour = (slug) => TOPIC_COLOURS[Math.max(0, hist.index?.topics.findIndex((t) => t.slug === slug) || 0) % TOPIC_COLOURS.length];
   const artifactById = (id) => hist.artifacts?.find((a) => a.id === id);
 
+  // ---------------------------------------------------------------- vignettes
+  // "On this day": every atomic date whose month and day are today's, in any
+  // year, plus the voyages that were under way on this date (a span that
+  // covers today's date in some year) and the track waypoints dated today.
+  // "In this place": whatever lies within reach of the ship's position,
+  // widening the radius until there is something to say.
+  const R_EARTH = 6371;
+  function km(lat1, lon1, lat2, lon2) {
+    const r = Math.PI / 180, dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+    return 2 * R_EARTH * Math.asin(Math.sqrt(a));
+  }
+  const parts = (iso) => { const m = /^(-?\d{1,4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? { y: +m[1], m: +m[2], d: +m[3] } : null; };
+  const ymd = (y, m, d) => y * 10000 + m * 100 + d;
+  // where a timeline row's page is: an artifact's own page, a person's or
+  // place's by name, an event's topic (events have no page of their own)
+  function pageFor(kind, id) {
+    if (kind === "artifact") return artifactById(id)?.page || "";
+    if (kind === "event") return "";
+    return hist.index?.pages.find((p) => p.kind === kind && p.title === id)?.slug || "";
+  }
+  function onThisDay(now = new Date()) {
+    if (!hist.timeline) return [];
+    const mm = now.getMonth() + 1, dd = now.getDate(), out = [];
+    for (const r of hist.timeline) {
+      const a = parts(r.date);
+      if (!a || r.precision !== "day") continue;
+      if (!r.date_end) {
+        if (a.m === mm && a.d === dd) out.push({ year: a.y, kind: r.role === "start" ? "began" : r.role === "end" ? "ended" : "", label: r.label, place: r.place, topic: r.topic, lat: r.lat, lon: r.lon, slug: pageFor(r.entity_kind, r.entity_id), ref: r });
+        continue;
+      }
+      const b = parts(r.date_end); if (!b) continue;
+      if (a.m === mm && a.d === dd) out.push({ year: a.y, kind: "began", label: r.label, place: r.place, topic: r.topic, lat: r.lat, lon: r.lon, slug: pageFor(r.entity_kind, r.entity_id), ref: r });
+      if (b.m === mm && b.d === dd) out.push({ year: b.y, kind: "ended", label: r.label, place: r.place, topic: r.topic, lat: r.lat, lon: r.lon, slug: pageFor(r.entity_kind, r.entity_id), ref: r });
+      // under way on this date: the span covers today's month and day in some year
+      for (let y = a.y; y <= b.y && y - a.y < 40; y++) {
+        const t = ymd(y, mm, dd);
+        if (t > ymd(a.y, a.m, a.d) && t < ymd(b.y, b.m, b.d)) {
+          const day = Math.round((Date.UTC(y, mm - 1, dd) - Date.UTC(a.y, a.m - 1, a.d)) / 864e5);
+          out.push({ year: y, kind: `day ${day + 1} of ${Math.round((Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d)) / 864e5) + 1}`, label: r.label, place: r.place, topic: r.topic, lat: r.lat, lon: r.lon, slug: pageFor(r.entity_kind, r.entity_id), ref: r });
+        }
+      }
+    }
+    // the ships: a track waypoint dated today says where a voyage was
+    for (const a of hist.artifacts || []) {
+      if (a.type !== "track" || !a.waypoints) continue;
+      for (const w of a.waypoints) {
+        const d = parts(w.date);
+        if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: "was here", label: a.title, place: w.note || "", topic: a.topic, lat: w.lat, lon: w.lon, slug: a.page, ref: a });
+      }
+    }
+    const seen = new Set();
+    return out.filter((x) => { const k = `${x.year}|${x.label}|${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((p, q) => p.year - q.year);
+  }
+  function inThisPlace(lat, lon) {
+    if (lat == null || lon == null || !hist.artifacts) return { radius: 0, items: [] };
+    const cand = [];
+    for (const a of hist.artifacts) {
+      if (a.type === "track") {
+        // the closest approach of the voyage: the nearest waypoint if it has
+        // dates, else the nearest vertex of the line
+        let best = null;
+        for (const w of (a.waypoints?.length ? a.waypoints : (a.geometry?.coordinates || []).map((c) => ({ lat: c[1], lon: c[0] })))) {
+          if (w.lat == null) continue;
+          const d = km(lat, lon, w.lat, w.lon);
+          if (!best || d < best.d) best = { d, w };
+        }
+        if (best) cand.push({ d: best.d, a, when: best.w.date || a.date_text, note: best.w.note || "", lat: best.w.lat, lon: best.w.lon });
+      } else if (a.lat != null) {
+        cand.push({ d: km(lat, lon, a.lat, a.lon), a, when: a.date_text, note: "", lat: a.lat, lon: a.lon });
+      }
+    }
+    for (const e of hist.timeline || []) {
+      if (e.lat == null || e.entity_kind !== "event") continue;
+      cand.push({ d: km(lat, lon, e.lat, e.lon), e, when: e.date + (e.date_end ? " → " + e.date_end : ""), note: e.place || "", lat: e.lat, lon: e.lon });
+    }
+    cand.sort((p, q) => p.d - q.d);
+    let radius = 50;
+    while (radius < 400 && cand.filter((c) => c.d <= radius).length < 6) radius *= 2;
+    const seen = new Set();
+    const items = cand.filter((c) => c.d <= radius).filter((c) => { const k = c.a ? c.a.id : `ev:${c.e.entity_id}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 12)
+      .map((c) => c.a ? { d: c.d, label: c.a.title, when: c.when, note: c.note, topic: c.a.topic, type: c.a.type, slug: c.a.page, lat: c.lat, lon: c.lon }
+                      : { d: c.d, label: c.e.label, when: c.when, note: c.note, topic: c.e.topic, type: "event", slug: "", lat: c.lat, lon: c.lon });
+    return { radius, items };
+  }
+  UW.historyVignettes = () => ({ today: onThisDay(), here: inThisPlace(UW.M.latest?.lat, UW.M.latest?.lon) });
+
+  function vignetteHTML() {
+    const now = new Date();
+    const today = onThisDay(now);
+    const pos = UW.M.latest || {};
+    const here = inThisPlace(pos.lat, pos.lon);
+    const dateWord = now.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+    const item = (x, extra) => `<a class="vig" href="#history/${esc(x.slug)}" data-slug="${esc(x.slug)}" data-lat="${x.lat ?? ""}" data-lon="${x.lon ?? ""}" data-topic="${esc(x.topic)}"><span class="dot" style="background:${topicColour(x.topic)}"></span>${extra}<span class="txt">${esc(x.label)}${x.kind ? ` <i>${esc(x.kind)}</i>` : ""}${x.note ? ` <span class="muted">${esc(x.note)}</span>` : ""}${x.place && !x.note ? ` <span class="muted">${esc(x.place)}</span>` : ""}</span></a>`;
+    return `<div class="vignettes">
+      <section class="vigcard"><h3>On this day · ${esc(dateWord)}</h3>${today.length ? today.slice(0, 14).map((x) => item(x, `<b>${x.year}</b>`)).join("") : `<div class="muted small">Nothing dated to the day on ${esc(dateWord)} yet. The crew's atomic dates fill this in as the topics are written.</div>`}</section>
+      <section class="vigcard"><h3>In this place${here.radius ? ` · within ${here.radius} km` : ""}</h3>${here.items.length ? here.items.map((x) => item(x, `<b>${Math.round(x.d)} km</b>`)).join("") : `<div class="muted small">${pos.lat == null ? "The ship's position is not known to this build." : "Nothing in the history within 400 km of the ship yet."}</div>`}</section>
+    </div>`;
+  }
+
   // the artifacts the current filters allow: topic, kinds, years
   function shownArtifacts() {
     if (!hist.artifacts) return [];
@@ -171,7 +272,7 @@
     if (!hist.slug) {                                              // the home: every topic, and the recent additions
       const t = hist.index.topics;
       const n = (k) => t.reduce((s, x) => s + (x[k] || 0), 0);
-      el.innerHTML = `<h2>The history of these waters</h2>
+      el.innerHTML = vignetteHTML() + `<h2>The history of these waters</h2>
         <p class="lead">${t.length} topics, ${n("pages")} narrative pages and ${hist.artifacts.length} artifacts, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another, every item credited and sourced. Pick a topic on the left, search, or ask the historian below.</p>
         <div class="topicgrid">${t.map((x) => `<a class="topiccard" href="#history/topic/${esc(x.slug)}" data-topic="${esc(x.slug)}" style="border-left-color:${topicColour(x.slug)}"><b>${esc(x.title)}</b><span>${esc(x.summary)}</span><span class="counts">${x.pages} pages · ${x.artifacts} artifacts</span></a>`).join("")}</div>`;
       return;
@@ -262,6 +363,11 @@
     const a = e.target.closest("#pane-history a[data-slug], #pane-history a[data-topic]");
     if (!a) return;
     e.preventDefault();
+    if (a.classList.contains("vig")) {
+      if (a.dataset.lat) { const art = a.dataset.slug ? artifactById(a.dataset.slug.replace(/^artifact\//, "")) : null; if (art) focusArtifact(art); else { if (!UW.state.history) { UW.state.history = true; store.set("history", true); document.querySelector('#maplayers button[data-layer="history"]')?.classList.add("on"); } UW.focusMap(+a.dataset.lat, +a.dataset.lon, a.querySelector(".txt")?.textContent || ""); } }
+      if (a.dataset.slug) open(a.dataset.slug); else if (a.dataset.topic) { hist.topic = a.dataset.topic; store.set("hist.topic", hist.topic); open(`topic/${a.dataset.topic}`); }
+      return;
+    }
     if (a.dataset.topic != null) { hist.topic = a.dataset.topic; store.set("hist.topic", hist.topic); open(`topic/${a.dataset.topic}`); }
     else open(a.dataset.slug || "");
   });

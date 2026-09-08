@@ -728,3 +728,13 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .histanswer .cite { border-bottom: 1px dotted var(--accent); }
 .histanswer .used { margin-top: 6px; font-size: 12px; display: flex; gap: 8px 12px; flex-wrap: wrap; }
 @media (max-width: 900px) { .hist-layout { grid-template-columns: 1fr; } .histside { max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); } .histmain { max-height: none; } }
+/* the two vignettes at the top of the History home: today in history, and here */
+.vignettes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.vigcard { background: var(--card-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.vigcard h3 { margin: 0 0 6px; font-size: 13px; color: var(--accent-2); text-transform: uppercase; letter-spacing: .5px; }
+.vig { display: flex; gap: 8px; align-items: baseline; color: var(--fg); padding: 3px 4px; border-radius: 5px; font-size: 13px; line-height: 1.4; }
+.vig:hover { background: var(--card); }
+.vig b { font-family: var(--mono); color: var(--accent); min-width: 3.4em; font-weight: 600; font-size: 12.5px; }
+.vig i { color: var(--muted); font-style: normal; }
+.vig .txt { min-width: 0; }
+.small { font-size: 12.5px; }

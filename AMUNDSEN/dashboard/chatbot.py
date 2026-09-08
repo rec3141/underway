@@ -85,6 +85,47 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
     return (message.get('content') or '').strip()
 
 
+def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str]:
+    """Two lines for the crew's context from the published history layer:
+    today's date in other years, and the nearest artifacts to the ship."""
+    import math
+    tl_file = root / "data" / "history" / "timeline.json"
+    art_file = root / "data" / "history" / "artifacts.json"
+    if not tl_file.is_file():
+        return []
+    now = now or datetime.now(timezone.utc)
+    mmdd = now.strftime("-%m-%d")
+    rows = json.loads(tl_file.read_text()).get("timeline", [])
+    today = []
+    for r in rows:
+        if r.get("precision") != "day":
+            continue
+        for key, word in (("date", "began" if r.get("date_end") else ""), ("date_end", "ended")):
+            d = r.get(key) or ""
+            if d.endswith(mmdd):
+                place = r.get("place") or ""
+                where = f" at {place}" if place and place.lower() not in (r.get("label") or "").lower() else ""
+                today.append(f"{d[:4]}: {r.get('label', '')}{' ' + word if word else ''}{where}")
+    out = []
+    if today:
+        out.append("On this day in other years: " + "; ".join(sorted(today)[:5]) + ".")
+    if lat is not None and lon is not None and art_file.is_file():
+        def km(a, b, c, d):
+            r = math.pi / 180
+            x = math.sin((c - a) * r / 2) ** 2 + math.cos(a * r) * math.cos(c * r) * math.sin((d - b) * r / 2) ** 2
+            return 2 * 6371 * math.asin(math.sqrt(x))
+        near = []
+        for a in json.loads(art_file.read_text()).get("artifacts", []):
+            pts = [(w["lat"], w["lon"]) for w in a.get("waypoints", []) if w.get("lat") is not None] if a.get("type") == "track" else ([(a["lat"], a["lon"])] if a.get("lat") is not None else [])
+            if pts:
+                near.append((min(km(float(lat), float(lon), p[0], p[1]) for p in pts), a))
+        near.sort(key=lambda x: x[0])
+        near = [(d, a) for d, a in near if d <= 300][:4]
+        if near:
+            out.append("History near the ship: " + "; ".join(f"{a['title']} ({a.get('date_text', '')}, {d:.0f} km away)" for d, a in near) + ".")
+    return out
+
+
 def _num(x, nd=2):
     try:
         return f"{float(x):.{nd}f}"
@@ -149,6 +190,12 @@ class Crew:
             ev = c.get("events", [])[-3:]
             if ev:
                 lines.append("Last logged events: " + "; ".join(f"{e.get('time_utc', '')[:16]} {e.get('station', '')} {e.get('activity', '')} {e.get('event', '')}" for e in ev) + ".")
+        except Exception:                   # noqa: BLE001
+            pass
+        # the History tab's vignettes: what happened on this date in any year,
+        # and what lies near the ship, so the crew can bring the past up unprompted
+        try:
+            lines += history_lines(self.root, lat, lon)
         except Exception:                   # noqa: BLE001
             pass
         note = m.get("surprise", {}).get("note", "")
