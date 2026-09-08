@@ -88,10 +88,13 @@
     const me = st.myName.toLowerCase();
     const people = st.online.filter((n) => n.name.toLowerCase() !== me);
     const crew = st.crew.map((c) => ({ name: "@" + c.handle, label: `${c.emoji} ${c.name}`, sub: c.room ? `the ${c.room}` : c.beat }));
-    pickerEl.innerHTML = `<div class="pickhead">Message…</div>` +
+    pickerEl.innerHTML = `<div class="pickhead">Rooms</div>` +
+      ["ship", "crew", "ada"].map((ch) => `<button type="button" data-room="${ch}">${esc(roomTitle(ch))}</button>`).join("") +
+      `<div class="pickhead">Message…</div>` +
       (people.length ? people.map((n) => `<button type="button" data-with="${esc(n.name)}">${esc(n.emoji || "•")} ${esc(n.name)}</button>`).join("") : `<div class="muted small">nobody else has the page open</div>`) +
       `<div class="pickhead">The crew</div>` + crew.map((c) => `<button type="button" data-with="${esc(c.name)}">${esc(c.label)} <span class="muted">${esc(c.sub)}</span></button>`).join("");
     for (const b of pickerEl.querySelectorAll("button[data-with]")) b.onclick = () => { pickerEl.hidden = true; openDM(b.dataset.with); };
+    for (const b of pickerEl.querySelectorAll("button[data-room]")) b.onclick = () => { pickerEl.hidden = true; setRoom(b.dataset.room); };
     pickerEl.hidden = false;
   }
   function openDM(withName) {
