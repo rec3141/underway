@@ -357,21 +357,9 @@ class Handler(SimpleHTTPRequestHandler):
                 log.warning("history ask failed: %s", e)
                 return self._json(503, {"error": "the historian is not answering right now; the model may be busy or off"})
         if u.path == "/api/history/requests":
-            # a person's answer from the review page: {"id": 3, "status": "approved", "answer": "..."}
-            from .history import answer_request, connect
-            try:
-                n = int(self.headers.get("Content-Length", "0"))
-                if not 0 <= n <= 8192:
-                    raise ValueError("Request too large")
-                payload = json.loads(self.rfile.read(n) or b"{}")
-                c = connect(create=False)
-                try:
-                    r = answer_request(c, int(payload.get("id", 0)), str(payload.get("status", "")), str(payload.get("answer", "")))
-                finally:
-                    c.close()
-                return self._json(200, {"ok": True, "request": r})
-            except (ValueError, FileNotFoundError) as e:
-                return self._json(400, {"error": str(e)})
+            # the ship's copy of the history database is a pulled snapshot;
+            # answers are written on grid, where the research crew works
+            return self._json(403, {"error": "the ship's history database is read-only; answer requests on grid with history-db.py answer"})
         if u.path != "/api/chat":
             return self._json(404, {"error": "not found"})
         try:
@@ -514,7 +502,8 @@ def history_ask(root: Path, question: str, slug: str = "") -> dict:
 
 def requests_page(rows: list[dict]) -> str:
     """The review page: every request the research crew has filed, open ones
-    first, each with approve, deny and done buttons and a box for the answer."""
+    first, with the answers given so far. Read-only on the ship: the database
+    here is a pulled snapshot, and answers are written on grid."""
     esc = html.escape
     order = {"open": 0, "approved": 1, "done": 2, "denied": 3}
     rows = sorted(rows, key=lambda r: (order.get(r["status"], 9), -r["id"]))
@@ -531,10 +520,8 @@ def requests_page(rows: list[dict]) -> str:
             + (f'<div class="why">{esc(r["why"])}</div>' if r.get("why") else "")
             + (f'<div class="url">{link}</div>' if link else "")
             + (f'<div class="dest">to <code>db/history/{esc(r["dest"])}</code></div>' if r.get("dest") else "")
-            + f'<textarea placeholder="answer, key, or instructions the researcher should follow">{esc(r.get("answer") or "")}</textarea>'
-            f'<div class="acts"><button data-s="approved">approve</button><button data-s="done">done</button>'
-            f'<button data-s="denied" class="no">deny</button><button data-s="open" class="re">reopen</button></div>'
-            f'</section>')
+            + (f'<div class="answer">{esc(r["answer"])}</div>' if r.get("answer") else "")
+            + f'</section>')
     body = "\n".join(cards) or '<p class="muted">No requests. The crew files them with <code>history-db.py request</code>.</p>'
     n_open = sum(1 for r in rows if r["status"] == "open")
     return f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
@@ -549,23 +536,14 @@ h1{{font-size:20px;margin:0 0 4px}} .sub{{color:#8b9bb0;margin-bottom:18px}}
 .head .status{{margin-left:auto;font-weight:600;color:#ffb454}} .req.done .status,.req.approved .status{{color:#7ee787}} .req.denied .status{{color:#ff7b72}}
 .what{{font-size:16px;font-weight:600;margin:6px 0 2px}} .why{{color:#c9d3de}} .url,.dest{{font-size:13px;word-break:break-all;margin-top:4px}}
 a{{color:#5cc8ff;text-decoration:none}} code{{font-family:ui-monospace,monospace;font-size:12.5px}}
-textarea{{width:100%;box-sizing:border-box;min-height:56px;margin-top:8px;background:#0f1419;color:#e6ecf2;border:1px solid #263140;border-radius:7px;padding:7px;font:inherit;font-size:14px}}
 .acts{{display:flex;gap:8px;margin-top:8px}} button{{background:#1c2632;color:#e6ecf2;border:1px solid #263140;border-radius:7px;padding:5px 12px;font:inherit;cursor:pointer}}
 button:hover{{border-color:#5cc8ff}} button.no:hover{{border-color:#ff7b72}} button.re{{margin-left:auto;opacity:.7}}
+.answer{{margin-top:8px;padding:8px 10px;background:#0f1419;border-left:3px solid #7ee787;border-radius:6px;font-size:14px}}
 .muted{{color:#8b9bb0}} .toast{{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#263140;padding:8px 14px;border-radius:8px}}
 </style>
 <h1>History research requests</h1>
-<div class=sub>{n_open} waiting · what the research crew cannot do alone: downloads over 50 MB, API keys, judgement calls. Write the answer, then approve, deny or mark done; the crew reads it back with <code>history-db.py requests</code>.</div>
-{body}
-<script>
-for (const sec of document.querySelectorAll('.req')) for (const b of sec.querySelectorAll('button')) b.onclick = async () => {{
-  const r = await fetch('/api/history/requests', {{method:'POST', headers:{{'Content-Type':'application/json'}},
-    body: JSON.stringify({{id: +sec.dataset.id, status: b.dataset.s, answer: sec.querySelector('textarea').value}})}});
-  const j = await r.json();
-  if (!r.ok) {{ alert(j.error || 'failed'); return; }}
-  sec.className = 'req ' + j.request.status; sec.querySelector('.status').textContent = j.request.status;
-}};
-</script>"""
+<div class=sub>{n_open} waiting · what the research crew cannot do alone: downloads over 50 MB, API keys, judgement calls. This is the ship's read-only view of the last pull; answers are written on grid with <code>history-db.py answer --id N --status approved --answer "…"</code>.</div>
+{body}"""
 
 
 def serve(root: Path, port: int, bind: str) -> None:
