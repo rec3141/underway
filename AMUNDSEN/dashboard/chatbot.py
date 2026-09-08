@@ -96,41 +96,141 @@ PERSONAS = {
 HANDLE_RX = re.compile(r"@(\w+)")
 
 
-def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
-             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT) -> str:
-    """One answer from the local model. The chat crew and the History tab's
-    historian both come through here, so the backend choice (Ollama, or the
-    OpenAI-style server the camera pipeline runs) is made in one place."""
+class ModelOffline(RuntimeError):
+    """No loaded model to talk to. The chat never loads one itself: the GPU is
+    shared with the camera pipeline, and a load is an operator's decision."""
+
+
+_status_cache: dict = {"at": 0.0, "value": None}
+STATUS_TTL = 20.0                      # seconds a status answer is trusted, so polls do not hammer the servers
+ALERT_MIN_S = 6 * 3600                 # one Telegram alert per this long, however often the crew are asked
+_alerted_at = 0.0
+
+
+def _config() -> dict:
+    return json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
+
+
+def _ollama_loaded(url: str, model: str) -> bool:
+    """Whether Ollama already holds the model in memory (``/api/ps``), which is
+    the only state in which the chat will send it a request."""
     import requests
-    config = json.loads(LLM_CONFIG.read_text()) if LLM_CONFIG.exists() else {}
+    try:
+        r = requests.get(url.rstrip('/') + '/api/ps', timeout=5)
+        names = {m.get("name", "") for m in r.json().get("models", [])}
+    except Exception:                       # noqa: BLE001
+        return False
+    return model in names or f"{model}:latest" in names or any(n.split(":")[0] == model.split(":")[0] for n in names)
+
+
+def model_status(fresh: bool = False) -> dict:
+    """Where a request can go right now, without loading anything: the
+    configured server if it answers, else the resident Ollama model if it is
+    already loaded, else nowhere. Cached briefly."""
+    import requests
+    now = time.time()
+    if not fresh and _status_cache["value"] and now - _status_cache["at"] < STATUS_TTL:
+        return _status_cache["value"]
+    config = _config()
     backend = config.get('api', LLM_API)
     url = config.get('url', LLM_URL).rstrip('/')
     model = config.get('model', LLM_MODEL)
+    status = {"backend": backend, "url": url, "model": model, "online": False, "why": ""}
+    if backend == 'openai':
+        try:
+            r = requests.get(url + '/v1/models', timeout=5)
+            status["online"] = r.ok
+        except Exception:                   # noqa: BLE001
+            status["why"] = f"{url} refused"
+        if not status["online"] and _ollama_loaded(LLM_URL, LLM_MODEL):
+            status.update(backend='ollama', url=LLM_URL.rstrip('/'), model=LLM_MODEL, online=True,
+                          why=f"{url} refused; using the resident Ollama model")
+    elif backend == 'ollama':
+        status["online"] = _ollama_loaded(url, model)
+        if not status["online"]:
+            status["why"] = f"{model} is not loaded in Ollama at {url}"
+    else:
+        status["why"] = f"unknown chat API backend {backend!r}"
+    if not status["online"] and not status["why"]:
+        status["why"] = "no model loaded"
+    _status_cache.update(at=now, value=status)
+    return status
+
+
+def _ops_telegram() -> tuple[str, str]:
+    """The bot token and the operator's chat id: from the environment, else
+    from ~/.config/underway/underway.env, which the server unit does not load."""
+    token = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
+    chat_id = os.environ.get("TELEGRAM_ID", "")
+    env = Path.home() / '.config/underway/underway.env'
+    if (not token or not chat_id) and env.is_file():
+        for line in env.read_text().splitlines():
+            k, _, v = line.partition("=")
+            k, v = k.strip(), v.strip().strip('"').strip("'")
+            if k == "TELEGRAM_KEY" and not token:
+                token = v
+            if k == "TELEGRAM_ID" and not chat_id:
+                chat_id = v
+    if not token:
+        try:
+            from .alerts import telegram_token
+            token = telegram_token()
+        except Exception:                   # noqa: BLE001
+            pass
+    return token, chat_id
+
+
+def alert_offline(status: dict, what: str = "the chat crew") -> None:
+    """Tell the operator, once in a long while, that the crew have no model:
+    loading one is theirs to decide, given the GPU."""
+    global _alerted_at
+    now = time.time()
+    if now - _alerted_at < ALERT_MIN_S:
+        return
+    _alerted_at = now
+    token, chat_id = _ops_telegram()
+    if not token or not chat_id:
+        log.warning("%s have no model (%s) and no Telegram to say so", what, status.get("why"))
+        return
+    try:
+        from .alerts import Telegram
+        Telegram(token).send(chat_id, f"Amundsen dashboard: {what} have no model to talk to ({status.get('why')}). "
+                                      f"The chat never loads one itself. Load gemma4-local in Ollama with keep_alive -1, "
+                                      f"or start the shared server, and they will answer again.")
+        log.info("Telegram alert sent: no chat model (%s)", status.get("why"))
+    except Exception as e:                  # noqa: BLE001
+        log.warning("Telegram alert failed: %s", e)
+
+
+def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
+             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT) -> str:
+    """One answer from the local model. The chat crew and the historian both
+    come through here, so the backend choice (the shared OpenAI-style server
+    the camera pipeline runs, or the resident Ollama model) is made in one
+    place, and the rule that the chat never loads a model is kept here: a
+    request goes only to a server that is up or a model that is already in
+    memory, and ``keep_alive`` -1 leaves a resident model resident (unload it
+    with ``ollama stop``)."""
+    import requests
+    status = model_status()
+    if not status["online"]:
+        raise ModelOffline(status["why"])
+    backend, url, model = status["backend"], status["url"], status["model"]
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if backend == 'openai':
         body = dict(model=model, messages=messages, stream=False, max_tokens=max_tokens, temperature=temperature,
                     chat_template_kwargs={'enable_thinking': False})
         endpoint = '/v1/chat/completions'
-    elif backend == 'ollama':
-        body = {"model": model, "stream": False, "think": False, "keep_alive": "3h",
+    else:
+        body = {"model": model, "stream": False, "think": False, "keep_alive": -1,
                 "options": {"num_predict": max_tokens, "num_ctx": num_ctx, "temperature": temperature},
                 "messages": messages}
         endpoint = '/api/chat'
-    else:
-        raise ValueError('Unknown chat API backend')
     try:
         r = requests.post(url + endpoint, json=body, timeout=timeout)
-    except requests.ConnectionError:
-        # the shared server the configuration names is down (the camera
-        # pipeline runs it); Ollama, always resident, carries the crew meanwhile
-        if backend == 'ollama' or config.get('url', LLM_URL).rstrip('/') == LLM_URL.rstrip('/'):
-            raise
-        log.info("chat model at %s refused; falling back to Ollama %s", url, LLM_MODEL)
-        body = {"model": LLM_MODEL, "stream": False, "think": False, "keep_alive": "3h",
-                "options": {"num_predict": max_tokens, "num_ctx": num_ctx, "temperature": temperature},
-                "messages": messages}
-        backend, url, endpoint = 'ollama', LLM_URL.rstrip('/'), '/api/chat'
-        r = requests.post(url + endpoint, json=body, timeout=timeout)
+    except requests.ConnectionError as e:
+        _status_cache["at"] = 0.0               # the picture has changed; the next call looks again
+        raise ModelOffline(f"{url} refused mid-conversation") from e
     r.raise_for_status()
     result = r.json()
     message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
@@ -455,6 +555,9 @@ class Crew:
                 if text:
                     self.post(p["name"], p["emoji"], text)
                     self.last_bot = time.time()
+            except ModelOffline as e:
+                log.info("crew %s stayed quiet: %s", handle, e)
+                alert_offline(model_status(), "the chat crew")
             except Exception as e:          # noqa: BLE001
                 log.info("crew %s stayed quiet (%s)", handle, e)
             finally:
@@ -511,7 +614,7 @@ class Crew:
             try:
                 now = time.time()
                 chat = self.read()
-                someone = bool(chat.get("online"))
+                someone = bool(chat.get("online")) and model_status()["online"]
                 event = self._events()
                 if someone and event and now - self.last_bot > EVENT_MIN_S:
                     h = "capn" if "schedule" in event else "doc"

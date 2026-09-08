@@ -166,12 +166,21 @@ def chat_read(since: int, name: str | None, emoji: str = "", leave: str | None =
                 pass
         msgs.append(m)
     return {"messages": msgs, "online": online, "typing": typing, "crew": crew_list(channel), "model": crew_model(),
-            "channel": channel, "latest": {ch: latest.get(ch, 0) for ch in CHANNELS}, "now": now}
+            "model_online": crew_online(), "channel": channel, "latest": {ch: latest.get(ch, 0) for ch in CHANNELS}, "now": now}
 
 
 def crew_model() -> str:
-    from .chatbot import LLM_MODEL
-    return LLM_MODEL if CREW and CREW.enabled else ""
+    from .chatbot import model_status
+    if not (CREW and CREW.enabled):
+        return ""
+    st = model_status()
+    return st["model"] if st["online"] else st["why"]
+
+
+def crew_online() -> bool:
+    """Whether the crew have a model to talk to right now (cached briefly)."""
+    from .chatbot import model_status
+    return bool(CREW and CREW.enabled and model_status()["online"])
 
 
 def crew_list(channel: str = "crew") -> list[dict]:
@@ -219,11 +228,15 @@ def _historian_reply(question: str, slug: str) -> None:
     post it as the Historian with the pages it read."""
     if not ROOT or not (CREW and CREW.enabled):
         return
+    from .chatbot import ModelOffline, alert_offline, model_status
     _asking.add("historian")
     try:
         r = history_ask(ROOT, question, slug)
         chat_post("historian", HISTORIAN["name"], r["answer"], HISTORIAN["emoji"], bot=True, channel="historian",
                   meta={"pages": r["pages"]})
+    except ModelOffline as e:
+        log.info("historian stayed quiet: %s", e)
+        alert_offline(model_status(), "the historian and the chat crew")
     except ValueError as e:
         chat_post("historian", HISTORIAN["name"], str(e), HISTORIAN["emoji"], bot=True, channel="historian")
     except Exception as e:                   # noqa: BLE001

@@ -756,3 +756,8 @@ body.tab-history #maplayers button[data-layer="events"], body.tab-history #mapla
 body.tab-history #satpill, body.tab-history #satnav, body.tab-history .mapcolour, body.tab-history .maptrack,
 body.tab-history .legmenu, body.tab-history .group.span, body.tab-history .pickhint { display: none !important; }
 body.tab-history #maplayers button[data-layer="history"] { display: inline-block; }
+/* the crew's model light: green when a model is loaded, grey when the crew are offline */
+.chat .mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: #5a6675; box-shadow: 0 0 0 2px rgba(90,102,117,.25); }
+.chat .mdot.on { background: #7ee787; box-shadow: 0 0 0 2px rgba(126,231,135,.25); }
+.chat.model-off .chatcrew { color: var(--accent-2); }
+.chat.model-off .mention { opacity: .55; }

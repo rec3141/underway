@@ -111,9 +111,13 @@
       const noai = st.noai && room === "crew";
       typing.hidden = !t.length || noai; typing.textContent = t.length ? (room === "historian" ? "📜 The historian is reading the wiki…" : `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} typing…`) : "";
       crewEl.hidden = !st.crew.length || noai;
+      // one model serves the whole crew: the dot says whether it is reachable
+      const on = !!j.model_online;
+      const light = `<span class="mdot ${on ? "on" : "off"}" title="${on ? "model online: " + esc(j.model || "") : "no model loaded: the crew cannot answer (" + esc(j.model || "") + "); the operator has been told"}"></span>`;
       crewEl.innerHTML = !st.crew.length ? "" : room === "historian"
-        ? `📜 The historian (${esc(j.model || "local model")}) answers from the History wiki and names the pages it read; every question here is answered.`
-        : `AI crew (${esc(j.model || "local model")}): ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ");
+        ? `${light}📜 The historian ${on ? `(${esc(j.model || "local model")}) answers from the History wiki and names the pages it read; every question here is answered.` : `is offline: no model is loaded, and the chat never loads one itself.`}`
+        : `${light}AI crew${on ? ` (${esc(j.model || "local model")})` : " offline, no model loaded"}: ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}${on ? "" : " (offline)"}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ");
+      el.classList.toggle("model-off", !on);
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
       layout();
     } catch { dot.className = "dot"; who.textContent = "offline"; }
