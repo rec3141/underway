@@ -531,8 +531,8 @@ class Crew:
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
         room = {"ship": "the ship's public room, where you speak only when addressed",
                 "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
-                "ada": "your reading room, where every message is a question put to you and deserves a full answer, "
-                       "up to about 350 words, with the pages cited"}.get(channel,
+                "ada": "the Library, your own room, where every message is a question put to you and deserves a full "
+                       "answer, up to about 350 words, with the pages cited"}.get(channel,
                "a private room with one person; only the two of you see it, and you may speak first")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
@@ -609,7 +609,7 @@ class Crew:
             speakers = handles or ([random.choice(room_bots)] if room_bots else [])
         elif channel == "ada":
             speakers = ["ada"] if "ada" in room_bots else []
-            task = (f"{name} asks in your reading room: \"{text}\". Answer fully from the wiki excerpts, citing each page you draw on "
+            task = (f"{name} asks in the Library: \"{text}\". Answer fully from the wiki excerpts, citing each page you draw on "
                     f"by its title in square brackets, and say plainly where the wiki is silent.")
             long = True
         else:

@@ -5,7 +5,7 @@ One SQLite log holds every message with a ``channel``:
 * ``ship``       the public room: people, and a crew member only when @mentioned
 * ``crew``       the AI crew's room: any message there is answered, and the crew
                  speak unprompted while someone has it open
-* ``ada``        Ada's reading room: every message is a question to the librarian,
+* ``ada``        the Library, Ada's room: every message is a question to the librarian,
                  answered at length from the History wiki with the pages read
 * ``dm:a|b``     a direct message between two names, either of which may be a
                  crew member (``@ada``, ``@doc``, ``@capn``, ``@polly``); a room
@@ -42,7 +42,7 @@ CHAT_PAGE = 100             # messages sent to a fresh page of a room
 CONTEXT_BYTES = 5000        # what a crew member sees of the room it speaks in
 NAME_MAX, TEXT_MAX = 24, 500
 PRESENCE_S = 45             # a poll this recent means the page is open
-FIXED = {"ship": "Ship", "crew": "Crew", "ada": "Ada"}
+FIXED = {"ship": "Ship", "crew": "Crew", "ada": "Library"}
 
 _lock = threading.Lock()
 _online: dict[str, dict] = {}           # name -> {"t", "room", "emoji"}: who has which room open
