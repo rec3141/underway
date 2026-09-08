@@ -27,6 +27,7 @@
     lastId: {},                                              // the newest message shown, per room
     seen: store.get("chat.seenRooms", {}),                   // the newest message read, per room
     hidden: store.get("chat.hiddenRooms", {}),               // a cleared shared room: ids up to here stay hidden on this device
+    closed: store.get("chat.closedRooms", {}),               // a closed direct message: gone from the row until something newer arrives
     latest: {},                                              // the newest message that exists, per room
     unread: 0, error: "", roomBots: [], modelOn: false,
     myName: store.get("chat.name", ""), myEmoji: store.get("chat.emoji", "🙂"), crew: [], online: [], noai: store.get("chat.noai", false) };
@@ -64,7 +65,7 @@
   // the room bar: the three rooms, then the direct messages, a dot on any with news
   function renderRooms() {
     const fixed = ["ship", "crew", "ada"].map((ch) => roomInfo(ch));
-    const dms = st.rooms.filter((r) => r.kind === "dm");
+    const dms = st.rooms.filter((r) => r.kind === "dm" && !(st.closed[r.channel] && (r.latest || 0) <= st.closed[r.channel]));
     if (isDM(st.room) && !dms.some((r) => r.channel === st.room)) dms.unshift(roomInfo(st.room));   // a room just opened, empty so far
     roomsEl.innerHTML = [...fixed, ...dms].map((r) => {
       const fresh = r.channel !== st.room && (st.latest[r.channel] || 0) > (st.seen[r.channel] || 0);
@@ -72,7 +73,9 @@
     }).join("") + `<button type="button" id="chatnew" title="a direct message with someone here, or with a crew member">+</button>` +
       // the room's own tools sit at the right end of the row, out of the head
       `<span class="tools">${st.room === "ship" ? `<button type="button" id="chataibtn" title="${st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names"}">${st.noai ? "show AI" : "hide AI"}</button>` : ""}` +
-      `<button type="button" id="chatclearbtn" title="clear this room: a private room with a crew member is forgotten by them too; any other room is cleared on this device only">clear</button></span>`;
+      (isDM(st.room)
+        ? `<button type="button" id="chatclearbtn" title="close this conversation: its history is erased and the room leaves the row">close</button>`
+        : `<button type="button" id="chatclearbtn" title="clear this room on this device; others keep their copy">clear</button>`) + `</span>`;
     for (const b of roomsEl.querySelectorAll("button[data-ch]")) b.onclick = () => setRoom(b.dataset.ch);
     $("#chatnew").onclick = () => togglePicker();
     $("#chatclearbtn").onclick = clearRoom;
@@ -94,6 +97,7 @@
   function openDM(withName) {
     if (!st.myName) { nameIn.focus(); nameIn.placeholder = "name first"; return; }
     const ch = "dm:" + [st.myName.toLowerCase(), withName.toLowerCase()].sort().join("|");
+    if (st.closed[ch]) { delete st.closed[ch]; store.set("chat.closedRooms", st.closed); }
     setRoom(ch);
   }
 
@@ -185,17 +189,26 @@
     if (!st.open) { st.open = true; store.set("chat.open", true); }
     layout(); textIn.focus(); poll();
   }
-  // clear this room: the server forgets a private room with a crew member;
-  // any other room is hidden up to here on this device only
+  // close a direct message: its history is erased (on the server when the
+  // other member is a crew member, who then forgets it; on this device when
+  // it is a person, who keeps their copy) and the room leaves the row until
+  // something newer arrives. A shared room is only cleared on this device.
   async function clearRoom() {
-    const room = st.room;
-    if (!confirm(isDM(room) && st.roomBots.length ? `Clear this conversation? ${roomTitle(room)} will forget it too.` : `Clear ${roomTitle(room)} on this device? Others keep their copy.`)) return;
+    const room = st.room, dm = isDM(room);
+    const warn = dm
+      ? (st.roomBots.length ? `Close this conversation with ${roomTitle(room)}? Its history will be erased, and ${roomTitle(room)} will not remember it.`
+                            : `Close this conversation with ${roomTitle(room)}? Its history will be erased on this device; ${roomTitle(room)} keeps theirs.`)
+      : `Clear ${roomTitle(room)} on this device? Others keep their copy.`;
+    if (!confirm(warn)) return;
     try {
       const r = await fetch("api/chat/clear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: st.myName, token, channel: room }) });
       const j = await r.json();
-      if (!r.ok) { who.textContent = j.error || "not cleared"; return; }
-      st.hidden[room] = Math.max(st.lastId[room] || 0, st.latest[room] || 0); store.set("chat.hiddenRooms", st.hidden);
-      log.innerHTML = ""; st.lastId[room] = 0; poll();
+      if (!r.ok) { who.textContent = j.error || "not closed"; return; }
+      const upTo = Math.max(st.lastId[room] || 0, st.latest[room] || 0);
+      st.hidden[room] = upTo; store.set("chat.hiddenRooms", st.hidden);
+      log.innerHTML = ""; st.lastId[room] = 0;
+      if (dm) { st.closed[room] = upTo; store.set("chat.closedRooms", st.closed); setRoom("ship"); }
+      else poll();
     } catch { who.textContent = "offline"; }
   }
   $("#chathead").onclick = () => toggle();
