@@ -555,21 +555,39 @@
   }
   // The event log comes from data/calendar.json (the Agenda's file); fetched
   // once per build while the layer is on, then grouped by position so several
-  // events at one spot share one marker and one hover.
-  const evlog = { stamp: null, events: null, loading: false };
-  function ensureEvents() {
-    if (evlog.stamp === M.generated_utc || evlog.loading) return;
-    evlog.loading = true;
-    fetchJSON(`${M.calendar.file}?v=${encodeURIComponent(M.generated_utc)}`)
-      .then((c) => { evlog.events = c.events || []; evlog.stamp = M.generated_utc; renderMap(); })
-      .catch(() => {})
-      .finally(() => { evlog.loading = false; });
+  // events at one spot share one marker and one hover. The legs before the
+  // current ones sit in the calendar archive (M.calendar.archive), fetched
+  // only when the filter reaches them and kept across builds by its stamp.
+  const evlog = { stamp: null, events: null, loading: false, archive: { stamp: null, events: null, loading: false } };
+  function archiveWanted(f) {
+    const a = M.calendar?.archive; if (!a) return false;
+    if ((a.legs || []).some((id) => f.legs.has(id))) return true;
+    const before = tms(a.before);
+    return !isNaN(before) && f.start < before;
+  }
+  function ensureEvents(f) {
+    if (evlog.stamp !== M.generated_utc && !evlog.loading) {
+      evlog.loading = true;
+      fetchJSON(`${M.calendar.file}?v=${encodeURIComponent(M.generated_utc)}`)
+        .then((c) => { evlog.events = c.events || []; evlog.stamp = M.generated_utc; renderMap(); })
+        .catch(() => {})
+        .finally(() => { evlog.loading = false; });
+    }
+    const a = M.calendar?.archive, ar = evlog.archive;
+    if (a && archiveWanted(f) && ar.stamp !== a.stamp && !ar.loading) {
+      ar.loading = true;
+      fetchJSON(`${a.file}?v=${encodeURIComponent(a.stamp)}`)
+        .then((c) => { ar.events = c.events || []; ar.stamp = a.stamp; renderMap(); })
+        .catch(() => {})
+        .finally(() => { ar.loading = false; });
+    }
   }
   function eventTraces(f) {
     if (!state.events) return [];
-    ensureEvents();
+    ensureEvents(f);
     if (!evlog.events) return [];
-    const ok = evlog.events.filter((e) => e.lat != null && e.lon != null && isFinite(+e.lat) && isFinite(+e.lon) && Math.abs(+e.lat) <= 90 && Math.abs(+e.lon) <= 180
+    const all = archiveWanted(f) && evlog.archive.events ? [...evlog.archive.events, ...evlog.events] : evlog.events;
+    const ok = all.filter((e) => e.lat != null && e.lon != null && isFinite(+e.lat) && isFinite(+e.lon) && Math.abs(+e.lat) <= 90 && Math.abs(+e.lon) <= 180
       && !(+e.lat === 0 && +e.lon === 0) && inFilter(e.leg, e.time_utc, f));
     const groups = new Map();
     for (const e of ok) { const k = `${(+e.lat).toFixed(4)},${(+e.lon).toFixed(4)}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
@@ -1055,6 +1073,19 @@
     return result;
   }
 
+  // A panel draws when it is in view. Two dozen panels redraw with every
+  // build, and drawing a coloured SVG marker per point is the page's main
+  // cost, so the panels scrolled past (or behind another tab) keep their
+  // new data and draw when they are looked at.
+  const inView = new Set();
+  const panelWatch = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+    let due = false;
+    for (const e of entries) {
+      if (e.isIntersecting) { inView.add(e.target.dataset.name); if (e.target.dataset.stale) due = true; }
+      else inView.delete(e.target.dataset.name);
+    }
+    if (due) for (const el of $("#panels").children) if (el.dataset.stale && inView.has(el.dataset.name)) renderPanel(el.dataset.name);
+  }, { rootMargin: "200px 0px" }) : null;
   function panelEl(name) {
     let el = document.getElementById("p-" + cssId(name));
     if (el) return el;
@@ -1095,6 +1126,7 @@
       state.order = order; store.set("order", order);
       layoutPanels();
     });
+    panelWatch?.observe(el);
     return el;
   }
 
@@ -1173,6 +1205,8 @@
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
+    if (panelWatch && !inView.has(name)) { el.dataset.stale = "1"; return; }     // drawn when scrolled into view
+    delete el.dataset.stale;
     if (extraPanels.has(name)) {
       extraPanels.get(name).render(el, plot);
       // their own draw queues before this, so the drag mode lands after it
@@ -1248,10 +1282,35 @@
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
     }
-    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot);
+    // Most builds change nothing this panel shows (a long span's last bin,
+    // or nothing at all when a minute's data already arrived), so a draw
+    // whose data and layout match the one on screen is skipped; the click
+    // handler is rebound to this build's data either way.
+    const onClick = () => {
       plot.removeAllListeners?.('plotly_click');
       plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
-    });
+    };
+    const sig = drawSignature(traces, layout, on);
+    if (plot.data && plot._uwSig === sig) { onClick(); return; }
+    plot._uwSig = sig;
+    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot); onClick(); });
+  }
+  // what a draw depends on, small enough to compare every build: each
+  // array's length, ends and a weighted sum of its values (strings hashed
+  // by sample), and the layout as a whole
+  function drawSignature(traces, layout, on) {
+    const digest = (a) => {
+      if (!a || !a.length) return "-";
+      let s = 0, n = 0, h = 0;
+      for (let i = 0; i < a.length; i++) {
+        const v = a[i];
+        if (typeof v === "number") { if (isFinite(v)) { s += v * ((i % 7) + 1); n++; } }
+        else if (v != null && i % 13 === 0) { const t = String(v); for (let j = 0; j < t.length; j++) h = (h * 31 + t.charCodeAt(j)) | 0; }
+      }
+      return `${a.length}:${n}:${s.toPrecision(12)}:${h}:${a[0]}:${a[a.length - 1]}`;
+    };
+    const parts = traces.map((t) => `${t.type}/${t.mode}|${digest(t.x)}|${digest(t.y)}|${digest(t.marker?.color)}|${t.marker?.cmin}|${t.marker?.cmax}|${t.marker?.colorscale}|${t.hovertemplate}`);
+    return `${on}#${parts.join("#")}#${JSON.stringify(layout)}`;
   }
 
   function renderPanels() {
@@ -1280,6 +1339,8 @@
   // ------------------------------------------------------------ data flow
   function applyAndRender() {
     if (!state.raw) return;
+    // a remembered colour the page no longer offers (a module gone) falls back to the default
+    if (!VAR[state.colour] && !extraColours.has(state.colour)) { state.colour = VAR["SST (°C)"] ? "SST (°C)" : M.variables[0]?.name; store.set("colour", state.colour); renderControls(); }
     state.data = applyLegFilter(state.raw);
     renderLegMenu();
     render();
@@ -1450,7 +1511,10 @@
     state, SITE, THEME, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown, toast,
-    refreshExtraData() { render(); },
+    refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
+      if (extraColours.has(state.colour)) render();
+      else for (const name of extraPanels.keys()) renderPanel(name);
+    },
     clearFocus() { state.focus = null; },
     moveShip,
     registerPanel(name, spec) {
@@ -1464,7 +1528,7 @@
       layoutPanels(); renderPanel(name);
     },
     linkX,
-    registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); render(); },
+    registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); if (state.colour === spec.name) render(); },
     selectColour(name) { state.colour=name; store.set('colour',name); renderControls(); render(); },
   });
   Object.defineProperty(window.UW, "M", { get: () => M, configurable: true });

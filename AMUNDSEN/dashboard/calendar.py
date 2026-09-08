@@ -12,10 +12,15 @@
   ``db/schedule_history.json``; rows no longer on the page are served as
   ``former`` operations. Schedule times are ship wall-clock (``LOCAL_TZ``)
   and are given to the page as UTC instants.
+* ``data/calendar.json`` carries the current legs (the live ones, or the
+  newest); the legs before, and the calendar feeds' items from before them,
+  go to ``data/calendar-archive.json``, which the browser fetches only when
+  it looks that far back and keeps across builds by its content stamp.
 """
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import logging
@@ -248,9 +253,73 @@ def around_now(rows: list[dict]) -> dict:
             "in_progress": [brief(r) for r in live], "next": brief(nxt) if nxt else None}
 
 
+ARCHIVE_FILE = "calendar-archive.json"
+
+
+def current_legs(legs: list[Leg]) -> list[Leg]:
+    """The legs whose events the browser gets with every build: the live
+    ones, or the newest when none is live (between legs, in port)."""
+    live = [l for l in legs if l.live]
+    if live:
+        return live
+    return [max(legs, key=lambda l: (l.year, l.number))] if legs else []
+
+
+def partition(events: list[dict], feeds: list[dict], legs: list[Leg]) -> tuple[list[dict], list[dict], dict | None]:
+    """Split the calendar between the file fetched every build and the
+    archive fetched only when a leg (or a month) before the current legs
+    is looked at: the current legs' events, and the calendar feeds' items
+    from their first day on, stay; the rest goes to the archive.
+
+    Returns (current events, current feeds, archive payload or None when
+    nothing is old enough)."""
+    cur = current_legs(legs)
+    ids = {l.id for l in cur}
+    firsts = [l.first_date for l in cur if l.first_date]
+    before = min(firsts) if firsts else None
+    before_iso = f"{before[:4]}-{before[4:6]}-{before[6:8]}" if before else None
+    # an event without a leg (none are logged so today) stays where it is seen
+    old = [e for e in events if e.get("leg") is not None and e.get("leg") not in ids]
+    new = [e for e in events if e.get("leg") is None or e.get("leg") in ids]
+    cur_feeds, old_feeds = [], []
+    for f in feeds:
+        items = f.get("events") or []
+        past = [e for e in items if before_iso and str(e.get("start") or "")[:10] < before_iso]
+        if past:
+            old_feeds.append({"key": f.get("key"), "label": f.get("label"), "events": past})
+            f = dict(f, events=[e for e in items if e not in past])
+        cur_feeds.append(f)
+    if not old and not old_feeds:
+        return new, cur_feeds, None
+    archive = {"events": old, "gcal": old_feeds, "legs": sorted({e["leg"] for e in old}), "before": before_iso}
+    return new, cur_feeds, archive
+
+
+def write_archive(root: Path, archive: dict | None) -> dict | None:
+    """Write ``data/calendar-archive.json`` when its content changed (it
+    seldom does: the legs before this one are closed) and return what the
+    manifest says about it, so the browser fetches it by content stamp and
+    keeps it across builds."""
+    if archive is None:
+        return None
+    from .build import atomic_write
+    text = json.dumps(archive, separators=(",", ":"))
+    stamp = hashlib.sha1(text.encode()).hexdigest()[:12]
+    p = root / "data" / ARCHIVE_FILE
+    try:
+        same = p.is_file() and p.stat().st_size == len(text.encode()) and p.read_text() == text
+    except OSError:
+        same = False
+    if not same:
+        atomic_write(p, text)
+    return {"file": f"data/{ARCHIVE_FILE}", "stamp": stamp, "legs": archive["legs"], "before": archive["before"],
+            "events": len(archive["events"]), "bytes": len(text)}
+
+
 def build_calendar(legs: list[Leg], root: Path, frame=None, events: list[dict] | None = None) -> dict:
-    """Write ``data/calendar.json``; ``events`` are the legs' event-log rows
-    (read here when not given)."""
+    """Write ``data/calendar.json`` (the current legs) and the archive of
+    the legs before; ``events`` are the legs' event-log rows (read here
+    when not given)."""
     from .build import atomic_write
     from . import gcal
     from .pump import pump_events
@@ -258,25 +327,28 @@ def build_calendar(legs: list[Leg], root: Path, frame=None, events: list[dict] |
     events = list(events) if events is not None else [e for leg in legs for e in read_eventlog(leg)]
     events.extend(pump)
     events.sort(key=lambda e: e.get("time_utc", ""))
-    payload = {"events": events, "pump_events": pump, "schedule": fetch_schedule(),
+    payload = {"pump_events": pump, "schedule": fetch_schedule(),
                "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     try:
-        payload["gcal"] = gcal.import_calendars()
+        feeds = gcal.import_calendars()
     except Exception:                       # noqa: BLE001 — the tab works without the feeds
         log.exception("google calendar import failed")
-        payload["gcal"] = []
+        feeds = []
     try:
         payload["gcal_sync"] = gcal.queue(events, payload["schedule"], frame)
     except Exception:                       # noqa: BLE001
         log.exception("google calendar queue failed")
+    payload["events"], payload["gcal"], archive = partition(events, feeds, legs)
+    payload["archive"] = write_archive(root, archive)
     atomic_write(root / "data" / "calendar.json", json.dumps(payload, separators=(",", ":")))
     sched = payload["schedule"]
     log.info("calendar: %d events, %d scheduled operations (%d former)", len(events), len(sched.get("rows", [])), len(sched.get("former", [])))
     from .config import GCAL
-    feeds = [{"key": k, "label": c["label"], "url": f"https://calendar.google.com/calendar/embed?src={c['id'].replace('@', '%40')}&ctz={LOCAL_TZ.replace('/', '%2F')}",
+    links = [{"key": k, "label": c["label"], "url": f"https://calendar.google.com/calendar/embed?src={c['id'].replace('@', '%40')}&ctz={LOCAL_TZ.replace('/', '%2F')}",
               "ics": f"https://calendar.google.com/calendar/ical/{c['id'].replace('@', '%40')}/public/basic.ics"} for k, c in GCAL.items()]
     logged = [e["time_utc"] for e in events if not str(e.get("id", "")).startswith("pump|") and e.get("time_utc")]
     return {"events": len(events), "schedule_rows": len(sched.get("rows", [])), "former": len(sched.get("former", [])),
-            "update": sched.get("update"), "now": around_now(sched.get("rows", [])), "feeds": feeds,
+            "archive": payload["archive"],
+            "update": sched.get("update"), "now": around_now(sched.get("rows", [])), "feeds": links,
             "sources": {"schedule": sched.get("fetched_utc"), "event_log": max(logged) if logged else None,
-                        "calendars": max((f.get("fetched_utc") or "" for f in payload["gcal"]), default=None) or None}}
+                        "calendars": max((f.get("fetched_utc") or "" for f in feeds), default=None) or None}}
