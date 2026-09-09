@@ -38,7 +38,9 @@ EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
 BANTER_P = 0.4                 # chance another crew member riffs on a crew remark (one hop only)
 MAX_TOKENS = 500
-NUM_CTX = 16384               # room for the dashboard summary and a long chat
+ADA_TOKENS = 4000             # the Library: her thinking and a full answer, up to about 500 words
+ADA_CHARS = 8000              # the most of an answer the chat keeps; the crew's quips stop at 2500
+NUM_CTX = 32768               # the dashboard summary, five excerpts, the shelf and a long chat; fits the GPU beside the model
 TIMEOUT = 240
 
 PERSONAS = {
@@ -67,16 +69,16 @@ PERSONAS = {
                       "oxygen, the air, the surprise score and what a change in the water means ecologically. The schedule is the "
                       "Cap'n's and the past is the Librarian's: point people to @capn or @ada for those.")},
     "ada": {"name": "Ada", "emoji": "📚", "beat": "history", "room": "Library",
-            "type": ("INTJ, the Architect, with an ADHD cast: sees the shape of a story at once and the pattern behind three "
-                     "voyages, leaps from a date to a connection nobody asked about, hyperfocuses on a good primary source and "
-                     "has to be pulled off it, loses the thread mid-sentence and finds it again a beat later. Kegan stage 4, "
-                     "the self-authoring mind: her own settled principles about evidence and provenance, applied to captains and "
-                     "parrots alike, however far the tangent has run"),
+            "type": ("INTJ, the Architect, with a restless curiosity: sees the shape of a story at once and the pattern behind "
+                     "three voyages, and when a detail genuinely interests her she follows it, says why it matters, and brings "
+                     "it back to bear on the question. Kegan stage 4, the self-authoring mind: her own settled principles about "
+                     "evidence and provenance, applied to captains and parrots alike, however far the thread has run"),
             "voice": ("the ship's librarian: quick, dry, associative, fond of a date and a page number and of the odd detail "
-                      "three shelves over. Starts on the question, is pulled sideways by a better source, says 'oh, but' and "
-                      "'wait, where was I', and lands the answer anyway with the source named. Reads the ship's own History "
-                      "wiki, which the research crew wrote from journals, logs and Inuit testimony, and says where a thing comes "
-                      "from. Two to four sentences, more when a source has hold of her, never pompous."),
+                      "three shelves over. Starts on the question, and when a source opens a better one she goes there because "
+                      "it is interesting and says what it adds, never by way of apology or a lost thread; each answer finds its "
+                      "own shape. Lands the answer with the source named. Reads the ship's own History wiki, which the research "
+                      "crew wrote from journals, logs and Inuit testimony, and says where a thing comes from. Two to four "
+                      "sentences, more when a source has hold of her, never pompous."),
             "brief": ("Your beat is the past of these waters: what happened on this date in other years, who wintered or wrecked or "
                       "wandered near where the ship is now, and the people, Inuit and European, whose record it is. The WIKI "
                       "EXCERPTS below are pages from the ship's Library, written by the research crew from journals, logs, reports "
@@ -210,14 +212,15 @@ def alert_offline(status: dict, what: str = "the chat crew") -> None:
 
 
 def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
-             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT) -> str:
+             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT, think: bool = False) -> str:
     """One answer from the local model. The chat crew and the historian both
     come through here, so the backend choice (the shared OpenAI-style server
     the camera pipeline runs, or the resident Ollama model) is made in one
     place, and the rule that the chat never loads a model is kept here: a
     request goes only to a server that is up or a model that is already in
     memory, and ``keep_alive`` -1 leaves a resident model resident (unload it
-    with ``ollama stop``)."""
+    with ``ollama stop``). ``think`` lets the model reason before it answers;
+    ``max_tokens`` then covers the reasoning and the answer together."""
     import requests
     status = model_status()
     if not status["online"]:
@@ -226,10 +229,10 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if backend == 'openai':
         body = dict(model=model, messages=messages, stream=False, max_tokens=max_tokens, temperature=temperature,
-                    chat_template_kwargs={'enable_thinking': False})
+                    chat_template_kwargs={'enable_thinking': think})
         endpoint = '/v1/chat/completions'
     else:
-        body = {"model": model, "stream": False, "think": False, "keep_alive": -1,
+        body = {"model": model, "stream": False, "think": think, "keep_alive": -1,
                 "options": {"num_predict": max_tokens, "num_ctx": num_ctx, "temperature": temperature},
                 "messages": messages}
         endpoint = '/api/chat'
@@ -580,7 +583,7 @@ class Crew:
         room = {"ship": "the ship's public room, where you speak only when addressed",
                 "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
                 "ada": "the Library, your own room, where every message is a question put to you and deserves a full "
-                       "answer, up to about 350 words, with the pages cited"}.get(channel,
+                       "answer, up to about 500 words, with the pages cited"}.get(channel,
                "a private room with one person; only the two of you see it, and you may speak first")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
@@ -598,9 +601,10 @@ class Crew:
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
                   f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task)}\n\nRECENT CHAT (oldest first)\n{recent}")
         pages = list(self._pages)
-        text = complete(system, task, MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5)
+        library = handle == "ada" and channel == "ada"           # her own room: she thinks first, and answers at length
+        text = complete(system, task, ADA_TOKENS if library else MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5, think=library)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
-        return (text[:2500] or None), pages
+        return (text[:ADA_CHARS if library else 2500] or None), pages
 
     def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False) -> None:
         """Generate and post one remark in a room; in the crew's room another
@@ -668,7 +672,9 @@ class Crew:
             speakers = ["ada"] if "ada" in room_bots else []
             task = (f"{name} asks in the Library: \"{text}\". Answer fully from the pages you have, citing each you draw on by "
                     f"its number in square brackets after the sentence it supports, never by title; speak of the sources by name, "
-                    f"never of 'the wiki' or 'the excerpts'; and where you have nothing, say so as yourself.")
+                    f"never of 'the wiki' or 'the excerpts'; and where you have nothing, say so as yourself. Where a picture or "
+                    f"a quotation on the shelf shows what a paragraph of yours says, end that paragraph with its tag, {{P2}} say, "
+                    f"so it appears beside your words.")
             long = True
         else:
             speakers = room_bots
