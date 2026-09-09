@@ -570,6 +570,9 @@
       if (frag) { frag.appendChild(document.createTextNode(s.slice(last))); node.parentNode.replaceChild(frag, node); }
     }
   }
+  // the strips under a page: the people and places (linked or found), and
+  // the animals and vessels the crew linked (their names are too plain to find)
+  const STRIPS = [["person", "People"], ["place", "Places"], ["animal", "Animals"], ["vessel", "Vessels"]];
   function crossLink(root, self, people, title) {
     if (!root) return;
     const { byName, rx } = nameIndex();
@@ -591,13 +594,76 @@
     // the people and places of the page: named in the title, on the page's
     // own list, linked by the crew or found above
     const found = new Map();
-    const add = (slug) => { const p = hist.index.pages.find((x) => x.slug === slug); if (p && (p.kind === "person" || p.kind === "place") && slug !== self) found.set(slug, p); };
+    const add = (slug) => { const p = hist.index.pages.find((x) => x.slug === slug); if (p && STRIPS.some(([k]) => k === p.kind) && slug !== self) found.set(slug, p); };
     if (title) for (const m of title.matchAll(rx)) { const x = byName.get(m[0]); if (x) add(x.slug); }
     for (const n of people || []) { const p = hist.people.find((x) => x.name === n); if (p) add(p.page); }
     for (const a of root.querySelectorAll("a[data-slug]")) add(a.dataset.slug);
     const chips = (kind, label) => { const xs = [...found.values()].filter((p) => p.kind === kind).sort((p, q) => p.title.localeCompare(q.title)); return xs.length ? `<div class="onpage"><span class="lbl">${label}</span>${xs.map((p) => `<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a>`).join("")}</div>` : ""; };
-    const strip = chips("person", "People") + chips("place", "Places");
+    const strip = STRIPS.map(([k, label]) => chips(k, label)).join("");
     if (strip) root.insertAdjacentHTML("afterend", strip);
+  }
+
+  // ---------------------------------------------------------------- the kind pages
+  // One page per chip: every track, place, person, image, map, quote, text or
+  // object in the record; the Events page is the timeline.
+  const letterList = (xs, name, line) => {
+    let letter = "";
+    return xs.map((x) => { const L = (name(x)[0] || "?").toUpperCase(); const head = L !== letter ? `<h3>${esc(L)}</h3>` : ""; letter = L; return head + line(x); }).join("");
+  };
+  function renderKind(el, kind) {
+    const K = KINDS[kind];
+    if (!K) { el.innerHTML = crumb() + `<div class="empty">no such kind</div>`; return; }
+    const h2 = (n, label) => `<h2><span class="dot" style="background:${K.colour}"></span><span class="muted">${n}</span> ${esc(label)}</h2>`;
+    if (kind === "event") { el.innerHTML = crumb("Events") + eventsHTML(); wireEvents(el); return; }
+    if (kind === "people") {
+      // the names down the left; on the right, the faces the backend has cut
+      // from the photographs, in alphabetical order, filling the column
+      const people = [...hist.people].sort((a, b) => a.name.localeCompare(b.name));
+      const life = (p) => [p.born, p.died].some(Boolean) ? ` <span class="muted mono">${esc(dateLabel(p.born || "?"))}–${esc(dateLabel(p.died || ""))}</span>` : "";
+      const list = `<div class="peoplelist">` + letterList(people, (p) => p.name, (p) => `<a class="person ${p.indigenous ? "inuit" : ""}" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${p.also ? ` <span class="muted">(${esc(p.also)})</span>` : ""}${life(p)}${p.role ? `<span class="role">${esc(p.role)}</span>` : ""}</a>`) + `</div>`;
+      const faces = (hist.faces || []).filter((f) => f.file).sort((x, y) => (x.person || "￿").localeCompare(y.person || "￿"));
+      const wall = faces.length ? `<div class="faces">${faces.map((f) => `<a class="face" href="#history/${esc(f.person_page || f.page)}" data-slug="${esc(f.person_page || f.page)}" title="${esc(f.person || "unidentified")}${f.title ? " · " + esc(f.title) : ""}"><img src="${esc(f.file)}" alt="${esc(f.person || "")}" loading="lazy"></a>`).join("")}</div>` : "";
+      el.innerHTML = crumb("People") + h2(people.length, "People") + `<div class="peoplecols ${wall ? "" : "nofaces"}">${list}${wall}</div>`;
+      return;
+    }
+    if (kind === "place") {
+      const places = [...hist.places].sort((a, b) => a.name.localeCompare(b.name));
+      const names = (p) => [p.inuktitut, p.historic].filter((n) => n && n !== p.name).join(", ");
+      el.innerHTML = crumb("Places") + h2(places.length, "Places") + `<div class="peoplelist">` +
+        letterList(places, (p) => p.name, (p) => `<a class="person" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${names(p) ? ` <span class="muted">(${esc(names(p))})</span>` : ""} <span class="muted small">${esc(p.kind || "")}</span>` +
+          (p.lat != null ? ` ${mapLink(p.lat, p.lon, p.name, "place")}` : "") + (p.note ? `<span class="role">${esc(p.note.length > 160 ? p.note.slice(0, 157) + "…" : p.note)}</span>` : "") + `</a>`) + `</div>`;
+      return;
+    }
+    const arts = hist.artifacts.filter((a) => a.type === kind).sort(byYear);
+    const pictures = kind === "image" || kind === "map";
+    const grid = (xs) => `<div class="artgrid ${pictures ? "pictures" : ""} ${kind === "quote" ? "quotes" : ""}">${xs.map((a) => artifactCard(a, { creator: true })).join("")}</div>`;
+    let body;
+    if (!arts.length) body = `<p class="muted">Nothing of this kind in the record yet.</p>`;
+    else if (arts.some((a) => a.keywords?.length)) body = keywordSections(arts, grid);
+    else if (kind === "image" || kind === "quote" || kind === "map") {
+      // until the keywords come from the backend, the pictures and the words go by topic
+      const byTopic = new Map(); for (const a of arts) { if (!byTopic.has(a.topic)) byTopic.set(a.topic, []); byTopic.get(a.topic).push(a); }
+      body = [...byTopic.entries()].map(([t, xs]) => `<h3><span class="dot" style="background:${topicColour(t)}"></span><span class="muted">${xs.length}</span> <a href="#history/topic/${esc(t)}" data-topic="${esc(t)}">${esc(topicOf(t)?.title || t)}</a></h3>${grid(xs)}`).join("");
+    } else body = grid(arts);
+    el.innerHTML = crumb(esc(K.label)) + h2(arts.length, K.label) + body;
+  }
+  // the backend's keywords are paths ("Ships > Whalers > Dundee fleet"); the
+  // page is a section per first word, a heading per second, the rest as tags
+  function keywordSections(arts, grid) {
+    const paths = (a) => (a.keywords || []).map((k) => Array.isArray(k) ? k : String(k).split(/\s*>\s*/)).filter((k) => k.length);
+    const tree = new Map();
+    for (const a of arts) {
+      const ps = paths(a);
+      if (!ps.length) { if (!tree.has("Unsorted")) tree.set("Unsorted", new Map([["", new Set()]])); tree.get("Unsorted").get("").add(a); continue; }
+      for (const k of ps) { const top = k[0], sub = k[1] || ""; if (!tree.has(top)) tree.set(top, new Map()); if (!tree.get(top).has(sub)) tree.get(top).set(sub, new Set()); tree.get(top).get(sub).add(a); }
+    }
+    const tops = [...tree.entries()].sort((x, y) => (x[0] === "Unsorted") - (y[0] === "Unsorted") || x[0].localeCompare(y[0]));
+    const nav = `<div class="kwnav">${tops.map(([t, subs]) => `<a class="chip small" href="#kw-${esc(t.replace(/\W+/g, "-"))}">${esc(t)} <span>${[...new Set([...subs.values()].flatMap((x) => [...x]))].length}</span></a>`).join("")}</div>`;
+    return nav + tops.map(([t, subs]) => {
+      const all = new Set([...subs.values()].flatMap((x) => [...x]));
+      return `<h3 id="kw-${esc(t.replace(/\W+/g, "-"))}"><span class="muted">${all.size}</span> ${esc(t)}</h3>` +
+        [...subs.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([sub, xs]) => (sub ? `<h4>${esc(sub)} <span class="muted">${xs.size}</span></h4>` : "") + grid([...xs].sort(byYear))).join("");
+    }).join("");
   }
 
   // ---------------------------------------------------------------- the Events page
@@ -749,6 +815,7 @@
     }
   }
   function renderTools() {
+    $("#histhome").classList.toggle("on", !hist.slug && !hist.search);
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
     $("#histbibchip").classList.toggle("on", hist.slug === "bib");
     $("#histback").disabled = !hist.slug && nav.n === 0;
@@ -872,6 +939,7 @@
   function wire() {
     $("#histsearch").oninput = debounce((e) => { hist.search = e.target.value; renderMain(); }, 150);
     $("#histback").onclick = goBack;
+    $("#histhome").onclick = () => open("");
     $("#histexplore").onclick = () => open(hist.slug === "explore" ? "" : "explore");
     $("#histbibchip").onclick = () => open(hist.slug === "bib" ? "" : "bib");
     $("#histask").onclick = () => UW.chatRoom?.("ada");

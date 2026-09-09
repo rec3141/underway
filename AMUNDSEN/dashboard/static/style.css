@@ -845,7 +845,7 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 /* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
 #satpill { min-width: 7.2em; text-align: center; }
 
-/* the History tools: Back, Map, Explore, Ask Ada, the search, one chip per kind, Bibliography */
+/* the History tools: Back, Home, Map, Explore, Ask Ada, the search, one chip per kind, Bibliography */
 .histtools .histkinds { display: flex; flex-wrap: wrap; gap: 6px; }
 .histtools #histback:disabled { opacity: .45; cursor: default; }
 .histtools #histback:disabled:hover { border-color: var(--line); }
