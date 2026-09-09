@@ -17,6 +17,11 @@
 # on ground metres, not Mercator metres: each row is scaled by cos(latitude)
 # first, so a slope looks the same at the equator as at 80 N and a global
 # build joins a regional one without a seam in the shading.
+# With LAND set to an OGR source of land polygons (layer LAND_LAYER, default
+# "land"; the OSM polygons the coastline tiles are cut from), the shore comes
+# from the polygons instead of GEBCO's zero contour within LAND_BBOX (lon/lat,
+# default the bbox): a strait the polygons keep open stays open in the
+# picture, and GEBCO only colours the depth inside it.
 # Needs GDAL >= 3.4 (gdalbuildvrt, gdalwarp, gdaldem, gdal2tiles.py).
 set -euo pipefail
 
@@ -64,6 +69,47 @@ gdalwarp -q -t_srs EPSG:3857 -te "$TE_XMIN" "$TE_YMIN" "$TE_XMAX" "$TE_YMAX" -tr
     -r bilinear -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "${CO[@]}" \
     "$WORK/global.vrt" "$WORK/region_3857.tif"
 
+# the colour ramp's input: the elevation as warped, or, with land polygons,
+# the elevation nudged to the right side of zero where the polygons disagree
+# with it (a cell the polygons call water is at least 1 m deep; a cell they
+# call land is at least 1 m high) within the polygons' box
+COLOR_SRC="$WORK/region_3857.tif"
+if [[ -n ${LAND:-} ]]; then
+  LB=(${LAND_BBOX:-${BBOX[@]}})
+  echo "shore from $LAND within lon ${LB[0]}..${LB[2]}, lat ${LB[1]}..${LB[3]}"
+  gdal_rasterize -q -init 255 -burn 1 -l "${LAND_LAYER:-land}" -te "$TE_XMIN" "$TE_YMIN" "$TE_XMAX" "$TE_YMAX" -tr "$RES" "$RES" \
+      -ot Byte "${CO[@]}" "$LAND" "$WORK/mask.tif"
+  $PY - "$WORK" "${LB[@]}" <<'PYEOF'
+import sys, math, numpy as np
+from osgeo import gdal
+gdal.UseExceptions()
+w = sys.argv[1]; lon0, lat0, lon1, lat1 = map(float, sys.argv[2:6])
+M = 20037508.342789244; R = 6378137.0; LIM = 85.0511287798
+mx = lambda lon: lon / 180 * M
+my = lambda lat: R * math.log(math.tan(math.pi / 4 + math.radians(max(-LIM, min(LIM, lat))) / 2))
+src = gdal.Open(f"{w}/region_3857.tif"); msk = gdal.Open(f"{w}/mask.tif"); gt = src.GetGeoTransform()
+out = gdal.GetDriverByName("GTiff").Create(f"{w}/adj.tif", src.RasterXSize, src.RasterYSize, 1, gdal.GDT_Int16,
+                                           ["COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=YES"])
+out.SetGeoTransform(gt); out.SetProjection(src.GetProjection())
+# the polygons' box in cells: outside it the mask says nothing (255) and GEBCO's own zero contour stands
+c0 = max(0, int((mx(lon0) - gt[0]) / gt[1])); c1 = min(src.RasterXSize, int(math.ceil((mx(lon1) - gt[0]) / gt[1])))
+r0 = max(0, int((gt[3] - my(lat1)) / -gt[5])); r1 = min(src.RasterYSize, int(math.ceil((gt[3] - my(lat0)) / -gt[5])))
+step = 1024
+for y0 in range(0, src.RasterYSize, step):
+    n = min(step, src.RasterYSize - y0)
+    h = src.GetRasterBand(1).ReadAsArray(0, y0, src.RasterXSize, n)
+    m = msk.GetRasterBand(1).ReadAsArray(0, y0, src.RasterXSize, n)
+    ya, yb = max(r0, y0), min(r1, y0 + n)
+    if ya < yb:
+        box = np.zeros(m.shape, bool); box[ya - y0:yb - y0, c0:c1] = True
+        m[box & (m == 255)] = 0                       # inside the box, not land is water
+    h = np.where((m == 1) & (h <= 0), 1, h); h = np.where((m == 0) & (h > 0), -1, h)
+    out.GetRasterBand(1).WriteArray(h.astype(np.int16), 0, y0)
+out.FlushCache()
+PYEOF
+  COLOR_SRC="$WORK/adj.tif"
+fi
+
 # depth ramp: pale shelf to dark abyss; land a muted hypsometric ramp (olive
 # lowlands to pale high ground) so it reads under the hillshade without
 # competing with the track colours
@@ -93,7 +139,7 @@ cat > "$WORK/ramp.txt" <<'EOF'
 3500   232 232 232
 EOF
 echo "colour relief"
-gdaldem color-relief -q -alpha "${CO[@]}" "$WORK/region_3857.tif" "$WORK/ramp.txt" "$WORK/color.tif"
+gdaldem color-relief -q -alpha "${CO[@]}" "$COLOR_SRC" "$WORK/ramp.txt" "$WORK/color.tif"
 
 # Rasters here run to billions of pixels, so the Python steps work in strips
 # of rows and never hold a whole band.
@@ -140,7 +186,7 @@ for y0 in range(0, c.RasterYSize, step):
     out.GetRasterBand(4).WriteArray(c.GetRasterBand(4).ReadAsArray(0, y0, c.RasterXSize, n), 0, y0)
 out.FlushCache()
 PY
-rm -f "$WORK/color.tif" "$WORK/shade.tif" "$WORK/ground.tif" "$WORK/region_3857.tif"
+rm -f "$WORK/color.tif" "$WORK/shade.tif" "$WORK/ground.tif" "$WORK/region_3857.tif" "$WORK/adj.tif" "$WORK/mask.tif"
 
 echo "tiling zooms $ZOOMS -> $OUT"
 mkdir -p "$OUT"

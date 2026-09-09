@@ -4,7 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from dashboard.build import raster_pyramid
+import json
+
+from dashboard.build import raster_pyramid, vector_tiles
 
 
 def make_pyramid(root: Path, levels: dict[int, tuple[int, int, int, int]]) -> Path:
@@ -45,6 +47,18 @@ class TilesTests(unittest.TestCase):
             self.assertEqual(len(r["sources"]), 1)
             self.assertEqual((r["sources"][0]["minzoom"], r["sources"][0]["maxzoom"]), (2, 3))
             self.assertEqual(r["sources"][0]["bounds"], [-135.0, 40.979898, -45.0, 79.171335])
+
+    def test_vector_tiles_from_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(vector_tiles(Path(tmp) / "coast"))
+            (Path(tmp) / "coast").mkdir()
+            (Path(tmp) / "coast" / "metadata.json").write_text(json.dumps({
+                "minzoom": 0, "maxzoom": 11, "bounds": "-150,45,-15,86", "format": "pbf",
+                "json": json.dumps({"vector_layers": [{"id": "land"}, {"id": "coast"}]})}))
+            v = vector_tiles(Path(tmp) / "coast")
+            self.assertEqual((v["minzoom"], v["maxzoom"], v["layers"]), (0, 11, ["land", "coast"]))
+            self.assertEqual(v["bounds"], [-150.0, 45.0, -15.0, 86.0])
+            self.assertTrue(v["url"].startswith("static/tiles/coast/{z}/{x}/{y}.pbf?v="))
 
 
 if __name__ == "__main__":

@@ -358,7 +358,7 @@
       b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "cameras") closeCamera(); renderMap(); };
     }
     renderSatPill();
-    $("#mapattrib").innerHTML = [SITE.raster?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
+    $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
     {
       const r = $("#trackstep"), out = $("#tracksteplabel");
       if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
@@ -468,9 +468,10 @@
     const get = async (name) => {
       try { return await fetchJSON(`static/geo/${name}`, { cache: "default" }); } catch { return null; }
     };
-    const relief = !!SITE.raster;
-    const names = { glac: "glaciated_areas.geojson", coast: "coastline.geojson", comm: "communities.geojson",
-                    ...(relief ? {} : { bathy: "bathymetry.geojson", land: "land.geojson", isl: "minor_islands.geojson" }) };
+    // with coastline vector tiles the shore and the land come from them, not from these files
+    const relief = !!SITE.raster, vt = !!SITE.vector;
+    const names = { glac: "glaciated_areas.geojson", comm: "communities.geojson", ...(vt ? {} : { coast: "coastline.geojson" }),
+                    ...(relief ? {} : { bathy: "bathymetry.geojson", ...(vt ? {} : { land: "land.geojson", isl: "minor_islands.geojson" }) }) };
     const got = Object.fromEntries(await Promise.all(Object.entries(names).map(async ([k, n]) => [k, await get(n)])));
     // settlements (GeoNames): kept as points for a marker trace, not a style layer
     state.communities_data = got.comm ? got.comm.features.map((f) => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], ...f.properties })) : [];
@@ -516,8 +517,16 @@
     }
     const g = state.geoSources || {};
     const add = (id, data, layer) => { if (!data) return; style.sources[id] = { type: "geojson", data }; style.layers.push({ id, source: id, ...layer }); };
+    // the coastline as vector tiles (OpenStreetMap, cut on grid) when the build found them: a
+    // shore that stays crisp at every zoom; the Natural Earth files otherwise
+    const vt = SITE.vector;
+    if (vt) {
+      style.sources.coast = { type: "vector", tiles: [base0 + vt.url], minzoom: vt.minzoom, maxzoom: vt.maxzoom,
+                              ...(vt.bounds ? { bounds: vt.bounds } : {}), attribution: vt.attribution };
+    }
     if (!relief) {
       for (const [depth, color] of DEPTH_FILL) add(`bathy-${depth}`, g.bathy?.[depth], { type: "fill", paint: { "fill-color": color, "fill-opacity": 1 } });
+      if (vt) style.layers.push({ id: "land", type: "fill", source: "coast", "source-layer": "land", paint: { "fill-color": "#2b3441" } });
       add("land", g.land, { type: "fill", paint: { "fill-color": "#2b3441" } });
       add("islands", g.isl, { type: "fill", paint: { "fill-color": "#2b3441" } });
     }
@@ -527,6 +536,7 @@
       style.sources[id] = { type: "image", url: new URL(im.url, location.href).href, coordinates: im.corners };
       style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": op } });
     }
+    if (vt) style.layers.push({ id: "coast", type: "line", source: "coast", "source-layer": "coast", paint: { "line-color": "#8ea3ba", "line-width": 1 } });
     add("coast", g.coast, { type: "line", paint: { "line-color": "#8ea3ba", "line-width": 1 } });
     return style;
   }
@@ -1341,7 +1351,7 @@
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Times and time axes are ship time (${SITE.local_tz}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}Natural Earth 10 m coastline, land and glaciers${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}${SITE.vector ? "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers" : "Natural Earth 10 m coastline, land and glaciers"}${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
   }
 
   // ------------------------------------------------------------ data flow

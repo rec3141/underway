@@ -104,7 +104,7 @@ class Handler(SimpleHTTPRequestHandler):
     # The basemap is GeoJSON, a megabyte a file. Served as application/geo+json
     # the front proxy leaves it uncompressed (its compression list does not
     # know the type); as application/json it goes out gzipped at a quarter the size.
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".geojson": "application/json"}
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".geojson": "application/json", ".pbf": "application/x-protobuf"}
 
     def log_message(self, fmt, *args):          # only failures are worth a line
         if str(args[1:2]).startswith(("('4", "('5")):
