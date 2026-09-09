@@ -13,15 +13,18 @@
 set -euo pipefail
 APP=${UNDERWAY_APP:-/data/underway/app}
 OWNER=$(stat -c %U "$APP")
-as_owner() { if [[ $(id -un) == "$OWNER" ]]; then "$@"; else runuser -u "$OWNER" -- "$@"; fi; }
+OWNER_HOME=$(getent passwd "$OWNER" | cut -d: -f6)
+# every git call as the owner (git refuses a tree owned by someone else), with
+# the owner's home so the SSH key and known hosts are theirs
+g() { if [[ $(id -un) == "$OWNER" ]]; then git "$@"; else runuser -u "$OWNER" -- env HOME="$OWNER_HOME" git "$@"; fi; }
 cd "$APP"
 
 # no link to GitHub: nothing to do until the next run
-as_owner git fetch -q origin master 2>/dev/null || exit 0
-old=$(git rev-parse HEAD); new=$(git rev-parse origin/master)
+g fetch -q origin master 2>/dev/null || exit 0
+old=$(g rev-parse HEAD); new=$(g rev-parse origin/master)
 [[ $old == "$new" ]] && exit 0
-as_owner git merge -q --ff-only origin/master
-changed=$(git diff --name-only "$old" "$new")
+g merge -q --ff-only origin/master
+changed=$(g diff --name-only "$old" "$new")
 echo "deploy: ${old:0:7} -> ${new:0:7}"
 echo "$changed" | sed 's/^/  /'
 if grep -q '^AMUNDSEN/dashboard/.*\.py$' <<<"$changed"; then
