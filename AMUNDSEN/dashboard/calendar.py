@@ -9,8 +9,10 @@
   times, status and comment are edited, so an edit updates the row in the
   history and on the Google calendar instead of adding a copy. The page only
   lists current and upcoming operations, so every row seen is also kept in
-  ``db/schedule_history.json``; rows no longer on the page are served as
-  ``former`` operations. Schedule times are ship wall-clock (``LOCAL_TZ``)
+  ``db/schedule_history.json`` with the time it last changed
+  (``updated_utc``); rows no longer on the page are served as ``former``
+  operations, and a former row that never started or completed is taken
+  off the Google calendar. Schedule times are ship wall-clock (``LOCAL_TZ``)
   and are given to the page as UTC instants.
 * ``data/calendar.json`` carries the current legs (the live ones, or the
   newest); the legs before, and the calendar feeds' items from before them,
@@ -173,9 +175,13 @@ def row_key(r: dict) -> str:
     return r.get("key") or f"{r.get('station') or ''}|{r.get('operation') or ''}"
 
 
+_EDITED = ("status", "date", "start", "end", "duration_h", "comment", "start_utc", "end_utc")
+
+
 def _remember(rows: list[dict], title: str) -> list[dict]:
     """Fold the rows seen now into the history; return the former rows (seen
-    before, no longer on the page), oldest first."""
+    before, no longer on the page), oldest first. ``updated_utc`` on a row
+    is when its times, status or comment last changed on the page."""
     hist_p = DB_DIR / "schedule_history.json"
     hist = json.loads(hist_p.read_text()) if hist_p.is_file() else {}
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -187,12 +193,22 @@ def _remember(rows: list[dict], title: str) -> list[dict]:
             # ones it had and takes the new status and comment
             if k in hist:
                 current.add(k)
-                hist[k].update({x: r[x] for x in ("status", "comment") if x in r}); hist[k]["last_seen"] = now
+                h = hist[k]
+                new = {x: r[x] for x in ("status", "comment") if x in r}
+                if any(h.get(x) != v for x, v in new.items()):
+                    h["updated_utc"] = now
+                h.update(new); h["last_seen"] = now
             continue
         current.add(k)
         h = hist.get(k, {"first_seen": now})
+        if any(h.get(x) != r.get(x) for x in _EDITED):
+            h["updated_utc"] = now
         h.update(r); h["last_seen"] = now; h["leg"] = title or h.get("leg", "")
         hist[k] = h
+    for k, h in hist.items():
+        # a row remembered before the stamp existed: the last time it was on
+        # the page if it has left, else when it appeared (stable, not now)
+        h.setdefault("updated_utc", (h.get("last_seen") if k not in current else h.get("first_seen")) or now)
     hist_p.parent.mkdir(parents=True, exist_ok=True)
     hist_p.write_text(json.dumps(hist))
     former = [dict(h, former=True) for k, h in hist.items() if k not in current]
