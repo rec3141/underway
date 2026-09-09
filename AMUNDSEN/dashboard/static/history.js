@@ -355,6 +355,8 @@
   // ---------------------------------------------------------------- the pane
   const fmtDate = (a) => dateLabel(a.date_text || a.date_start || "");
   const crumb = (...rest) => `<div class="crumb"><a href="#history/" data-slug="">History</a>${rest.map((r) => ` › ${r}`).join("")}</div>`;
+  // the last step of a crumb: the page itself, as its own link (the address to pass on)
+  const here = (label, slug) => `<a class="here" href="#history/${esc(slug)}" data-slug="${esc(slug)}" title="this page's address">${label}</a>`;
   // a route as a small drawing: the line in a box, north up, longitudes
   // shrunk by the cosine of the latitude so the shape is roughly right
   // the coastline is drawn beneath it when it has loaded (ensureCoast)
@@ -419,6 +421,15 @@
       `<span class="body"><b>${esc(x.title)}</b>${full ? `<span>${esc(x.summary)}</span>` : ""}<span class="counts">${x.pages} pages · ${x.artifacts} artifacts</span></span></a>`;
   }
 
+  // where each artifact is first mentioned across a topic's narrative pages,
+  // read in their order: page slug -> a rank
+  async function mentionOrder(pages) {
+    const order = new Map();
+    const docs = await Promise.all(pages.map((p) => page(p.slug).catch(() => null)));
+    let n = 0;
+    for (const d of docs) for (const m of String(d?.html || "").matchAll(/\]\((artifact\/[^)\s]+)\)/g)) if (!order.has(m[1])) order.set(m[1], n++);
+    return order;
+  }
   async function renderMain() {
     const el = $("#histmain");
     const plot = $("#histplot"); if (plot?.data) Plotly.purge(plot);
@@ -448,7 +459,7 @@
     if (hist.slug === "explore") {
       const t = hist.index.topics;
       const n = (k) => t.reduce((s, x) => s + (x[k] || 0), 0);
-      el.innerHTML = crumb("Explore") + `<h2>Explore</h2><p class="lead">${t.length} topics, ${n("pages")} narrative pages and ${hist.artifacts.length} artifacts, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another, every item credited and sourced.</p>` +
+      el.innerHTML = crumb(here("Explore", "explore")) + `<h2>Explore</h2><p class="lead">${t.length} topics, ${n("pages")} narrative pages and ${hist.artifacts.length} artifacts, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another, every item credited and sourced.</p>` +
         `<div class="topicgrid">${t.map((x) => topicCard(x, true)).join("")}</div>`;
       return;
     }
@@ -459,12 +470,15 @@
       const t = topicOf(hist.slug.slice(6));
       if (!t) { el.innerHTML = `<div class="empty">no such topic</div>`; return; }
       const pages = hist.index.pages.filter((p) => p.topic === t.slug && p.kind === "page");
-      // the artifacts of every kind together, in a fixed order that looks like none
-      const arts = hist.artifacts.filter((a) => a.topic === t.slug).sort(byMix);
+      // the artifacts of every kind together: first those the narratives
+      // mention, in the order they are mentioned, then the rest in a fixed
+      // order that looks like none
+      const order = await mentionOrder(pages);
+      const arts = hist.artifacts.filter((a) => a.topic === t.slug).sort((p, q) => ((order.get(p.page) ?? 1e9) - (order.get(q.page) ?? 1e9)) || byMix(p, q));
       const counts = GROUPS.flatMap((g) => [g.head, ...g.under]).filter((k) => TYPES[k]).map((k) => [k, arts.filter((a) => a.type === k).length]).filter(([, n]) => n)
         .map(([k, n]) => `${n} ${TYPES[k].label.toLowerCase()}`).join(" · ");
       const im = topicImage(t.slug);
-      el.innerHTML = crumb(`<a href="#history/explore" data-slug="explore">Explore</a>`, esc(t.title)) + `<h2>${esc(t.title)}</h2>` +
+      el.innerHTML = crumb(`<a href="#history/explore" data-slug="explore">Explore</a>`, here(esc(t.title), `topic/${t.slug}`)) + `<h2>${esc(t.title)}</h2>` +
         (im ? `<figure class="topicfig"><a href="#history/${esc(im.page)}" data-slug="${esc(im.page)}" title="the picture's own page"><img src="${esc(im.url)}" alt=""></a><figcaption><a href="#history/${esc(im.page)}" data-slug="${esc(im.page)}">${esc(im.title)}</a> · ${esc(im.credit)}</figcaption></figure>` : "") +
         `<p class="lead">${esc(t.summary)}</p>` +
         (pages.length ? `<div class="pagelist">${pages.map((p) => pageLink(p)).join("")}</div>` : `<p class="muted">No narrative pages yet; the artifacts below are what the crew has entered so far.</p>`) +
@@ -479,7 +493,7 @@
     const a = p.kind === "artifact" ? artifactById(p.ref) : null;
     const pl = p.kind === "place" ? placeByPage(p.slug) : null;
     const back = (p.backlinks || []).map((s) => hist.index.pages.find((x) => x.slug === s)).filter(Boolean);
-    let head = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), `<span class="kind">${esc(kindLabel(p.kind))}</span>`) + `<h2>${esc(p.title)}</h2>`;
+    let head = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">${esc(kindLabel(p.kind))}</span>`, p.slug)) + `<h2>${esc(p.title)}</h2>`;
     if (p.summary && p.kind === "page") head += `<p class="lead">${esc(p.summary)}</p>`;
     let media = "";
     if (a) {
@@ -506,7 +520,28 @@
     el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}</div>` +
       (back.length ? `<div class="backlinks"><span class="lbl">Mentioned in</span>${back.map((b) => `<a href="#history/${esc(b.slug)}" data-slug="${esc(b.slug)}">${esc(b.title)}</a>`).join("")}</div>` : "");
     crossLink(el.querySelector(".wiki"), p.slug, a?.people, p.kind === "page" ? p.title : "");
+    if (p.kind === "page") enrich(el.querySelector(".wiki"));
     window.scrollTo?.(0, 0);
+  }
+  // a narrative's artifacts where the text reaches them: after each block
+  // that links artifacts, a row of chips for those not shown higher up
+  function enrich(root) {
+    if (!root) return;
+    const shown = new Set();
+    for (const block of [...root.querySelectorAll("p, ul, ol, blockquote, .hscroll")]) {
+      if (block.closest(".inrefs")) continue;
+      const arts = [...block.querySelectorAll('a[data-slug^="artifact/"]')].map((x) => artifactById(x.dataset.slug.slice(9))).filter((x) => x && !shown.has(x.id));
+      if (!arts.length) continue;
+      for (const x of arts) shown.add(x.id);
+      block.insertAdjacentHTML("afterend", `<div class="inrefs">${arts.map(artifactChip).join("")}</div>`);
+    }
+  }
+  // an artifact as a chip: its picture or sketch if it has one, its kind, its title
+  function artifactChip(a) {
+    const t = TYPES[a.type] || {};
+    const picture = a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url);
+    const media = a.type === "track" ? trackSketch(a, 96, 56, "sketch") : picture && (a.type === "image" || a.type === "map") ? `<img src="${esc(a.thumb || a.url)}" alt="" loading="lazy">` : "";
+    return `<a class="artchip ${esc(a.type)} ${media ? "" : "nomedia"}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${media}<span class="body"><span class="kind"><span class="dot" style="background:${t.colour || "#8b9bb0"}"></span>${esc(a.type)}${a._year != null ? ` · ${esc(yearLabel(a._year))}` : ""}</span><b>${esc(a.title)}</b></span></a>`;
   }
 
   // ---------------------------------------------------------------- an event's page
@@ -519,7 +554,7 @@
     const when = esc(dateLabel(e.date_text || e.date_start || "")) + (e.date_end && e.date_end !== e.date_start ? ` → ${esc(dateLabel(e.date_end))}` : "");
     const where = e.lat != null ? ` · ${coordLink(e.lat, e.lon, e.title)} · ${mapLink(e.lat, e.lon, e.title, "event")}` : "";
     const src = e.bibkey ? hist.index.pages.find((x) => x.slug === `source/${e.bibkey}`) : null;
-    el.innerHTML = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), `<span class="kind">event</span>`) + `<h2>${esc(e.title)}</h2>` +
+    el.innerHTML = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">event</span>`, `event/${id}`)) + `<h2>${esc(e.title)}</h2>` +
       `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>event · ${when}${e.place ? " · " + esc(e.place) : ""}${where}</div>` +
       peopleStrip(e.people) +
       `<div class="wiki">${markdown(e.detail || "")}</div>` +
@@ -614,7 +649,7 @@
     const K = KINDS[kind];
     if (!K) { el.innerHTML = crumb() + `<div class="empty">no such kind</div>`; return; }
     const h2 = (n, label) => `<h2><span class="dot" style="background:${K.colour}"></span><span class="muted">${n}</span> ${esc(label)}</h2>`;
-    if (kind === "event") { el.innerHTML = crumb("Events") + eventsHTML(); wireEvents(el); return; }
+    if (kind === "event") { el.innerHTML = crumb(here("Events", "kind/event")) + eventsHTML(); wireEvents(el); return; }
     if (kind === "people") {
       // the names down the left; on the right, the faces the backend has cut
       // from the photographs, in alphabetical order, filling the column
@@ -623,13 +658,13 @@
       const list = `<div class="peoplelist">` + letterList(people, (p) => p.name, (p) => `<a class="person ${p.indigenous ? "inuit" : ""}" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${p.also ? ` <span class="muted">(${esc(p.also)})</span>` : ""}${life(p)}${p.role ? `<span class="role">${esc(p.role)}</span>` : ""}</a>`) + `</div>`;
       const faces = (hist.faces || []).filter((f) => f.file).sort((x, y) => (x.person || "￿").localeCompare(y.person || "￿"));
       const wall = faces.length ? `<div class="faces">${faces.map((f) => `<a class="face" href="#history/${esc(f.person_page || f.page)}" data-slug="${esc(f.person_page || f.page)}" title="${esc(f.person || "unidentified")}${f.title ? " · " + esc(f.title) : ""}"><img src="${esc(f.file)}" alt="${esc(f.person || "")}" loading="lazy"></a>`).join("")}</div>` : "";
-      el.innerHTML = crumb("People") + h2(people.length, "People") + `<div class="peoplecols ${wall ? "" : "nofaces"}">${list}${wall}</div>`;
+      el.innerHTML = crumb(here("People", "kind/people")) + h2(people.length, "People") + `<div class="peoplecols ${wall ? "" : "nofaces"}">${list}${wall}</div>`;
       return;
     }
     if (kind === "place") {
       const places = [...hist.places].sort((a, b) => a.name.localeCompare(b.name));
       const names = (p) => [p.inuktitut, p.historic].filter((n) => n && n !== p.name).join(", ");
-      el.innerHTML = crumb("Places") + h2(places.length, "Places") + `<div class="peoplelist">` +
+      el.innerHTML = crumb(here("Places", "kind/place")) + h2(places.length, "Places") + `<div class="peoplelist">` +
         letterList(places, (p) => p.name, (p) => `<a class="person" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${names(p) ? ` <span class="muted">(${esc(names(p))})</span>` : ""} <span class="muted small">${esc(p.kind || "")}</span>` +
           (p.lat != null ? ` ${mapLink(p.lat, p.lon, p.name, "place")}` : "") + (p.note ? `<span class="role">${esc(p.note.length > 160 ? p.note.slice(0, 157) + "…" : p.note)}</span>` : "") + `</a>`) + `</div>`;
       return;
@@ -645,7 +680,7 @@
       const byTopic = new Map(); for (const a of arts) { if (!byTopic.has(a.topic)) byTopic.set(a.topic, []); byTopic.get(a.topic).push(a); }
       body = [...byTopic.entries()].map(([t, xs]) => `<h3><span class="dot" style="background:${topicColour(t)}"></span><span class="muted">${xs.length}</span> <a href="#history/topic/${esc(t)}" data-topic="${esc(t)}">${esc(topicOf(t)?.title || t)}</a></h3>${grid(xs)}`).join("");
     } else body = grid(arts);
-    el.innerHTML = crumb(esc(K.label)) + h2(arts.length, K.label) + body;
+    el.innerHTML = crumb(here(esc(K.label), `kind/${kind}`)) + h2(arts.length, K.label) + body;
   }
   // the backend's keywords are paths ("Ships > Whalers > Dundee fleet"); the
   // page is a section per first word, a heading per second, the rest as tags
@@ -777,7 +812,7 @@
   async function renderBib(el) {
     const bib = await bibliography();
     const sorted = [...bib].sort((a, b) => (a.author || a.title || "").localeCompare(b.author || b.title || ""));
-    el.innerHTML = crumb("Bibliography") + `<h2>Bibliography <span class="muted">${sorted.length} works</span></h2>` +
+    el.innerHTML = crumb(here("Bibliography", "bib")) + `<h2>Bibliography <span class="muted">${sorted.length} works</span></h2>` +
       `<div class="bibexport"><span class="lbl">Export</span><a class="chip small" href="data/history/references.bib" download title="the build's own BibTeX file">BibTeX</a><button type="button" class="chip small" data-export="ris" title="RIS, for EndNote, Zotero and Mendeley">RIS</button><button type="button" class="chip small" data-export="csl" title="CSL-JSON, for citation processors and Zotero">CSL-JSON</button><button type="button" class="chip small" data-export="txt" title="the MLA list as plain text">Plain text</button></div>` +
       `<ol class="mla">${sorted.map((e) => `<li id="bib-${esc(e.key)}">${mla(e)} <a class="muted small" href="#history/source/${esc(e.key)}" data-slug="source/${esc(e.key)}">page</a></li>`).join("")}</ol>`;
     for (const b of el.querySelectorAll("button[data-export]")) b.onclick = () => {
@@ -867,6 +902,8 @@
     } else focusPoint(a.lat, a.lon, a.title);
   }
   document.addEventListener("click", (e) => {
+    const kw = e.target.closest('#pane-history a[href^="#kw-"]');
+    if (kw) { e.preventDefault(); document.getElementById(kw.getAttribute("href").slice(1))?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
     const pin = e.target.closest("#pane-history .pin[data-lat]");
     if (pin) { e.preventDefault(); e.stopPropagation(); focusPoint(pin.dataset.lat, pin.dataset.lon, pin.dataset.label, pin.dataset.type); return; }
     const a = e.target.closest("#pane-history a[data-slug], #pane-history a[data-topic]");
