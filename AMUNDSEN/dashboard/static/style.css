@@ -717,7 +717,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .pagelist .pglink { background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--fg); }
 .histyears { gap: 6px; } .histyears .lbl { color: var(--muted); font-size: 12.5px; }
 .histyears input[type=number] { width: 68px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font: inherit; font-size: 12.5px; }
-#histtypes button .dot { margin-right: 4px; }
+#histkinds button .dot { margin-right: 4px; }
 .histtimeline { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
 .histask { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 .histask input { flex: 1; min-width: 240px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; font: inherit; }
@@ -828,13 +828,13 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 .histmain .wanted { border-bottom: 0; color: var(--muted); }
 .chat .msg .cite, .histanswer .cite { border-bottom: 0; }
 .peoplelist .person.inuit b { border-bottom: 0; color: var(--accent-2); }
-#pane-history .chip, #pane-history #histtypes button, .maplayers .histlayers button, .chat .chatrooms button, .chat .chatpicker button,
+#pane-history .chip, #pane-history #histkinds button, .maplayers .histlayers button, .chat .chatrooms button, .chat .chatpicker button,
 #pane-history .pglink, #pane-history .artcard, #pane-history .topiccard, #pane-history .vig, #pane-history .person, .chatcrew .mention {
   border: 1px solid var(--line); background: var(--card-2); color: var(--fg); border-radius: 8px; transition: border-color .12s; }
-#pane-history .chip:hover, #pane-history #histtypes button:hover, .maplayers .histlayers button:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
+#pane-history .chip:hover, #pane-history #histkinds button:hover, .maplayers .histlayers button:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
 #pane-history .pglink:hover, #pane-history .artcard:hover, #pane-history .topiccard:hover, #pane-history .vig:hover, #pane-history .person:hover, .chatcrew .mention:hover {
   border-color: var(--accent); background: var(--card-2); color: var(--fg); }
-#pane-history .chip.on, #pane-history #histtypes button.on, .maplayers .histlayers button.on, .chat .chatrooms button.on {
+#pane-history .chip.on, #pane-history #histkinds button.on, .maplayers .histlayers button.on, .chat .chatrooms button.on {
   border-color: var(--accent); color: var(--accent); background: var(--card-2); font-weight: 600; box-shadow: none; }
 #pane-history .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
 #pane-history .topiccard { border-left-width: 4px; }
@@ -844,3 +844,25 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 #pane-history .person:hover { border-color: var(--accent); background: transparent; }
 /* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
 #satpill { min-width: 7.2em; text-align: center; }
+
+/* the History tools: Back, Map, Explore, Ask Ada, the search, one chip per kind, Bibliography */
+.histtools .histkinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.histtools #histback:disabled { opacity: .45; cursor: default; }
+.histtools #histback:disabled:hover { border-color: var(--line); }
+#pane-history .chip.small { padding: 2px 9px; }
+/* the vignettes: five lines, the rest behind "see more" */
+#pane-history .vig .pin { margin-left: 4px; }
+#pane-history button.more { display: block; margin: 4px 0 0 4px; background: transparent; border: 0; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; padding: 2px 0; }
+#pane-history button.more:hover { color: var(--accent-2); }
+/* the kind pages */
+.histmain h2 .dot { width: 12px; height: 12px; margin-right: 8px; vertical-align: baseline; }
+.artgrid.pictures { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.artgrid.pictures .artcard .thumb { height: 150px; }
+.peoplelist .person .pin { margin-left: 4px; cursor: pointer; }
+/* the Events page: the timeline chart above the table, like the Event Log's */
+.histmain .castplot { margin: 6px 0 14px; }
+.histmain .castplot .plot { height: 420px; }
+table.sched.timeline tr { scroll-margin-top: 60px; }
+/* the bibliography's exports */
+.bibexport { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; }
+.bibexport .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 4px; }

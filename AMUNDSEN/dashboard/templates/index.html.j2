@@ -146,17 +146,14 @@
     </div>
 
     <div class="pane" id="pane-history" hidden>
-      <div class="pane-tools compact">
-        <input type="search" id="histsearch" placeholder="search the wiki: voyages, people, places, artifacts">
-        <select id="histtopic" title="one topic, or all of them"><option value="">all topics</option></select>
-        <div class="group seg small" id="histtypes" title="which kinds of artifact the map and the lists show"></div>
+      <div class="pane-tools compact histtools">
+        <button type="button" id="histback" class="chip" title="back to the view before">‹ Back</button>
+        <button type="button" id="histmap" class="chip" title="how much of the page the map takes: half, all of it, or none">Half Map</button>
         <button type="button" id="histexplore" class="chip" title="every topic, with its pages and artifacts">Explore</button>
-        <button type="button" id="histpeople" class="chip" title="everyone in the record, by name">People</button>
-        <button type="button" id="histtl" class="chip" title="every dated event, as a table, from 1500">Timeline</button>
-        <button type="button" id="histmla" class="chip" title="the bibliography of everything cited, in MLA form">MLA</button>
-        <a id="histbib" class="chip" href="data/history/references.bib" download title="the bibliography as BibTeX">BibTeX</a>
-        <button type="button" id="histask" class="chip ask" title="open the Library in the chat: Ada answers from the wiki, with the pages read">Ask Ada</button>
-        <span class="muted" id="histmeta"></span>
+        <button type="button" id="histask" class="chip ask" title="open the Library in the chat: Ada answers from the record, with the pages read">Ask Ada</button>
+        <input type="search" id="histsearch" placeholder="search: voyages, people, places, artifacts">
+        <div class="group histkinds" id="histkinds" title="everything of a kind, on one page"></div>
+        <button type="button" id="histbibchip" class="chip" title="every work cited, in MLA form, with the list to export">Bibliography</button>
       </div>
       <article class="histmain" id="histmain"><div class="empty">Loading the history…</div></article>
     </div>
