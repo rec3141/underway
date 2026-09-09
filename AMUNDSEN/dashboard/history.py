@@ -44,9 +44,48 @@ try:
             log.warning("history publish failed (%s); no earlier publish to keep", e)
             return None
         if entry:
+            thumbnails(root)
             last.parent.mkdir(parents=True, exist_ok=True)
             last.write_text(json.dumps(entry))
         return entry
+
+    def thumbnails(root: Path, width: int = 480) -> int:
+        """A small JPEG beside every published picture, so a page of a hundred
+        cards does not load a hundred full-size scans; artifacts.json gains
+        a ``thumb`` on each. One is made when its picture is new or changed."""
+        import json
+        from PIL import Image
+        Image.MAX_IMAGE_PIXELS = None          # our own archive's scans, some of them half a gigapixel
+        out = root / "data" / "history"
+        arts_file = out / "artifacts.json"
+        if not arts_file.is_file():
+            return 0
+        data = json.loads(arts_file.read_text())
+        tdir = out / "thumbs"
+        tdir.mkdir(parents=True, exist_ok=True)
+        made = 0
+        for a in data.get("artifacts", []):
+            if a.get("type") not in ("image", "map") or not a.get("url"):
+                continue
+            if not a["url"].lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff", ".webp", ".bmp")):
+                continue                        # a PDF or a page: the card links to it instead
+            src = root / a["url"]
+            dst = tdir / f"{a['id']}.jpg"
+            if not src.is_file():
+                continue
+            if not dst.is_file() or dst.stat().st_mtime < src.stat().st_mtime:
+                try:
+                    with Image.open(src) as im:
+                        im = im.convert("RGB")
+                        im.thumbnail((width, width * 2))
+                        im.save(dst, "JPEG", quality=82, optimize=True)
+                    made += 1
+                except Exception as e:              # noqa: BLE001
+                    log.warning("no thumbnail for %s: %s", src.name, e)
+                    continue
+            a["thumb"] = f"data/history/thumbs/{dst.name}"
+        arts_file.write_text(json.dumps(data, ensure_ascii=False))
+        return made
 except ImportError:
     AVAILABLE = False
     HISTORY_DIR = ROOT / "db" / "history"

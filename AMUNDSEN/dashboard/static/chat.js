@@ -69,7 +69,7 @@
     if (isDM(st.room) && !dms.some((r) => r.channel === st.room)) dms.unshift(roomInfo(st.room));   // a room just opened, empty so far
     roomsEl.innerHTML = [...fixed, ...dms].map((r) => {
       const fresh = r.channel !== st.room && (st.latest[r.channel] || 0) > (st.seen[r.channel] || 0);
-      return `<button type="button" data-ch="${esc(r.channel)}" class="${r.channel === st.room ? "on" : ""} ${r.kind}" title="${esc(r.kind === "dm" ? "direct messages with " + r.title : r.channel === "ship" ? "the ship's room: everyone; the crew answer when @mentioned" : r.channel === "crew" ? "the AI crew's room" : "the Library: Ada answers questions from the History wiki")}"><span class="rdot" ${fresh ? "" : "hidden"}></span>${esc(r.title)}</button>`;
+      return `<button type="button" data-ch="${esc(r.channel)}" class="${r.channel === st.room ? "on" : ""} ${r.kind}" title="${esc(r.kind === "dm" ? "direct messages with " + r.title : r.channel === "ship" ? "the ship's room: everyone; the crew answer when @mentioned" : r.channel === "crew" ? "the AI crew's room" : "the Library: ask Ada about the region's past")}"><span class="rdot" ${fresh ? "" : "hidden"}></span>${esc(r.title)}</button>`;
     }).join("") + `<button type="button" id="chatnew" title="a direct message with someone here, or with a crew member">+</button>` +
       // the room's own tools sit at the right end of the row, out of the head
       `<span class="tools">${st.room === "ship" ? `<button type="button" id="chataibtn" title="${st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names"}">${st.noai ? "show AI" : "hide AI"}</button>` : ""}` +
@@ -161,13 +161,13 @@
       else {
         who.classList.remove("warn");
         who.textContent = isDM(room) ? (st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
-          : room === "ada" ? "the Library: Ada answers from the History wiki"
+          : room === "ada" ? "the Library: ask Ada about the region's past"
           : st.online.length ? `${st.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
       }
       who.title = st.online.map((n) => n.name).join(", ");
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
       const noai = st.noai && room === "ship";
-      typing.hidden = !t.length || noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} ${room === "ada" || t.some((c) => c.handle === "ada") ? "reading the wiki…" : "typing…"}` : "";
+      typing.hidden = !t.length || noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} ${room === "ada" || t.some((c) => c.handle === "ada") ? "looking it up…" : "typing…"}` : "";
       // the crew line: who belongs to this room, and whether their model is up
       const on = st.modelOn;
       const light = `<span class="mdot ${on ? "on" : "off"}" title="${on ? "model online: " + esc(j.model || "") : "no model loaded: the crew cannot answer (" + esc(j.model || "") + "); the operator has been told"}"></span>`;
@@ -175,7 +175,7 @@
       crewEl.hidden = !st.crew.length || noai;
       crewEl.innerHTML = !st.crew.length ? "" : room === "ship"
         ? `${light}AI crew${on ? "" : " offline"}, answer when mentioned: ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ")
-        : `${light}${on ? "" : "offline: no model loaded, and the chat never loads one itself. "}${members.map((c) => `${esc(c.emoji)} ${esc(c.name)}`).join(", ")}${members.length ? (room === "ada" ? " answers from the wiki and names the pages read" : room === "crew" ? " are here and may speak first" : " is here and may speak first") : ""}`;
+        : `${light}${on ? "" : "offline: no model loaded, and the chat never loads one itself. "}${members.map((c) => `${esc(c.emoji)} ${esc(c.name)}`).join(", ")}${members.length ? (room === "ada" ? " is here" : room === "crew" ? " are here and may speak first" : " is here and may speak first") : ""}`;
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
       el.classList.toggle("model-off", !on);
       layout();
