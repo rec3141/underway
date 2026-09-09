@@ -398,16 +398,14 @@ def quote_of(description: str, limit: int = 240) -> str:
     return t if len(t) <= limit else t[:limit - 3].rstrip() + "…"
 
 
-def answer_chips(pages: list[dict], text: str, limit: int = 3) -> list[dict]:
-    """The pictures and the words behind an answer: for the pages it cites,
-    in order, the artifacts they hold — a picture with a thumbnail or a
-    quote — for the chat to set one between the paragraphs. One from each
-    page first, then seconds; never more than the gaps between paragraphs."""
+def artifact_shelf(pages: list[dict], limit: int = 8) -> list[dict]:
+    """The pictures and the words behind the pages Ada is reading: the
+    artifacts those pages link — a picture with a thumbnail or a quote —
+    one from each page first, then seconds, numbered P1, P2, ... for her to
+    choose from. She sees the shelf; the chat shows what she picks."""
     arts = artifacts_by_id()
     if not arts or not pages or not ROOT:
         return []
-    n_par = len([p for p in re.split(r"\n\s*\n", text or "") if p.strip()])
-    limit = max(1, min(limit, n_par - 1))
     per_page: list[list[dict]] = []
     for p in pages:
         slug = p.get("slug", "")
@@ -437,11 +435,47 @@ def answer_chips(pages: list[dict], text: str, limit: int = 3) -> list[dict]:
             a = next((x for x in good if x["id"] not in seen), None)
             if a:
                 seen.add(a["id"])
-                out.append({"slug": a.get("page", f"artifact/{a['id']}"), "type": a["type"], "title": a.get("title", ""),
-                            "thumb": a.get("thumb", "") if a["type"] != "quote" else "",
+                out.append({"n": len(out) + 1, "id": a["id"], "slug": a.get("page", f"artifact/{a['id']}"), "type": a["type"],
+                            "title": a.get("title", ""), "thumb": a.get("thumb", "") if a["type"] != "quote" else "",
                             "quote": quote_of(a.get("description", "")) if a["type"] == "quote" else "",
+                            "description": (a.get("description") or "")[:200],
                             "year": (a.get("date_text") or a.get("date_start") or "")[:40], "credit": a.get("creator") or a.get("credit") or ""})
     return out
+
+
+def shelf_lines(shelf: list[dict]) -> str:
+    """The shelf as Ada reads it: a line per item, with the tag she sets."""
+    return "\n".join(f"{{P{c['n']}}} {c['type']}" + (f" · {c['year']}" if c["year"] else "") + f" · {c['title']}"
+                     + (f": {c['quote']}" if c["quote"] else f": {c['description']}" if c["description"] else "") for c in shelf)
+
+
+_TAG_RX = re.compile(r"\s*[\{\[\(]\s*P\s?(\d{1,2})\s*[\}\]\)]")
+
+
+def chosen_chips(text: str, shelf: list[dict]) -> tuple[str, list[dict]]:
+    """The chips Ada chose: each {P3} she set names an item on the shelf, and
+    the chip goes after the paragraph she set it in. The tags leave the text.
+    One chip per paragraph, the first tag winning; a tag that names nothing
+    is dropped."""
+    if not shelf or not text:
+        return _TAG_RX.sub("", text or ""), []
+    by_n = {c["n"]: c for c in shelf}
+    chips, seen, paras = [], set(), re.split(r"(\n\s*\n)", text)
+    idx = 0
+    for k, part in enumerate(paras):
+        if k % 2:                                   # a gap between paragraphs
+            continue
+        tags = [int(m.group(1)) for m in _TAG_RX.finditer(part)]
+        paras[k] = _TAG_RX.sub("", part)
+        if paras[k].strip():
+            for n in tags:
+                c = by_n.get(n)
+                if c and c["id"] not in seen:
+                    seen.add(c["id"])
+                    chips.append({k2: v for k2, v in c.items() if k2 not in ("n", "id", "description")} | {"para": idx})
+                    break
+            idx += 1
+    return "".join(paras), chips
 
 
 # ---------------------------------------------------------------- names and places

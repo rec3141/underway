@@ -23,7 +23,7 @@ def test_numbers_and_titles_become_links_and_the_rest_lose_their_brackets():
     assert [r["slug"] for r in refs] == ["person/sverre-hassel", "sverdrup-four-winters"]
 
 
-def test_chips_come_from_the_cited_pages_in_order_and_fit_the_paragraphs(tmp_path, monkeypatch):
+def test_the_shelf_holds_the_cited_pages_pictures_and_words_and_ada_picks_from_it(tmp_path, monkeypatch):
     hist = tmp_path / "data" / "history"
     (hist / "pages").mkdir(parents=True)
     arts = [{"id": "a-1", "type": "image", "title": "The Fram in the ice", "thumb": "data/history/thumbs/a-1.jpg", "page": "artifact/a-1", "date_text": "1899", "people": []},
@@ -34,12 +34,17 @@ def test_chips_come_from_the_cited_pages_in_order_and_fit_the_paragraphs(tmp_pat
     (hist / "pages" / "sverdrup-four-winters.json").write_text(json.dumps({"html": "See [the ship](artifact/a-1), [a report](artifact/a-3) and [the words](artifact/a-2)."}))
     monkeypatch.setattr(chat, "ROOT", tmp_path)
     chat._art_cache.update(stamp=None, by_id={})
-    three = "one\n\ntwo\n\nthree"
-    chips = chat.answer_chips(PAGES, three)
-    assert [c["slug"] for c in chips] == ["artifact/a-1", "artifact/a-2"]     # the picture first, the text skipped, the quote from the person's own list
-    assert chips[0]["thumb"] == "data/history/thumbs/a-1.jpg" and chips[1]["quote"].startswith("the dogs were the whole of it")
-    assert len(chat.answer_chips(PAGES, "one paragraph only")) == 1          # one chip for one paragraph
-    assert chat.answer_chips([], three) == []
+    shelf = chat.artifact_shelf(PAGES)
+    assert [(c["n"], c["slug"]) for c in shelf] == [(1, "artifact/a-1"), (2, "artifact/a-2")]   # the picture, then the quote from the person's own list; the text and the picture without a thumbnail left out
+    lines = chat.shelf_lines(shelf)
+    assert lines.startswith("{P1} image · 1899 · The Fram in the ice") and "{P2} quote · 1901 · Sverdrup on the dogs: the dogs were" in lines
+    text = "The ship froze in {P1}.\n\nThe dogs did the work [P2] and again (P2).\n\nNothing here {P9}."
+    clean, chips = chat.chosen_chips(text, shelf)
+    assert clean == "The ship froze in.\n\nThe dogs did the work and again.\n\nNothing here."
+    assert [(c["para"], c["slug"]) for c in chips] == [(0, "artifact/a-1"), (1, "artifact/a-2")]
+    assert chips[1]["quote"].startswith("the dogs were the whole of it") and "id" not in chips[1]
+    assert chat.chosen_chips("no tags at all", shelf) == ("no tags at all", [])
+    assert chat.artifact_shelf([]) == []
 
 
 def test_quote_of_prefers_the_quoted_passage():

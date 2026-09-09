@@ -117,12 +117,13 @@
   const isCrew = (name) => st.crew.some((c) => c.name === name);
   // an artifact the answer rests on, as a chip: a picture with its title, or the words of a quote
   const chipHTML = (c) => `<a class="artchip ${esc(c.type)} ${c.thumb ? "" : "nomedia"}" href="#history/${esc(c.slug)}" data-slug="${esc(c.slug)}" title="${esc(c.title)}">${c.thumb ? `<img src="${esc(c.thumb)}" alt="" loading="lazy">` : ""}<span class="body"><span class="kind">${esc(c.type)}${c.year ? " · " + esc(c.year) : ""}${c.credit ? " · " + esc(c.credit) : ""}</span>${c.quote ? `<q>${esc(c.quote)}</q>` : `<b>${esc(c.title)}</b>`}</span></a>`;
-  // the text with Ada's chips set between its paragraphs, one per gap while they last
+  // the text with the chips Ada chose after the paragraphs she chose them for
   const bodyHTML = (m) => {
     const chips = m.meta?.chips || [];
     if (!chips.length) return linkify(m.text);
     const paras = String(m.text || "").split(/\n\s*\n/);
-    return paras.map((p, i) => linkify(p) + (chips[i] ? `<div class="chips">${chipHTML(chips[i])}</div>` : i < paras.length - 1 ? "\n\n" : "")).join("");
+    const at = (i) => chips.filter((c, k) => Math.min(c.para ?? k, paras.length - 1) === i);
+    return paras.map((p, i) => linkify(p) + (at(i).length ? `<div class="chips">${at(i).map(chipHTML).join("")}</div>` : i < paras.length - 1 ? "\n\n" : "")).join("");
   };
   const pagesHTML = (m) => m.meta?.refs?.length
     ? `<ol class="refs">${m.meta.refs.map((p) => `<li value="${p.n}"><a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a></li>`).join("")}</ol>`
