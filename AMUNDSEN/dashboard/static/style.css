@@ -904,3 +904,16 @@ main.mapfull.tab-history .map { grid-row: 2 / 4; }
 #pane-history #histexplore:hover, #pane-history #histexplore.on { border-color: #ff7b72; color: #ffd0cc; box-shadow: 0 0 0 1px #ff7b72 inset; }
 /* a route drawn large on its own page */
 .routefig { margin: 6px 0 12px; } .routefig .sketch.large { width: min(100%, 560px); height: auto; aspect-ratio: 8 / 5; }
+/* the kinds in their hierarchy: a head with its kinds beside it in a box; People on the map is a label */
+.kgroup { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 4px 2px 2px; border: 1px solid var(--line); border-radius: 10px; }
+.kgroup .sub, .maplayers .histlayers .kgroup .sub { font-size: 11px; padding: 1px 7px; }
+.ghead { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding: 0 4px 0 6px; }
+/* the people on an artifact or an event; the people and places a page names */
+.histmain .artpeople, .histmain .onpage { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 12.5px; }
+.histmain .artpeople .lbl, .histmain .onpage .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 2px; }
+.histmain .onpage { margin-top: 12px; }
+.histmain .onpage a { color: var(--fg); background: var(--card-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: 12px; }
+.histmain .onpage a:hover { border-color: var(--accent); }
+.histmain .wiki a.auto { border-bottom: 1px dotted var(--muted); }
+.histmain .wiki .imglink img { display: block; }
+.topicfig a img:hover { border-color: var(--accent); }
