@@ -307,11 +307,15 @@ shore at zoom 9. A vector tile set cut from the OpenStreetMap land polygons
 source and GDAL live, and copied to the ship:
 
 ```sh
-ogr2ogr -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTIPOLYGON arctic_coast.gpkg land_polygons.shp -nln land
-ogr2ogr -update -dialect SQLite -sql "SELECT ST_Boundary(geom) AS geom FROM land" -nlt MULTILINESTRING arctic_coast.gpkg arctic_coast.gpkg -nln coast
-ogr2ogr -f MVT coast arctic_coast.gpkg -dsco MINZOOM=0 -dsco MAXZOOM=10 -dsco COMPRESS=NO
+ogr2ogr -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTILINESTRING coast.gpkg coastlines-split-4326/lines.shp -nln coast
+ogr2ogr -update -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTIPOLYGON coast.gpkg land-polygons-split-4326/land_polygons.shp -nln land
+ogr2ogr -f MVT coast coast.gpkg -dsco MINZOOM=0 -dsco MAXZOOM=10 -dsco COMPRESS=NO
 rsync -a coast/ ship:/data/gis/tiles/coast/
 ```
+
+The shoreline must come from OSM's coastline *lines*, not from the boundary
+of the land polygons: the polygons are shipped split into a grid, and their
+boundaries include every cut, which draws as a lattice over the land.
 
 The build reads the writer's `metadata.json` for the zoom range, bounds and
 layer names (`vector_tiles` in `build.py`); the map then draws the `coast`
