@@ -921,8 +921,14 @@ main.mapfull.tab-history .map { grid-row: 2 / 4; }
 .histmain .wiki a.auto { border-bottom: 1px dotted var(--muted); }
 .histmain .wiki .imglink img { display: block; }
 .topicfig a img:hover { border-color: var(--accent); }
-/* a narrative's artifacts as cards after the paragraph that mentions them */
-.histmain .inrefs { margin: 0 0 14px; }
+/* a narrative's artifacts as cards beside the paragraph that mentions them, the text flowing round */
+.histmain .inrefs { width: 236px; display: flex; flex-direction: column; gap: 8px; margin: 4px 0 10px; }
+.histmain .inrefs.right { float: right; clear: right; margin-left: 16px; }
+.histmain .inrefs.left { float: left; clear: left; margin-right: 16px; }
+.histmain .inrefs .artcard { display: grid; grid-template-columns: 1fr; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--fg); font-size: 12.5px; }
+.histmain .inrefs .artcard:hover { border-color: var(--accent); }
+.histmain .wiki h2, .histmain .wiki h3, .histmain .wiki h4, .histmain .wiki hr, .histmain .onpage, .histmain .backlinks { clear: both; }
+@media (max-width: 700px) { .histmain .inrefs, .histmain .inrefs.left, .histmain .inrefs.right { float: none; width: auto; margin: 0 0 12px; } }
 .artchip { display: flex; align-items: stretch; gap: 8px; max-width: 260px; min-width: 150px; overflow: hidden; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; color: var(--fg); font-size: 11.5px; text-decoration: none; }
 .artchip:hover { border-color: var(--accent); }
 .artchip img, .artchip .sketch { width: 64px; height: 56px; object-fit: cover; flex: 0 0 auto; background: #0b1620; }

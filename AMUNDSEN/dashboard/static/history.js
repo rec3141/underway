@@ -542,17 +542,19 @@
     if (p.kind === "page") enrich(el.querySelector(".wiki"));
     el.scrollTop = 0; window.scrollTo?.(0, 0);
   }
-  // a narrative's artifacts where the text reaches them: after each block
-  // that links artifacts, the cards of those not shown higher up
+  // a narrative's artifacts where the text reaches them: the cards of those
+  // a block links, not shown higher up, set beside it with the text flowing
+  // round them, on the right and the left by turns
   function enrich(root) {
     if (!root) return;
     const shown = new Set();
+    let side = 0;
     for (const block of [...root.querySelectorAll("p, ul, ol, blockquote, .hscroll")]) {
       if (block.closest(".inrefs")) continue;
       const arts = [...block.querySelectorAll('a[data-slug^="artifact/"]')].map((x) => artifactById(x.dataset.slug.slice(9))).filter((x) => x && !shown.has(x.id));
       if (!arts.length) continue;
       for (const x of arts) shown.add(x.id);
-      block.insertAdjacentHTML("afterend", `<div class="artgrid inrefs">${arts.map((a) => artifactCard(a, { creator: true })).join("")}</div>`);
+      block.insertAdjacentHTML("beforebegin", `<div class="inrefs ${side++ % 2 ? "left" : "right"}">${arts.map((a) => artifactCard(a, { creator: true })).join("")}</div>`);
     }
   }
   // ---------------------------------------------------------------- an event's page
