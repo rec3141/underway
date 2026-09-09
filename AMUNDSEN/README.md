@@ -284,6 +284,11 @@ tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
     "$UNDERWAY_TILES_DIR/gebco" -150 45 -15 86 9-9       # the Arctic box at z9
 ```
 
+With `LAND` set to the OSM land polygons (see the coastline section below) and
+`LAND_BBOX` to their box, the shore inside that box comes from the polygons
+rather than GEBCO's zero contour, so a strait the polygons keep open stays
+open in the picture; `rerender-world.sh` on the ship sets both.
+
 When `gebco/` exists under `UNDERWAY_TILES_DIR` the map draws it beneath the
 vector layers instead of the Natural Earth depth bands. The build reads the
 directory and puts each run of zooms into the map as its own source — the
