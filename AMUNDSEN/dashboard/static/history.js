@@ -37,6 +37,7 @@
     types: new Set(store.get("hist.types", Object.keys(TYPES))),   // the kinds the map layer shows
     search: "",
     faces: null,                                          // the face crops the backend publishes, or null
+    coast: null,                                          // the coastline (Natural Earth) as lines, for the route sketches
     more: { today: false, here: false },                  // the vignettes unfolded
     pages: new Map(),                                     // slug -> page JSON, this generation
   };
@@ -63,6 +64,18 @@
       return true;
     })().finally(() => { hist.loading = null; });
     return hist.loading;
+  }
+  // the coastline under the route sketches: fetched once, as arrays of [lon, lat]
+  let coastLoading = null;
+  function ensureCoast() {
+    if (hist.coast) return Promise.resolve(hist.coast);
+    if (coastLoading) return coastLoading;
+    coastLoading = UW.fetchJSON("static/geo/coastline.geojson").then((g) => {
+      const lines = [];
+      for (const f of g.features || []) { const gm = f.geometry; if (!gm) continue; if (gm.type === "LineString") lines.push(gm.coordinates); else if (gm.type === "MultiLineString") lines.push(...gm.coordinates); }
+      hist.coast = lines; return lines;
+    }).catch(() => { hist.coast = []; return []; }).finally(() => { coastLoading = null; });
+    return coastLoading;
   }
   async function page(slug) {
     if (hist.pages.has(slug)) return hist.pages.get(slug);
@@ -286,7 +299,7 @@
   // a pair of coordinates as a link that puts the map there
   // (spans, not anchors: they sit inside cards and rows that are links themselves)
   const coordLink = (lat, lon, label = "") => `<span class="pin coord mono" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" title="on the map">${(+lat).toFixed(3)}, ${(+lon).toFixed(3)}</span>`;
-  const mapLink = (lat, lon, label = "") => `<span class="pin maplink" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" title="on the map">map ↗</span>`;
+  const mapLink = (lat, lon, label = "", type = "") => `<span class="pin maplink" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" data-type="${esc(type)}" title="on the map">map ↗</span>`;
   function markdown(md) {
     const lines = String(md || "").replace(/\r/g, "").split("\n");
     const out = []; let para = [], list = null, quote = [], table = null;
@@ -323,16 +336,34 @@
   const crumb = (...rest) => `<div class="crumb"><a href="#history/" data-slug="">History</a>${rest.map((r) => ` › ${r}`).join("")}</div>`;
   // a route as a small drawing: the line in a box, north up, longitudes
   // shrunk by the cosine of the latitude so the shape is roughly right
-  function trackSketch(a) {
+  // the coastline is drawn beneath it when it has loaded (ensureCoast)
+  function trackSketch(a, W = 120, H = 72, cls = "sketch") {
     const c = a.geometry?.coordinates; if (!c || c.length < 2) return "";
     const lat0 = c.reduce((s, p) => s + p[1], 0) / c.length, k = Math.cos(lat0 * Math.PI / 180);
     const xs = c.map((p) => p[0] * k), ys = c.map((p) => p[1]);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const W = 120, H = 72, pad = 6, sc = Math.min((W - 2 * pad) / Math.max(x1 - x0, 1e-6), (H - 2 * pad) / Math.max(y1 - y0, 1e-6));
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    // some room around the route, and a box at least a degree or so across
+    const mx = Math.max((x1 - x0) * .18, .6), my = Math.max((y1 - y0) * .18, .4);
+    x0 -= mx; x1 += mx; y0 -= my; y1 += my;
+    const sc = Math.min(W / (x1 - x0), H / (y1 - y0));
     const ox = (W - (x1 - x0) * sc) / 2, oy = (H - (y1 - y0) * sc) / 2;
-    const pts = c.map((p, i) => `${(ox + (xs[i] - x0) * sc).toFixed(1)},${(oy + (y1 - ys[i]) * sc).toFixed(1)}`).join(" ");
+    const X = (x) => (ox + (x - x0) * sc).toFixed(1), Y = (y) => (oy + (y1 - y) * sc).toFixed(1);
+    let coast = "";
+    if (hist.coast) {
+      const lo0 = x0 / k, lo1 = x1 / k, runs = [];
+      for (const line of hist.coast) {
+        let run = [];
+        for (const p of line) {
+          if (p[0] >= lo0 && p[0] <= lo1 && p[1] >= y0 && p[1] <= y1) run.push(`${X(p[0] * k)},${Y(p[1])}`);
+          else if (run.length) { if (run.length > 1) runs.push(run.join(" ")); run = []; }
+        }
+        if (run.length > 1) runs.push(run.join(" "));
+      }
+      coast = runs.map((r) => `<polyline points="${r}" fill="none" stroke="#3a4a5c" stroke-width="1"/>`).join("");
+    }
+    const pts = c.map((p, i) => `${X(xs[i])},${Y(ys[i])}`).join(" ");
     const col = topicColour(a.topic);
-    return `<svg class="sketch" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${pts.split(" ")[0].split(",")[0]}" cy="${pts.split(" ")[0].split(",")[1]}" r="2.6" fill="${col}"/></svg>`;
+    return `<svg class="${cls}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${coast}<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${X(xs[0])}" cy="${Y(ys[0])}" r="2.6" fill="${col}"/></svg>`;
   }
   const trackMid = (a) => { const c = a.geometry?.coordinates; if (!c?.length) return [a.lat, a.lon]; const m = c[Math.floor(c.length / 2)]; return [m[1], m[0]]; };
   // the words themselves: the longest quoted passage in the description if it
@@ -353,7 +384,7 @@
     const quote = a.type === "quote" && a.description ? `<q>${esc(quoteOf(a.description))}</q>` : "";
     const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
     return `<a class="artcard ${esc(a.type)}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${media}<span class="dot" style="background:${t.colour || "#8b9bb0"}"></span>` +
-      `<span class="kind">${esc(a.type)}</span><b>${esc(a.title)}</b>${quote}<span class="when">${esc(fmtDate(a))}${plat != null ? " " + mapLink(plat, plon, a.title) : ""}</span>` +
+      `<span class="kind">${esc(a.type)}</span><b>${esc(a.title)}</b>${quote}<span class="when">${esc(fmtDate(a))}${plat != null ? " " + mapLink(plat, plon, a.title, a.type) : ""}</span>` +
       (opts.creator && a.creator ? `<span class="who">${esc(a.creator)}</span>` : "") + `</a>`;
   }
   function pageLink(p, cls = "") {
@@ -398,6 +429,7 @@
         `<div class="topicgrid">${t.map((x) => topicCard(x, true)).join("")}</div>`;
       return;
     }
+    if (hist.slug === "kind/track" || hist.slug.startsWith("topic/") || hist.slug.startsWith("artifact/")) await ensureCoast();
     if (hist.slug.startsWith("kind/")) { renderKind(el, hist.slug.slice(5)); return; }
     if (hist.slug === "bib") { await renderBib(el); return; }
     if (hist.slug.startsWith("topic/")) {
@@ -430,13 +462,14 @@
       else if (a.url) media = `<p><a class="chip" href="${esc(a.url)}" target="_blank" rel="noopener">open the ${a.type === "text" ? "full text" : esc(a.url.split(".").pop().toUpperCase())} ↗</a></p>`;
       else if (a.source_url) media = `<p><a class="chip" href="${esc(a.source_url)}" target="_blank" rel="noopener">open the resource ↗</a></p>`;
       const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
-      const where = plat != null ? ` · ${a.type === "track" ? "" : coordLink(plat, plon, a.title) + " · "}${mapLink(plat, plon, a.title)}` : "";
+      const where = plat != null ? ` · ${a.type === "track" ? "" : coordLink(plat, plon, a.title) + " · "}${mapLink(plat, plon, a.title, a.type)}` : "";
       const track = a.type === "track" && a.waypoints?.length ? `<div class="hscroll"><table class="waypoints"><tr><th>date</th><th>position</th><th>note</th></tr>${a.waypoints.map((w) => `<tr><td>${esc(dateLabel(w.date || ""))}</td><td>${w.lat != null ? coordLink(w.lat, w.lon, w.note || a.title) : ""}</td><td>${esc(w.note || "")}</td></tr>`).join("")}</table></div>` : "";
       head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || "#8b9bb0"}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}</div>`;
+      if (a.type === "track") media = `<figure class="routefig">${trackSketch(a, 480, 300, "sketch large")}</figure>` + media;
       media += track;
     }
     if (pl && pl.lat != null) {
-      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.place.colour}"></span>${esc(pl.kind || "place")} · ${mapLink(pl.lat, pl.lon, pl.name)}</div>`;
+      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.place.colour}"></span>${esc(pl.kind || "place")} · ${mapLink(pl.lat, pl.lon, pl.name, "place")}</div>`;
     }
     if (p.kind === "source") {
       const bib = await bibliography();
@@ -476,7 +509,7 @@
       const names = (p) => [p.inuktitut, p.historic].filter((n) => n && n !== p.name).join(", ");
       el.innerHTML = crumb("Places") + h2(places.length, "Places") + `<div class="peoplelist">` +
         letterList(places, (p) => p.name, (p) => `<a class="person" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${names(p) ? ` <span class="muted">(${esc(names(p))})</span>` : ""} <span class="muted small">${esc(p.kind || "")}</span>` +
-          (p.lat != null ? ` ${mapLink(p.lat, p.lon, p.name)}` : "") + (p.note ? `<span class="role">${esc(p.note.length > 160 ? p.note.slice(0, 157) + "…" : p.note)}</span>` : "") + `</a>`) + `</div>`;
+          (p.lat != null ? ` ${mapLink(p.lat, p.lon, p.name, "place")}` : "") + (p.note ? `<span class="role">${esc(p.note.length > 160 ? p.note.slice(0, 157) + "…" : p.note)}</span>` : "") + `</a>`) + `</div>`;
       return;
     }
     const arts = hist.artifacts.filter((a) => a.type === kind).sort(byYear);
@@ -565,7 +598,17 @@
     const layout = { ...UW.THEME, margin: { l: 150, r: 12, t: 8, b: 40 }, showlegend: false, dragmode: "pan", barmode: "overlay",
       xaxis: { ...UW.THEME.xaxis, ...yearTicks(lo - pad, hi + pad), range: [from, hi + pad], zeroline: false, title: { text: "year", font: { size: 12 } }, tickfont: { size: 12 } },
       yaxis: { ...UW.THEME.yaxis, type: "category", categoryorder: "array", categoryarray: cats.slice().reverse(), tickfont: { size: 11 }, fixedrange: true } };
-    Plotly.react(gd, traces, layout, UW.CFG).then((g) => { UW.axisZoom(g); g.removeAllListeners?.("plotly_click"); g.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k != null) showEventRow(k); }); });
+    layout.xaxis = { ...layout.xaxis, ...yearTicks(from, hi + pad) };
+    Plotly.react(gd, traces, layout, UW.CFG).then((g) => {
+      UW.axisZoom(g);
+      g.removeAllListeners?.("plotly_click"); g.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k != null) showEventRow(k); });
+      // the year ticks are ours (BCE, AD): recomputed for whatever span is in view
+      g.removeAllListeners?.("plotly_relayout"); g.on("plotly_relayout", () => {
+        const r = g._fullLayout?.xaxis?.range; if (!r) return;
+        const t = yearTicks(r[0], r[1]);
+        if (JSON.stringify(t.tickvals) !== JSON.stringify(g.layout.xaxis.tickvals)) Plotly.relayout(g, { "xaxis.tickvals": t.tickvals, "xaxis.ticktext": t.ticktext });
+      });
+    });
   }
   function showEventRow(key) {
     const host = $("#histevents"), row = host?.querySelector(`tr[data-key="${key}"]`);
@@ -683,9 +726,10 @@
     if (nav.n > 0 && history.state?.hist != null) history.back();
     else open("");
   }
-  function focusPoint(lat, lon, label) {
+  function focusPoint(lat, lon, label, type = "") {
     if (lat == null) return;
     if (!UW.state.history) { UW.state.history = true; store.set("history", true); document.querySelector('#maplayers button[data-layer="history"]')?.classList.add("on"); }
+    if (type && TYPES[type] && !hist.types.has(type)) { hist.types.add(type); store.set("hist.types", [...hist.types]); renderChips(); }
     UW.focusMap(+lat, +lon, label || "");
     if (UW.mapMode?.() === "none") UW.setMapMode("half");
   }
@@ -698,7 +742,7 @@
   }
   document.addEventListener("click", (e) => {
     const pin = e.target.closest("#pane-history .pin[data-lat]");
-    if (pin) { e.preventDefault(); e.stopPropagation(); focusPoint(pin.dataset.lat, pin.dataset.lon, pin.dataset.label); return; }
+    if (pin) { e.preventDefault(); e.stopPropagation(); focusPoint(pin.dataset.lat, pin.dataset.lon, pin.dataset.label, pin.dataset.type); return; }
     const a = e.target.closest("#pane-history a[data-slug], #pane-history a[data-topic]");
     if (!a) return;
     e.preventDefault();
@@ -710,7 +754,12 @@
     if (a.dataset.topic != null) open(`topic/${a.dataset.topic}`);
     else open(a.dataset.slug || "");
   });
-  UW.onHistoryClick = (id) => { if (id.startsWith("place:")) { open(id.slice(6)); return; } const a = artifactById(id.split("|")[0]); if (a) open(a.page); };
+  UW.onHistoryClick = (id, pt) => {
+    // the mark moves to what was clicked; the map keeps its view
+    if (pt && pt.lat != null) UW.state.focus = { lat: +pt.lat, lon: +pt.lon, label: String(pt.text || "").replace(/<[^>]+>/g, "") };
+    if (id.startsWith("place:")) { open(id.slice(6)); return; }
+    const a = artifactById(id.split("|")[0]); if (a) open(a.page);
+  };
 
   // ---------------------------------------------------------------- the map layer
   const prevExtra = UW.extraMapTraces;

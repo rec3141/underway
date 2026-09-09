@@ -896,3 +896,11 @@ footer details .prov { max-height: 45vh; overflow-y: auto; }
 main.mapfull.tab-history .side { display: flex; grid-column: 1 / 3; grid-row: 1; overflow: visible; padding-right: 0; }
 main.mapfull.tab-history .side .histmain { display: none; }
 main.mapfull.tab-history .map { grid-row: 2 / 4; }
+
+/* the History tools stay put while the pane scrolls */
+#pane-history > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+/* Explore is the loud one */
+#pane-history #histexplore { border-color: #ff7b72; color: #ff7b72; }
+#pane-history #histexplore:hover, #pane-history #histexplore.on { border-color: #ff7b72; color: #ffd0cc; box-shadow: 0 0 0 1px #ff7b72 inset; }
+/* a route drawn large on its own page */
+.routefig { margin: 6px 0 12px; } .routefig .sketch.large { width: min(100%, 560px); height: auto; aspect-ratio: 8 / 5; }
