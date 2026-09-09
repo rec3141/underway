@@ -543,7 +543,7 @@
     el.scrollTop = 0; window.scrollTo?.(0, 0);
   }
   // a narrative's artifacts where the text reaches them: after each block
-  // that links artifacts, a row of chips for those not shown higher up
+  // that links artifacts, the cards of those not shown higher up
   function enrich(root) {
     if (!root) return;
     const shown = new Set();
@@ -552,17 +552,9 @@
       const arts = [...block.querySelectorAll('a[data-slug^="artifact/"]')].map((x) => artifactById(x.dataset.slug.slice(9))).filter((x) => x && !shown.has(x.id));
       if (!arts.length) continue;
       for (const x of arts) shown.add(x.id);
-      block.insertAdjacentHTML("afterend", `<div class="inrefs">${arts.map(artifactChip).join("")}</div>`);
+      block.insertAdjacentHTML("afterend", `<div class="artgrid inrefs">${arts.map((a) => artifactCard(a, { creator: true })).join("")}</div>`);
     }
   }
-  // an artifact as a chip: its picture or sketch if it has one, its kind, its title
-  function artifactChip(a) {
-    const t = TYPES[a.type] || {};
-    const picture = a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url);
-    const media = a.type === "track" ? trackSketch(a, 96, 56, "sketch") : picture && (a.type === "image" || a.type === "map") ? `<img src="${esc(a.thumb || a.url)}" alt="" loading="lazy">` : "";
-    return `<a class="artchip ${esc(a.type)} ${media ? "" : "nomedia"}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${media}<span class="body"><span class="kind"><span class="dot" style="background:${t.colour || "#8b9bb0"}"></span>${esc(a.type)}${a._year != null ? ` · ${esc(yearLabel(a._year))}` : ""}</span><b>${esc(a.title)}</b></span></a>`;
-  }
-
   // ---------------------------------------------------------------- an event's page
   // A build from a publisher without event pages: the pane makes one from
   // the record — when and where, the people, the source, the timeline.
