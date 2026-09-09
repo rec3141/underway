@@ -611,10 +611,31 @@ class Crew:
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
                   f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task)}\n\nRECENT CHAT (oldest first)\n{recent}")
         pages = list(self._pages)
-        library = handle == "ada" and channel == "ada"           # her own room: she thinks first, and answers at length
-        text = complete(system, task, ADA_TOKENS if library else MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5, think=library)
+        library = handle == "ada" and channel == "ada"           # her own room: she answers at length (thinking costs minutes and adds little)
+        text = complete(system, task, ADA_TOKENS if library else MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return (text[:ADA_CHARS if library else 2500] or None), pages
+
+    def _pick_chips(self, text: str, shelf: list[dict]) -> tuple[str, list[dict]]:
+        """Ada's second look: her answer paragraph by paragraph beside the
+        shelf, and which item, if any, shows what each paragraph says. A
+        short call with no thinking, a couple of seconds; on any failure the
+        answer stands without chips."""
+        from . import chat
+        paras = [p for p in re.split(r"\n\s*\n", text or "") if p.strip()]
+        if not paras:
+            return text, []
+        user = ("THE ANSWER, paragraph by paragraph\n" + "\n".join(f"paragraph {i + 1}: {p[:400]}" for i, p in enumerate(paras))
+                + "\n\nTHE SHELF\n" + chat.shelf_lines(shelf)
+                + "\n\nWhich item on the shelf shows what a paragraph says? One line per match, 'paragraph N: Pn', at most one item "
+                  "per paragraph and at most three matches; the picture or the words must genuinely illustrate that paragraph. "
+                  "If nothing fits, write 'none'. Lines only, nothing else.")
+        try:
+            reply = complete("You are Ada, the ship's librarian, choosing illustrations for an answer of your own.", user, 160, 0.0)
+        except Exception as e:                  # noqa: BLE001
+            log.info("Ada's second look failed (%s); no chips", e)
+            return text, []
+        return chat.chosen_chips(chat.apply_picks(text, reply), shelf)
 
     def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False) -> None:
         """Generate and post one remark in a room; in the crew's room another
@@ -633,7 +654,10 @@ class Crew:
                     meta = None
                     chips = []
                     if handle == "ada":
-                        text, chips = chat.chosen_chips(text, getattr(self, "_shelf", []))   # the pictures and words she picked, before the brackets are read
+                        shelf = getattr(self, "_shelf", [])
+                        text, chips = chat.chosen_chips(text, shelf)   # the pictures and words she picked, before the brackets are read
+                        if shelf and not chips:
+                            text, chips = self._pick_chips(text, shelf)   # she seldom tags as she writes: a second look at her own answer
                     if pages:
                         text, refs = chat.link_citations(text, [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages])
                         meta = {"refs": refs} if refs else None
