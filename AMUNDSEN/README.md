@@ -292,6 +292,28 @@ boxed run with bounds — so the map never asks for a tile that is not there
 and is **not** committed (a few GB); regenerate it on a new machine. Needs
 GDAL with Python bindings (`gdal-bin python3-gdal` on Ubuntu).
 
+## A finer coastline (optional)
+
+The coastline, land and islands in `static/geo/` are Natural Earth 10 m,
+generalized to about a kilometre, which wanders on and off the relief's own
+shore at zoom 9. A vector tile set cut from the OpenStreetMap land polygons
+(osmdata.openstreetmap.de, ODbL) replaces them when it exists as
+`coast/` under `UNDERWAY_TILES_DIR`. It is built on grid, where the 1.3 GB
+source and GDAL live, and copied to the ship:
+
+```sh
+ogr2ogr -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTIPOLYGON arctic_coast.gpkg land_polygons.shp -nln land
+ogr2ogr -update -dialect SQLite -sql "SELECT ST_Boundary(geom) AS geom FROM land" -nlt MULTILINESTRING arctic_coast.gpkg arctic_coast.gpkg -nln coast
+ogr2ogr -f MVT coast arctic_coast.gpkg -dsco MINZOOM=0 -dsco MAXZOOM=10 -dsco COMPRESS=NO
+rsync -a coast/ ship:/data/gis/tiles/coast/
+```
+
+The build reads the writer's `metadata.json` for the zoom range, bounds and
+layer names (`vector_tiles` in `build.py`); the map then draws the `coast`
+layer as the shoreline and, without the relief raster, the `land` layer as
+land, and fetches neither Natural Earth file. Glaciers and depth bands stay
+Natural Earth.
+
 ## Front end notes
 
 - Plotly's toolbar is off. Drag pans, the wheel zooms, double-click resets, ⟲
