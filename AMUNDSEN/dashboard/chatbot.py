@@ -548,6 +548,7 @@ class Crew:
             except Exception:                   # noqa: BLE001
                 pass
             self._pages = []
+            self._shelf = []
             if beat == "history":
                 _, used = expand_acronyms(task or "")
                 if used:
@@ -557,6 +558,13 @@ class Crew:
                     if ex:
                         lines.append("\nWIKI EXCERPTS\n\n" + excerpt_block(ex))
                         self._pages = ex
+                        from . import chat
+                        self._shelf = chat.artifact_shelf(ex)
+                        if self._shelf:
+                            lines.append("\nPICTURES AND QUOTATIONS from those pages. When one shows what a paragraph of your answer "
+                                         "says, set its tag, such as {P2}, at the end of that paragraph: it appears beside your words. "
+                                         "At most one tag per paragraph, and only when it truly illustrates the paragraph; none is fine.\n"
+                                         + chat.shelf_lines(self._shelf))
                 except Exception:               # noqa: BLE001
                     pass
         return "\n".join(lines)
@@ -609,12 +617,14 @@ class Crew:
                 text, pages = self._generate(handle, task, channel, query, long)
                 if text:
                     meta = None
+                    chips = []
+                    if handle == "ada":
+                        text, chips = chat.chosen_chips(text, getattr(self, "_shelf", []))   # the pictures and words she picked, before the brackets are read
                     if pages:
                         text, refs = chat.link_citations(text, [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages])
                         meta = {"refs": refs} if refs else None
                     if handle == "ada":
                         text = chat.link_entities(text)     # every person and place she names, to its page
-                        chips = chat.answer_chips((meta or {}).get("refs") or pages, text)   # a picture or a quote between the paragraphs
                         if chips:
                             meta = {**(meta or {}), "chips": chips}
                     self.post(p["name"], p["emoji"], text, channel, meta)
