@@ -858,7 +858,11 @@ ol.mla { padding-left: 22px; font-size: 13px; line-height: 1.5; } ol.mla li { ma
 .histmain h2 .dot { width: 12px; height: 12px; margin-right: 8px; vertical-align: baseline; }
 .artgrid.pictures { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 .artgrid.pictures .artcard .thumb { height: 150px; }
-.peoplelist .person .pin { margin-left: 4px; cursor: pointer; }
+.peoplelist .person .pin { margin-left: 4px; }
+#pane-history .pin[data-lat] { cursor: pointer; color: var(--accent); font-weight: 600; }
+#pane-history .pin.coord { font-weight: 500; }
+#pane-history .pin[data-lat]:hover { color: var(--accent-2); }
+#pane-history .artcard .maplink { margin-left: 6px; }
 /* the Events page: the timeline chart above the table, like the Event Log's */
 .histmain .castplot { margin: 6px 0 14px; }
 .histmain .castplot .plot { height: 420px; }
@@ -866,3 +870,29 @@ table.sched.timeline tr { scroll-margin-top: 60px; }
 /* the bibliography's exports */
 .bibexport { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; }
 .bibexport .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-right: 4px; }
+
+/* the counts sit before the kind: "371 Quotes" */
+.histmain h2 > .muted, .histmain h3 > .muted { font-weight: 500; }
+/* a track's card draws the route; a quote's card speaks the quote; a map without a picture says so */
+.artcard .sketch { width: 100%; height: 72px; display: block; margin-bottom: 6px; background: #0b1620; border-radius: 5px; }
+.artcard .thumb.none { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11.5px; text-align: center; padding: 8px; box-sizing: border-box; }
+.artcard q { display: block; quotes: "\201C" "\201D"; color: #e6ecf2; font-size: 13.5px; line-height: 1.45; margin: 4px 0 6px; padding-left: 8px; border-left: 3px solid var(--accent-2); font-style: italic; }
+.artcard.quote b { font-weight: 500; color: var(--muted); font-size: 12px; }
+.artgrid.quotes { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+/* the keyword sections of a kind page */
+.kwnav { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.kwnav .chip span { margin-left: 4px; }
+/* the people: names left, the faces right, filling the column */
+.peoplecols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.peoplecols.nofaces { grid-template-columns: 1fr; }
+.faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; position: sticky; top: 8px; }
+.faces .face { display: block; aspect-ratio: 1; overflow: hidden; border-radius: 6px; border: 1px solid var(--line); background: #0b1620; }
+.faces .face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.faces .face:hover { border-color: var(--accent); }
+@media (max-width: 900px) { .peoplecols { grid-template-columns: 1fr; } .faces { position: static; } }
+/* the provenance opens inside its own scroll rather than past the page's edge */
+footer details .prov { max-height: 45vh; overflow-y: auto; }
+/* Full Map on the History tab keeps the tools above the map, so the map is never a dead end */
+main.mapfull.tab-history .side { display: flex; grid-column: 1 / 3; grid-row: 1; overflow: visible; padding-right: 0; }
+main.mapfull.tab-history .side .histmain { display: none; }
+main.mapfull.tab-history .map { grid-row: 2 / 4; }
