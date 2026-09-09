@@ -26,14 +26,18 @@
     object: { label: "Objects", colour: "#f2cc60" },
   };
   // the pane's chips: one page per kind, People among them
-  const KINDS = { people: { label: "People", colour: "#ffa198" }, object: TYPES.object, quote: TYPES.quote, text: TYPES.text, place: TYPES.place, track: TYPES.track, map: TYPES.map, event: TYPES.event, image: TYPES.image };
+  const KINDS = { people: { label: "People", colour: "#ffa198" }, object: TYPES.object, quote: TYPES.quote, text: TYPES.text, place: TYPES.place, track: TYPES.track, map: TYPES.map, event: TYPES.event, image: TYPES.image,
+    animal: { label: "Animals", colour: "#e3b341" }, vessel: { label: "Vessels", colour: "#56d364" } };
   // the kinds in their hierarchy, wherever the chips appear: what people
-  // made and said sits under People, what lies on the ground under Places
+  // made and said sits under People, what lies on the ground under Places;
+  // the animals and the vessels stand on their own
   const GROUPS = [
     { head: "people", under: ["object", "quote", "text"] },
     { head: "place", under: ["track", "map"] },
     { head: "event", under: [] },
     { head: "image", under: [] },
+    { head: "animal", under: [] },
+    { head: "vessel", under: [] },
   ];
   const KIND_LABEL = { page: "explore" };                  // a narrative page is an Explore page on the site
   const kindLabel = (k) => KIND_LABEL[k] || k;
@@ -44,7 +48,7 @@
   const VIG_N = 5;                                         // vignette lines shown before "see more"
 
   const hist = {
-    index: null, artifacts: null, timeline: null, places: [], people: [], events: [], bib: null, stamp: null, loading: null,
+    index: null, artifacts: null, timeline: null, places: [], people: [], events: [], animals: [], vessels: [], bib: null, stamp: null, loading: null,
     names: null,                                          // every person and place name that has a page, longest first, for the cross-links
     slug: store.get("hist.slug", ""),                     // what is shown: "" home, explore, bib, kind/<k>, topic/<t>, or a page
     types: new Set(store.get("hist.types", Object.keys(TYPES))),   // the kinds the map layer shows
@@ -62,7 +66,7 @@
     if (hist.loading) return hist.loading;
     hist.loading = (async () => {
       const maybe = (k, u) => cachedJSON(k, u).catch(() => null);
-      const [index, arts, tl, pl, pe, fa, ev] = await Promise.all([
+      const [index, arts, tl, pl, pe, fa, ev, an, ve] = await Promise.all([
         cachedJSON("index", "data/history/index.json"),
         cachedJSON("artifacts", "data/history/artifacts.json"),
         cachedJSON("timeline", "data/history/timeline.json"),
@@ -70,7 +74,10 @@
         maybe("people", "data/history/people.json"),
         maybe("faces", "data/history/faces.json"),
         maybe("events", "data/history/events.json"),
+        maybe("animals", "data/history/animals.json"),
+        maybe("vessels", "data/history/vessels.json"),
       ]);
+      hist.animals = an?.animals || []; hist.vessels = ve?.vessels || [];
       hist.index = index; hist.artifacts = arts.artifacts || []; hist.timeline = tl.timeline || [];
       hist.places = pl?.places || []; hist.people = pe?.people || []; hist.faces = fa?.faces || null; hist.events = ev?.events || [];
       hist.stamp = UW.M.history.stamp; hist.pages = new Map(); hist.bib = null; hist.names = null;
@@ -207,7 +214,7 @@
         if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: "was here", label: a.title, place: w.note || "", topic: a.topic, lat: w.lat, lon: w.lon, slug: a.page });
       }
     }
-    for (const p of hist.people || []) {
+    for (const p of [...(hist.people || []), ...(hist.animals || [])]) {
       for (const [field, word] of [["born", "born"], ["died", "died"]]) {
         const d = parts(p[field]);
         if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: word, label: p.name, place: p.role || "", topic: p.topic, lat: null, lon: null, slug: p.page });
@@ -663,15 +670,20 @@
     if (!K) { el.innerHTML = crumb() + `<div class="empty">no such kind</div>`; return; }
     const h2 = (n, label) => `<h2><span class="dot" style="background:${K.colour}"></span><span class="muted">${n}</span> ${esc(label)}</h2>`;
     if (kind === "event") { el.innerHTML = crumb(here("Events", "kind/event")) + eventsHTML(); wireEvents(el); return; }
-    if (kind === "people") {
+    if (kind === "people" || kind === "animal" || kind === "vessel") {
       // the names down the left; on the right, the faces the backend has cut
-      // from the photographs, in alphabetical order, filling the column
-      const people = [...hist.people].sort((a, b) => a.name.localeCompare(b.name));
-      const life = (p) => [p.born, p.died].some(Boolean) ? ` <span class="muted mono">${esc(dateLabel(p.born || "?"))}–${esc(dateLabel(p.died || ""))}</span>` : "";
-      const list = `<div class="peoplelist">` + letterList(people, (p) => p.name, (p) => `<a class="person ${p.indigenous ? "inuit" : ""}" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${p.also ? ` <span class="muted">(${esc(p.also)})</span>` : ""}${life(p)}${p.role ? `<span class="role">${esc(p.role)}</span>` : ""}</a>`) + `</div>`;
-      const faces = (hist.faces || []).filter((f) => f.file).sort((x, y) => (x.person || "￿").localeCompare(y.person || "￿"));
+      // from the photographs — of this kind only, in a fixed order that looks
+      // like none, so the wall is not the alphabet twice
+      const rows = kind === "people" ? hist.people : kind === "animal" ? hist.animals : hist.vessels;
+      const faceKind = kind === "people" ? "person" : kind;
+      const named = [...rows].sort((a, b) => a.name.localeCompare(b.name));
+      const life = (p) => [p.born, p.died].some(Boolean) ? ` <span class="muted mono">${esc(dateLabel(p.born || "?"))}–${esc(dateLabel(p.died || ""))}</span>`
+        : [p.built, p.lost].some(Boolean) ? ` <span class="muted mono">${esc(p.built || "")}${p.lost ? " – " + esc(p.lost) : ""}</span>` : "";
+      const sub = (p) => [p.kind, p.role].filter(Boolean).join(" · ");
+      const list = `<div class="peoplelist">` + letterList(named, (p) => p.name, (p) => `<a class="person ${p.indigenous ? "inuit" : ""}" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${p.also ? ` <span class="muted">(${esc(p.also)})</span>` : ""}${life(p)}${sub(p) ? `<span class="role">${esc(sub(p))}</span>` : ""}</a>`) + `</div>`;
+      const faces = (hist.faces || []).filter((f) => f.file && (f.kind || "person") === faceKind).sort((x, y) => mixKey(`${x.artifact}|${x.file}`) - mixKey(`${y.artifact}|${y.file}`));
       const wall = faces.length ? `<div class="faces">${faces.map((f) => `<a class="face" href="#history/${esc(f.person_page || f.page)}" data-slug="${esc(f.person_page || f.page)}" title="${esc(f.person || "unidentified")}${f.title ? " · " + esc(f.title) : ""}"><img src="${esc(f.file)}" alt="${esc(f.person || "")}" loading="lazy"></a>`).join("")}</div>` : "";
-      el.innerHTML = crumb(here("People", "kind/people")) + h2(people.length, "People") + `<div class="peoplecols ${wall ? "" : "nofaces"}">${list}${wall}</div>`;
+      el.innerHTML = crumb(here(K.label, `kind/${kind}`)) + h2(named.length, K.label) + `<div class="peoplecols ${wall ? "" : "nofaces"}">${list}${wall}</div>`;
       return;
     }
     if (kind === "place") {
@@ -844,7 +856,7 @@
   // head the bar has no kind for (People, on the map) is a label
   function chipsHTML(kinds, onOf, cls = "") {
     const chip = (k, extra = "") => { const t = kinds[k]; return t ? `<button type="button" data-t="${k}" class="${cls} ${extra} ${onOf(k) ? "on" : ""}" title="${t.label}"><span class="dot" style="background:${t.colour}"></span>${t.label}</button>` : `<span class="ghead">${KINDS[k].label}</span>`; };
-    return GROUPS.map((g) => g.under.length ? `<span class="kgroup">${chip(g.head, "head")}${g.under.map((k) => chip(k, "sub")).join("")}</span>` : chip(g.head)).join("");
+    return GROUPS.filter((g) => kinds[g.head] || g.under.some((k) => kinds[k])).map((g) => g.under.length ? `<span class="kgroup">${chip(g.head, "head")}${g.under.map((k) => chip(k, "sub")).join("")}</span>` : chip(g.head)).join("");
   }
   function renderChips() {
     const pane = $("#histkinds");
