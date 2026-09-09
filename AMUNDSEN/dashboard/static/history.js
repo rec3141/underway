@@ -28,16 +28,14 @@
   // the pane's chips: one page per kind, People among them
   const KINDS = { people: { label: "People", colour: "#ffa198" }, object: TYPES.object, quote: TYPES.quote, text: TYPES.text, place: TYPES.place, track: TYPES.track, map: TYPES.map, event: TYPES.event, image: TYPES.image,
     animal: { label: "Animals", colour: "#e3b341" }, vessel: { label: "Vessels", colour: "#56d364" } };
-  // the kinds in their hierarchy, wherever the chips appear: what people
-  // made and said sits under People, what lies on the ground under Places;
-  // the animals and the vessels stand on their own
+  // the kinds in their hierarchy, wherever the chips appear: the animals and
+  // what people made and said sit under People, the vessels and what lies on
+  // the ground under Places
   const GROUPS = [
-    { head: "people", under: ["object", "quote", "text"] },
-    { head: "place", under: ["track", "map"] },
+    { head: "people", under: ["animal", "object", "quote", "text"] },
+    { head: "place", under: ["vessel", "track", "map"] },
     { head: "event", under: [] },
     { head: "image", under: [] },
-    { head: "animal", under: [] },
-    { head: "vessel", under: [] },
   ];
   const KIND_LABEL = { page: "explore" };                  // a narrative page is an Explore page on the site
   const kindLabel = (k) => KIND_LABEL[k] || k;
