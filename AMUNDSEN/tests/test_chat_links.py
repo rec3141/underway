@@ -45,6 +45,26 @@ def test_the_shelf_holds_the_cited_pages_pictures_and_words_and_ada_picks_from_i
     assert chips[1]["quote"].startswith("the dogs were the whole of it") and "id" not in chips[1]
     assert chat.chosen_chips("no tags at all", shelf) == ("no tags at all", [])
     assert chat.artifact_shelf([]) == []
+    # her second look: picks as lines, with whatever preamble she adds, become tags on the paragraphs
+    reply = "*Ada adjusts her spectacles.*\n\nparagraph 1: none\nparagraph 2: P1\nparagraph 3: {P2}\nparagraph 3: P1"
+    tagged = chat.apply_picks("one\n\ntwo\n\nthree", reply)
+    assert tagged == "one\n\ntwo {P1}\n\nthree {P2}"
+    assert [(c["para"], c["slug"]) for c in chat.chosen_chips(tagged, shelf)[1]] == [(1, "artifact/a-1"), (2, "artifact/a-2")]
+    assert chat.apply_picks("one\n\ntwo", "none") == "one\n\ntwo"
+
+
+def test_a_thin_shelf_fills_from_the_pages_topics(tmp_path, monkeypatch):
+    hist = tmp_path / "data" / "history"
+    (hist / "pages").mkdir(parents=True)
+    arts = [{"id": "t-1", "type": "image", "title": "Linked", "thumb": "t.jpg", "page": "artifact/t-1", "topic": "fram", "people": []},
+            {"id": "t-2", "type": "quote", "title": "Same topic", "description": "x" * 50, "page": "artifact/t-2", "topic": "fram", "people": []},
+            {"id": "t-3", "type": "image", "title": "Other topic", "thumb": "u.jpg", "page": "artifact/t-3", "topic": "whaling", "people": []}]
+    (hist / "artifacts.json").write_text(json.dumps({"artifacts": arts}))
+    (hist / "pages" / "a-page.json").write_text(json.dumps({"topic": "fram", "html": "See [it](artifact/t-1)."}))
+    monkeypatch.setattr(chat, "ROOT", tmp_path)
+    chat._art_cache.update(stamp=None, by_id={})
+    shelf = chat.artifact_shelf([{"slug": "a-page", "title": "A page", "kind": "page"}])
+    assert [c["slug"] for c in shelf] == ["artifact/t-1", "artifact/t-2"]     # the linked one first, then the topic's, never another topic's
 
 
 def test_quote_of_prefers_the_quoted_passage():

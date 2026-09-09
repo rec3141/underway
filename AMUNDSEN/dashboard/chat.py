@@ -427,6 +427,23 @@ def artifact_shelf(pages: list[dict], limit: int = 8) -> list[dict]:
                     (a.get("type") in ("image", "map") and a.get("thumb")) or (a.get("type") == "quote" and a.get("description"))):
                 good.append(a)
         per_page.append(good)
+    # a page that links few pictures or words is filled out from its topic
+    topics = []
+    for p in pages:
+        f = ROOT / "data" / "history" / "pages" / (p.get("slug", "").replace("/", "__") + ".json")
+        try:
+            t = json.loads(f.read_text()).get("topic", "") if f.is_file() else ""
+        except (OSError, ValueError):
+            t = ""
+        if t and t not in topics:
+            topics.append(t)
+    if sum(len(g) for g in per_page) < limit and topics:
+        linked = {a["id"] for g in per_page for a in g}
+        for t in topics:
+            pool = [a for a in arts.values() if a.get("topic") == t and a["id"] not in linked and (
+                (a.get("type") in ("image", "map") and a.get("thumb")) or (a.get("type") == "quote" and a.get("description")))]
+            pool.sort(key=lambda a: _mix_key(a["id"]))
+            per_page.append(pool)
     out, seen = [], set()
     for _ in range(limit):
         for good in per_page:
@@ -441,6 +458,36 @@ def artifact_shelf(pages: list[dict], limit: int = 8) -> list[dict]:
                             "description": (a.get("description") or "")[:200],
                             "year": (a.get("date_text") or a.get("date_start") or "")[:40], "credit": a.get("creator") or a.get("credit") or ""})
     return out
+
+
+def _mix_key(s: str) -> int:
+    """A fixed order that looks like none, the same the pane uses (FNV-1a)."""
+    h = 2166136261
+    for ch in s:
+        h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
+    return h
+
+
+_PICK_RX = re.compile(r"paragraph\s*(\d{1,2})\s*[:\-–]\s*[\{\[\(]?\s*P\s?(\d{1,2})", re.I)
+
+
+def apply_picks(text: str, reply: str) -> str:
+    """Ada's picks, from a second look at her own answer — lines such as
+    'paragraph 2: P3' — set as tags on the paragraphs, for chosen_chips."""
+    picks = {}
+    for m in _PICK_RX.finditer(reply or ""):
+        picks.setdefault(int(m.group(1)), int(m.group(2)))
+    if not picks:
+        return text
+    parts = re.split(r"(\n\s*\n)", text)
+    idx = 0
+    for k, part in enumerate(parts):
+        if k % 2 or not part.strip():
+            continue
+        idx += 1
+        if idx in picks:
+            parts[k] = part.rstrip() + f" {{P{picks[idx]}}}"
+    return "".join(parts)
 
 
 def shelf_lines(shelf: list[dict]) -> str:
