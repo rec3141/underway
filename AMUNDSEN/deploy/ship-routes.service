@@ -7,4 +7,4 @@ Description=Keep the ship's 10.0.0.x network routed over the LAN, not the VPN
 
 [Service]
 Type=oneshot
-ExecStart=/home/cryomics/Desktop/underway/AMUNDSEN/tools/ship-routes.sh on
+ExecStart=/data/underway/app/AMUNDSEN/tools/ship-routes.sh on

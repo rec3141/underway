@@ -16,12 +16,14 @@ Environment=UNDERWAY_TILES_DIR=/data/gis/tiles
 Type=oneshot
 User=cryomics
 Group=cryomics
-WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+WorkingDirectory=/data/underway/app/AMUNDSEN
+Environment=UNDERWAY_DB_DIR=/data/underway/db
+Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
 Environment=TZ=America/Toronto
 # Optional env file for secrets like GOOGLE creds; create it root:root 600
 EnvironmentFile=-/home/cryomics/.config/underway/underway.env
 
-ExecStart=/home/cryomics/Desktop/underway/AMUNDSEN/update_underway_py.sh
+ExecStart=/data/underway/app/AMUNDSEN/update_underway_py.sh
 
 # Nice I/O to be friendly on shared storage
 Nice=5
@@ -33,7 +35,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
-ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+ReadWritePaths=/data/underway/app/AMUNDSEN
+ReadWritePaths=/data/underway/db /data/underway/cache
 ReadWritePaths=/data
 # the History tab reads the arctic-history database, and SQLite writes its journal beside it
 ReadWritePaths=/home/cryomics/Desktop/arctic-history/db

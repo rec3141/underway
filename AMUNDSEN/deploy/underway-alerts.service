@@ -7,7 +7,9 @@ After=network-online.target
 Type=oneshot
 User=cryomics
 Group=cryomics
-WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+WorkingDirectory=/data/underway/app/AMUNDSEN
+Environment=UNDERWAY_DB_DIR=/data/underway/db
+Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
 # numpy's BLAS starts a thread per core at import (32 here) and that alone costs 8 s CPU a run
 Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 Environment=TZ=America/Toronto
@@ -19,6 +21,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
-ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+ReadWritePaths=/data/underway/app/AMUNDSEN
+ReadWritePaths=/data/underway/db /data/underway/cache
 StandardOutput=journal
 StandardError=journal

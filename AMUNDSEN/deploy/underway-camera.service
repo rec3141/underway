@@ -5,7 +5,9 @@ After=network-online.target
 [Service]
 Type=oneshot
 User=cryomics
-WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+WorkingDirectory=/data/underway/app/AMUNDSEN
+Environment=UNDERWAY_DB_DIR=/data/underway/db
+Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
 EnvironmentFile=/home/cryomics/.config/underway/camera.env
 ExecStart=/bin/bash tools/camera-job.sh build
 TimeoutStartSec=30min

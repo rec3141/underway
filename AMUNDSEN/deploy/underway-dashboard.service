@@ -7,7 +7,9 @@ Wants=network-online.target
 Environment=UNDERWAY_TILES_DIR=/data/gis/tiles
 Environment=TZ=America/Toronto
 Type=simple
-WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+WorkingDirectory=/data/underway/app/AMUNDSEN
+Environment=UNDERWAY_DB_DIR=/data/underway/db
+Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
 ExecStart=/opt/miniforge3/bin/python3 -m dashboard serve --root /data/underway/www --port 8042
 Restart=on-failure
 User=cryomics

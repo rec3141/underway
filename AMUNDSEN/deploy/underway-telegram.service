@@ -7,7 +7,9 @@ After=network-online.target
 Type=simple
 User=cryomics
 Group=cryomics
-WorkingDirectory=/home/cryomics/Desktop/underway/AMUNDSEN
+WorkingDirectory=/data/underway/app/AMUNDSEN
+Environment=UNDERWAY_DB_DIR=/data/underway/db
+Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
 Environment=TZ=America/Toronto
 EnvironmentFile=-/home/cryomics/.config/underway/underway.env
 ExecStart=/opt/miniforge3/bin/python3 -m dashboard telegram-bot
@@ -18,7 +20,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
-ReadWritePaths=/home/cryomics/Desktop/underway/AMUNDSEN
+ReadWritePaths=/data/underway/app/AMUNDSEN
+ReadWritePaths=/data/underway/db /data/underway/cache
 StandardOutput=journal
 StandardError=journal
 
