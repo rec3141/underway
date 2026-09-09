@@ -439,12 +439,11 @@
   }
   async function renderMain() {
     const el = $("#histmain");
+    el.scrollTop = 0;                                              // a new view opens at its top
     const plot = $("#histplot"); if (plot?.data) Plotly.purge(plot);
     if (!UW.M.history) { el.innerHTML = `<div class="empty">No history has been published yet.</div>`; return; }
     if (!hist.index) { el.innerHTML = `<div class="empty">Loading the history…</div>`; return; }
     const q = hist.search.trim().toLowerCase();
-    // the pages of names and faces fill the pane and scroll as one, the tools and the heading staying put
-    $("#pane-history").classList.toggle("cols", !q && /^kind\/(people|animal|vessel)$/.test(hist.slug));
     if (q) {                                                        // search: pages and artifacts, in the main area
       const words = q.split(/\s+/).filter(Boolean), t = curTopic();
       const hit = (s) => { const t = String(s || "").toLowerCase(); return words.every((w) => t.includes(w)); };
@@ -541,7 +540,7 @@
       (back.length ? `<div class="backlinks"><span class="lbl">Mentioned in</span>${back.map((b) => `<a href="#history/${esc(b.slug)}" data-slug="${esc(b.slug)}">${esc(b.title)}</a>`).join("")}</div>` : "");
     crossLink(el.querySelector(".wiki"), p.slug, a?.people || ev?.people || p.people, p.kind === "page" ? p.title : "");
     if (p.kind === "page") enrich(el.querySelector(".wiki"));
-    window.scrollTo?.(0, 0);
+    el.scrollTop = 0; window.scrollTo?.(0, 0);
   }
   // a narrative's artifacts where the text reaches them: after each block
   // that links artifacts, a row of chips for those not shown higher up
@@ -581,7 +580,7 @@
       (e.tags?.length ? `<div class="backlinks"><span class="lbl">Tags</span>${e.tags.map((x) => `<span class="muted">${esc(x)}</span>`).join("")}</div>` : "") +
       `<div class="backlinks">${src ? `<span class="lbl">Source</span><a href="#history/${esc(src.slug)}" data-slug="${esc(src.slug)}">${esc(src.title)}</a>` : ""}<span class="lbl">On the timeline</span><a href="#history/kind/event" data-slug="kind/event">Events</a></div>`;
     crossLink(el.querySelector(".wiki"), `event/${id}`, e.people, "");
-    window.scrollTo?.(0, 0);
+    el.scrollTop = 0; window.scrollTo?.(0, 0);
   }
   // the people named on an artifact or an event, each a link to their page
   function peopleStrip(names) {
