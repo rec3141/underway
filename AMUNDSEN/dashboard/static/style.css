@@ -216,6 +216,10 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 /* the attribution sits under the map, not on it */
 #map .maplibregl-ctrl-attrib, #map .maplibregl-ctrl-bottom-right { display: none; }
 .map-attrib { flex: 0 0 auto; color: var(--muted); font-size: 10.5px; padding: 3px 8px 0; opacity: .8; }
+/* the scale bar, over the map's bottom-left corner; placed by the script, which knows the map's box */
+.mapscale { position: absolute; z-index: 5; display: flex; align-items: center; gap: 6px; pointer-events: none;
+  font-size: 10.5px; color: #e6ecf2; text-shadow: 0 0 3px #0b1620, 0 0 3px #0b1620; }
+.mapscale .bar { display: block; height: 5px; border: 1.5px solid #e6ecf2; border-top: 0; box-shadow: 0 0 2px #0b1620; }
 /* a day's camera timelapse, played over the map where its camera was clicked */
 .campop { position: absolute; z-index: 6; right: 14px; top: 14px; width: min(300px, 62%); max-height: calc(100% - 28px); display: flex; flex-direction: column;
   background: rgba(22,29,37,.96); border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px 8px; font-size: 12px; color: var(--muted); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
