@@ -485,13 +485,15 @@
         (arts.length ? `<h3><span class="muted">${arts.length}</span> Artifacts <span class="muted small">${esc(counts)}</span></h3><div class="artgrid">${arts.map((a) => artifactCard(a, { creator: true })).join("")}</div>` : "");
       return;
     }
-    if (hist.slug.startsWith("event/")) { renderEvent(el, hist.slug.slice(6)); return; }
+    // an event's page comes from the publisher; a build without them gets the pane's own
+    if (hist.slug.startsWith("event/") && !hist.index.pages.some((x) => x.slug === hist.slug)) { renderEvent(el, hist.slug.slice(6)); return; }
     let p;
     try { p = await page(hist.slug); }
     catch { el.innerHTML = crumb() + `<div class="empty">That page is not in this build.</div>`; return; }
     const t = topicOf(p.topic);
     const a = p.kind === "artifact" ? artifactById(p.ref) : null;
     const pl = p.kind === "place" ? placeByPage(p.slug) : null;
+    const ev = p.kind === "event" ? eventById(p.ref) : null;
     const back = (p.backlinks || []).map((s) => hist.index.pages.find((x) => x.slug === s)).filter(Boolean);
     let head = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">${esc(kindLabel(p.kind))}</span>`, p.slug)) + `<h2>${esc(p.title)}</h2>`;
     if (p.summary && p.kind === "page") head += `<p class="lead">${esc(p.summary)}</p>`;
@@ -512,6 +514,9 @@
     if (pl && pl.lat != null) {
       head += `<div class="artmeta"><span class="dot" style="background:${TYPES.place.colour}"></span>${esc(pl.kind || "place")} · ${mapLink(pl.lat, pl.lon, pl.name, "place")}</div>`;
     }
+    if (ev && ev.lat != null) {
+      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>event · ${coordLink(ev.lat, ev.lon, ev.title)} · ${mapLink(ev.lat, ev.lon, ev.title, "event")}</div>`;
+    }
     if (p.kind === "source") {
       const bib = await bibliography();
       const e = bib.find((x) => x.key === p.slug.split("/").pop());
@@ -519,7 +524,7 @@
     }
     el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}</div>` +
       (back.length ? `<div class="backlinks"><span class="lbl">Mentioned in</span>${back.map((b) => `<a href="#history/${esc(b.slug)}" data-slug="${esc(b.slug)}">${esc(b.title)}</a>`).join("")}</div>` : "");
-    crossLink(el.querySelector(".wiki"), p.slug, a?.people, p.kind === "page" ? p.title : "");
+    crossLink(el.querySelector(".wiki"), p.slug, a?.people || ev?.people || p.people, p.kind === "page" ? p.title : "");
     if (p.kind === "page") enrich(el.querySelector(".wiki"));
     window.scrollTo?.(0, 0);
   }
@@ -545,8 +550,8 @@
   }
 
   // ---------------------------------------------------------------- an event's page
-  // The events have no page in the database; the pane makes one from the
-  // record: when and where, the people, the source, and the topic's timeline.
+  // A build from a publisher without event pages: the pane makes one from
+  // the record — when and where, the people, the source, the timeline.
   function renderEvent(el, id) {
     const e = eventById(id);
     if (!e) { el.innerHTML = crumb() + `<div class="empty">That event is not in this build.</div>`; return; }
