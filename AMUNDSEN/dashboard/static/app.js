@@ -720,10 +720,19 @@
       return add(layer, before);
     };
   }
+  // a click on open water or land, where there is no point, takes the mark
+  // away and leaves the pane as it is; Plotly's own click, which fires first
+  // on the same event, has set _hoverdata when a point was hit
+  function hookEmptyClick(map) {
+    if (map._emptyClickHooked) return;
+    map._emptyClickHooked = true;
+    map.on("click", () => { const el = $("#map"); if (state.focus && !el?._hoverdata?.length) { state.focus = null; renderMap(); } });
+  }
   function aimShip() {
     const el = $("#map"); const sp = el?._fullLayout?.map?._subplot;
     if (!sp?.map) return;
     hookShipLayer(sp.map);
+    hookEmptyClick(sp.map);
     if (state.shipHeading == null) return;
     const lt = el._fullData?.find((t) => t.name === "latest");
     const layer = lt && sp.traceHash?.[lt.uid]?.layerIds?.symbol;
@@ -1053,6 +1062,7 @@
         if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
         if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5), p);
+        if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
         if (p?.lat != null && p.data?.name !== "focus") { state.focus = { lat: +p.lat, lon: +p.lon, label: String(p.text || p.hovertext || "").replace(/<[^>]+>/g, "") }; renderMap(); }   // the mark moves to what was clicked
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
       });

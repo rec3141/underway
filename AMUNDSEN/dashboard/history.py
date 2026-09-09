@@ -54,7 +54,7 @@ try:
         cards does not load a hundred full-size scans; artifacts.json gains
         a ``thumb`` on each. One is made when its picture is new or changed."""
         import json
-        from PIL import Image
+        from PIL import Image, ImageOps
         Image.MAX_IMAGE_PIXELS = None          # our own archive's scans, some of them half a gigapixel
         out = root / "data" / "history"
         arts_file = out / "artifacts.json"
@@ -76,7 +76,10 @@ try:
             if not dst.is_file() or dst.stat().st_mtime < src.stat().st_mtime:
                 try:
                     with Image.open(src) as im:
-                        im = im.convert("RGB")
+                        # a photograph carries its orientation in EXIF, which the
+                        # browser honours on the full picture: the thumbnail must
+                        # be turned the same way or the card shows it on its side
+                        im = ImageOps.exif_transpose(im).convert("RGB")
                         im.thumbnail((width, width * 2))
                         im.save(dst, "JPEG", quality=82, optimize=True)
                     made += 1
