@@ -445,6 +445,8 @@
     if (!UW.M.history) { el.innerHTML = `<div class="empty">No history has been published yet.</div>`; return; }
     if (!hist.index) { el.innerHTML = `<div class="empty">Loading the history…</div>`; return; }
     const q = hist.search.trim().toLowerCase();
+    // the pages of names and faces fill the pane and scroll as one, the tools and the heading staying put
+    $("#pane-history").classList.toggle("cols", !q && /^kind\/(people|animal|vessel)$/.test(hist.slug));
     if (q) {                                                        // search: pages and artifacts, in the main area
       const words = q.split(/\s+/).filter(Boolean), t = curTopic();
       const hit = (s) => { const t = String(s || "").toLowerCase(); return words.every((w) => t.includes(w)); };
