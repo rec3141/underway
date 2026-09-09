@@ -110,10 +110,20 @@
   const linkify = (s) => esc(s)
     .replace(/\[(\d{1,2})\]\(#history\/([^)\s]+)\)/g, (m, n, slug) => `<sup><a href="#history/${slug}" data-slug="${slug}" class="ref" title="reference ${n}">${n}</a></sup>`)
     .replace(/\[([^\]]+)\]\(#history\/([^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)
+    .replace(/\[([^\]]+)\]\(((?:artifact|person|place|event|source|topic|vessel|animal|kind)\/[^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)   // a page written without the #history/ prefix
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/(^|[^"'>])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
     .replace(/(^|\s)@(\w+)/g, '$1<span class="at">@$2</span>');
   const isCrew = (name) => st.crew.some((c) => c.name === name);
+  // an artifact the answer rests on, as a chip: a picture with its title, or the words of a quote
+  const chipHTML = (c) => `<a class="artchip ${esc(c.type)} ${c.thumb ? "" : "nomedia"}" href="#history/${esc(c.slug)}" data-slug="${esc(c.slug)}" title="${esc(c.title)}">${c.thumb ? `<img src="${esc(c.thumb)}" alt="" loading="lazy">` : ""}<span class="body"><span class="kind">${esc(c.type)}${c.year ? " · " + esc(c.year) : ""}${c.credit ? " · " + esc(c.credit) : ""}</span>${c.quote ? `<q>${esc(c.quote)}</q>` : `<b>${esc(c.title)}</b>`}</span></a>`;
+  // the text with Ada's chips set between its paragraphs, one per gap while they last
+  const bodyHTML = (m) => {
+    const chips = m.meta?.chips || [];
+    if (!chips.length) return linkify(m.text);
+    const paras = String(m.text || "").split(/\n\s*\n/);
+    return paras.map((p, i) => linkify(p) + (chips[i] ? `<div class="chips">${chipHTML(chips[i])}</div>` : i < paras.length - 1 ? "\n\n" : "")).join("");
+  };
   const pagesHTML = (m) => m.meta?.refs?.length
     ? `<ol class="refs">${m.meta.refs.map((p) => `<li value="${p.n}"><a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a></li>`).join("")}</ol>`
     : m.meta?.pages?.length
@@ -129,7 +139,7 @@
       const mine = st.myName && m.name === st.myName;
       const d = document.createElement("div");
       d.className = "msg" + (mine ? " mine" : "") + (isCrew(m.name) ? " bot" : "");
-      d.innerHTML = `<span class="av">${esc(m.emoji || (isCrew(m.name) ? "" : "•"))}</span><span class="who" data-name="${esc(m.name)}" title="${mine ? "" : "message " + esc(m.name) + " directly"}">${esc(m.name)}</span><span class="when">${fmtT(m.t)}</span><div class="txt">${linkify(m.text)}${pagesHTML(m)}</div>`;
+      d.innerHTML = `<span class="av">${esc(m.emoji || (isCrew(m.name) ? "" : "•"))}</span><span class="who" data-name="${esc(m.name)}" title="${mine ? "" : "message " + esc(m.name) + " directly"}">${esc(m.name)}</span><span class="when">${fmtT(m.t)}</span><div class="txt">${bodyHTML(m)}${pagesHTML(m)}</div>`;
       log.appendChild(d);
     }
     while (log.children.length > 300) log.firstChild.remove();
