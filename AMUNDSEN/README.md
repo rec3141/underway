@@ -176,7 +176,20 @@ Raster tiles are never written to the share: `make_gebco_tiles.sh` writes to
 
 ## Operation on the ship
 
-Two systemd units (the files are in `/etc/systemd/system/`):
+The services run from a deploy checkout, `/data/underway/app`, that only
+ever sits on master: `underway-deploy.timer` runs `tools/deploy-pull.sh`
+every five minutes, which fetches, fast-forwards to `origin/master`, and
+restarts the serving processes (`underway-dashboard`, `underway-telegram`)
+when a Python file under `dashboard/` changed; anything else is picked up by
+the next build. A merge to master is live on the ship within minutes, and no
+development checkout is ever what the ship serves. Unit files are the one
+thing the pull cannot install: when `deploy/` changes, copy them to
+`/etc/systemd/system/` and `daemon-reload` by hand (the pull's journal line
+says so). The units keep the ingest stores and build cache outside the
+checkout, in `/data/underway/db` and `/data/underway/cache`
+(`UNDERWAY_DB_DIR`, `UNDERWAY_CACHE_DIR`).
+
+Two systemd units do the work (the files are in `/etc/systemd/system/`):
 
 - `underway.timer` → `underway.service` runs `update_underway_py.sh` every
   10 minutes (`OnCalendar=*:0/10`). The wrapper holds a lock so runs never
@@ -192,9 +205,10 @@ good one. `journalctl -u underway.service` shows the reason.
 Useful commands:
 
 ```sh
-systemctl list-timers underway.timer
+systemctl list-timers underway.timer underway-deploy.timer
 journalctl -u underway.service -n 50
 journalctl -u underway-dashboard.service -n 20
+journalctl -u underway-deploy.service -n 20      # what the last pulls brought in
 ```
 
 Firewall: nothing on the workstation blocks 8042 (`ufw` is installed but

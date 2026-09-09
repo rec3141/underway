@@ -1,0 +1,10 @@
+[Unit]
+Description=Pull master into the deploy checkout and restart what changed
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/data/underway/app/AMUNDSEN/tools/deploy-pull.sh
+StandardOutput=journal
+StandardError=journal
