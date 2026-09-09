@@ -781,7 +781,7 @@
         line: { width: t.alternate ? 1.2 : 2.2, color: pl.colour }, opacity: t.alternate ? .45 : .95 });
       if (pl.stations.length) out.push({ type: "scattermap", mode: "markers+text", name: `${pl.key}-stations`, showlegend: false,
         lat: pl.stations.map((s) => s.lat), lon: pl.stations.map((s) => s.lon), text: planLabels(pl.stations, zoom), textposition: "top right", textfont: { size: 11, color: pl.label },
-        hovertext: pl.stations.map((s) => `<b>${esc(s.name)}</b>${s.type ? " · " + esc(s.type) : ""}${s.region ? "<br>" + esc(s.region) : ""}${s.group ? "<br>" + esc(s.group) : ""}${s.depth_m != null ? `<br>depth ${Math.round(s.depth_m)} m` : ""}${s.ops ? "<br>" + esc(s.ops) : s.desc ? "<br>" + esc(s.desc) : ""}<br>planned station`),
+        hovertext: pl.stations.map((s) => `<b>${esc(s.name)}</b>${s.type ? " · " + esc(s.type) : ""}${s.region ? "<br>" + esc(s.region) : ""}${s.group ? "<br>" + esc(s.group) : ""}${s.depth_m != null ? `<br>depth ${Math.round(s.depth_m)} m` : ""}<br>planned station`),
         hovertemplate: "%{hovertext}<extra></extra>", marker: { size: 7, color: pl.colour, opacity: .95 } });
     }
     return out;
