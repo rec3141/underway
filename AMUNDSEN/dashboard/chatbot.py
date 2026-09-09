@@ -38,7 +38,7 @@ EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
 BANTER_P = 0.4                 # chance another crew member riffs on a crew remark (one hop only)
 MAX_TOKENS = 500
-ADA_TOKENS = 4000             # the Library: her thinking and a full answer, up to about 500 words
+ADA_TOKENS = 8000             # the Library: her thinking and a full answer, up to about 500 words; the thinking alone can run past 4000
 ADA_CHARS = 8000              # the most of an answer the chat keeps; the crew's quips stop at 2500
 NUM_CTX = 32768               # the dashboard summary, five excerpts, the shelf and a long chat; fits the GPU beside the model
 TIMEOUT = 240
@@ -244,7 +244,17 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
     r.raise_for_status()
     result = r.json()
     message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
-    return (message.get('content') or '').strip()
+    content = (message.get('content') or '').strip()
+    if think:
+        thought = message.get('thinking') or message.get('reasoning') or ''
+        log.info("thought %d chars, answered %d, %s tokens in %.0f s", len(thought), len(content),
+                 result.get("eval_count", "?"), (result.get("eval_duration") or 0) / 1e9)
+        if not content:
+            # the thinking used the whole budget and no answer followed: say
+            # so, and answer again without it rather than fall silent
+            log.warning("the model thought for %d chars and gave no answer within %d tokens; answering again without thinking", len(thought), max_tokens)
+            return complete(system, user, max_tokens, temperature, num_ctx, timeout, think=False)
+    return content
 
 
 _wiki_cache: dict = {"stamp": None, "pages": []}
