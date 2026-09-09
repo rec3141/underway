@@ -304,6 +304,7 @@ def typing(channel: str, handle: str, on: bool) -> None:
 # ---------------------------------------------------------------- citations
 _NUM_RX = re.compile(r"\[(\d{1,2}(?:\s*[,;]\s*\d{1,2})*)\](?!\()")
 _CITE_RX = re.compile(r"\[([^\[\]\n\d][^\[\]\n]{2,140})\](?!\()")
+_DATE_RX = re.compile(r"\[(\d{3,4}(?:-\d\d)?(?:-\d\d)?[^\[\]\n]{0,40})\](?!\()")   # a date the model set in brackets
 
 
 def _norm(s: str) -> str:
@@ -318,7 +319,9 @@ def link_citations(text: str, pages: list[dict]) -> tuple[str, list[dict]]:
     told not to write, is matched to a page and turned into a number too. A
     person or place whose page was read and whose name appears plainly in the
     prose gets its first mention linked, so the ordinary sentence carries the
-    link. Returns the text and the cited pages in citation order, numbered."""
+    link. A bracket that resolves to nothing — a date, a phrase — loses its
+    brackets, so nothing in the answer looks like a link that does not work.
+    Returns the text and the cited pages in citation order, numbered."""
     if not pages:
         return text, []
     cited: list[int] = []                      # excerpt numbers in the order first cited
@@ -344,11 +347,12 @@ def link_citations(text: str, pages: list[dict]) -> tuple[str, list[dict]]:
         if hit is None:
             hit = next((i for i, p in enumerate(pages, 1) if m.group(1).strip() in (p["slug"], p["slug"].split("/")[-1])), None)
         if hit is None:
-            return m.group(0)
+            return m.group(1)
         return f"[{number_for(hit)}](#history/{pages[hit - 1]['slug']})"
 
     text = _NUM_RX.sub(sub_num, text)
     text = _CITE_RX.sub(sub_title, text)
+    text = _DATE_RX.sub(lambda m: m.group(1).replace("/", " to "), text)
     # people and places read: the first plain mention of the name becomes the link
     for p in pages:
         if p.get("kind") not in ("person", "place") or len(p.get("title", "")) < 4:
@@ -360,6 +364,84 @@ def link_citations(text: str, pages: list[dict]) -> tuple[str, list[dict]]:
             text = text[:m.start()] + f"[{name}](#history/{p['slug']})" + text[m.end():]
     refs = [{**pages[i - 1], "n": n} for n, i in enumerate(cited, 1)]
     return text, refs
+
+
+# ---------------------------------------------------------------- the chips
+_art_cache: dict = {"stamp": None, "by_id": {}}
+_ART_LINK_RX = re.compile(r"\]\(artifact/([^)\s]+)\)")
+_QUOTE_RX = re.compile(r"[\"\u201c]([^\"\u201d]{40,})[\"\u201d]|(?:^|[\s(])'([^']{40,})'")
+
+
+def artifacts_by_id() -> dict:
+    """The published artifacts by id, re-read when the publish changes."""
+    if not ROOT:
+        return {}
+    f = ROOT / "data" / "history" / "artifacts.json"
+    if not f.is_file():
+        return {}
+    stamp = f.stat().st_mtime
+    if _art_cache["stamp"] != stamp:
+        try:
+            arts = json.loads(f.read_text()).get("artifacts", [])
+        except (OSError, ValueError) as e:
+            log.info("artifacts unreadable: %s", e)
+            arts = []
+        _art_cache.update(stamp=stamp, by_id={a["id"]: a for a in arts if a.get("id")})
+    return _art_cache["by_id"]
+
+
+def quote_of(description: str, limit: int = 240) -> str:
+    """The words themselves: the longest quoted passage in the description if
+    it has one, else the description, trimmed."""
+    hits = [h[0] or h[1] for h in _QUOTE_RX.findall(description or "")]
+    t = (max(hits, key=len) if hits else (description or "")).strip()
+    return t if len(t) <= limit else t[:limit - 3].rstrip() + "…"
+
+
+def answer_chips(pages: list[dict], text: str, limit: int = 3) -> list[dict]:
+    """The pictures and the words behind an answer: for the pages it cites,
+    in order, the artifacts they hold — a picture with a thumbnail or a
+    quote — for the chat to set one between the paragraphs. One from each
+    page first, then seconds; never more than the gaps between paragraphs."""
+    arts = artifacts_by_id()
+    if not arts or not pages or not ROOT:
+        return []
+    n_par = len([p for p in re.split(r"\n\s*\n", text or "") if p.strip()])
+    limit = max(1, min(limit, n_par - 1))
+    per_page: list[list[dict]] = []
+    for p in pages:
+        slug = p.get("slug", "")
+        ids: list[str] = []
+        if p.get("kind") == "artifact":
+            ids = [slug.split("/")[-1]]
+        else:
+            f = ROOT / "data" / "history" / "pages" / (slug.replace("/", "__") + ".json")
+            try:
+                ids = _ART_LINK_RX.findall(json.loads(f.read_text()).get("html", "")) if f.is_file() else []
+            except (OSError, ValueError):
+                ids = []
+            if p.get("kind") == "person":
+                ids += [a["id"] for a in arts.values() if p.get("title") in (a.get("people") or [])]
+        good: list[dict] = []
+        for i in ids:
+            a = arts.get(i)
+            if a and all(g["id"] != a["id"] for g in good) and (
+                    (a.get("type") in ("image", "map") and a.get("thumb")) or (a.get("type") == "quote" and a.get("description"))):
+                good.append(a)
+        per_page.append(good)
+    out, seen = [], set()
+    for _ in range(limit):
+        for good in per_page:
+            if len(out) >= limit:
+                break
+            a = next((x for x in good if x["id"] not in seen), None)
+            if a:
+                seen.add(a["id"])
+                out.append({"slug": a.get("page", f"artifact/{a['id']}"), "type": a["type"], "title": a.get("title", ""),
+                            "thumb": a.get("thumb", "") if a["type"] != "quote" else "",
+                            "quote": quote_of(a.get("description", "")) if a["type"] == "quote" else "",
+                            "year": (a.get("date_text") or a.get("date_start") or "")[:40], "credit": a.get("creator") or a.get("credit") or ""})
+    return out
 
 
 # ---------------------------------------------------------------- names and places

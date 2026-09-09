@@ -82,7 +82,8 @@ PERSONAS = {
                       "EXCERPTS below are pages from the ship's Library, written by the research crew from journals, logs, reports "
                       "and Inuit testimony; answer from them when they bear on the question, and cite by number in square "
                       "brackets, [1] or [2], the numbers of the excerpts you draw on, after the sentence they support. Never write "
-                      "a page's title in brackets, and name people and places plainly in the prose. Never speak of 'the wiki', "
+                      "a page's title or a date in brackets: brackets hold excerpt numbers and nothing else, and names, places and "
+                      "dates go plainly in the prose. Never speak of 'the wiki', "
                       "'the excerpts', 'the records' or 'the files' as if they were a person with opinions: you are a librarian, "
                       "so point at the thing itself, as in 'Sverdrup's own account says', 'the Qikiqtani Truth Commission found', "
                       "'Parry's journal for that week has'. When nothing on the shelves bears on a question, say so as yourself, "
@@ -613,6 +614,9 @@ class Crew:
                         meta = {"refs": refs} if refs else None
                     if handle == "ada":
                         text = chat.link_entities(text)     # every person and place she names, to its page
+                        chips = chat.answer_chips((meta or {}).get("refs") or pages, text)   # a picture or a quote between the paragraphs
+                        if chips:
+                            meta = {**(meta or {}), "chips": chips}
                     self.post(p["name"], p["emoji"], text, channel, meta)
                     self.last_bot = time.time()
             except ModelOffline as e:

@@ -37,6 +37,8 @@
   ];
   const KIND_LABEL = { page: "explore" };                  // a narrative page is an Explore page on the site
   const kindLabel = (k) => KIND_LABEL[k] || k;
+  // a page's standing with the crew: draft until they call it good
+  const statusTag = (s) => s ? `<span class="status ${esc(s)}" title="${s === "good" ? "the crew have checked this page" : "the crew are still at work on this page"}">${esc(s)}</span>` : "";
   const TOPIC_COLOURS = ["#ffb454", "#5cc8ff", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
   const TIMELINE_FROM = 1400;                              // the Events chart opens zoomed to here; the table and the chart hold everything
   const VIG_N = 5;                                         // vignette lines shown before "see more"
@@ -411,7 +413,7 @@
       (opts.creator && a.creator ? `<span class="who">${esc(a.creator)}</span>` : "") + `</a>`;
   }
   function pageLink(p, cls = "") {
-    return `<a class="pglink ${cls}" href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}"><span class="kind">${esc(kindLabel(p.kind))}</span>${esc(p.title)}${p.summary ? `<span class="sum">${esc(p.summary)}</span>` : ""}</a>`;
+    return `<a class="pglink ${cls}" href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}"><span class="kind">${esc(kindLabel(p.kind))}</span>${esc(p.title)}${statusTag(p.status)}${p.summary ? `<span class="sum">${esc(p.summary)}</span>` : ""}</a>`;
   }
   // a topic as a card with its picture: the home's narrative chips, and Explore
   function topicCard(x, full = false) {
@@ -478,7 +480,7 @@
       const counts = GROUPS.flatMap((g) => [g.head, ...g.under]).filter((k) => TYPES[k]).map((k) => [k, arts.filter((a) => a.type === k).length]).filter(([, n]) => n)
         .map(([k, n]) => `${n} ${TYPES[k].label.toLowerCase()}`).join(" · ");
       const im = topicImage(t.slug);
-      el.innerHTML = crumb(`<a href="#history/explore" data-slug="explore">Explore</a>`, here(esc(t.title), `topic/${t.slug}`)) + `<h2>${esc(t.title)}</h2>` +
+      el.innerHTML = crumb(`<a href="#history/explore" data-slug="explore">Explore</a>`, here(esc(t.title), `topic/${t.slug}`)) + `<h2>${esc(t.title)}${statusTag(t.status)}</h2>` +
         (im ? `<figure class="topicfig"><a href="#history/${esc(im.page)}" data-slug="${esc(im.page)}" title="the picture's own page"><img src="${esc(im.url)}" alt=""></a><figcaption><a href="#history/${esc(im.page)}" data-slug="${esc(im.page)}">${esc(im.title)}</a> · ${esc(im.credit)}</figcaption></figure>` : "") +
         `<p class="lead">${esc(t.summary)}</p>` +
         (pages.length ? `<div class="pagelist">${pages.map((p) => pageLink(p)).join("")}</div>` : `<p class="muted">No narrative pages yet; the artifacts below are what the crew has entered so far.</p>`) +
@@ -495,14 +497,20 @@
     const pl = p.kind === "place" ? placeByPage(p.slug) : null;
     const ev = p.kind === "event" ? eventById(p.ref) : null;
     const back = (p.backlinks || []).map((s) => hist.index.pages.find((x) => x.slug === s)).filter(Boolean);
-    let head = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">${esc(kindLabel(p.kind))}</span>`, p.slug)) + `<h2>${esc(p.title)}</h2>`;
+    let head = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">${esc(kindLabel(p.kind))}</span>`, p.slug)) + `<h2>${esc(p.title)}${p.kind === "page" ? statusTag(p.status) : ""}</h2>`;
     if (p.summary && p.kind === "page") head += `<p class="lead">${esc(p.summary)}</p>`;
     let media = "";
     if (a) {
       const picture = a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url);
       if (picture && (a.type === "image" || a.type === "map")) media = `<figure><a href="${esc(a.url)}" target="_blank" rel="noopener"><img src="${esc(a.url)}" alt="${esc(a.title)}"></a><figcaption>${esc(a.credit)}${a.licence ? " · " + esc(a.licence) : ""}</figcaption></figure>`;
-      else if (a.url) media = `<p><a class="chip" href="${esc(a.url)}" target="_blank" rel="noopener">open the ${a.type === "text" ? "full text" : esc(a.url.split(".").pop().toUpperCase())} ↗</a></p>`;
-      else if (a.source_url) media = `<p><a class="chip" href="${esc(a.source_url)}" target="_blank" rel="noopener">open the resource ↗</a></p>`;
+      // the copies: the one on the ship, the original it was rendered from, and the one on the web
+      const ext = (u) => esc(u.split(".").pop().toUpperCase());
+      const links = [
+        a.url ? `<a class="chip" href="${esc(a.url)}" target="_blank" rel="noopener" title="the ship's own copy">on the ship · ${a.type === "text" && !picture ? "full text" : ext(a.url)}</a>` : "",
+        a.original_url ? `<a class="chip" href="${esc(a.original_url)}" target="_blank" rel="noopener" title="the file the picture was rendered from">the original · ${ext(a.original_url)}</a>` : "",
+        a.source_url ? `<a class="chip" href="${esc(a.source_url)}" target="_blank" rel="noopener" title="at the holding institution, on the web">on the web ↗</a>` : "",
+      ].filter(Boolean);
+      if (links.length) media += `<p class="artlinks">${links.join(" ")}</p>`;
       const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
       const where = plat != null ? ` · ${a.type === "track" ? "" : coordLink(plat, plon, a.title) + " · "}${mapLink(plat, plon, a.title, a.type)}` : "";
       const track = a.type === "track" && a.waypoints?.length ? `<div class="hscroll"><table class="waypoints"><tr><th>date</th><th>position</th><th>note</th></tr>${a.waypoints.map((w) => `<tr><td>${esc(dateLabel(w.date || ""))}</td><td>${w.lat != null ? coordLink(w.lat, w.lon, w.note || a.title) : ""}</td><td>${esc(w.note || "")}</td></tr>`).join("")}</table></div>` : "";
