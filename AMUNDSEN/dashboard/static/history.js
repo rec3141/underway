@@ -619,8 +619,35 @@
   // the strips under a page: the people and places (linked or found), and
   // the animals and vessels the crew linked (their names are too plain to find)
   const STRIPS = [["person", "People"], ["place", "Places"], ["animal", "Animals"], ["vessel", "Vessels"]];
+  // a slug written bare in the prose ("see davis-baffin-hudson", "frobisher-004")
+  // becomes a link that reads as the page's title; an artifact's card then
+  // follows the paragraph like any other link's
+  const SLUG_RX = /(?<![\w/#-])([a-z][a-z0-9]*(?:-[a-z0-9]+)+|(?:artifact|person|place|event|source|topic|vessel|animal)\/[a-z0-9][\w-]*)(?![\w/-])/g;
+  function linkSlugs(root, self) {
+    if (!root || !hist.index) return;
+    const pageOf = (tok) => {
+      if (tok === self) return null;
+      const p = hist.index.pages.find((x) => x.slug === tok); if (p) return p;
+      const a = artifactById(tok); return a ? { slug: a.page, title: a.title } : null;
+    };
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.parentElement.closest("a, code, .wanted") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    const texts = []; for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n);
+    for (const node of texts) {
+      const s = node.nodeValue; let last = 0, m, frag = null;
+      SLUG_RX.lastIndex = 0;
+      while ((m = SLUG_RX.exec(s))) {
+        const p = pageOf(m[1]); if (!p) continue;
+        frag ||= document.createDocumentFragment();
+        frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+        const a = document.createElement("a"); a.href = `#history/${p.slug}`; a.dataset.slug = p.slug; a.className = "auto"; a.textContent = p.title; frag.appendChild(a);
+        last = m.index + m[0].length;
+      }
+      if (frag) { frag.appendChild(document.createTextNode(s.slice(last))); node.parentNode.replaceChild(frag, node); }
+    }
+  }
   function crossLink(root, self, people, title) {
     if (!root) return;
+    linkSlugs(root, self);
     const { byName, rx } = nameIndex();
     const linked = new Set([self]), taken = new Set();
     for (const a of root.querySelectorAll("a[data-slug]")) linked.add(a.dataset.slug);
