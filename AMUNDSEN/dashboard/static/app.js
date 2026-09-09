@@ -559,6 +559,22 @@
   }
 
   // ------------------------------------------------------------ map
+  // The scale bar: a 1, 2 or 5 figure of metres or kilometres, as long as it
+  // is at the map's centre latitude and zoom (Web Mercator, 512 px tiles), at
+  // most 120 px wide, placed over the map's bottom-left corner.
+  function updateScale() {
+    const el = $("#mapscale"), map = $("#map");
+    if (!el || !map || !map.offsetHeight || !state.view?.center) { if (el) el.hidden = true; return; }   // no map shown: no bar
+    const mpp = 40075016.686 * Math.cos(state.view.center.lat * Math.PI / 180) / (512 * Math.pow(2, state.view.zoom));
+    const maxM = 120 * mpp, pow = Math.pow(10, Math.floor(Math.log10(maxM)));
+    const len = [5, 2, 1].map((f) => f * pow).find((L) => L <= maxM) || pow;
+    el.querySelector(".bar").style.width = `${Math.round(len / mpp)}px`;
+    el.querySelector(".lbl").textContent = len >= 1000 ? `${len / 1000} km` : `${len} m`;
+    el.style.left = `${map.offsetLeft + 10}px`; el.style.top = `${map.offsetTop + map.offsetHeight - 24}px`;
+    el.hidden = false;
+  }
+  window.addEventListener("resize", () => updateScale());
+
   // Ask the next render to fit the track. Stray relayout events (a page
   // reflow fires one on phones) must not put a stale view back before then.
   function requestFit() { state.view = null; state.fitPending = true; }
@@ -1050,11 +1066,14 @@
     Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(() => {
       state.fitPending = false;
       try { aimShip(); } catch { /* the poll retries */ }
+      if (!state.view) state.view = view;
+      updateScale();
       el.removeAllListeners?.("plotly_relayout");
       el.on("plotly_relayout", (ev) => {
         if (state.fitPending) return;
         const c2 = ev["map.center"], z = ev["map.zoom"];
         if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
+        updateScale();
       });
       el.removeAllListeners?.("plotly_click");
       el.on("plotly_click", (ev) => {
