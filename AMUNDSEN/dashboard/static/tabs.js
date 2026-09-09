@@ -35,7 +35,6 @@
   const bottleDepth = (b, lat) => b.depth_m ?? (b.p != null ? depthFrom(b.p, lat) : null);
   const bottleText = (b) => `bottle ${b.bottle}${b.time ? " · " + String(b.time).replace("T", " ").slice(11, 16) : ""}`;
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
-  if (casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // the live cast is out of reach until Seasave's output is back
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
   const castById = (id) => casts.idx?.casts.find((c) => c.id === parentId(id));
