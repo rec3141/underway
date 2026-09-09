@@ -764,7 +764,9 @@
     sx.onclick = () => { casts.xmode = XMODES[(XMODES.indexOf(casts.xmode) + 1) % XMODES.length]; store.set("casts.xmode", casts.xmode); sx.textContent = XWORD[casts.xmode]; renderCastPlots(); };
     for (const b of $("#castkind").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.k === casts.kind);
-      b.onclick = () => { casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); UW.renderMap(); };
+      // the live view (and the poll that feeds its setup box) is started by the
+      // plots renderer, so a change to or from Live redraws the plots too
+      b.onclick = () => { const was = casts.kind; casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); if (casts.kind === "live" || was === "live") renderCastPlots(); UW.renderMap(); };
     }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };

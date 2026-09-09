@@ -386,7 +386,7 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .pane-tools .lbl { color: var(--muted); font-size: 13px; }
 .group.sectionx { gap: 8px; }
 #castmode button:disabled { opacity: .4; cursor: not-allowed; }
-.castlist li.livesetup { display: block; grid-template-areas: none; padding: 6px 8px; cursor: default; }   /* not a cast entry: no grid, no click */
+.castlist li.livesetup, .castlist tr.livesetup td { display: block; grid-template-areas: none; padding: 6px 8px; cursor: default; }   /* not a cast entry: no grid, no click */
 .castlist .livesetup-title { font-weight: 650; margin-bottom: 6px; }
 .castlist .livecfgform { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .castlist .livecfgform input { flex: 1 1 140px; min-width: 0; }
