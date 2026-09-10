@@ -39,8 +39,8 @@
   ];
   const KIND_LABEL = { page: "explore" };                  // a narrative page is an Explore page on the site
   const kindLabel = (k) => KIND_LABEL[k] || k;
-  // a page's standing with the crew: draft until they call it good
-  const statusTag = (s) => s ? `<span class="status ${esc(s)}" title="${s === "good" ? "the crew have checked this page" : "the crew are still at work on this page"}">${esc(s)}</span>` : "";
+  // a page's standing with the crew: marked while it is a draft, unmarked once checked
+  const statusTag = (s) => s === "draft" ? `<span class="status draft" title="the crew are still at work on this page">draft</span>` : "";
   const TOPIC_COLOURS = ["#ffb454", "#5cc8ff", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
   const TIMELINE_FROM = 1400;                              // the Events chart opens zoomed to here; the table and the chart hold everything
   const VIG_N = 5;                                         // vignette lines shown before "see more"
@@ -65,7 +65,7 @@
     if (hist.loading) return hist.loading;
     hist.loading = (async () => {
       const maybe = (k, u) => cachedJSON(k, u).catch(() => null);
-      const [index, arts, tl, pl, pe, fa, ev, an, ve] = await Promise.all([
+      const [index, arts, tl, pl, pe, fa, ev, an, ve, pv] = await Promise.all([
         cachedJSON("index", "data/history/index.json"),
         cachedJSON("artifacts", "data/history/artifacts.json"),
         cachedJSON("timeline", "data/history/timeline.json"),
@@ -75,8 +75,9 @@
         maybe("events", "data/history/events.json"),
         maybe("animals", "data/history/animals.json"),
         maybe("vessels", "data/history/vessels.json"),
+        maybe("provenance", "data/history/provenance.json"),
       ]);
-      hist.animals = an?.animals || []; hist.vessels = ve?.vessels || [];
+      hist.animals = an?.animals || []; hist.vessels = ve?.vessels || []; hist.provenance = pv || null;
       hist.index = index; hist.artifacts = arts.artifacts || []; hist.timeline = tl.timeline || [];
       hist.places = pl?.places || []; hist.people = pe?.people || []; hist.faces = fa?.faces || null; hist.events = ev?.events || [];
       hist.stamp = UW.M.history.stamp; hist.pages = new Map(); hist.bib = null; hist.names = null;
@@ -523,6 +524,7 @@
     if (hist.slug === "kind/track" || hist.slug.startsWith("topic/") || hist.slug.startsWith("artifact/")) await ensureCoast();
     if (hist.slug.startsWith("kind/")) { renderKind(el, hist.slug.slice(5)); return; }
     if (hist.slug === "bib") { await renderBib(el); return; }
+    if (hist.slug === "provenance") { renderProvenance(el); return; }
     if (hist.slug.startsWith("topic/")) {
       const t = topicOf(hist.slug.slice(6));
       if (!t) { el.innerHTML = `<div class="empty">no such topic</div>`; return; }
@@ -903,6 +905,41 @@
     const a = Object.assign(document.createElement("a"), { href: url, download: name }); document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  // how the history was made: the crews, the review, the models, the figures
+  function renderProvenance(el) {
+    const pv = hist.provenance, c = pv?.counts || {}, w = pv?.work || {}, m = pv?.machine || {};
+    const n = (x) => (x == null ? "–" : Number(x).toLocaleString("en-CA"));
+    const day = (iso) => iso ? new Date(iso).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }) : "";
+    const t = hist.index?.topics || [];
+    const req = w.requests || {}, answered = (req.approved || 0) + (req.denied || 0) + (req.done || 0);
+    const flagsNow = hist.flags.size;
+    const tile = (v, l) => `<div class="stat"><b>${n(v)}</b><span>${l}</span></div>`;
+    const types = Object.entries(c.artifacts_by_type || {}).map(([k, v]) => `${n(v)} ${esc(k)}${v === 1 ? "" : "s"}`).join(", ");
+    el.innerHTML = crumb(here("Provenance", "provenance")) + `<h2>How this history was made</h2>
+<div class="provenance">
+<p class="lead">Everything in this tab was researched, entered and written by AI, from the sources named on each item, and then checked. This page says how, so a reader can weigh it.</p>
+
+<h3>The research</h3>
+<p>The work was done by a crew of AI research agents (Claude, run as Claude Code agents on a university workstation with library access), one agent to a topic, each working from a written brief. An agent read the primary sources for its topic: voyage narratives, published journals, ships' logs, archival scans, Inuit testimony as recorded by others, modern scholarship. It fetched what the library licenses, and entered what it found into a shared database through a command-line tool, as it went. The brief requires a source for every row: every artifact carries the work it came from, the pages, the credit and the licence; every date its precision and its source. Agents wrote the narrative pages from those rows, linking each claim to the artifacts and sources behind it, and left a worklog line after every step, so that a later run, or a person, could see what was done and why.</p>
+<p>Runs are short and get cut off, so the database is the record, not any one run. ${w.worklog ? `The worklog holds ${n(w.worklog)} entries from ${n(w.runs)} named runs and passes` : "The worklog records every run"}${w.first ? `, from ${day(w.first)} to ${day(w.last)}` : ""}.</p>
+
+<h3>The review</h3>
+<p>A new page is a draft, and shows as <span class="status draft">draft</span> until it has been checked. Pages without the mark have been through a review pass: the text read against its sources and the links resolved, and then promoted. ${w.review_entries ? `${n(w.review_entries)} worklog entries are review and quality passes over what the research runs entered. ` : ""}Every save keeps the version it replaced${c.page_versions ? ` (${n(c.page_versions)} earlier versions are kept)` : ""}, so a change can be traced or undone.</p>
+<p>What an agent could not do alone it asked a person: a download over the size limit, a title the library does not hold, a judgement call. ${answered ? `${n(answered)} such requests have been answered by a person: ${n(req.approved || 0)} approved, ${n(req.denied || 0)} denied, ${n(req.done || 0)} done.` : ""}</p>
+<p>Readers take part too. Anything that looks wrong can be flagged from its card with the small flag in the corner, with a note; flags go to the dashboard's keeper by email${flagsNow ? `, and ${n(flagsNow)} ${flagsNow === 1 ? "is" : "are"} flagged now` : ""}.</p>
+
+<h3>What the machines added</h3>
+<p>Beyond the research crews, smaller models annotated what the crews entered, and their work is marked as theirs in the database. ${m.keywords ? `${n(m.keyword_artifacts)} artifacts carry ${n(m.keywords)} subject keywords assigned by a local language model (${esc((m.keyword_models || []).join(", "))}) under a subject tree it drew up${m.ontology_model ? ` (${esc(m.ontology_model)})` : ""}. ` : ""}${m.faces ? `${n(m.faces)} faces were found in the pictures by a face detector${(m.detectors || []).length ? ` (${esc(m.detectors.join(", "))})` : ""}; ${n(m.faces_identified)} were matched to a named person only where the caption named one person and the picture held one face, and the rest are left unnamed. ` : ""}${m.animals_detected ? `${n(m.animals_detected)} animals were found the same way, ${n(m.animals_identified)} of them named. ` : ""}${m.rejected_by_operator ? `${n(m.rejected_by_operator)} machine identification${m.rejected_by_operator === 1 ? " was" : "s were"} rejected by the operator. ` : ""}The historian in the chat answers from these pages, using a local model on the ship: it is given the pages that bear on a question and cites them, and it is not itself a source.</p>
+
+<h3>How to read it</h3>
+<p>AI research errs in particular ways: a date transposed, a coordinate placed by name rather than by the source, a quotation trimmed, two people of one name run together. Treat the pages as a guide to the sources, and the sources as the authority. Each artifact's page links the ship's copy, the original it was rendered from and the holding institution; the <a href="#history/bib" data-slug="bib">bibliography</a> lists every work cited.</p>
+
+<h3>The figures</h3>
+<div class="stats">${tile(c.topics ?? t.length, "topics")}${tile(c.pages, "narrative pages")}${tile(c.pages_draft, "still drafts")}${tile(c.artifacts, "artifacts")}${tile(c.sources, "works cited")}${tile(c.sources_primary, "primary sources")}${tile(c.sources_local, "works held on the ship")}${tile(c.people, "people")}${tile(c.people_indigenous, "of them Inuit and other Indigenous people")}${tile(c.places, "places")}${tile(c.places_inuktitut, "with an Inuktitut name")}${tile(c.events, "events")}${tile(c.dates, "dated records")}${tile(c.vessels, "vessels")}${tile(c.animals, "animals")}${tile(c.links, "links between pages")}</div>
+${types ? `<p class="muted small">Artifacts by kind: ${types}. ${n(c.artifacts_local)} have a copy on the ship and ${n(c.artifacts_linked)} link to the holding institution on the web.</p>` : ""}
+${pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}${c.links_wanted ? `; ${n(c.links_wanted)} links still point at pages not yet written` : ""}.</p>` : `<p class="muted small">The figures are not in this build yet; they are counted when the history is next published.</p>`}
+</div>`;
+  }
   async function renderBib(el) {
     const bib = await bibliography();
     const sorted = [...bib].sort((a, b) => (a.author || a.title || "").localeCompare(b.author || b.title || ""));
@@ -947,6 +984,7 @@
     $("#histhome").classList.toggle("on", !hist.slug && !hist.search);
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
     $("#histbibchip").classList.toggle("on", hist.slug === "bib");
+    $("#histprovchip").classList.toggle("on", hist.slug === "provenance");
     $("#histback").disabled = !hist.slug && nav.n === 0;
     const mt = $("#maptoggle"); if (mt) $("#histmap").textContent = mt.textContent;
   }
@@ -1079,6 +1117,7 @@
     $("#histhome").onclick = () => open("");
     $("#histexplore").onclick = () => open(hist.slug === "explore" ? "" : "explore");
     $("#histbibchip").onclick = () => open(hist.slug === "bib" ? "" : "bib");
+    $("#histprovchip").onclick = () => open(hist.slug === "provenance" ? "" : "provenance");
     $("#histask").onclick = () => UW.chatRoom?.("ada");
     // the Map chip is the header's map pill, where the pane's tools are
     const mt = $("#maptoggle");
