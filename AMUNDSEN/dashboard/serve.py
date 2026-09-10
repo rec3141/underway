@@ -217,13 +217,13 @@ class Handler(SimpleHTTPRequestHandler):
             return self._bytes(200, "image/jpeg", data)
         if u.path == "/api/nature/import":
             # an import of photographs as it stands (?job=<id>), or the imports so far and the licences offered
-            from .photos import LICENCES, job, jobs, public
+            from .photos import LICENCES, job, jobs, public, watches_public
             q = parse_qs(u.query)
             jid = q.get("job", [""])[0]
             if jid:
                 j = job(jid)
                 return self._json(200, public(j)) if j else self._json(404, {"error": "no such import"})
-            return self._json(200, {"jobs": jobs(), "licences": LICENCES})
+            return self._json(200, {"jobs": jobs(), "licences": LICENCES, "watches": watches_public()})
         if u.path == "/api/nature/journal":
             # the ship's own observations of nature, newest first, for the Nature tab
             from .nature import entries
@@ -356,8 +356,8 @@ class Handler(SimpleHTTPRequestHandler):
                 log.warning("journal write failed: %s", e)
                 return self._json(500, {"error": "the journal could not be written"})
         if u.path == "/api/nature/import":
-            # photographs from the share into the journal: {"files": [...], "folders": [...], "name", "org", "email",
-            # "licence", "clock"}; the import runs on in a thread and the page follows it by its job id
+            # a folder of photographs from the share into the journal: {"folder": <path>, "name", "org", "email", "licence",
+            # "clock", "watch": true to keep importing from it}; the import runs on in a thread and the page follows it by its job id
             from .photos import start
             try:
                 n = int(self.headers.get("Content-Length", "0"))
@@ -372,6 +372,20 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("photo import failed to start: %s", e)
                 return self._json(500, {"error": "the import could not be started"})
+        if u.path == "/api/nature/watch":
+            # stop watching a folder: {"path": <the folder>, "stop": true}
+            from .photos import watch_remove, watches_public
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 4096:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict) or not payload.get("stop"):
+                    raise ValueError("Bad request")
+                gone = watch_remove(str(payload.get("path", ""))[:400])
+                return self._json(200, {"ok": True, "stopped": gone, "watches": watches_public()})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
         if u.path == "/api/history/flag":
             # the flag on an artifact's card: {"id": ..., "on": true, "token": <chat token>, "name": ...,
             # "title": ..., "page": "artifact/...", "note": ...}; the alerts timer tells the keeper
@@ -572,6 +586,8 @@ def serve(root: Path, port: int, bind: str) -> None:
     CHAT.CREW = CREW
     CHAT.ROOT = root
     CREW.start()
+    from .photos import start_watcher
+    start_watcher(root)                     # the watched folders of the share, looked at every ten minutes
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))
     log.info("serving %s on http://%s:%d/", root, bind or "0.0.0.0", port)
     try:

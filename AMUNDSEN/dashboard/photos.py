@@ -1,11 +1,15 @@
 """Photographs from the ship's share into the journal.
 
 People put their pictures on the share (``/Share/<year>/<leg>/Pictures/…``).
-The Nature tab lets them point at a folder or pick files there, say who they
-are and how the pictures may be used, and import them: each photograph
-becomes a line of the ship's journal (``nature.append``) with the picture
-beside it, so it stands on the map and in the record and goes up to grid
-with the next push.
+The Nature tab lets them point at a folder there, say who they are and how
+the pictures may be used, and import it: each photograph becomes a line of
+the ship's journal (``nature.append``) with the picture beside it, so it
+stands on the map and in the record and goes up to grid with the next push.
+A folder, never single files; a photograph already in the journal (the
+registry ``db/photos/imported.json``) is passed over, so a folder can be
+imported again for what is new in it. With their permission, a folder is
+watched: every ten minutes the ship looks for photographs added to it and
+imports them under the same name and licence, until they stop it.
 
 Where and when come from the photograph itself: the EXIF time, read in the
 camera's own zone when the camera wrote one, else in the zone the importer
@@ -31,7 +35,9 @@ import io
 import json
 import logging
 import re
+import shutil
 import sqlite3
+import subprocess
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -54,6 +60,10 @@ SHEET_N = 9                                     # tiles to a contact sheet
 TILE = 480                                      # a tile's side, pixels
 PHOTO_MAX = 2400                                # the journal's copy: the long side, pixels
 NEAR_S = 900                                    # a fix this close in time places a photograph
+IMPORTED = PHOTOS_DIR / "imported.json"         # photograph (its path on the share) -> the journal id it became
+WATCHES = PHOTOS_DIR / "watches.json"           # the folders watched, with the form each was given
+WATCH_S = 600                                   # how often the watched folders are looked at
+SETTLE_S = 120                                  # a photograph younger than this may still be copying: next time
 LEG_DB = re.compile(r"^\d{4}_LEG_\d+\.db$")
 LICENCES = {                                    # what the form offers; the codes grid's writer knows
     "attribution": "reusable with attribution, the photographer credited",
@@ -67,6 +77,7 @@ CLOCKS = ("exif", "ship", "utc")                # or an offset, +02:00: what the
 OFFSET_RX = re.compile(r"^[+-]\d{2}:\d{2}$")
 _JOBS: dict[str, dict] = {}
 _lock = threading.Lock()                        # one import runs at a time: one model, one share
+_reg_lock = threading.Lock()                    # the registry and the watches, read and written whole
 
 
 # ---------------------------------------------------------------- the share
@@ -176,9 +187,70 @@ def thumb(rel: str, size: int = 200) -> bytes:
 
 
 # ---------------------------------------------------------------- when and where
+EXIFTOOL = shutil.which("exiftool")
+EXIF_TAGS = ["-DateTimeOriginal", "-CreateDate", "-OffsetTimeOriginal", "-OffsetTime", "-GPSLatitude", "-GPSLongitude",
+             "-GPSLatitudeRef", "-GPSLongitudeRef", "-Make", "-Model"]
+
+
+def exif_many(paths: list[Path]) -> dict[Path, dict]:
+    """The EXIF of many photographs at once: exiftool, which reads every
+    camera's GPS block (Pillow misses a drone's), in one call per hundred
+    files; Pillow for each file when exiftool is not installed."""
+    out: dict[Path, dict] = {}
+    if EXIFTOOL:
+        for k in range(0, len(paths), 100):
+            chunk = paths[k:k + 100]
+            try:
+                r = subprocess.run([EXIFTOOL, "-j", "-n", "-q", "-fast2", *EXIF_TAGS, *map(str, chunk)], capture_output=True, text=True, timeout=600)
+                rows = json.loads(r.stdout or "[]")
+            except (OSError, ValueError, subprocess.SubprocessError) as e:
+                log.info("exiftool did not answer (%s); Pillow reads the EXIF", e)
+                rows = []
+            for row in rows:
+                src = Path(row.get("SourceFile", ""))
+                match = next((q for q in chunk if q.resolve() == src.resolve() or str(q) == str(src)), None)
+                if match:
+                    out[match] = _exif_row(row)
+    for q in paths:
+        if q not in out:
+            out[q] = exif_pillow(q)
+    return out
+
+
+def _exif_row(row: dict) -> dict:
+    """One exiftool JSON row (-n: numbers, GPS signed by the Composite tags)
+    as the record exif_of gives."""
+    out = {"taken": None, "offset": None, "lat": None, "lon": None,
+           "model": " ".join(str(row.get(k) or "").strip() for k in ("Make", "Model")).strip()}
+    m = re.match(r"^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})", str(row.get("DateTimeOriginal") or row.get("CreateDate") or ""))
+    if m:
+        out["taken"] = f"{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:{m[6]}"
+    off = str(row.get("OffsetTimeOriginal") or row.get("OffsetTime") or "").strip()
+    if OFFSET_RX.match(off):
+        out["offset"] = off
+    try:
+        lat, lon = row.get("GPSLatitude"), row.get("GPSLongitude")
+        if lat is not None and lon is not None:
+            lat, lon = float(lat), float(lon)
+            if str(row.get("GPSLatitudeRef") or "").upper().startswith("S") and lat > 0:
+                lat = -lat
+            if str(row.get("GPSLongitudeRef") or "").upper().startswith("W") and lon > 0:
+                lon = -lon
+            if -90 <= lat <= 90 and -180 <= lon <= 180 and not (lat == 0 and lon == 0):
+                out["lat"], out["lon"] = lat, lon
+    except (TypeError, ValueError):
+        pass
+    return out
+
+
 def exif_of(path: Path) -> dict:
     """The time the camera wrote (as it wrote it, no zone), the zone if it
     wrote one, the GPS position if it had one, and the camera's name."""
+    return exif_many([path])[path]
+
+
+def exif_pillow(path: Path) -> dict:
+    """The same, read by Pillow alone."""
     out = {"taken": None, "offset": None, "lat": None, "lon": None, "model": ""}
     dt = off = None
     try:
@@ -488,15 +560,49 @@ def public(j: dict) -> dict:
     return {**j, "form": {k: v for k, v in j.get("form", {}).items() if k != "email"}}
 
 
+def folder_files(rel: str, settled: bool = False) -> list[str]:
+    """A folder's photographs and those one folder down, in path order;
+    ``settled`` leaves out any written in the last SETTLE_S seconds (a copy
+    to the share may still be under way)."""
+    d = _safe(str(rel))
+    if not d.is_dir():
+        raise ValueError("no such folder")
+    now = time.time()
+    def ok(x: Path) -> bool:
+        if not (x.is_file() and x.suffix.lower() in IMAGE_EXT and not x.name.startswith(".")):
+            return False
+        if settled:
+            try:
+                return now - x.stat().st_mtime >= SETTLE_S
+            except OSError:
+                return False
+        return True
+    found = []
+    for i, c in enumerate(sorted(d.iterdir(), key=lambda x: x.name.lower())):
+        if i >= MAX_LIST:
+            break
+        if c.name.startswith("."):
+            continue
+        if ok(c):
+            found.append(c)
+        elif c.is_dir():
+            for j, x in enumerate(sorted(c.iterdir(), key=lambda x: x.name.lower())):
+                if j >= MAX_LIST:
+                    break
+                if ok(x):
+                    found.append(x)
+    return [rel_of(c) for c in found]
+
+
 def _files_of(spec: dict) -> list[str]:
-    """The photographs an import names: files as given, folders' own
-    photographs and those one folder down, in path order, MAX_FILES at most."""
+    """The photographs an import names: the folder's own and those one
+    folder down, in path order, MAX_FILES at most. A folder, never single
+    files (``files`` is refused)."""
+    if spec.get("files"):
+        raise ValueError("the import takes a folder, not single photographs: open the folder and import it")
+    folders = spec.get("folders") or ([spec["folder"]] if spec.get("folder") else [])
     seen: dict[str, None] = {}
-    for rel in spec.get("files") or []:
-        p = _safe(str(rel))
-        if p.is_file() and p.suffix.lower() in IMAGE_EXT:
-            seen.setdefault(rel_of(p))
-    for rel in spec.get("folders") or []:
+    for rel in folders:
         d = _safe(str(rel))
         if not d.is_dir():
             continue
@@ -519,11 +625,126 @@ def _files_of(spec: dict) -> list[str]:
     return list(seen)[:MAX_FILES]
 
 
+# ---------------------------------------------------------------- the registry and the watches
+def _read_json(path: Path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else default
+    except (OSError, ValueError):
+        return default
+
+
+def _write_json(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.replace(path)
+
+
+def imported() -> dict[str, str]:
+    """Every photograph an import has dealt with, by its path on the share:
+    the journal id it became, or ``skipped: <why>`` for one that could not
+    be placed, so a watched folder is not read again for it every look."""
+    with _reg_lock:
+        d = _read_json(IMPORTED, {})
+    return d if isinstance(d, dict) else {}
+
+
+def _register(rel: str, id_: str) -> None:
+    with _reg_lock:
+        d = _read_json(IMPORTED, {})
+        d[rel] = id_
+        _write_json(IMPORTED, d)
+
+
+def watches() -> list[dict]:
+    with _reg_lock:
+        rows = _read_json(WATCHES, [])
+    return rows if isinstance(rows, list) else []
+
+
+def watches_public() -> list[dict]:
+    return [{**w, "form": {k: v for k, v in w.get("form", {}).items() if k != "email"}} for w in watches()]
+
+
+def watch_add(path: str, form: dict, who: str = "") -> dict:
+    """Watch a folder: the permission given on the form, kept with the form
+    itself, so later photographs go in under the same name and licence. A
+    folder watched again takes the newer form."""
+    rel = rel_of(_safe(path))
+    row = {"path": rel, "form": dict(form), "who": who[:60], "since": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "checked": None, "last_job": None, "imported": 0}
+    with _reg_lock:
+        rows = [w for w in _read_json(WATCHES, []) if isinstance(w, dict) and w.get("path") != rel]
+        rows.append(row)
+        _write_json(WATCHES, rows)
+    return row
+
+
+def watch_remove(path: str) -> bool:
+    with _reg_lock:
+        rows = _read_json(WATCHES, [])
+        keep = [w for w in rows if isinstance(w, dict) and w.get("path") != path]
+        _write_json(WATCHES, keep)
+    return len(keep) != len(rows)
+
+
+def _watch_update(path: str, **fields) -> None:
+    with _reg_lock:
+        rows = _read_json(WATCHES, [])
+        for w in rows:
+            if isinstance(w, dict) and w.get("path") == path:
+                w.update(fields)
+        _write_json(WATCHES, rows)
+
+
+def watch_scan(root: Path) -> dict | None:
+    """One look at the watched folders: the first with photographs the
+    journal has not taken, and settled, starts an import under its form;
+    the job as it stands, or None when there was nothing to do."""
+    known = imported()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    for w in watches():
+        path = w.get("path", "")
+        try:
+            new = [f for f in folder_files(path, settled=True) if f not in known]
+        except ValueError as e:
+            log.info("watched folder %s: %s", path, e)
+            _watch_update(path, checked=now, error=str(e))
+            continue
+        _watch_update(path, checked=now, error="")
+        if not new:
+            continue
+        try:
+            j = start(root, {"folder": path, **{k: v for k, v in w.get("form", {}).items() if k in ("name", "org", "email", "licence", "clock")}, "from_watch": True, "only": new},
+                      who=f"{w.get('form', {}).get('name', '')} (watched folder)")
+        except ValueError as e:                     # an import is running, or the form has gone bad
+            log.info("watched folder %s not imported now: %s", path, e)
+            return None
+        _watch_update(path, last_job=j["id"])
+        return j
+    return None
+
+
+def start_watcher(root: Path) -> None:
+    """The watcher's thread: the watched folders looked at every WATCH_S."""
+    def loop():
+        time.sleep(120)
+        while True:
+            try:
+                if watches():
+                    watch_scan(root)
+            except Exception as e:                  # noqa: BLE001
+                log.warning("photo watcher: %s", e)
+            time.sleep(WATCH_S)
+    threading.Thread(target=loop, daemon=True, name="photo-watcher").start()
+
+
 def start(root: Path, spec: dict, who: str = "") -> dict:
     """Begin an import in a thread and answer with the job as it stands.
-    ``spec``: files, folders (paths under the share), name, org, email,
-    licence, clock. Refused (ValueError) when nothing is named or the form
-    is short of a name."""
+    ``spec``: folder (a path under the share), name, org, email, licence,
+    clock, and watch (the permission to keep importing from the folder).
+    Refused (ValueError) when no folder is named, the folder holds nothing
+    the journal has not taken, or the form is short of a name."""
     name = str(spec.get("name") or "").strip()[:80]
     if not name:
         raise ValueError("a name is needed: whose photographs these are, as they want to be credited")
@@ -535,7 +756,13 @@ def start(root: Path, spec: dict, who: str = "") -> dict:
         raise ValueError("the camera's clock is exif, ship, utc or an offset such as +02:00")
     files = _files_of(spec)
     if not files:
-        raise ValueError("no photographs were picked")
+        raise ValueError("no photographs in that folder")
+    known = imported()
+    fresh = [f for f in files if f not in known]
+    if spec.get("from_watch") and isinstance(spec.get("only"), list):
+        fresh = [f for f in fresh if f in set(spec["only"])]         # the watcher's pick: what has settled since its last look
+    if not fresh:
+        raise ValueError(f"every photograph in that folder is in the journal already ({len(files)} of them)")
     with _lock:
         if any(j["status"] in ("queued", "running") for j in _JOBS.values()):
             raise ValueError("an import is already running; wait for it to finish")
@@ -543,10 +770,13 @@ def start(root: Path, spec: dict, who: str = "") -> dict:
         j = {"id": job_id, "status": "queued", "started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "finished": None,
              "form": {"name": name, "org": str(spec.get("org") or "").strip()[:120], "email": str(spec.get("email") or "").strip()[:120],
                       "licence": licence, "clock": clock},
-             "who": who[:60], "total": len(files), "done": 0, "stage": "queued", "error": "",
-             "items": [{"file": f, "status": "queued"} for f in files]}
+             "who": who[:60], "total": len(fresh), "done": 0, "stage": "queued", "error": "", "known": len(files) - len(fresh),
+             "folder": (spec.get("folders") or [spec.get("folder")])[0], "watch": bool(spec.get("watch")), "from_watch": bool(spec.get("from_watch")),
+             "items": [{"file": f, "status": "queued"} for f in fresh]}
         _JOBS[job_id] = j
     _save(j)
+    if j["watch"]:
+        watch_add(j["folder"], j["form"], who)
     threading.Thread(target=run, args=(j, root), daemon=True).start()
     return public(j)
 
@@ -561,10 +791,19 @@ def run(j: dict, root: Path) -> None:
         j["status"], j["stage"] = "running", "reading the photographs"
         _save(j)
         whens: dict[int, datetime] = {}                 # item index -> the moment, kept off the record (it is not JSON)
+        paths: dict[int, Path] = {}
         for idx, it in enumerate(j["items"]):
             try:
-                p = _safe(it["file"])
-                ex = exif_of(p)
+                paths[idx] = _safe(it["file"])
+            except ValueError as e:
+                it["status"], it["error"] = "skipped", str(e)
+        exif = exif_many(list(paths.values()))
+        for idx, it in enumerate(j["items"]):
+            if idx not in paths:
+                continue
+            try:
+                p = paths[idx]
+                ex = exif[p]
                 it["camera"] = ex["model"]
                 when = taken_utc(ex, form["clock"])
                 if not when:
@@ -618,8 +857,12 @@ def run(j: dict, root: Path) -> None:
                          "image": journal_jpeg(p)}
                 row = nature.append(entry, form["name"])
                 it["id"], it["artifact_file"], it["status"] = row["id"], row.get("artifact_file", ""), "imported"
+                _register(it["file"], row["id"])
             except Exception as e:                  # noqa: BLE001
                 it["status"], it["error"] = "failed", str(e)[:300]
+        for it in j["items"]:
+            if it["status"] == "skipped":
+                _register(it["file"], "skipped: " + it.get("error", ""))
         j["status"], j["stage"] = "done", "done"
     except Exception as e:                          # noqa: BLE001
         log.warning("photo import %s failed: %s", j["id"], e)
@@ -628,6 +871,8 @@ def run(j: dict, root: Path) -> None:
         j["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         j["done"] = sum(1 for it in j["items"] if it.get("id"))
         _save(j)
+        if j.get("folder") and any(w.get("path") == j["folder"] for w in watches()):
+            _watch_update(j["folder"], imported=sum(1 for f, v in imported().items() if f.startswith(j["folder"] + "/") and not v.startswith("skipped")), last_job=j["id"])
 
 
 def journal_jpeg(path: Path) -> str:
