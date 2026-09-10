@@ -153,10 +153,9 @@
     if (sc.subject && !(sc._fam ||= family(sc.subject)).has(o.subject)) return false;
     return true;
   }
-  // the ship's own photographs stay on the map whatever page is open and whatever domains the menu allows
   function shownObs(forMap = false) {
     const sc = scopeOf();
-    return allObs().filter((o) => (forMap && o._journal) || (inScope(o, sc) && (!forMap || nat.domains.has(domainOfObs(o) || "other") || (!domainOfObs(o) && nat.domains.size))));
+    return allObs().filter((o) => inScope(o, sc) && (!forMap || nat.domains.has(domainOfObs(o) || "other") || (!domainOfObs(o) && nat.domains.size)));
   }
 
   // ---------------------------------------------------------------- vignettes
@@ -651,20 +650,25 @@
   // the observations; the natural topics' artifacts and places come from
   // history.js, which draws each past layer's own domain
   const prevExtra = UW.extraMapTraces;
+  // the observations on the Nature layer; the ship's own photographs on the Photos layer, with the cameras
   UW.extraMapTraces = () => {
     const out = prevExtra ? prevExtra() : [];
-    if (!UW.state.nature || !UW.M.history) return out;
+    if (!(UW.state.nature || UW.state.photos) || !UW.M.history) return out;
     if (!nat.subjects) { ensure().then(() => UW.renderMap()); return out; }
-    const pts = shownObs(true).filter((o) => o.lat != null);
-    if (!pts.length) return out;
     const hover = (o) => { const s = subjectOf(o.subject); return `${esc(short(s ? shortName(s) : o.subject, 50))}${numberOf(o) ? " · " + esc(numberOf(o)) : ""}<br>${esc(o.date_text || H.dateLabel(o.date_start) || (o.date || ""))}${o.observer ? " · " + esc(short(o.observer, 40)) : ""}${o._journal ? "<br>the ship's journal" : ""}`; };
-    out.push({ type: "scattermap", mode: "markers", name: "nature", showlegend: false, hoverinfo: "text",
+    const pts = UW.state.nature ? shownObs(true).filter((o) => o.lat != null && !o._journal) : [];
+    if (pts.length) out.push({ type: "scattermap", mode: "markers", name: "nature", showlegend: false, hoverinfo: "text",
       lat: pts.map((o) => o.lat), lon: pts.map((o) => o.lon), text: pts.map(hover), customdata: pts.map((o) => `nat:${o.id}`),
-      marker: { size: pts.map((o) => o._journal ? 12 : 9), color: pts.map((o) => domainOf(domainOfObs(o)).colour), opacity: .92 } });
-    // the ship's own lines ring their marks until grid has them
-    const mine = pts.filter((o) => o._journal);
-    if (mine.length) out.push({ type: "scattermap", mode: "markers", name: "nature-journal", showlegend: false, hoverinfo: "skip",
-      lat: mine.map((o) => o.lat), lon: mine.map((o) => o.lon), marker: { size: 18, color: C.accent2, opacity: .35 } });
+      marker: { size: 9, color: pts.map((o) => domainOf(domainOfObs(o)).colour), opacity: .92 } });
+    // the ship's own photographs, ringed, whatever page is open and whatever the domains menu allows
+    const mine = UW.state.photos ? allObs().filter((o) => o._journal && o.lat != null) : [];
+    if (mine.length) {
+      out.push({ type: "scattermap", mode: "markers", name: "photos-ring", showlegend: false, hoverinfo: "skip",
+        lat: mine.map((o) => o.lat), lon: mine.map((o) => o.lon), marker: { size: 18, color: C.accent2, opacity: .35 } });
+      out.push({ type: "scattermap", mode: "markers", name: "photos", showlegend: false, hoverinfo: "text",
+        lat: mine.map((o) => o.lat), lon: mine.map((o) => o.lon), text: mine.map(hover), customdata: mine.map((o) => `nat:${o.id}`),
+        marker: { size: 12, color: mine.map((o) => domainOf(domainOfObs(o)).colour), opacity: .92 } });
+    }
     return out;
   };
 
