@@ -203,7 +203,7 @@ GCAL = {
 GCAL_CREDS = Path(os.environ.get("UNDERWAY_GCAL_CREDS", "~/.config/underway/gcal-sa.json")).expanduser()  # service account key; never in the repo
 GCAL_SYNC_MINUTES = 10        # the feed cache is refreshed at most this often
 GCAL_SINCE = "2026-01-01"     # event-log operations before this were pushed by the R scheduler
-GCAL_MAX_CALLS = 40           # API requests per push run, so a backlog catches up over a few runs
+GCAL_MAX_CALLS = 200          # API requests per push run: a day's worth of edits and deletes clears in one run, and the run stays well inside the service timeout
 SURPRISE_ALERT_SCALE = "3 h"  # the scale watched for calendar alerts …
 SURPRISE_ALERT = 2.0          # … and the level above which an episode starts
 
