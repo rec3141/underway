@@ -45,9 +45,93 @@ try:
             return None
         if entry:
             thumbnails(root)
+            provenance(root, db)
             last.parent.mkdir(parents=True, exist_ok=True)
             last.write_text(json.dumps(entry))
         return entry
+
+    def provenance(root: Path, db: Path | None = None) -> dict | None:
+        """The provenance page's material (``provenance.json``): the project's
+        own account, ``db/history/PROVENANCE.md``, as Markdown, and the
+        figures counted from the database now: what is in it, how the crew's
+        runs and the review passes went, what the person answered, and what
+        the local models annotated. Counted here rather than published by
+        the project so the figures are the build's, not a snapshot's."""
+        import json
+        import sqlite3
+        from datetime import datetime, timezone
+        path = Path(db) if db else HISTORY_DB
+        if not Path(path).is_file():
+            return None
+        c = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        def one(sql, default=0):
+            try:
+                return c.execute(sql).fetchone()[0] or default
+            except sqlite3.Error:
+                return default
+        def rows(sql):
+            try:
+                return c.execute(sql).fetchall()
+            except sqlite3.Error:
+                return []
+        try:
+            out = {
+                "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "counts": {
+                    "topics": one("SELECT count(*) FROM topics"),
+                    "pages": one("SELECT count(*) FROM pages WHERE kind = 'page'"),
+                    "pages_draft": one("SELECT count(*) FROM pages WHERE kind = 'page' AND status = 'draft'"),
+                    "page_versions": one("SELECT count(*) FROM page_history"),
+                    "artifacts": one("SELECT count(*) FROM artifacts"),
+                    "artifacts_by_type": dict(rows("SELECT type, count(*) FROM artifacts GROUP BY type ORDER BY 2 DESC")),
+                    "waypoints": sum(len(json.loads(w or "[]") or []) for (w,) in rows("SELECT waypoints FROM artifacts WHERE type = 'track'") if w and w.startswith("[")),
+                    "artifacts_local": one("SELECT count(*) FROM artifacts WHERE local_file != ''"),
+                    "artifacts_linked": one("SELECT count(*) FROM artifacts WHERE source_url != ''"),
+                    "sources": one("SELECT count(*) FROM sources"),
+                    "sources_primary": one("SELECT count(*) FROM sources WHERE primary_src = 1"),
+                    "sources_local": one("SELECT count(*) FROM sources WHERE local_file != ''"),
+                    "languages": one("SELECT count(DISTINCT language) FROM sources WHERE language != ''"),
+                    "people": one("SELECT count(*) FROM people"),
+                    "people_indigenous": one("SELECT count(*) FROM people WHERE indigenous = 1"),
+                    "places": one("SELECT count(*) FROM places"),
+                    "places_inuktitut": one("SELECT count(*) FROM places WHERE inuktitut != ''"),
+                    "events": one("SELECT count(*) FROM events"),
+                    "dates": one("SELECT count(*) FROM dates"),
+                    "vessels": one("SELECT count(*) FROM vessels"),
+                    "animals": one("SELECT count(*) FROM animals"),
+                    "links": one("SELECT count(*) FROM links WHERE target != ''"),
+                    "links_wanted": one("SELECT count(*) FROM links WHERE target = ''"),
+                },
+                "work": {
+                    "worklog": one("SELECT count(*) FROM worklog"),
+                    "runs": one("SELECT count(DISTINCT who) FROM worklog WHERE who != ''"),
+                    "review_entries": one("SELECT count(*) FROM worklog WHERE who LIKE 'review%' OR who LIKE '%qa%'"),
+                    "first": one("SELECT min(at) FROM worklog", ""),
+                    "last": one("SELECT max(at) FROM worklog", ""),
+                    "requests": dict(rows("SELECT status, count(*) FROM requests GROUP BY status")),
+                    "request_kinds": dict(rows("SELECT kind, count(*) FROM requests GROUP BY kind")),
+                },
+                "machine": {
+                    "keywords": one("SELECT count(*) FROM keywords WHERE source LIKE 'llm:%'"),
+                    "keyword_artifacts": one("SELECT count(DISTINCT artifact_id) FROM keywords WHERE source LIKE 'llm:%'"),
+                    "keyword_models": sorted({r[0][4:] for r in rows("SELECT DISTINCT source FROM keywords WHERE source LIKE 'llm:%'")}),
+                    "ontology_model": one("SELECT model FROM ontology", ""),
+                    "faces": one("SELECT count(*) FROM faces WHERE kind = 'person'"),
+                    "faces_identified": one("SELECT count(*) FROM faces WHERE kind = 'person' AND person != ''"),
+                    "animals_detected": one("SELECT count(*) FROM faces WHERE kind != 'person'"),
+                    "animals_identified": one("SELECT count(*) FROM faces WHERE kind != 'person' AND person != ''"),
+                    "detectors": sorted({r[0].split(";")[0].split(":")[0].strip() for r in rows("SELECT DISTINCT method FROM faces") if r[0]}),
+                    "rejected_by_operator": one("SELECT count(*) FROM faces WHERE method LIKE '%rejected by the operator%'"),
+                },
+            }
+        finally:
+            c.close()
+        account = Path(path).parent / "PROVENANCE.md"
+        out["text"] = account.read_text() if account.is_file() else ""
+        dst = root / "data" / "history" / "provenance.json"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(json.dumps(out, ensure_ascii=False))
+        return out
 
     def thumbnails(root: Path, width: int = 480) -> int:
         """A small JPEG beside every published picture, so a page of a hundred

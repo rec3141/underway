@@ -955,7 +955,13 @@ main.mapfull.tab-history .map { grid-row: 2 / 4; }
 .chatlog .msg .artchip, .chatlog .msg .artchip.quote { max-width: 100%; }
 .artchip q { font-style: italic; color: #d8dee6; font-size: 12px; line-height: 1.4; quotes: "\201C" "\201D"; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 .histmain .artlinks { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
-/* a page's standing: draft until the crew call it good */
+/* a page's standing: marked while it is a draft */
 .histmain .status { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; margin-left: 8px; vertical-align: middle; color: var(--muted); line-height: 1.5; }
-.histmain .status.draft { color: #e3b341; } .histmain .status.good { color: #7ee787; }
+.histmain .status.draft { color: #e3b341; }
+/* the provenance page: prose, then the figures as tiles */
+.provenance p { margin: 0 0 10px; max-width: 72ch; }
+.provenance .stats { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin: 8px 0 12px; }
+.provenance .stat { background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.provenance .stat b { display: block; font-size: 20px; font-weight: 650; line-height: 1.1; }
+.provenance .stat span { color: var(--muted); font-size: 11.5px; }
 .pglink .status { margin-left: 6px; }
