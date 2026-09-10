@@ -1223,6 +1223,7 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
    underlined, LIVE blinking, tooltips yellow, nothing rounded. The bevel
    rules carry !important because every component styles its own buttons. */
 html[data-theme^="navigator"] .top { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 2px outset var(--bevel); color: #fff; }
+html[data-theme="navigator-dark"] .top { background: linear-gradient(90deg, #000080, #002050); }   /* after dark the bar runs navy to a deep blue, not to the light blue */
 html[data-theme^="navigator"] .top :is(.brand h1, .brand .sub, .brand .sub b, .pickhint, .themepick, .themepick label.select, .brand .sub .refresh) { color: #fff; }
 html[data-theme^="navigator"] .brand .sub .refresh { border-bottom-color: #a0c0ff; }
 html[data-theme^="navigator"] .brand h1 { font-family: var(--font-head); font-size: 1.6rem; letter-spacing: 0; }
