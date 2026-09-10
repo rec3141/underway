@@ -544,7 +544,8 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 .tabs button { background: transparent; color: var(--muted); border: 0; padding: 6px 14px; border-radius: 6px; font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer; }
 .tabs button:hover { color: var(--fg); }
 .tabs button.on { background: var(--card); color: var(--fg); box-shadow: 0 1px 0 var(--line); }
-.tabs button.mapbtn { padding-left: 10px; padding-right: 10px; font-size: 1rem; line-height: 1; color: var(--fg); }   /* the map cycler: an icon of the state it is in, among the tabs */
+.tabs button.mapbtn { width: 6.2em; box-sizing: border-box; padding-left: 8px; padding-right: 8px; text-align: center; color: var(--fg); }   /* the map cycler: the state's icon and the word, in a box one width through every state */
+.tabs button.mapbtn .ico { display: inline-block; width: 1.2em; font-size: 1.1em; line-height: 1; vertical-align: -1px; }
 .tabs button.mapbtn:hover { color: var(--accent); }
 .pane-tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 3px 0 10px; }
 #pane-calendar > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }   /* the top clears the pane's scroll edge, so a focused search box keeps its border */
