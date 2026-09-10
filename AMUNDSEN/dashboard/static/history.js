@@ -525,6 +525,7 @@
     if (hist.slug.startsWith("kind/")) { renderKind(el, hist.slug.slice(5)); return; }
     if (hist.slug === "bib") { await renderBib(el); return; }
     if (hist.slug === "provenance") { renderProvenance(el); return; }
+    if (hist.slug.startsWith("at/")) { renderSite(el); return; }
     if (hist.slug.startsWith("topic/")) {
       const t = topicOf(hist.slug.slice(6));
       if (!t) { el.innerHTML = `<div class="empty">no such topic</div>`; return; }
@@ -905,6 +906,28 @@
     const a = Object.assign(document.createElement("a"), { href: url, download: name }); document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  // one spot on the map where several things sit: a chip for each, so the
+  // reader picks rather than gets the topmost. Tracks list every call there.
+  function renderSite(el) {
+    const [lat, lon] = hist.slug.slice(3).split(",").map(Number);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) { el.innerHTML = crumb() + `<div class="empty">That is not a place on the map.</div>`; return; }
+    const items = (hist.sites || siteItems()).get(siteKey(lat, lon)) || [];
+    const place = items.find((x) => x.kind === "place")?.p;
+    const byPage = new Map();                                        // a track called here more than once: one chip, every visit
+    for (const x of items) {
+      const slug = x.kind === "place" ? x.p.page : x.a.page;
+      if (!byPage.has(slug)) byPage.set(slug, { kind: x.kind, title: x.kind === "place" ? x.p.name : x.a.title, slug, visits: [], note: x.kind === "place" ? [x.p.kind, x.p.note].filter(Boolean).join(" · ") : x.kind === "track" ? "" : fmtDate(x.a) });
+      if (x.w) byPage.get(slug).visits.push(`${dateLabel(x.w.date || "")}${x.w.note ? ": " + x.w.note : ""}`);
+    }
+    const order = { place: 0, track: 1 };
+    const chips = [...byPage.values()].sort((p, q) => ((order[p.kind] ?? 2) - (order[q.kind] ?? 2)) || p.title.localeCompare(q.title));
+    const title = place ? esc(place.name) : "This spot";
+    el.innerHTML = crumb(here(title, hist.slug)) + `<h2>${title} <span class="muted">${coordLink(lat, lon, place?.name || "")}</span></h2>` +
+      `<p class="lead">${chips.length} things on the map share this spot. Pick one.</p>` +
+      `<div class="pagelist">${chips.map((c) => pageLink({ slug: c.slug, kind: c.kind, title: c.title, summary: c.visits.length ? c.visits.join(" · ") : c.note })).join("")}</div>`;
+    focusPoint(lat, lon, place?.name || "");
+    el.scrollTop = 0;
+  }
   // how the history was made: the project's own account (PROVENANCE.md,
   // written on grid and pulled with the data) with its snapshot of the
   // numbers replaced by this build's, then what happens aboard: the models'
@@ -1062,10 +1085,13 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
     const flag = (e.key === "Enter" || e.key === " ") && e.target.closest?.("#pane-history .flag[data-flag]");
     if (flag) { e.preventDefault(); toggleFlag(flag.dataset.flag); }
   });
+  // a click on a spot where several things sit opens the chooser instead
+  const crowded = (lat, lon) => lat != null && (hist.sites?.get(siteKey(lat, lon))?.length || 0) > 1;
   UW.onHistoryClick = (id, pt) => {
     // the mark moves to what was clicked; the map keeps its view; the page
     // opens even if it is the one the reader has since left
-    if (pt && pt.lat != null) UW.state.focus = { lat: +pt.lat, lon: +pt.lon, label: String(pt.text || "").replace(/<[^>]+>/g, "") };
+    if (pt && pt.lat != null) UW.state.focus = { lat: +pt.lat, lon: +pt.lon, label: String(pt.text || "").replace(/<br>.*$/s, "").replace(/<[^>]+>/g, "") };
+    if (pt && crowded(pt.lat, pt.lon)) { open(`at/${siteKey(pt.lat, pt.lon)}`); return; }
     if (id.startsWith("place:")) { open(id.slice(6)); return; }
     const a = artifactById(id.split("|")[0]); if (a) open(a.page);
   };
@@ -1073,6 +1099,7 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
   // lies under it and open that
   UW.onFocusClick = (pt) => {
     if (!UW.state.history || !hist.artifacts || pt?.lat == null) return false;
+    if (crowded(pt.lat, pt.lon)) { open(`at/${siteKey(pt.lat, pt.lon)}`); return true; }
     const near = (la, lo) => la != null && Math.abs(la - pt.lat) < 1e-6 && Math.abs(lo - pt.lon) < 1e-6;
     const t = curTopic();
     for (const a of shownArtifacts()) {
@@ -1083,13 +1110,38 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
   };
 
   // ---------------------------------------------------------------- the map layer
+  // Several things can sit on one spot: a cape five patrols called at, and
+  // its place pin. The hover then lists every one of them, and a click opens
+  // a chooser (the "at/<lat>,<lon>" view) rather than the topmost alone.
+  const siteKey = (lat, lon) => `${(+lat).toFixed(3)},${(+lon).toFixed(3)}`;
+  const short = (t, n = 60) => esc(t.length > n ? t.slice(0, n - 3) + "…" : t);
+  function siteItems() {
+    // what the map shows now, grouped by spot: {key → [{kind, a|p, w, label}]}
+    const sites = new Map();
+    const add = (lat, lon, item) => { if (lat == null || lon == null) return; const k = siteKey(lat, lon); if (!sites.has(k)) sites.set(k, []); sites.get(k).push(item); };
+    const shown = shownArtifacts();
+    const year = (a) => { const y = yearOf(a.date_start); return y == null ? "" : ` · ${yearLabel(y)}`; };
+    for (const a of shown) {
+      if (a.type === "track") {
+        for (const w of a.waypoints || []) add(w.lat, w.lon, { kind: "track", a, w, label: `${short(a.title)} · ${esc(dateLabel(w.date || ""))}${w.note ? " · " + short(w.note, 50) : ""}` });
+      } else add(a.lat, a.lon, { kind: a.type, a, label: `${short(a.title)}${year(a)}` });
+    }
+    if (hist.types.has("place")) {
+      const t = curTopic();
+      for (const p of hist.places) if (p.lat != null && (!t || p.topic === t)) add(p.lat, p.lon, { kind: "place", p, label: `${esc(p.name)}${p.kind ? " · " + esc(p.kind) : ""}` });
+    }
+    return sites;
+  }
+  // the hover for one item: its own label, or every label at its spot, stacked
+  const siteText = (sites, lat, lon, own) => { const xs = sites.get(siteKey(lat, lon)); return xs && xs.length > 1 ? xs.map((x) => x.label).join("<br>") : own; };
   const prevExtra = UW.extraMapTraces;
   UW.extraMapTraces = () => {
     const out = prevExtra ? prevExtra() : [];
     if (!UW.state.history || !hist.artifacts) { if (UW.state.history && !hist.artifacts) ensure().then(() => UW.renderMap()); return out; }
     const shown = shownArtifacts();
+    const sites = hist.sites = siteItems();
     const year = (a) => { const y = yearOf(a.date_start); return y == null ? "" : ` · ${yearLabel(y)}`; };
-    const hover = (a) => `${esc(a.title.length > 60 ? a.title.slice(0, 57) + "…" : a.title)}${year(a)}`;
+    const hover = (a) => `${short(a.title)}${year(a)}`;
     // the open track, if the page is one, is drawn last, wide and bright;
     // the other tracks step back so the eye finds it
     const tracks = shown.filter((x) => x.type === "track" && x.geometry?.coordinates?.length > 1);
@@ -1101,24 +1153,24 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
         line: { width: a === picked ? 4 : dim ? 1.6 : 2.4, color: col }, opacity: a === picked ? 1 : dim ? .3 : .85 });
       if (a.waypoints?.length) out.push({ type: "scattermap", mode: "markers", name: `hist-${a.id}-wp`, showlegend: false, hoverinfo: "text",
         lat: a.waypoints.map((w) => w.lat), lon: a.waypoints.map((w) => w.lon),
-        text: a.waypoints.map((w) => `${esc(dateLabel(w.date || ""))}${w.note ? " · " + esc(w.note.length > 50 ? w.note.slice(0, 47) + "…" : w.note) : ""}`),
+        text: a.waypoints.map((w) => siteText(sites, w.lat, w.lon, `${esc(dateLabel(w.date || ""))}${w.note ? " · " + short(w.note, 50) : ""}`)),
         customdata: a.waypoints.map((w) => `hist:${a.id}|${w.date || ""}`), marker: { size: a === picked ? 8 : 6, color: col, opacity: dim ? .35 : .9 } });
     }
     const pins = shown.filter((x) => x.type !== "track" && x.lat != null);
     if (pins.length) out.push({ type: "scattermap", mode: "markers", name: "history", showlegend: false, hoverinfo: "text",
-      lat: pins.map((a) => a.lat), lon: pins.map((a) => a.lon), text: pins.map(hover), customdata: pins.map((a) => `hist:${a.id}`),
+      lat: pins.map((a) => a.lat), lon: pins.map((a) => a.lon), text: pins.map((a) => siteText(sites, a.lat, a.lon, hover(a))), customdata: pins.map((a) => `hist:${a.id}`),
       marker: { size: pins.map((a) => a.type === "event" ? 11 : 9), color: pins.map((a) => TYPES[a.type]?.colour || "#8b9bb0"), opacity: .92 } });
     if (hist.types.has("place")) {
       const t = curTopic(), pl = hist.places.filter((p) => p.lat != null && (!t || p.topic === t));
       if (pl.length) out.push({ type: "scattermap", mode: "markers", name: "history-places", showlegend: false, hoverinfo: "text",
-        lat: pl.map((p) => p.lat), lon: pl.map((p) => p.lon), text: pl.map((p) => `${esc(p.name)}${p.kind ? " · " + esc(p.kind) : ""}`), customdata: pl.map((p) => `hist:place:${p.page}`),
+        lat: pl.map((p) => p.lat), lon: pl.map((p) => p.lon), text: pl.map((p) => siteText(sites, p.lat, p.lon, `${esc(p.name)}${p.kind ? " · " + esc(p.kind) : ""}`)), customdata: pl.map((p) => `hist:place:${p.page}`),
         marker: { size: 7, color: TYPES.place.colour, opacity: .85 } });
     }
     return out;
   };
 
   // ---------------------------------------------------------------- Ada
-  UW.historyContext = () => (hist.slug && !["explore", "bib"].includes(hist.slug) && !/^(topic|kind|event)\//.test(hist.slug)) ? hist.slug : "";
+  UW.historyContext = () => (hist.slug && !["explore", "bib", "provenance"].includes(hist.slug) && !/^(topic|kind|event|at)\//.test(hist.slug)) ? hist.slug : "";
   UW.historyOpen = (slug) => open(slug);
 
   // ---------------------------------------------------------------- wiring
