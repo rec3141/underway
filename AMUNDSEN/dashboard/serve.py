@@ -178,6 +178,13 @@ class Handler(SimpleHTTPRequestHandler):
                     c.close()
             except FileNotFoundError:
                 return self._json(200, {"requests": []})
+        if u.path == "/api/history/flags":
+            # the artifacts anyone has flagged for review, so every browser
+            # shows the same flags; with this browser's chat token and name,
+            # which of them are its own and whether it is an admin's
+            from .alerts import flagged
+            q = parse_qs(u.query)
+            return self._json(200, flagged(q.get("token", [""])[0][:64], q.get("name", [""])[0][:60]))
         if u.path == "/api/chat":
             q = parse_qs(u.query)
             g = lambda k, d="": (q.get(k, [d])[0] or d)             # noqa: E731
@@ -276,6 +283,30 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("history ask failed: %s", e)
                 return self._json(503, {"error": "the historian is not answering right now; the model may be busy or off"})
+        if u.path == "/api/history/flag":
+            # the flag on an artifact's card: {"id": ..., "on": true, "token": <chat token>, "name": ...,
+            # "title": ..., "page": "artifact/...", "note": ...}; the alerts timer tells the keeper
+            from .alerts import TooMany, set_flag
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 4096:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                r = set_flag(str(payload.get("id", "")), bool(payload.get("on")), str(payload.get("token", ""))[:64],
+                             str(payload.get("name", ""))[:60], str(payload.get("title", "")), str(payload.get("page", "")),
+                             str(payload.get("note", "")))
+                return self._json(200, {"ok": True, **r})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except PermissionError as e:
+                return self._json(403, {"error": str(e)})
+            except TooMany as e:
+                return self._json(429, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("history flag failed: %s", e)
+                return self._json(500, {"error": "could not save the flag"})
         if u.path == "/api/history/requests":
             # the ship's copy of the history database is a pulled snapshot;
             # answers are written on grid, where the research crew works
