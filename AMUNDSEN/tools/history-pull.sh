@@ -37,9 +37,14 @@ PYEOF"
     ) 9>"$HERE/cache/.run.lock"
     echo "== files"
     # only the fetched files: everything else under db/history is git's, and
-    # the clone must stay a clean checkout of grid's repository
-    rsync -a --info=stats1 --include '*/' --include '*/files/**' --exclude '*' \
-      "$GRID:$REMOTE/db/history/" "$LOCAL/db/history/" | { grep -E "Number of (regular files transferred|created)|Total transferred" || true; }
+    # the clone must stay a clean checkout of grid's repository. The crew is
+    # fetching while this runs: a download in progress (*.part) is skipped,
+    # and a file that vanishes between the listing and the copy (rsync 24)
+    # is a warning, not a failure; it comes with the next pull
+    rc=0
+    rsync -a --info=stats1 --exclude '*.part' --include '*/' --include '*/files/**' --exclude '*' \
+      "$GRID:$REMOTE/db/history/" "$LOCAL/db/history/" 2>&1 | { grep -E "Number of (regular files transferred|created)|Total transferred|vanished|error" || true; } || rc=$?
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 24 ]; then echo "the files did not sync (rsync exit $rc)" >&2; exit "$rc"; fi
     find "$LOCAL/db/history" -mindepth 1 -type d -empty -delete 2>/dev/null || true
     "$PY" "$LOCAL/tools/history-db.py" stats | head -4
     echo "the next dashboard build publishes it"
