@@ -257,7 +257,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         u = urlsplit(self.path)
         if u.path == "/api/live" and LIVE:
-            # point the listener at Seasave from the page: {"tcp": "10.0.0.22:49161"}
+            # point the listener at Seasave from the page: {"tcp": "10.0.0.22:49161,49162"}, the ports tried in turn
             try:
                 n = int(self.headers.get("Content-Length", "0"))
                 if not 0 <= n <= 4096:

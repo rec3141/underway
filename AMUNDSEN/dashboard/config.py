@@ -49,6 +49,7 @@ class Variable:
     circular: bool = False          # degrees on a compass; plotted as points, not lines
     tsg: bool = False               # read off the TSG line: meaningless while the intake pump is off
     cmap: str = "Viridis"
+    reverse: bool = False           # the map read the other way: deep water dark
 
     def resolve(self, keys: list[str]) -> str | None:
         for pat in self.candidates:
@@ -74,7 +75,7 @@ VARIABLES: tuple[Variable, ...] = (
     Variable("Short-wave radiation (W/m²)", "W/m²",
              (r"^ats_portside — short wave", r"^ats_starboard — short wave", r"short wave radiation")),
     Variable("Bottom depth (m)", "m",
-             (r"^multibeam — bottom depth", r"^ek60 — bottom depth", r"bottom depth"), log_ok=True),
+             (r"^multibeam — bottom depth", r"^ek60 — bottom depth", r"bottom depth"), log_ok=True, reverse=True),
     Variable("Air temperature (°C)", "°C",
              (r"^avos — air temperature", r"^ats_mettower — air temperature", r"air temperature")),
     Variable("Atmospheric pressure (hPa)", "hPa",

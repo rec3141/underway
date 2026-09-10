@@ -174,7 +174,7 @@
     const su = subjectOf(o.subject);
     const what = su ? `<b class="${su.kind === "taxon" ? "sci" : ""}">${esc(displayName(su))}</b>` : `<b>${esc(o.subject)}</b>`;
     const num = numberOf(o);
-    return `<a class="vig" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" data-lat="${o.lat ?? ""}" data-lon="${o.lon ?? ""}"><span class="dot" style="background:${domainOf(domainOfObs(o)).colour}"></span>${lead}<span class="txt">${what}${num ? ` <i>${esc(num)}</i>` : ""}${o.qualifier && !num ? ` <i>${esc(o.qualifier)}</i>` : ""}${o.observer ? ` <span class="muted">${esc(o.observer)}</span>` : ""}${o.place ? ` <span class="muted">· ${esc(o.place)}</span>` : ""}${o._journal ? ` <span class="status draft" title="the ship's own line, not yet ingested on grid">ship</span>` : ""}${o.lat != null ? ` <span class="pin" title="on the map">⌖</span>` : ""}</span></a>`;
+    return `<a class="vig" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" data-lat="${o.lat ?? ""}" data-lon="${o.lon ?? ""}"><span class="dot" style="background:${domainOf(domainOfObs(o)).colour}"></span>${lead}<span class="txt">${what}${num ? ` <i>${esc(num)}</i>` : ""}${o.qualifier && !num ? ` <i>${esc(o.qualifier)}</i>` : ""}${o.observer ? ` <span class="muted">${esc(o.observer)}</span>` : ""}${o.place ? ` <span class="muted">· ${esc(o.place)}</span>` : ""}${o._journal ? ` <span class="status draft" title="the ship's own journal">ship</span>` : ""}${o.lat != null ? ` <span class="pin" title="on the map">⌖</span>` : ""}</span></a>`;
   }
   // the number as it was written: "about 200", "-58.5 F", "no bottom at 1,000 fathoms"
   function numberOf(o) {
@@ -219,7 +219,7 @@
       const where = o.place ? esc(o.place) : "";
       const pin = o.lat != null ? ` <span class="pin" data-lat="${o.lat}" data-lon="${o.lon}" data-label="${esc(o.subject)}" data-layer="nature" title="on the map">⌖</span>` : "";
       const num = numberOf(o);
-      const src = o.bibkey ? H.sourceRef(o.bibkey, o.pages) : o._journal ? `<span class="status draft" title="the ship's own line, not yet ingested on grid">ship's journal</span>` : "";
+      const src = o.bibkey ? H.sourceRef(o.bibkey, o.pages) : o._journal ? `<span class="status draft" title="the ship's own journal">ship's journal</span>` : "";
       return `<tr data-key="${i}"${o.lat != null ? ` data-lat="${o.lat}" data-lon="${o.lon}"` : ""}><td class="mono"><a href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}">${esc(o.date_text || H.dateLabel(o.date_start))}</a></td>${what}` +
         `<td>${num ? `<b>${esc(num)}</b> ` : ""}${o.qualifier && !/\bat$/.test(o.qualifier) ? `<i>${esc(o.qualifier)}</i> ` : ""}${o.depth != null ? `<span class="muted">${esc(fmtNum(o.depth))} m down</span> ` : ""}${o.height != null ? `<span class="muted">${esc(fmtNum(o.height))} m up</span> ` : ""}<span class="muted">${esc(short(o.detail || "", 110))}</span></td>` +
         `<td>${where}${pin}</td><td>${esc(o.observer || "")}${o.vessel ? ` <span class="muted">${esc(o.vessel)}</span>` : ""}</td><td>${src}</td></tr>`;
@@ -454,14 +454,14 @@
       ["observed", [num, o.qualifier && !num ? o.qualifier : "", o.stage, o.sex, o.behaviour].filter(Boolean).join(" · ")],
       ["depth", o.depth != null ? `${fmtNum(o.depth)} m below the surface` : ""], ["height", o.height != null ? `${fmtNum(o.height)} m above` : ""],
       ["method", [o.method, o.instrument].filter(Boolean).join(", ")],
-      ["confidence", o.confidence], ["origin", o._journal ? "the ship's journal, not yet ingested on grid" : o.origin === "ship" || o.origin === "crew" ? "the ship's own journal" : ""],
+      ["confidence", o.confidence], ["origin", o._journal || o.origin === "ship" || o.origin === "crew" ? "the ship's own journal" : ""],
       ["source", o.bibkey ? H.sourceRef(o.bibkey, o.pages) : ""],
     ]);
     el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-slug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(domainOfObs(o) || "other")]), here(`<span class="kind">observation</span>`, `observation/${o.id}`)) +
       `<h2>${s ? subjectLink(s) : esc(o.subject)}${num ? ` <span class="muted">${esc(num)}</span>` : ""}</h2>` +
       `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${when ? " · " + esc(when) : ""}${place ? " · " + place : ""}${where}${o.sensitive ? ` · <span class="status draft" title="a sensitive site: the position is published coarsened and the place left blank">sensitive</span>` : ""}</div>` +
       (o.observer || o.vessel ? `<div class="artpeople"><span class="lbl">By</span>${o.observer ? person ? pageLinkFor(person.page, esc(o.observer), "chip small") : `<span class="chip small">${esc(o.observer)}</span>` : ""}${o.vessel ? vessel ? pageLinkFor(vessel.page, esc(o.vessel), "chip small") : `<span class="chip small">${esc(o.vessel)}</span>` : ""}</div>` : "") +
-      (o.artifact_file ? `<figure><img src="${esc(o.artifact_file.startsWith("_journal/") ? "journal/" + o.artifact_file.slice(9) : o.artifact_file)}" alt=""><figcaption>${esc(o.observer || "the ship")}</figcaption></figure>` : "") +
+      (o.artifact_file ? `<figure><img src="${esc(o.artifact_file.startsWith("_journal/") ? journalPic(o) : o.artifact_file)}" alt=""><figcaption>${esc(o.observer || "the ship")}</figcaption></figure>` : "") +
       facts + `<div class="wiki"><p>${esc(o.detail || "")}</p></div>` +
       (art ? `<h3>Evidence</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
       (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
@@ -478,15 +478,28 @@
   // form writes one line by hand, in the CLI's vocabulary, with the position
   // from the ship's GPS and the time from the clock. Lines reach grid on the
   // next push; grid's writer validates them.
-  const share = { path: null, list: null, jobs: [], licences: {}, watches: [], watch: null };
+  const share = { path: null, list: null, jobs: [], licences: {}, watches: [], watch: null, tab: store.get("nat.jtab", "gallery") };
+  const jentry = (o) => `<div class="jentry">${obsLine(o, `<b>${esc((o.date || o.date_start || "").slice(0, 16).replace("T", " ").replace(/(\d\d:\d\d)$/, "$1 UTC"))}</b>`)}</div>`;
+  const journalPic = (o) => "journal/" + o.artifact_file.replace(/^_journal\/img\//, "");
+  // the page: Gallery (the journal's pictures, newest first, each a card to its page) | Submit (the import, and one line by hand)
   function journalHTML(brief) {
-    const lines = brief ? nat.journal.slice(0, 5) : nat.journal;
-    const status = (o) => nat.obs.some((x) => x.id === o.id) ? `<span class="st">published</span>` : `<span class="st">awaiting grid</span>`;
-    const entry = (o) => `<div class="jentry">${obsLine(o, `<b>${esc((o.date || o.date_start || "").slice(0, 16).replace("T", " ").replace(/(\d\d:\d\d)$/, "$1 UTC"))}</b>`)}${status(o)}</div>`;
-    const list = lines.length ? lines.map(entry).join("") + (brief && nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
-    const tools = brief ? `<div class="jtools"><button type="button" class="chip" id="natimport">Import a folder of photographs from the share</button> <button type="button" class="chip small" id="natnew">one observation by hand</button></div>` : "";
-    const body = brief ? "" : importHTML() + `<details class="byhand"><summary>Add one observation by hand</summary>${formHTML()}</details>`;
-    return `<section class="journal card"><h3>/Share Photos${brief ? ` <a class="chip small" href="#wiki/journal" data-slug="journal">open</a>` : ""}</h3>${brief ? "" : body}${list}${tools}</section>`;
+    if (brief) {
+      const lines = nat.journal.slice(0, 5);
+      const list = lines.length ? lines.map(jentry).join("") + (nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
+      return `<section class="journal card"><h3>/Share Photos <a class="chip small" href="#wiki/journal" data-slug="journal">open</a></h3>${list}` +
+        `<div class="jtools"><button type="button" class="chip" id="natimport">Submit a folder of photographs from the share</button> <button type="button" class="chip small" id="natnew">one observation by hand</button></div></section>`;
+    }
+    const tab = share.tab === "submit" ? "submit" : "gallery";
+    const tabs = `<div class="group seg jtabs" id="jtabs"><button type="button" data-t="gallery" class="${tab === "gallery" ? "on" : ""}">Gallery</button><button type="button" data-t="submit" class="${tab === "submit" ? "on" : ""}">Submit</button></div>`;
+    const body = tab === "submit" ? importHTML() + `<details class="byhand"><summary>Add one observation by hand</summary>${formHTML()}</details>` : galleryHTML();
+    return `<section class="journal card"><h3>/Share Photos</h3>${tabs}${body}</section>`;
+  }
+  function galleryHTML() {
+    const pics = nat.journal.filter((o) => o.artifact_file), rest = nat.journal.filter((o) => !o.artifact_file);
+    const cap = (o) => (o.detail || "").split(/(?<=\.)\s+/)[0] || o.subject || "";
+    const cards = pics.map((o) => `<a class="gcard" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" title="${esc(o.subject || "")}"><img src="${esc(journalPic(o))}" alt="" loading="lazy"><div class="cap">${esc(cap(o))}</div><div class="who">${esc(o.observer || "")}${o.date ? " · " + esc(o.date.slice(0, 10)) : ""}</div></a>`).join("");
+    return (pics.length ? `<div class="gallery">${cards}</div>` : `<p class="muted small">No photographs yet: Submit a folder from the share.</p>`) +
+      (rest.length ? `<h4>Observations without a picture</h4>` + rest.map(jentry).join("") : "");
   }
   // the import panel: the browser over the share (the folder open is the one imported), the form with the
   // permission to keep importing from it, the folders being watched, the imports so far
@@ -627,8 +640,9 @@
     </form>`;
   }
   function wireJournal(el) {
-    const add = el.querySelector("#natnew"); if (add) add.onclick = () => { H.open("journal"); setTimeout(() => { const d = $("#histmain details.byhand"); if (d) { d.open = true; d.scrollIntoView(); } }, 50); };
-    const imp = el.querySelector("#natimport"); if (imp) imp.onclick = () => H.open("journal");
+    const add = el.querySelector("#natnew"); if (add) add.onclick = () => { share.tab = "submit"; store.set("nat.jtab", "submit"); H.open("journal"); setTimeout(() => { const d = $("#histmain details.byhand"); if (d) { d.open = true; d.scrollIntoView(); } }, 50); };
+    const imp = el.querySelector("#natimport"); if (imp) imp.onclick = () => { share.tab = "submit"; store.set("nat.jtab", "submit"); H.open("journal"); };
+    for (const b of el.querySelectorAll("#jtabs button")) b.onclick = () => { share.tab = b.dataset.t; store.set("nat.jtab", share.tab); H.rerender(); };
     wireImport(el);
     const form = el.querySelector("#natform"); if (!form) return;
     const msg = form.querySelector("#natformmsg"), hint = form.querySelector("#natsubhint");
