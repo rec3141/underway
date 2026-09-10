@@ -32,6 +32,7 @@
   /* the graphs (Plotly) */
   --plot-bg: #121920; --plot-fg: #c9d4e0; --plot-grid: #243040; --plot-line: #34435a; --hover-bg: #1b242e;
   --plot-legend-bg: rgba(15,20,25,.88);
+  --hover-fg: var(--fg);             /* the hover label's ink (Navigator's yellow label wants black) */
   --marker: #ffffff; --marker-line: #0b1620;     /* bottles and stations on a graph */
   --floor: rgba(43,52,65,.92); --floor-line: #3b4658;   /* the seafloor under a section */
   /* the basemap without the relief pyramid */
@@ -42,6 +43,8 @@
   --palette: #5cc8ff #ffb454 #7ee787 #ff7b72 #d2a8ff #f2cc60 #79c0ff #ffa198 #56d364 #e3b341 #a5d6ff #ff9bce;
   --radius: 10px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-head: var(--font);       /* headings and the History prose */
+  --plot-font: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;   /* the graphs' face (Plotly) */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -96,6 +99,60 @@ html[data-theme="minimal-light"] {
   --map-bathy: #dbe9f3 #cddfed #bfd5e7 #b1cbe1 #a3c1db #95b7d5 #87adcf #79a3c9 #6b99c3 #5d8fbd #4f85b7 #417bb1;
   --palette: #0b57d0 #b5430b #146c2e #b3261e #6b3fa0 #7a5b00 #0a4d9c #8f1e1e #0f5a26 #6e4400 #1a73e8 #a8326b;
   color-scheme: light;
+}
+
+/* Navigator: the web of 1996 — a grey page, black type, navy for the
+   chosen thing, the sixteen colours of a VGA card for the data, yellow
+   tooltips; the look itself (bevels, the title bar, Times) is the block at
+   the end of this file */
+html[data-theme="navigator"] {
+  --bg: #c0c0c0; --bg-top: #000080; --card: #ffffff; --card-2: #d8d8d8; --line: #808080;
+  --fg: #000000; --fg-2: #202020; --muted: #404040;
+  --accent: #000080; --on-accent: #ffffff; --accent-2: #a04000; --on-accent-2: #ffffff; --warn: #c00000; --on-warn: #ffffff;
+  --ok: #008000; --ok-bg: #c8f0c8; --bad: #ff0000; --now: #ff0000;
+  --purple: #800080; --pink: #c000c0; --gold: #808000;
+  --tag: #d8d8d8; --tag-2: #e8e8e8; --tag-bad: #ffd0d0; --tag-amber: #ffe0b0; --tag-tm: #ffe0b0;
+  --pale: #000080; --on-pale: #ffffff; --media: #808080; --pop: #c0c0c0; --shadow: transparent;
+  --map-fg: #000000; --map-halo: #ffffff;
+  --plot-bg: #ffffff; --plot-fg: #000000; --plot-grid: #c0c0c0; --plot-line: #808080; --hover-bg: #ffffe1; --plot-legend-bg: #c0c0c0;
+  --marker: #ffffff; --marker-line: #000000; --floor: #c0c0c0; --floor-line: #808080;
+  --map-bg: #b0d0f0; --map-land: #c0c0c0; --map-coast: #000000; --map-ice: #ffffff; --sketch-coast: #808080;
+  --map-bathy: #d0e4f8 #c0daf4 #b0d0f0 #a0c4ec #90b8e8 #80ace4 #70a0e0 #6094d8 #5088d0 #407cc8 #3070c0 #2064b8;
+  --palette: #000080 #a04000 #008000 #ff0000 #800080 #808000 #0000ff #ff8000 #008080 #804000 #4040ff #c000c0;
+  --radius: 0;
+  /* the chrome: button faces, bevels, the pressed state, links, tooltips */
+  --face: #c0c0c0; --bevel: #e8e8e8; --bevel-hi: #f4f4f4; --bevel-lo: #606060; --pressed: #ffffff; --pressed-fg: #000080;
+  --link: #0000ee; --visited: #551a8b; --tip: #ffffe1; --hover-fg: #000000;
+  --font: Arial, Helvetica, sans-serif;
+  --font-head: "Times New Roman", Times, serif;
+  --plot-font: "Times New Roman", Times, serif;
+  --mono: "Courier New", Courier, monospace;
+  color-scheme: light;
+}
+/* the same web of 1996 after dark: charcoal chrome, the chosen thing navy
+   with white on it, the bright half of the VGA palette for the data */
+html[data-theme="navigator-dark"] {
+  --bg: #3a3a3a; --bg-top: #000080; --card: #262626; --card-2: #4a4a4a; --line: #1e1e1e;
+  --fg: #f0f0f0; --fg-2: #d8d8d8; --muted: #b0b0b0;
+  --accent: #8ab4ff; --on-accent: #000000; --accent-2: #ffb000; --on-accent-2: #000000; --warn: #ff5050; --on-warn: #000000;
+  --ok: #40ff40; --ok-bg: #204020; --bad: #ff5050; --now: #ff4040;
+  --purple: #ff80ff; --pink: #ff80c0; --gold: #ffff40;
+  --tag: #4a4a4a; --tag-2: #565656; --tag-bad: #603030; --tag-amber: #604820; --tag-tm: #604820;
+  --pale: #d0d0d0; --on-pale: #000000; --media: #1a1a1a; --pop: #3a3a3a; --shadow: transparent;
+  --map-fg: #ffffff; --map-halo: #000000;
+  --plot-bg: #202020; --plot-fg: #f0f0f0; --plot-grid: #484848; --plot-line: #808080; --hover-bg: #ffffe1; --plot-legend-bg: #3a3a3a;
+  --marker: #ffffff; --marker-line: #000000; --floor: #505050; --floor-line: #909090;
+  --map-bg: #182838; --map-land: #3a3a3a; --map-coast: #d0d0d0; --map-ice: #e0e0e0; --sketch-coast: #808080;
+  --map-bathy: #2a4a6a #274462 #243e5a #213852 #1e324a #1b2c42 #18263a #152032 #121a2a #0f1422 #0c0e1a #090812;
+  --palette: #5c8cff #ffb000 #40ff40 #ff5050 #ff80ff #ffff40 #40ffff #ff8040 #40c0c0 #d0a000 #a0c0ff #ff80c0;
+  --face: #4a4a4a; --bevel: #707070; --bevel-hi: #9a9a9a; --bevel-lo: #202020; --pressed: #000080; --pressed-fg: #ffffff;
+  --link: #8ab4ff; --visited: #c8a8ff; --tip: #ffffe1; --hover-fg: #000000;
+  --radius: 0;
+  --font: Arial, Helvetica, sans-serif;
+  --font-head: "Times New Roman", Times, serif;
+  --plot-font: "Times New Roman", Times, serif;
+  --mono: "Courier New", Courier, monospace;
+  color-scheme: dark;
 }
 
 /* the type size apart from the palette: Minimal is large unless told
@@ -273,6 +330,14 @@ main:not(.tab-underway) .plotctl { display: none; }           /* the strip is th
 .maplayers .mapcolour { flex: 1 0 100%; margin-bottom: 2px; }   /* the colour picker on its own line above the layer pills */
 main > footer { grid-column: 2; grid-row: 3; }                  /* the provenance stays on the right half */
 .plotctl label.select { min-width: 0; }
+/* the colour scale beside the picker: the map's gradient with its limits at the ends */
+.cbar { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; font-family: var(--mono); font-size: 0.786rem; color: var(--fg); white-space: nowrap; }
+.cbar .grad { display: inline-block; width: 120px; height: 11px; border: 1px solid var(--line); border-radius: 3px; }
+@media (max-width: 640px) {   /* the bar takes a line of its own under the picker */
+  .plotctl label.select, .maplayers .mapcolour { flex-wrap: wrap; white-space: nowrap; }
+  .cbar { flex: 1 0 100%; margin: 4px 0 0; }
+  .cbar .grad { flex: 1; width: auto; }
+}
 .map { grid-column: 1; grid-row: 1 / 3; }
 .side { grid-column: 2; grid-row: 2; }
 /* No Map: the pickers, the pane and the provenance span both columns */
@@ -1119,3 +1184,82 @@ html[data-theme^="minimal"].chat-side main { padding-right: 460px; }
   .top .themepick .lbl { display: none; }
   html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
 }
+
+/* ---------------------------------------------------------------- Navigator
+   The web of 1996 as the look, not only the colours: every button a grey
+   bevel that presses in when chosen, boxes bevelled too, the header a navy
+   title bar, headings and the History prose in Times, links blue and
+   underlined, LIVE blinking, tooltips yellow, nothing rounded. The bevel
+   rules carry !important because every component styles its own buttons. */
+html[data-theme^="navigator"] .top { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 2px outset var(--bevel); color: #fff; }
+html[data-theme^="navigator"] .top :is(.brand h1, .brand .sub, .brand .sub b, .pickhint, .themepick, .themepick label.select, .brand .sub .refresh) { color: #fff; }
+html[data-theme^="navigator"] .brand .sub .refresh { border-bottom-color: #a0c0ff; }
+html[data-theme^="navigator"] .brand h1 { font-family: var(--font-head); font-size: 1.6rem; letter-spacing: 0; }
+html[data-theme^="navigator"] .brand .sub .srcpop table { color: var(--fg); }
+html[data-theme^="navigator"] .top .live { color: #40ff40; }
+html[data-theme^="navigator"] .brand .live { animation: nav-blink 1s steps(1) infinite; }   /* the word, as <blink> would have it */
+@keyframes nav-blink { 50% { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { html[data-theme^="navigator"] .brand .live { animation: none; } }
+/* headings and prose in Times */
+html[data-theme^="navigator"] :is(h1, h2, h3, h4, .block h3, .panel .head h3, .mdetail h4, .vigcard h3, .peoplelist h3) { font-family: var(--font-head); }
+html[data-theme^="navigator"] .histmain, html[data-theme^="navigator"] .histanswer, html[data-theme^="navigator"] .chatlog .msg .txt { font-family: var(--font-head); font-size: 1.07rem; }
+/* links: blue, underlined, purple once followed (chips and pills excepted) */
+html[data-theme^="navigator"] a { color: var(--link); }
+html[data-theme^="navigator"] :is(.wiki, .meta, .notes, .prov, .map-foot, .campop .foot, .chat .msg, .histmain p, .histmain li, .mla, .mlaline, .spannote) a:not(.chip):not(.artcard):not(.artchip):not(.pglink):not(.topiccard) { text-decoration: underline; }
+html[data-theme^="navigator"] :is(.wiki, .meta, .notes, .prov) a:visited { color: var(--visited); }
+/* boxes: bevelled out, never rounded, never shaded */
+html[data-theme^="navigator"] :is(.card, .panel, .legmenu .pop, .toast, .campop, .mapinfo, .chat, .dockgroup, .evlog, .mdetail, .bellmenu, .vigcard, .topiccard, .artcard, .histanswer, .livecfgform, .pagelist .pglink, .artchip, .provenance .stat, .tablewrap, .scol, .mcell, .dbody, .histtimeline, .brand .sub .srcpop table) {
+  border: 2px outset var(--bevel); border-radius: 0; box-shadow: none; }
+html[data-theme^="navigator"] .panel.on { border: 2px solid var(--accent); box-shadow: none; }
+html[data-theme^="navigator"] .panel.surprise { border-color: var(--accent-2); }
+html[data-theme^="navigator"] .panel .plot, html[data-theme^="navigator"] .castplot .plot { border: 2px inset var(--bevel); background: var(--plot-bg); }
+html[data-theme^="navigator"] .plot.table { border: 2px inset var(--bevel); }
+html[data-theme^="navigator"] .map { padding: 4px; }
+html[data-theme^="navigator"] #map { border: 2px inset var(--bevel); }
+html[data-theme^="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .kgroup, .histmain .status) { border-radius: 0; }
+/* buttons and chips: grey bevels; chosen ones press in, white, navy and bold */
+html[data-theme^="navigator"] :where(button, .chip, select, summary, .schedlinks .bigcal, .ticker .smallcal, .bibexport a):where(:not(.bell, .flag, .tog, .nudge, .more, .chattoggle, .emojibtn, .refresh, .emojipick button, .chatrooms .tools button)) {
+  border: 2px outset var(--bevel) !important; border-radius: 0 !important; background: var(--face) !important; color: var(--fg) !important; box-shadow: none !important; font-weight: normal; text-decoration: none; }
+html[data-theme^="navigator"] :is(button, .chip, summary, a.chip).on:not(.chattoggle), html[data-theme^="navigator"] button:active:not(.chattoggle), html[data-theme^="navigator"] details[open] > summary:not(.refresh), html[data-theme^="navigator"] .castside #castclear.has, html[data-theme^="navigator"] #stnclear.has {
+  border-style: inset !important; background: var(--pressed) !important; color: var(--pressed-fg) !important; font-weight: bold; }
+html[data-theme^="navigator"] :where(button, .chip, select, summary):where(:not(.on, :active, .refresh, .chattoggle, .bell, .flag)):hover { border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi) !important; }
+html[data-theme^="navigator"] .tabs { background: transparent; border: 0; padding: 0; gap: 3px; }
+html[data-theme^="navigator"] .tabs button { padding: 5px 14px; }
+html[data-theme^="navigator"] .seg button, html[data-theme^="navigator"] .seg button:first-child, html[data-theme^="navigator"] .seg button:last-child { margin-left: 2px; }
+html[data-theme^="navigator"] .schedlinks .bigcal, html[data-theme^="navigator"] .ticker .smallcal { padding: 4px 12px; }
+/* text boxes: white, bevelled in */
+html[data-theme^="navigator"] :is(input:not([type=range]):not([type=checkbox]), textarea) { border: 2px inset var(--bevel) !important; border-radius: 0 !important; background: var(--card) !important; color: var(--fg) !important; }
+html[data-theme^="navigator"] input[type=range] { accent-color: #000080; }
+/* tables: grey heads, ruled cells */
+html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) th { background: var(--face); color: var(--fg); border: 1px outset var(--bevel); }
+html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) td { border-bottom: 1px solid var(--line); }
+html[data-theme^="navigator"] .tablewrap { background: var(--card); }
+/* the schedule band, the bars and the bottom bar as grey chrome; the in-app notes and the whiteboard yellow, like a tooltip */
+html[data-theme^="navigator"] .alertbar, html[data-theme^="navigator"] .alertbar.folded { background: var(--face); border-bottom: 2px groove var(--bevel); }
+html[data-theme^="navigator"] .scol { background: var(--card); border-left-width: 2px; }
+html[data-theme^="navigator"] .scol.live { background: var(--ok-bg); }
+html[data-theme^="navigator"] .inapp, html[data-theme^="navigator"] .whiteboard, html[data-theme^="navigator"] tr.spannote td, html[data-theme^="navigator"] li.spannote { background: var(--tip); color: #000; border: 1px solid #000; }
+html[data-theme^="navigator"] .pane-tools { border-bottom: 2px groove var(--bevel); }
+html[data-theme^="navigator"] .dock, html[data-theme^="navigator"] #pane-calendar > .pane-tools, html[data-theme^="navigator"] #pane-history > .pane-tools, html[data-theme^="navigator"] main.tab-underway .plotctl { background: var(--bg); }
+html[data-theme^="navigator"] .dockgroup { background: var(--face); }
+html[data-theme^="navigator"] .dockgroup .ghead { text-transform: none; }
+/* the chat as a window with a navy title bar */
+html[data-theme^="navigator"] .chat .chathead { background: linear-gradient(90deg, #000080, #1084d0); border-radius: 0; }
+html[data-theme^="navigator"] .chat .chattoggle { color: #fff; font-weight: bold; }
+html[data-theme^="navigator"] .chat .chattoggle .muted, html[data-theme^="navigator"] .chat .caret { color: #d0d0d0; }
+html[data-theme^="navigator"] .chat .chatpicker, html[data-theme^="navigator"] .emojipick { background: var(--face); }
+html[data-theme^="navigator"] .chatlog .msg .who { color: var(--accent); }
+/* the pills that are words, and the map's floating boxes */
+html[data-theme^="navigator"] .livestate { border: 1px solid var(--fg); }
+html[data-theme^="navigator"] .campop, html[data-theme^="navigator"] .mapinfo { background: var(--face); }
+html[data-theme^="navigator"] .legmenu .pop, html[data-theme^="navigator"] .bellmenu { background: var(--face); }
+html[data-theme^="navigator"] .legmenu li label:hover { background: #000080; color: #fff; }
+html[data-theme^="navigator"] .legmenu li label:hover :is(.span, .n) { color: #d0d0d0; }
+html[data-theme^="navigator"] .month .mlegend i { background: var(--card); }
+html[data-theme^="navigator"] :focus-visible { outline: 1px dotted var(--fg); outline-offset: -4px; }   /* the marching-ants focus of the day */
+/* nothing rounded, anywhere (the coloured dots excepted); the sliders a grey thumb in a sunken track */
+html[data-theme^="navigator"] *:not(.dot):not(.rdot):not(.mdot):not(.chat .dot):not(.livestatus .dot) { border-radius: 0 !important; }
+html[data-theme^="navigator"] input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; background: var(--card); border: 2px inset var(--bevel); accent-color: var(--accent); }
+html[data-theme^="navigator"] input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 11px; height: 22px; background: var(--face); border: 2px outset var(--bevel); cursor: pointer; }
+html[data-theme^="navigator"] input[type=range]::-moz-range-thumb { width: 11px; height: 22px; background: var(--face); border: 2px outset var(--bevel); cursor: pointer; }
+html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); background: var(--card-2); }
