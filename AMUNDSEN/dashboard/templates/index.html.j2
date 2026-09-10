@@ -69,11 +69,11 @@
 <main>
   <div class="plotctl" id="plotctl">
     <div class="group xmode" aria-label="X axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the graphs between time and distance along track">Time</button></div>
-    <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+    <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
-      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
       <!-- listed top layer first; each is an on/off toggle -->
       <div class="layers">
       <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>

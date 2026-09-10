@@ -330,6 +330,14 @@ main:not(.tab-underway) .plotctl { display: none; }           /* the strip is th
 .maplayers .mapcolour { flex: 1 0 100%; margin-bottom: 2px; }   /* the colour picker on its own line above the layer pills */
 main > footer { grid-column: 2; grid-row: 3; }                  /* the provenance stays on the right half */
 .plotctl label.select { min-width: 0; }
+/* the colour scale beside the picker: the map's gradient with its limits at the ends */
+.cbar { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; font-family: var(--mono); font-size: 0.786rem; color: var(--fg); white-space: nowrap; }
+.cbar .grad { display: inline-block; width: 120px; height: 11px; border: 1px solid var(--line); border-radius: 3px; }
+@media (max-width: 640px) {   /* the bar takes a line of its own under the picker */
+  .plotctl label.select, .maplayers .mapcolour { flex-wrap: wrap; white-space: nowrap; }
+  .cbar { flex: 1 0 100%; margin: 4px 0 0; }
+  .cbar .grad { flex: 1; width: auto; }
+}
 .map { grid-column: 1; grid-row: 1 / 3; }
 .side { grid-column: 2; grid-row: 2; }
 /* No Map: the pickers, the pane and the provenance span both columns */
@@ -1249,3 +1257,9 @@ html[data-theme^="navigator"] .legmenu li label:hover { background: #000080; col
 html[data-theme^="navigator"] .legmenu li label:hover :is(.span, .n) { color: #d0d0d0; }
 html[data-theme^="navigator"] .month .mlegend i { background: var(--card); }
 html[data-theme^="navigator"] :focus-visible { outline: 1px dotted var(--fg); outline-offset: -4px; }   /* the marching-ants focus of the day */
+/* nothing rounded, anywhere (the coloured dots excepted); the sliders a grey thumb in a sunken track */
+html[data-theme^="navigator"] *:not(.dot):not(.rdot):not(.mdot):not(.chat .dot):not(.livestatus .dot) { border-radius: 0 !important; }
+html[data-theme^="navigator"] input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; background: var(--card); border: 2px inset var(--bevel); accent-color: var(--accent); }
+html[data-theme^="navigator"] input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 11px; height: 22px; background: var(--face); border: 2px outset var(--bevel); cursor: pointer; }
+html[data-theme^="navigator"] input[type=range]::-moz-range-thumb { width: 11px; height: 22px; background: var(--face); border: 2px outset var(--bevel); cursor: pointer; }
+html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); background: var(--card-2); }
