@@ -2,14 +2,15 @@
  * is and does, as the record of it was written down: subjects (a species, a
  * rock unit, a kind of ice, a variable, the aurora, the Magnetic Pole) and
  * observations of them (one subject, one date, one position, one source, the
- * number in the unit it was written in). Both are published by the build
- * from the arctic-history database into data/history/ beside the human half
- * (subjects.json, observations.json, pages/subject__*.json); the topics of
- * the index carry a domain, "history" or "nature", and this tab takes the
- * natural ones. The ship's own sightings go into a journal through the form
- * here and reach grid on the next push; until grid ingests them they show as
- * the ship's, ringed on the map. Doc, the resident scientist, answers from
- * this half in the chat. Loaded after history.js, whose helpers it shares. */
+ * number in the unit it was written in), with the documents behind them: the
+ * natural topics' narrative pages, images, maps, quotes, texts, people,
+ * places and events, which history.js renders into this pane the way it
+ * renders the human half into its own (UW.histShared.render, in this tab's
+ * namespace). The topics of the index carry a domain, "history" or "nature",
+ * and this tab takes the natural ones. The ship's own sightings go into a
+ * journal through the form here and reach grid on the next push; until grid
+ * ingests them they show as the ship's, ringed on the map. Doc, the resident
+ * scientist, answers from this half in the chat. Loaded after history.js. */
 (() => {
   "use strict";
   const UW = window.UW, H = UW.histShared;
@@ -36,7 +37,7 @@
   const OTHER = dom("Other", 7, "");
   const domainOf = (d) => DOMAINS[d] || OTHER;
   // a subject's kinds, in the order of the design's table
-  const KINDS = { taxon: "Taxa", unit: "Rock units", fossil: "Fossils", mineral: "Minerals", landform: "Landforms", ice: "Ice", water: "Water",
+  const SUBJECT_KINDS = { taxon: "Taxa", unit: "Rock units", fossil: "Fossils", mineral: "Minerals", landform: "Landforms", ice: "Ice", water: "Water",
     weather: "Weather", sky: "Sky", field: "Field", phenomenon: "Phenomena" };
   const METHODS = ["sighting", "hunt", "specimen", "transect", "aerial-survey", "camera", "acoustic", "edna", "catch-record", "testimony", "instrument", "sounding", "dredge", "trawl", "net", "trap", "core", "sample", "station-record", "survey", "satellite", "chart"];   // the writer's vocabulary on grid
   const NEAR_KM = 300;                                    // "near the ship" reaches this far
@@ -47,13 +48,14 @@
     subjects: null, obs: null, topics: [], stamp: null, loading: null,
     available: false,                                      // the natural files are in this build
     journal: [],                                           // the ship's own lines, newest first, from the server
-    slug: store.get("nat.slug", ""),                       // "" home, explore, record, journal, domain/<d>, kind/<k>, topic/<t>, subject/<s>, observation/<id>
+    slug: store.get("nat.slug", ""),                       // "" home, explore, record, journal, domain/<d>, subjects/<kind>, kind/<document kind>, topic/<t>, subject/<s>, observation/<id>, or a page
     domains: new Set(store.get("nat.domains", Object.keys(DOMAINS))),   // the domains the map layer shows
     search: "",
     more: { today: false, here: false },
     byName: null, bySubject: null, children: null,          // indexes built once per generation
     pages: new Map(),
   };
+  UW.natureSlug = () => nat.slug;                          // history.js reads it for the views it renders here
 
   // ---------------------------------------------------------------- data
   async function ensure() {
@@ -133,7 +135,7 @@
     const s = nat.slug;
     if (s.startsWith("topic/")) return { topic: s.slice(6) };
     if (s.startsWith("domain/")) return { domain: s.slice(7) };
-    if (s.startsWith("kind/")) return { kind: s.slice(5) };
+    if (s.startsWith("subjects/")) return { kind: s.slice(9) };
     if (s.startsWith("subject/")) { const su = subjectBySlug(s); return su ? { subject: su } : {}; }
     if (s.startsWith("observation/")) { const o = obsById(s.slice(12)); const su = o ? subjectOf(o.subject) : null; return su ? { subject: su } : {}; }
     return {};
@@ -205,10 +207,16 @@
   const hlink = (slug, label) => `<a href="#history/${esc(slug)}" data-slug="${esc(slug)}">${label}</a>`;
   const subjectLink = (s, cls = "") => `<a class="${cls}" href="#nature/${esc(s.page)}" data-nslug="${esc(s.page)}"><span class="dot" style="background:${domainOf(s.domain).colour}"></span>${s.kind === "taxon" ? `<i>${esc(s.name)}</i>` : esc(s.name)}${s.english && s.english !== s.name ? ` <span class="muted">${esc(s.english)}</span>` : ""}</a>`;
   const domainChip = (d, n, on = false) => { const D = domainOf(d); return `<a class="chip ${on ? "on" : ""}" href="#nature/domain/${esc(d)}" data-nslug="domain/${esc(d)}" title="${esc(D.hint)}"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${n != null ? ` <span class="muted">${n}</span>` : ""}</a>`; };
-  function topicCard(t, full = false) {
-    const n = allObs().filter((o) => o.topic === t.slug).length;
-    return `<a class="topiccard noimg" href="#nature/topic/${esc(t.slug)}" data-nslug="topic/${esc(t.slug)}" style="border-left-color:${C.accent}"><span class="body"><b>${esc(t.title)}</b>${full ? `<span>${esc(t.summary || "")}</span>` : ""}<span class="counts">${t.pages || 0} pages · ${n} observations</span></span></a>`;
+  // the documents of the natural topics, by kind, as chips with their counts
+  function documentChips() {
+    const hd = H.data(), isNature = (x) => x.topic && H.topicDomain(x.topic) === "nature";
+    const n = { people: hd.people.filter(isNature).length, animal: hd.animals.filter(isNature).length, vessel: hd.vessels.filter(isNature).length,
+      place: hd.places.filter(isNature).length, event: hd.events.filter(isNature).length };
+    for (const a of hd.artifacts) if (isNature(a)) n[a.type] = (n[a.type] || 0) + 1;
+    return `<div class="domgrid">${Object.entries(H.KINDS).filter(([k]) => n[k]).map(([k, K]) => `<a class="chip" href="#nature/kind/${k}" data-nslug="kind/${k}"><span class="dot" style="background:${K.colour}"></span>${esc(K.label)} <span class="muted">${n[k]}</span></a>`).join("")}</div>`;
   }
+  // a link to a page, on whichever tab owns it
+  const pageLinkFor = (slug, label, cls = "") => H.pageDomain(slug) === "nature" ? `<a class="${cls}" href="#nature/${esc(slug)}" data-nslug="${esc(slug)}">${label}</a>` : `<a class="${cls}" href="#history/${esc(slug)}" data-slug="${esc(slug)}">${label}</a>`;
   // a subject as a line in a list: the names in the region's languages beside it
   function subjectRow(s) {
     const names = [s.english !== s.name ? s.english : "", s.inuktitut, s.kalaallisut, s.french].filter(Boolean).join(" · ");
@@ -237,7 +245,7 @@
   // numbers; else the dates as points, a row per subject (or per domain when
   // the subjects are many)
   function drawRecord(rows, opts = {}) {
-    const gd = $("#natplot"); if (!gd) return;
+    const gd = $("#pane-nature #natplot"); if (!gd) return;
     const dated = rows.filter((o) => o._year != null);
     if (!dated.length) { gd.innerHTML = `<div class="empty">No dates to chart.</div>`; return; }
     const label = (o) => `${esc(short(o.subject, 60))}<br>${esc(numberOf(o) || o.qualifier || "")}${o.observer ? " · " + esc(o.observer) : ""}<br>${esc(o.date_text || H.dateLabel(o.date_start))}${o.place ? " · " + esc(o.place) : ""}`;
@@ -273,10 +281,10 @@
         if (JSON.stringify(t.tickvals) !== JSON.stringify(g.layout.xaxis.tickvals)) Plotly.relayout(g, { "xaxis.tickvals": t.tickvals, "xaxis.ticktext": t.ticktext });
       });
     });
-    const reset = $("#natplotreset"); if (reset) reset.onclick = () => { if (gd?.data) Plotly.relayout(gd, { "xaxis.autorange": true }); };
+    const reset = $("#pane-nature #natplotreset"); if (reset) reset.onclick = () => { if (gd?.data) Plotly.relayout(gd, { "xaxis.autorange": true }); };
   }
   function showRow(key) {
-    const host = $("#natrecord"), row = host?.querySelector(`tr[data-key="${key}"]`);
+    const host = $("#pane-nature #natrecord"), row = host?.querySelector(`tr[data-key="${key}"]`);
     if (!row) return;
     for (const x of host.querySelectorAll("tr.on")) x.classList.remove("on");
     row.classList.add("on");
@@ -287,18 +295,19 @@
   async function renderMain() {
     const el = $("#natmain");
     el.scrollTop = 0;
-    const plot = $("#natplot"); if (plot?.data) Plotly.purge(plot);
+    for (const id of ["#natplot", "#histplot"]) { const plot = el.querySelector(id); if (plot?.data) Plotly.purge(plot); }
     if (!UW.M.history) { el.innerHTML = `<div class="empty">No history has been published yet.</div>`; return; }
     if (!nat.subjects) { el.innerHTML = `<div class="empty">Loading the record…</div>`; return; }
     const q = nat.search.trim().toLowerCase();
-    if (q) {
+    if (q) {                                                        // search: the documents (history.js), then the subjects and observations
       const words = q.split(/\s+/).filter(Boolean);
       const hit = (s) => { const t = String(s || "").toLowerCase(); return words.every((w) => t.includes(w)); };
       const subs = nat.subjects.filter((s) => hit([s.name, s.english, s.french, s.inuktitut, s.kalaallisut, s.also, s.note].join(" ")));
       const obs = allObs().filter((o) => hit([o.subject, o.detail, o.observer, o.place, o.qualifier, o.vessel].join(" "))).sort(byDate);
-      el.innerHTML = crumb(`search <i>${esc(nat.search.trim())}</i>`) + `<h2>${subs.length} subjects · ${obs.length} observations</h2>` +
+      await H.render.search(el, nat.search);
+      el.insertAdjacentHTML("beforeend", `<h2>${subs.length} subjects · ${obs.length} observations</h2>` +
         (subs.length ? `<div class="peoplelist subjlist">${subs.slice(0, 60).map(subjectRow).join("")}</div>` : "") +
-        (obs.length ? recordHTML(obs.slice(0, 200), { title: "Observations found" }) : "");
+        (obs.length ? recordHTML(obs.slice(0, 200), { title: "Observations found" }) : ""));
       if (obs.length) drawRecord(obs.slice(0, 200));
       return;
     }
@@ -308,15 +317,18 @@
       el.innerHTML = (nat.available ? vignetteHTML() : `<p class="lead">The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.</p>`) +
         journalHTML(true) +
         `<h2>Domains <a class="chip small" href="#nature/record" data-nslug="record">The whole record</a></h2><div class="domgrid">${doms}</div>` +
-        (nat.topics.length ? `<h2>Topics <a class="chip small" href="#nature/explore" data-nslug="explore">Explore</a></h2><div class="topicgrid chips">${nat.topics.map((t) => topicCard(t)).join("")}</div>` : "");
+        `<h2>Documents</h2>` + documentChips() +
+        (nat.topics.length ? `<h2>Narratives <a class="chip small" href="#nature/explore" data-nslug="explore">Explore</a></h2><div class="topicgrid chips">${nat.topics.filter((t) => t.pages > 0 || t.artifacts > 0).map((t) => H.topicCard(t)).join("")}</div>` : "");
       for (const b of el.querySelectorAll("button.more")) b.onclick = () => { nat.more[b.dataset.more] = !nat.more[b.dataset.more]; renderMain(); };
       wireJournal(el);
       return;
     }
     if (nat.slug === "explore") {
-      el.innerHTML = crumb(here("Explore", "explore")) + `<h2>Explore</h2><p class="lead">${nat.topics.length} topics, ${nat.subjects.length} subjects and ${allObs().length} observations: what the archipelago is and does, as the people of the History tab wrote it down on the way, and as the stations, the surveys and the ship record it now. Every observation cites its source; every number stands in the unit it was written in.</p>` +
-        (nat.topics.length ? `<div class="topicgrid">${nat.topics.map((t) => topicCard(t, true)).join("")}</div>` : `<p class="muted">No natural topics in this build yet.</p>`) +
-        `<h3>Kinds of subject</h3><div class="domgrid">${Object.entries(KINDS).map(([k, label]) => { const n = nat.subjects.filter((s) => s.kind === k).length; return n ? `<a class="chip" href="#nature/kind/${k}" data-nslug="kind/${k}">${esc(label)} <span class="muted">${n}</span></a>` : ""; }).join("")}</div>`;
+      const hd = H.data(), nArts = hd.artifacts.filter((a) => a.topic && H.topicDomain(a.topic) === "nature").length;
+      el.innerHTML = crumb(here("Explore", "explore")) + `<h2>Explore</h2><p class="lead">${nat.topics.length} topics, ${nat.subjects.length} subjects, ${allObs().length} observations and ${nArts} documents: what the archipelago is and does, as the people of the History tab wrote it down on the way, and as the stations, the surveys and the ship record it now. Every observation cites its source; every number stands in the unit it was written in.</p>` +
+        (nat.topics.length ? `<div class="topicgrid">${nat.topics.map((t) => H.topicCard(t, true)).join("")}</div>` : `<p class="muted">No natural topics in this build yet.</p>`) +
+        `<h3>Documents</h3>` + documentChips() +
+        `<h3>Kinds of subject</h3><div class="domgrid">${Object.entries(SUBJECT_KINDS).map(([k, label]) => { const n = nat.subjects.filter((s) => s.kind === k).length; return n ? `<a class="chip" href="#nature/subjects/${k}" data-nslug="subjects/${k}">${esc(label)} <span class="muted">${n}</span></a>` : ""; }).join("")}</div>`;
       return;
     }
     if (nat.slug === "record") {
@@ -332,34 +344,33 @@
       const rows = shownObs().sort(byDate);
       const kinds = [...new Set(subs.map((s) => s.kind))];
       el.innerHTML = crumb(here(esc(D.label), nat.slug)) + `<h2><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}</h2><p class="lead">${esc(D.hint)}</p>` +
-        kinds.map((k) => `<h3>${esc(KINDS[k] || k)} <span class="muted">${subs.filter((s) => s.kind === k).length}</span></h3><div class="peoplelist subjlist">${subs.filter((s) => s.kind === k).map(subjectRow).join("")}</div>`).join("") +
+        kinds.map((k) => `<h3>${esc(SUBJECT_KINDS[k] || k)} <span class="muted">${subs.filter((s) => s.kind === k).length}</span></h3><div class="peoplelist subjlist">${subs.filter((s) => s.kind === k).map(subjectRow).join("")}</div>`).join("") +
         (rows.length ? `<h3><span class="muted">${rows.length}</span> Observations</h3>` + recordHTML(rows, { title: D.label }) : "");
       drawRecord(rows);
       return;
     }
-    if (nat.slug.startsWith("kind/")) {
-      const k = nat.slug.slice(5);
+    if (nat.slug.startsWith("subjects/")) {
+      const k = nat.slug.slice(9);
       const subs = nat.subjects.filter((s) => s.kind === k);
-      el.innerHTML = crumb(here(esc(KINDS[k] || k), nat.slug)) + `<h2><span class="muted">${subs.length}</span> ${esc(KINDS[k] || k)}</h2>` + treeHTML(subs);
+      el.innerHTML = crumb(here(esc(SUBJECT_KINDS[k] || k), nat.slug)) + `<h2><span class="muted">${subs.length}</span> ${esc(SUBJECT_KINDS[k] || k)}</h2>` + treeHTML(subs);
       return;
     }
+    if (nat.slug.startsWith("kind/")) { await H.render.kind(el, nat.slug.slice(5)); return; }      // a document kind: images, maps, people, places, events…
     if (nat.slug.startsWith("topic/")) {
       const t = topicOf(nat.slug.slice(6));
       if (!t) { el.innerHTML = crumb() + `<div class="empty">no such topic</div>`; return; }
-      const hidx = H.data().index;
-      const pages = (hidx?.pages || []).filter((p) => p.topic === t.slug && p.kind === "page");
+      await H.render.topic(el, t.slug);                                                            // the narrative pages and the documents
       const subs = nat.subjects.filter((s) => s.topic === t.slug).sort((a, b) => a.name.localeCompare(b.name));
       const rows = shownObs().sort(byDate);
-      el.innerHTML = crumb(`<a href="#nature/explore" data-nslug="explore">Explore</a>`, here(esc(t.title), nat.slug)) + `<h2>${esc(t.title)}${H.statusTag(t.status)}</h2><p class="lead">${esc(t.summary || "")}</p>` +
-        (pages.length ? `<div class="pagelist">${pages.map((p) => H.pageLink(p)).join("")}</div>` : `<p class="muted">No narrative pages yet.</p>`) +
+      el.insertAdjacentHTML("beforeend",
         (subs.length ? `<h3><span class="muted">${subs.length}</span> Subjects</h3><div class="peoplelist subjlist">${subs.map(subjectRow).join("")}</div>` : "") +
-        (rows.length ? `<h3><span class="muted">${rows.length}</span> Observations</h3>` + recordHTML(rows, { title: t.title }) : "");
+        (rows.length ? `<h3><span class="muted">${rows.length}</span> Observations</h3>` + recordHTML(rows, { title: t.title }) : ""));
       drawRecord(rows);
       return;
     }
     if (nat.slug.startsWith("observation/")) { renderObservation(el, nat.slug.slice(12)); return; }
     if (nat.slug.startsWith("subject/")) { await renderSubject(el, nat.slug); return; }
-    el.innerHTML = crumb() + `<div class="empty">That page is not in this build.</div>`;
+    await H.render.page(el, nat.slug);                                                            // an artifact, a person, a place, an event, a source, a narrative
   }
   // the taxa and the rock units as a tree: a root is a row with no parent in the list
   function treeHTML(subs) {
@@ -380,13 +391,18 @@
     const parent = row.parent ? subjectOf(row.parent) : null;
     const names = [["scientific", row.kind === "taxon" ? row.name : ""], ["name", row.kind !== "taxon" ? row.name : ""], ["English", row.english], ["French", row.french], ["Inuktitut", row.inuktitut], ["Kalaallisut", row.kalaallisut], ["also", row.also]].filter(([, v]) => v);
     const backbone = row.backbone_id ? backboneLink(row) : "";
-    const meta = [row.kind ? esc(KINDS[row.kind] || row.kind) : "", row.rank ? esc(row.rank) : "", row.unit ? `in ${esc(row.unit)}` : "", row.status ? `<span class="status" title="conservation status">${esc(row.status)}</span>` : ""].filter(Boolean).join(" · ");
+    const meta = [row.kind ? esc(SUBJECT_KINDS[row.kind] || row.kind) : "", row.rank ? esc(row.rank) : "", row.unit ? `in ${esc(row.unit)}` : "", row.status ? `<span class="status" title="conservation status">${esc(row.status)}</span>` : ""].filter(Boolean).join(" · ");
+    // the pictures of it: the evidence of its observations, and the natural topics' images tagged with its names
+    const evidence = new Set(rows.map((o) => o.artifact_id).filter(Boolean));
+    const hd = H.data(), lname = [row.name, row.english].filter(Boolean).map((x) => x.toLowerCase());
+    const pictures = hd.artifacts.filter((a) => (a.type === "image" || a.type === "map") && (evidence.has(a.id) || (a.topic && H.topicDomain(a.topic) === "nature" && (a.tags || []).some((x) => lname.includes(String(x).toLowerCase())))));
     el.innerHTML = crumb(...(t ? [`<a href="#nature/topic/${esc(t.slug)}" data-nslug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(row.domain || "other")]), here(`<span class="kind">subject</span>`, slug)) +
       `<h2>${row.kind === "taxon" ? `<i>${esc(row.name)}</i>` : esc(row.name)}${row.english && row.english !== row.name ? ` <span class="muted">${esc(row.english)}</span>` : ""}</h2>` +
       `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${meta ? " · " + meta : ""}${parent ? ` · under ${subjectLink(parent)}` : ""}${backbone ? " · " + backbone : ""}</div>` +
       `<div class="names">${names.map(([l, v]) => `<span class="lbl">${esc(l)}</span><span class="${l === "scientific" ? "sci" : ""}">${esc(v)}</span>`).join("")}</div>` +
       (row.bibkey ? H.facts([["source", H.sourceRef(row.bibkey)]]) : "") +
       `<div class="wiki">${H.markdown(p?.html || row.note || "")}</div>` +
+      (pictures.length ? `<h3>Pictures <span class="muted">${pictures.length}</span></h3><div class="artgrid pictures">${pictures.slice(0, 24).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>${pictures.length > 24 ? `<p class="muted small">and ${pictures.length - 24} more among the <a href="#nature/kind/image" data-nslug="kind/image">images</a></p>` : ""}` : "") +
       (kids.length ? `<h3>Below it <span class="muted">${kids.length}</span></h3><div class="peoplelist subjlist">${kids.map(subjectRow).join("")}</div>` : "") +
       `<h3>The record <span class="muted">${rows.length}</span></h3>` + (rows.length ? recordHTML(rows, { subject: true, title: shortName(row) }) : `<p class="muted">No observations of it in the record yet.</p>`) +
       mentionedHTML(p?.backlinks || []);
@@ -396,14 +412,15 @@
   // the backbone a subject's id points at, where the id says which
   function backboneLink(s) {
     const id = String(s.backbone_id);
-    const url = /^\d+$/.test(id) && s.kind === "taxon" ? `https://www.gbif.org/species/${id}` : /^urn:lsid:marinespecies\.org:taxname:(\d+)$/.test(id) ? `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${RegExp.$1}` : "";
+    const m = /^(?:gbif:)?(\d+)$/.exec(id);
+    const url = m && s.kind === "taxon" ? `https://www.gbif.org/species/${m[1]}` : /^urn:lsid:marinespecies\.org:taxname:(\d+)$/.test(id) ? `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${RegExp.$1}` : "";
     return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="the backbone this subject resolves in">${esc(id)} ↗</a>` : `<span class="muted mono">${esc(id)}</span>`;
   }
   function mentionedHTML(back) {
     if (!back.length) return "";
     const hidx = H.data().index;
     const title = (slug) => hidx?.pages.find((x) => x.slug === slug)?.title || subjectBySlug(slug)?.name || slug;
-    const link = (slug) => /^(subject|observation)\//.test(slug) ? `<a href="#nature/${esc(slug)}" data-nslug="${esc(slug)}">${esc(title(slug))}</a>` : hlink(slug, esc(title(slug)));
+    const link = (slug) => H.pageDomain(slug) === "nature" ? `<a href="#nature/${esc(slug)}" data-nslug="${esc(slug)}">${esc(title(slug))}</a>` : hlink(slug, esc(title(slug)));
     return `<div class="backlinks"><span class="lbl">Mentioned in</span>${back.slice(0, BACK_SHOWN).map(link).join("")}${back.length > BACK_SHOWN ? `<span class="muted">and ${back.length - BACK_SHOWN} more</span>` : ""}</div>`;
   }
   function renderObservation(el, id) {
@@ -412,7 +429,8 @@
     const s = subjectOf(o.subject), D = domainOf(domainOfObs(o)), t = o.topic ? topicOf(o.topic) : null;
     const hd = H.data();
     const when = o.date_text || [o.date_start, o.date_end].filter(Boolean).map((d) => H.dateLabel(d)).join(" to ") || (o.date || "");
-    const place = o.place ? (hd.places.find((x) => x.name === o.place) ? hlink(hd.places.find((x) => x.name === o.place).page, esc(o.place)) : esc(o.place)) : "";
+    const pl = o.place ? hd.places.find((x) => x.name === o.place) : null;
+    const place = o.place ? (pl ? pageLinkFor(pl.page, esc(o.place)) : esc(o.place)) : "";
     const where = o.lat != null ? ` · ${H.coordLink(o.lat, o.lon, o.subject)} · ${H.mapLink(o.lat, o.lon, o.subject, "")}` : "";
     const person = o.observer ? hd.people.find((x) => x.name === o.observer) : null;
     const vessel = o.vessel ? hd.vessels.find((x) => x.name === o.vessel) : null;
@@ -429,11 +447,11 @@
     el.innerHTML = crumb(...(t ? [`<a href="#nature/topic/${esc(t.slug)}" data-nslug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(domainOfObs(o) || "other")]), here(`<span class="kind">observation</span>`, `observation/${o.id}`)) +
       `<h2>${s ? subjectLink(s) : esc(o.subject)}${num ? ` <span class="muted">${esc(num)}</span>` : ""}</h2>` +
       `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${when ? " · " + esc(when) : ""}${place ? " · " + place : ""}${where}${o.sensitive ? ` · <span class="status draft" title="a sensitive site: the position is published coarsened and the place left blank">sensitive</span>` : ""}</div>` +
-      (o.observer || o.vessel ? `<div class="artpeople"><span class="lbl">By</span>${o.observer ? person ? `<a class="chip small" href="#history/${esc(person.page)}" data-slug="${esc(person.page)}">${esc(o.observer)}</a>` : `<span class="chip small">${esc(o.observer)}</span>` : ""}${o.vessel ? vessel ? `<a class="chip small" href="#history/${esc(vessel.page)}" data-slug="${esc(vessel.page)}">${esc(o.vessel)}</a>` : `<span class="chip small">${esc(o.vessel)}</span>` : ""}</div>` : "") +
+      (o.observer || o.vessel ? `<div class="artpeople"><span class="lbl">By</span>${o.observer ? person ? pageLinkFor(person.page, esc(o.observer), "chip small") : `<span class="chip small">${esc(o.observer)}</span>` : ""}${o.vessel ? vessel ? pageLinkFor(vessel.page, esc(o.vessel), "chip small") : `<span class="chip small">${esc(o.vessel)}</span>` : ""}</div>` : "") +
       (o.artifact_file ? `<figure><img src="${esc(o.artifact_file.startsWith("_journal/") ? "journal/" + o.artifact_file.slice(9) : o.artifact_file)}" alt=""><figcaption>${esc(o.observer || "the ship")}</figcaption></figure>` : "") +
       facts + `<div class="wiki"><p>${esc(o.detail || "")}</p></div>` +
       (art ? `<h3>Evidence</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
-      (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${hlink(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
+      (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
       (s ? `<div class="backlinks"><span class="lbl">The record</span><a href="#nature/${esc(s.page)}" data-nslug="${esc(s.page)}">every observation of ${esc(shortName(s))}</a></div>` : "");
     if (o.lat != null) focusPoint(o.lat, o.lon, o.subject);
   }
@@ -514,10 +532,17 @@
   }
 
   // ---------------------------------------------------------------- the chips
+  // two rows in the pane's tools: the document kinds (as on the History tab,
+  // each a page of the natural topics' documents) and the domains
   function chipsHTML(onOf, cls = "") {
     return Object.entries(DOMAINS).map(([d, D]) => `<button type="button" data-d="${d}" class="${cls} ${onOf(d) ? "on" : ""}" title="${esc(D.hint)}"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}</button>`).join("");
   }
   function renderChips() {
+    const docs = $("#natdocs");
+    if (docs) {
+      docs.innerHTML = H.kindChips((k) => nat.slug === `kind/${k}`);
+      for (const b of docs.querySelectorAll("button[data-t]")) b.onclick = () => open(nat.slug === `kind/${b.dataset.t}` ? "" : `kind/${b.dataset.t}`);
+    }
     const pane = $("#natkinds");
     if (pane) {
       pane.innerHTML = chipsHTML((d) => nat.slug === `domain/${d}`, "chip");
@@ -526,7 +551,8 @@
     const sel = $("#natkindsel");
     if (sel) {
       const opt = (slug, label) => `<option value="${slug}" ${nat.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
-      sel.innerHTML = `<option value="" ${!nat.slug || !/^(domain\/|kind\/|explore$|record$|journal$)/.test(nat.slug) ? "selected" : ""}>Browse…</option>` +
+      sel.innerHTML = `<option value="" ${!nat.slug || !/^(domain\/|kind\/|subjects\/|explore$|record$|journal$)/.test(nat.slug) ? "selected" : ""}>Browse…</option>` +
+        H.kindOptions(nat.slug) +
         `<optgroup label="Domains">${Object.entries(DOMAINS).map(([d, D]) => opt(`domain/${d}`, D.label)).join("")}</optgroup>` +
         `<optgroup label="Pages">${opt("explore", "Explore")}${opt("record", "The record")}${opt("journal", "The ship's journal")}</optgroup>`;
       sel.onchange = () => open(sel.value);
@@ -581,16 +607,19 @@
     UW.focusMap(+lat, +lon, label || "");
     if (UW.mapMode?.() === "none") UW.setMapMode("half");
   }
+  // a link in this pane opens here when its page is the natural half's, on the History tab otherwise
+  const openPage = (slug) => { if (!slug || H.pageDomain(slug) === "nature") open(slug); else UW.historyOpen?.(slug); };
   document.addEventListener("click", (e) => {
+    if (e.target.closest(".flag[data-flag], a[href^='#kw-']")) return;                   // history.js handles the flags and the keyword nav
     const pin = e.target.closest("#pane-nature .pin[data-lat]");
     if (pin) { e.preventDefault(); e.stopPropagation(); focusPoint(pin.dataset.lat, pin.dataset.lon, pin.dataset.label); return; }
-    const a = e.target.closest("#pane-nature a[data-nslug], #pane-nature a[data-slug]");
+    const a = e.target.closest("#pane-nature a[data-nslug], #pane-nature a[data-slug], #pane-nature a[data-topic]");
     if (!a) return;
     e.preventDefault();
     if (a.classList.contains("vig") && a.dataset.lat) focusPoint(a.dataset.lat, a.dataset.lon, a.querySelector(".txt")?.textContent || "");
     if (a.dataset.nslug != null) open(a.dataset.nslug);
-    else if (/^(subject|observation)\//.test(a.dataset.slug)) open(a.dataset.slug);
-    else UW.historyOpen?.(a.dataset.slug || "");                  // into the human half
+    else if (a.dataset.topic != null) openPage(`topic/${a.dataset.topic}`);
+    else openPage(a.dataset.slug || "");
   });
   UW.onNatureClick = (id, pt) => {
     if (pt && pt.lat != null) UW.state.focus = { lat: +pt.lat, lon: +pt.lon, label: String(pt.text || "").replace(/<br>.*$/s, "").replace(/<[^>]+>/g, "") };
@@ -598,6 +627,8 @@
   };
 
   // ---------------------------------------------------------------- the map layer
+  // the observations; the natural topics' artifacts and places come from
+  // history.js, which draws each past layer's own domain
   const prevExtra = UW.extraMapTraces;
   UW.extraMapTraces = () => {
     const out = prevExtra ? prevExtra() : [];
@@ -618,7 +649,8 @@
 
   // ---------------------------------------------------------------- Doc
   // the page being read, for Doc's context in the chat: a subject or an observation
-  UW.natureContext = () => /^(subject|observation)\//.test(nat.slug) ? nat.slug : "";
+  // the page being read, for Doc's context in the chat: a subject, an observation or a document
+  UW.natureContext = () => (nat.slug && !["explore", "record", "journal"].includes(nat.slug) && !/^(topic|kind|subjects|domain|at)\//.test(nat.slug)) ? nat.slug : "";
   UW.natureOpen = (slug) => open(slug);
 
   // ---------------------------------------------------------------- wiring
