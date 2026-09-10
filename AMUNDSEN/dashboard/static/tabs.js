@@ -721,7 +721,7 @@
         colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: fz(12) }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
-        textfont: { size: fz(10), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
+        textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
         hovertext: withVar.map((d, i) => `${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
     // echo-sounder bottom where there is one, else the deepest sample; the
