@@ -35,7 +35,7 @@
     const onPoint=(d,i)=>openPhoto(matches(d)[i]);
     modes.forEach((name,k)=>UW.registerColour({name,resolved:true,unit:`PC${k+1}`,cmap:'Viridis',onPoint,values:d=>matches(d).map(p=>score(p,k)??null)}));
     UW.registerColour({name:RGB,resolved:true,unit:'RGB',rgb:true,onPoint,values:d=>matches(d).map(p=>p?'rgb('+p.rgb.join(',')+')':'#000000')});
-    UW.registerPanel('Camera · feature PC1 · mean RGB',{
+    UW.registerPanel('Camera · feature PC1 · mean RGB',{group:'Deck',
       unit:'PC1',resolved:true,log_ok:false,
       after:'Surprise (−log10 p)',
       layoutRevision:'camera-second-v1',
@@ -47,7 +47,7 @@
         const yValue=p=>selectedPC>=0?score(p,k):p.rgb.reduce((a,b)=>a+b,0)/3;
         el.querySelector('h3').textContent=selectedPC>=0?modes[k]:RGB;
         el.querySelector('h3').title='Click to cycle Texture → Brightness → Colorfulness → Patchiness → mean RGB. Names are provisional PC interpretations.';
-        const filter=UW.currentFilter(),rows=payload.photos.filter(p=>UW.inFilter(p.leg,p.time,filter)),d=UW.state.data,byLeg=new Map();
+        const filter=UW.spanFilter(),rows=payload.photos.filter(p=>UW.inFilter(p.leg,p.time,filter)),d=UW.state.data,byLeg=new Map();
         if(UW.state.xmode!=='time'&&d)for(let i=0;i<d.t.length;i++){
           if(d.dist_km[i]==null||d.leg[i]==null)continue;
           const leg=UW.M.legs.find(l=>l.index===d.leg[i])?.id;

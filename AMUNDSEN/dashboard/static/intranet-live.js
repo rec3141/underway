@@ -6,11 +6,11 @@
 (() => {
   const UW = window.UW;
   if (!UW?.registerPanel) return;
-  const TABLES = [
-    ["Live · Navigation", /navigation/i, "position, speed, heading, track and bottom depth from the intranet's live page"],
-    ["Live · Atmosphere", /atmospheric/i, "the met tower at 21.6 m: wind, pressure, air temperature, humidity"],
-    ["Live · Sea water surface", /sea water/i, "the thermosalinograph intake at 7 m"],
-    ["Live · Winches", /rosette|500hp/i, "rosette depth and rate; 500HP cable length and rate"],
+  const TABLES = [                     // name, the intranet table, the tooltip, the bottom bar's group
+    ["Live · Navigation", /navigation/i, "position, speed, heading, track and bottom depth from the intranet's live page", "Bridge"],
+    ["Live · Atmosphere", /atmospheric/i, "the met tower at 21.6 m: wind, pressure, air temperature, humidity", "Met Station"],
+    ["Live · Sea water surface", /sea water/i, "the thermosalinograph intake at 7 m", "Lab"],
+    ["Live · Winches", /rosette|500hp/i, "rosette depth and rate; 500HP cable length and rate", "Deck"],
   ];
   const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let latest = null;
@@ -24,12 +24,12 @@
     if (!rows.length) { plot.innerHTML = `<div class="stale">${esc(j?.error || "waiting for the intranet live page…")}</div>`; return; }
     const items = rows.map(([k, v]) => {
       if (/^time \(utc\)/i.test(k)) { const ms = UW.tms(v); return [`Time (${UW.tzAbbr()})`, isNaN(ms) ? v : UW.fmtTs(ms).slice(11)]; }
-      return [k.replace(/^500HP /, "500HP · ").replace(/^Rosette /, "Rosette · "), v];
+      return [k.replace(/^500HP /, "500HP · ").replace(/^Rosette /, "Rosette · "), /^(nan|null|none|)$/i.test(String(v).trim()) ? "—" : v];   // an idle instrument reports NaN
     });
     plot.innerHTML = `<dl>${items.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` + (old ? `<div class="stale">${esc(j.error || "not refreshed for a while")}</div>` : "");
   }
-  for (const [name, re, description] of TABLES) {
-    UW.registerPanel(name, { unit: "", resolved: true, log_ok: false, description, layoutRevision: "intranet-live-v1",
+  for (const [name, re, description, group] of TABLES) {
+    UW.registerPanel(name, { unit: "", resolved: true, log_ok: false, description, group, layoutRevision: "intranet-live-v1",
       render(el, plot) { els.set(name, [el, plot, re]); draw(name, re, el, plot); } });
   }
   // "76° 24.9565' N" -> 76.4159; "89° 12.6412' W" -> -89.2107

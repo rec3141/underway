@@ -1035,6 +1035,15 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
       pane.innerHTML = chipsHTML(KINDS, (k) => hist.slug === `kind/${k}`, "chip");
       for (const b of pane.querySelectorAll("button[data-t]")) b.onclick = () => open(hist.slug === `kind/${b.dataset.t}` ? "" : `kind/${b.dataset.t}`);
     }
+    // the phone's dropdown stands in for the kind chips and the page chips
+    const sel = $("#histkindsel");
+    if (sel) {
+      const opt = (slug, label) => `<option value="${slug}" ${hist.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
+      sel.innerHTML = `<option value="" ${!hist.slug || !/^(kind\/|explore$|bib$|provenance$)/.test(hist.slug) ? "selected" : ""}>Browse…</option>` +
+        GROUPS.map((g) => g.under.length ? `<optgroup label="${esc(KINDS[g.head].label)}">${opt(`kind/${g.head}`, `All ${KINDS[g.head].label.toLowerCase()}`)}${g.under.map((k) => opt(`kind/${k}`, KINDS[k].label)).join("")}</optgroup>` : opt(`kind/${g.head}`, KINDS[g.head].label)).join("") +
+        `<optgroup label="Pages">${opt("explore", "Explore")}${opt("bib", "Bibliography")}${opt("provenance", "Provenance")}</optgroup>`;
+      sel.onchange = () => open(sel.value);
+    }
     const bar = $("#maphistlayers");
     if (bar) {
       bar.innerHTML = chipsHTML(TYPES, (k) => hist.types.has(k));

@@ -31,7 +31,7 @@
   --map-fg: #e6ecf2; --map-halo: #0b1620;        /* the scale bar over the map, on every theme */
   /* the graphs (Plotly) */
   --plot-bg: #121920; --plot-fg: #c9d4e0; --plot-grid: #243040; --plot-line: #34435a; --hover-bg: #1b242e;
-  --plot-legend-bg: rgba(15,20,25,.6);
+  --plot-legend-bg: rgba(15,20,25,.88);
   --marker: #ffffff; --marker-line: #0b1620;     /* bottles and stations on a graph */
   --floor: rgba(43,52,65,.92); --floor-line: #3b4658;   /* the seafloor under a section */
   /* the basemap without the relief pyramid */
@@ -53,7 +53,8 @@ html[data-theme="claude-light"] {
   --purple: #7a3fd6; --pink: #b8327f; --gold: #8a5a00;
   --tag: #dde4ec; --tag-2: #e8edf2; --tag-bad: #ffe6e3; --tag-amber: #fdebcf; --tag-tm: #fdebcf;
   --pale: #1f2a36; --on-pale: #ffffff; --media: #dfe5ec; --pop: rgba(255,255,255,.97); --shadow: rgba(30,40,50,.18);
-  --plot-bg: #ffffff; --plot-fg: #3b4754; --plot-grid: #e4e9ef; --plot-line: #c3ccd6; --hover-bg: #ffffff; --plot-legend-bg: rgba(255,255,255,.7);
+  --map-fg: #17202a; --map-halo: #ffffff;
+  --plot-bg: #ffffff; --plot-fg: #3b4754; --plot-grid: #e4e9ef; --plot-line: #c3ccd6; --hover-bg: #ffffff; --plot-legend-bg: rgba(255,255,255,.92);
   --marker: #ffffff; --marker-line: #17202a; --floor: rgba(220,226,233,.95); --floor-line: #9aa7b5;
   --map-bg: #bcd6e8; --map-land: #e8e3d5; --map-coast: #66788c; --map-ice: #ffffff; --sketch-coast: #b7c3cf;
   --map-bathy: #d6e8f3 #c6ddec #b7d2e6 #a8c7df #99bcd9 #8ab1d2 #7ba6cc #6d9bc5 #5f90be #5285b7 #457ab0 #386fa9;
@@ -73,7 +74,7 @@ html[data-theme="minimal-dark"] {
   --purple: #c58af9; --pink: #ff8bcb; --gold: #fdd663;
   --tag: #2a2a2a; --tag-2: #333333; --tag-bad: #3a1f1f; --tag-amber: #3a2d10; --tag-tm: #3a2d10;
   --pale: #eeeeee; --on-pale: #111111; --media: #141414; --pop: rgba(14,14,14,.97);
-  --plot-bg: #000000; --plot-fg: #d6d6d6; --plot-grid: #222222; --plot-line: #444444; --hover-bg: #1a1a1a; --plot-legend-bg: rgba(0,0,0,.6);
+  --plot-bg: #000000; --plot-fg: #d6d6d6; --plot-grid: #222222; --plot-line: #444444; --hover-bg: #1a1a1a; --plot-legend-bg: rgba(0,0,0,.88);
   --marker: #ffffff; --marker-line: #000000; --floor: rgba(38,38,38,.95); --floor-line: #555555;
   --map-bg: #0a0a0a; --map-land: #262626; --map-coast: #8c8c8c; --map-ice: #e6e6e6; --sketch-coast: #444444;
   --map-bathy: #1f3a4d #1c3446 #182e3f #152838 #122331 #0f1e2a #0d1a24 #0b161f #09131a #071016 #060d12 #050a0e;
@@ -88,7 +89,8 @@ html[data-theme="minimal-light"] {
   --purple: #6b3fa0; --pink: #a8326b; --gold: #7a5b00;
   --tag: #e6e6e6; --tag-2: #ececec; --tag-bad: #fde8e6; --tag-amber: #fff0d9; --tag-tm: #fff0d9;
   --pale: #222222; --on-pale: #ffffff; --media: #e8e8e8; --pop: rgba(255,255,255,.98);
-  --plot-bg: #ffffff; --plot-fg: #333333; --plot-grid: #e6e6e6; --plot-line: #bbbbbb; --hover-bg: #ffffff; --plot-legend-bg: rgba(255,255,255,.7);
+  --map-fg: #111111; --map-halo: #ffffff;
+  --plot-bg: #ffffff; --plot-fg: #333333; --plot-grid: #e6e6e6; --plot-line: #bbbbbb; --hover-bg: #ffffff; --plot-legend-bg: rgba(255,255,255,.94);
   --marker: #ffffff; --marker-line: #111111; --floor: rgba(228,228,228,.95); --floor-line: #a0a0a0;
   --map-bg: #c9dcea; --map-land: #ebe8df; --map-coast: #707070; --map-ice: #ffffff; --sketch-coast: #c4c4c4;
   --map-bathy: #dbe9f3 #cddfed #bfd5e7 #b1cbe1 #a3c1db #95b7d5 #87adcf #79a3c9 #6b99c3 #5d8fbd #4f85b7 #417bb1;
@@ -96,10 +98,19 @@ html[data-theme="minimal-light"] {
   color-scheme: light;
 }
 
+/* the type size apart from the palette: Minimal is large unless told
+   otherwise, Claude normal unless told otherwise; app.js marks the root
+   .bigtype whenever the size in force is the large one, and the roomier
+   controls below key on that */
+html[data-size="normal"] { --fs: 14px; }
+html[data-size="large"] { --fs: 17px; }
+@media (min-width: 1101px) { html[data-size="large"] { --fs: 18px; } }
+
 * { box-sizing: border-box; }
 /* author display rules (inline-flex etc.) would otherwise beat the browser's
    default [hidden] { display: none } */
 [hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* The page itself never scrolls: the header is fixed in place, the map column
    is pinned, and only the panel column scrolls. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); }
@@ -120,7 +131,7 @@ a:hover { text-decoration: underline; }
 .brand .sub { color: var(--muted); font-size: 0.893rem; margin-top: 2px; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
-.brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: .5px; cursor: pointer; }   /* the hidden schedule bar, as a word next to LIVE */
+.brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: 0.857rem; letter-spacing: .5px; cursor: pointer; }   /* the hidden schedule bar, as a word next to LIVE */
 .brand .sub .refresh { cursor: pointer; border-bottom: 1px dotted var(--line); list-style: none; }
 .brand .sub .refresh::-webkit-details-marker { display: none; }
 .brand .sub .srcpop { display: inline-block; position: relative; vertical-align: baseline; }   /* a details element is block by default: it would break the line */
@@ -138,11 +149,12 @@ a:hover { text-decoration: underline; }
 .tabs button { white-space: nowrap; }
 .top .pickhint { color: var(--muted); font-size: 0.893rem; }
 /* the theme picker, right of the title on every tab */
-.top .themepick { order: 2; flex: 0 0 auto; align-self: center; color: var(--muted); font-size: 0.929rem; gap: 6px; }
+.top .themepick { order: 2; flex: 0 0 auto; align-self: center; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 0.929rem; }
+.top .themepick .group { gap: 6px; }
 .top .pickhint.phone { order: 3; flex: 1 0 100%; margin-bottom: -4px; }   /* the hint on its own line */
 .top .pickhint.inline { display: none; }
 .top .controls { order: 3; flex: 1 0 100%; }
-.live { color: var(--ok); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: .5px; }
+.live { color: var(--ok); font-weight: 700; text-transform: uppercase; font-size: 0.857rem; letter-spacing: .5px; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
 .group { display: inline-flex; align-items: center; gap: 4px; }
@@ -186,7 +198,9 @@ select {
 .legmenu .pophead, .legmenu .popfoot { color: var(--muted); font-size: 0.857rem; padding: 2px 8px 6px; }
 .legmenu .popfoot { padding-top: 6px; border-top: 1px solid var(--line); }
 .legmenu ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
-.legmenu li label { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 0.929rem; white-space: nowrap; }
+.legmenu li label input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.legmenu .pophead a { display: inline-block; padding: 3px 9px; border: 1px solid var(--line); border-radius: 6px; }
+.legmenu li label { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 0.929rem; white-space: nowrap; }
 .legmenu li label:hover { background: var(--card-2); }
 .legmenu li label.outside { opacity: .6; }
 .legmenu .name { flex: 1; font-weight: 600; }
@@ -205,7 +219,7 @@ select {
 .scol.done { border-left-color: var(--muted); }
 .scol.live { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
 .scol.next { border-left-color: var(--accent-2); }
-.scol .slbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.scol .slbl { font-size: 0.857rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
 .scol.live .slbl { color: var(--ok); }
 .scol.next .slbl { color: var(--accent-2); }
 .scol .sop { overflow-wrap: anywhere; }                       /* never truncated: the times wrap onto their own line if they must */
@@ -231,7 +245,7 @@ select {
 .ticker .tk { display: inline-flex; white-space: nowrap; animation: tick linear infinite; will-change: transform; }
 .ticker:hover .tk { animation-play-state: paused; }
 .ticker .tki { padding-right: 48px; }
-.ticker .tki b { font-weight: 650; text-transform: uppercase; font-size: 0.75rem; letter-spacing: .4px; color: var(--muted); margin-right: 6px; }
+.ticker .tki b { font-weight: 650; text-transform: uppercase; font-size: 0.857rem; letter-spacing: .4px; color: var(--muted); margin-right: 6px; }
 .ticker .tki.live b { color: var(--ok); } .ticker .tki.next b { color: var(--accent-2); }
 .ticker .stm { font-family: var(--mono); font-size: 0.821rem; color: var(--muted); margin-left: 6px; }
 .ticker .tklinks { display: flex; gap: 6px; flex: none; }
@@ -296,16 +310,17 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; }   /* a KMZ held over the map */
 /* the layer toggles: a bar above the map, each button on or off */
 .maplayers { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 4px 8px; font-size: 0.893rem; }
-.maplayers button { background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font: inherit; font-size: 0.893rem; cursor: pointer; }
+.maplayers button { background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 0.893rem; cursor: pointer; }
 .maplayers button:hover { border-color: var(--accent); color: var(--fg); }
 .maplayers button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 650; }
 .maplayers .short { display: none; }
 /* the attribution sits under the map, not on it */
 #map .maplibregl-ctrl-attrib, #map .maplibregl-ctrl-bottom-right { display: none; }
-.map-attrib { flex: 0 0 auto; color: var(--muted); font-size: 0.75rem; padding: 3px 8px 0; opacity: .8; }
+.map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: 0.75rem; padding: 3px 8px 0; opacity: .8; }
+.maplayers { order: 0; } #map { order: 1; } .maptrack { order: 2; } .map-foot { order: 4; }   /* the column's order: bars, map, slider, attribution, notes */
 /* the scale bar, over the map's bottom-left corner; placed by the script, which knows the map's box */
 .mapscale { position: absolute; z-index: 5; display: flex; align-items: center; gap: 6px; pointer-events: none;
-  font-size: 0.75rem; color: var(--fg); text-shadow: 0 0 3px var(--map-halo), 0 0 3px var(--map-halo); }
+  font-size: 0.75rem; color: var(--map-fg); text-shadow: 0 0 3px var(--map-halo), 0 0 3px var(--map-halo); }
 .mapscale .bar { display: block; height: 5px; border: 1.5px solid var(--map-fg); border-top: 0; box-shadow: 0 0 2px var(--map-halo); }
 /* a day's camera timelapse, played over the map where its camera was clicked */
 .campop { position: absolute; z-index: 6; right: 14px; top: 14px; width: min(300px, 62%); max-height: calc(100% - 28px); display: flex; flex-direction: column;
@@ -429,6 +444,18 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .dock { position: sticky; bottom: 0; z-index: 9; display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 0 8px;
   background: linear-gradient(0deg, var(--bg) 75%, transparent); margin-top: 8px; }
 .chip { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 0.893rem; cursor: pointer; }
+/* the bar's boxes, one per source: a head that folds or restores the source's
+   panels, then the chips of the minimised ones, every chip the same width */
+.dockgroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.dockgroup .chips { display: contents; }
+.dockgroup .ghead { display: inline-flex; align-items: center; gap: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 0.893rem; font-weight: 600; cursor: pointer; }
+.dockgroup .ghead:hover { border-color: var(--accent); }
+.dockgroup .gn { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 0.786rem; }
+.dockgroup .gtog { color: var(--muted); }
+.dock .chip { width: 14em; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.dock .chip .cname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.dock .chip b { margin-left: 0; }
+.dock .chip span:last-child { margin-left: 0; }
 .chip b { font-family: var(--mono); color: var(--accent-2); margin-left: 4px; }
 .chip span { color: var(--muted); margin-left: 6px; font-size: 0.714rem; }
 .chip:hover { border-color: var(--accent); }
@@ -653,6 +680,13 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
 #aggtable th:hover, #stationtable th:hover , #casttable th:hover { color: var(--fg); }
 #aggtable td, #stationtable td , #casttable td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 #aggtable td.mono, #stationtable td.mono , #casttable td.mono { font-family: var(--mono); font-size: 0.821rem; }
+/* the first column stays put while the table scrolls sideways: its cells
+   carry an opaque background, the selected shades mixed over the card */
+#aggtable td:first-child, #stationtable td:first-child, #casttable td:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); }
+#aggtable th:first-child, #stationtable th:first-child, #casttable th:first-child { position: sticky; left: 0; z-index: 3; }
+#aggtable tbody tr:hover td:first-child, #stationtable tbody tr:hover td:first-child, #casttable tbody tr:hover td:first-child { background: var(--card-2); }
+#aggtable tbody tr.on td:first-child, #stationtable tbody tr.on td:first-child, #casttable tbody tr.on td:first-child { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+#aggtable tbody tr.sel td:first-child, #stationtable tbody tr.sel td:first-child, #casttable tbody tr.sel td:first-child { background: color-mix(in srgb, var(--accent-2) 8%, var(--card)); }
 #stationtable td:nth-child(8) { white-space: normal; min-width: 220px; max-width: 420px; }   /* activities: the planned operations wrap */
 #aggtable tbody tr:hover, #stationtable tbody tr:hover , #casttable tbody tr:hover { background: var(--card-2); }
 
@@ -947,6 +981,12 @@ ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li 
 
 /* the History tools: Back, Home, Map, Explore, Ask Ada, the search, one chip per kind, Bibliography */
 .histtools .histkinds { display: flex; flex-wrap: wrap; gap: 6px; }
+.histtools .histsel { display: none; }                                  /* the phone's stand-in for the kind chips and the page chips */
+@media (max-width: 640px) {
+  .histtools .histsel { display: inline-block; flex: 1 1 100%; }
+  .histtools .histkinds, .histtools #histexplore, .histtools #histbibchip, .histtools #histprovchip { display: none; }
+  .histtools #histsearch { flex: 1 1 100%; min-width: 0; }
+}
 .histtools #histback:disabled { opacity: .45; cursor: default; }
 .histtools #histback:disabled:hover { border-color: var(--line); }
 #pane-history .chip.small { padding: 2px 9px; }
@@ -1058,24 +1098,24 @@ main.mapfull.tab-history .map { grid-row: 2 / 4; }
 .provenance .stat span { color: var(--muted); font-size: 0.821rem; }
 .pglink .status { margin-left: 6px; }
 
-/* ---------------------------------------------------------------- Minimal
+/* ---------------------------------------------------------------- large type
    The bigger type wants roomier controls and taller graphs; padding in em
    follows the type where px would not. */
-html[data-theme^="minimal"] .group button, html[data-theme^="minimal"] .seg button, html[data-theme^="minimal"] select,
-html[data-theme^="minimal"] .legmenu summary, html[data-theme^="minimal"] .pane-tools button, html[data-theme^="minimal"] .pane-tools input[type=search],
-html[data-theme^="minimal"] .chip, html[data-theme^="minimal"] .month .mhead button, html[data-theme^="minimal"] .alertform input, html[data-theme^="minimal"] .alertform select { padding: .4em .85em; }
-html[data-theme^="minimal"] .tabs button { padding: .45em 1em; }
-html[data-theme^="minimal"] .maplayers button { padding: .3em .8em; }
-html[data-theme^="minimal"] .panels { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
-html[data-theme^="minimal"] .panel .plot, html[data-theme^="minimal"] .panel .empty { height: 230px; }
-html[data-theme^="minimal"] .panel.wide .plot { height: 380px; }
+html.bigtype .group button, html.bigtype .seg button, html.bigtype select,
+html.bigtype .legmenu summary, html.bigtype .pane-tools button, html.bigtype .pane-tools input[type=search],
+html.bigtype .chip, html.bigtype .month .mhead button, html.bigtype .alertform input, html.bigtype .alertform select { padding: .4em .85em; }
+html.bigtype .tabs button { padding: .45em 1em; }
+html.bigtype .maplayers button { padding: .3em .8em; }
+html.bigtype .panels { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+html.bigtype .panel .plot, html.bigtype .panel .empty { height: 230px; }
+html.bigtype .panel.wide .plot { height: 380px; }
 html[data-theme^="minimal"] .tabs button.on { box-shadow: inset 0 0 0 1px var(--line); }
-html[data-theme^="minimal"] .panel .head h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-html[data-theme^="minimal"] .map-foot .hint { display: none; }
-html[data-theme^="minimal"] .chat { width: 400px; }
-html[data-theme^="minimal"] .chat.sidebar { width: 440px; }
+html.bigtype .map-foot .hint { display: none; }
+html.bigtype .panel .head .tools button, html.bigtype .maplayers .tools button { padding: .25em .6em; min-height: 2em; min-width: 2.2em; }
+html.bigtype .chat { width: 400px; }
+html.bigtype .chat.sidebar { width: 440px; }
 html[data-theme^="minimal"].chat-side main { padding-right: 460px; }
 @media (max-width: 640px) {
   .top .themepick .lbl { display: none; }
-  html[data-theme^="minimal"] .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
+  html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
 }

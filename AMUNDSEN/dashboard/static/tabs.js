@@ -79,7 +79,7 @@
     if (!casts.idx || casts.kind === "CTD") return out;
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
-    const f = UW.currentFilter();
+    const f = UW.spanFilter();
     const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
@@ -160,20 +160,16 @@
     if (!vars.includes(casts.variable)) casts.variable = vars.includes("Temperature") ? "Temperature" : (vars[0] || "Temperature");
     sel.value = casts.variable;
   }
-  // A table the span has trimmed says so in its first row: how many rows of
-  // the shown legs fall outside the span, with a link that widens it. The
-  // link picks the "leg" span, or, when that is already on, the smallest
-  // span reaching every shown leg.
+  // A table the legs menu has trimmed says so in its first row: how many
+  // rows belong to legs not shown, with a link that shows every leg.
   function spanNote(kept, all, f, tag = "tr", colspan = 1) {
     const n = all - kept; if (n <= 0) return "";
-    const legs = UW.M.legs.filter((l) => f.legs.has(l.id)).map((l) => l.label).join(", ") || "the shown legs";
-    const link = f.label === "leg" ? '<a href="#" class="spanall" data-widen="1">show all data for the shown legs</a>' : '<a href="#" class="spanall">show all data for this leg</a>';
-    const text = `${n.toLocaleString()} ${n === 1 ? "row" : "rows"} from ${esc(legs)} hidden by the ${esc(f.label)} span · ${link}`;
+    const text = `${n.toLocaleString()} ${n === 1 ? "row" : "rows"} from legs not shown · <a href="#" class="spanall">show all legs</a>`;
     return tag === "li" ? `<li class="spannote">${text}</li>` : `<tr class="spannote"><td colspan="${colspan}">${text}</td></tr>`;
   }
   document.addEventListener("click", (e) => {
     const a = e.target.closest("a.spanall"); if (!a) return;
-    e.preventDefault(); a.dataset.widen ? UW.widenSpan() : UW.setSpan("leg");
+    e.preventDefault(); UW.showAllLegs();
   });
   // the casts as a sortable table like the Stations and Underway ones: a
   // row per cast (a tow unfolds into its dips), a click selects it
@@ -259,10 +255,13 @@
     if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide tall');
     const vars = chosen.filter((v) => spec.vars[v]);
     const gdEl = $(`#${plotId}`);
-    // each extra axis needs ~58 px of ticks and title: the plot area gives up
-    // that much per axis and the margins hold the outermost ones
-    const H = Math.max(360, gdEl.clientHeight || 500), step = 64 / H;
+    // each extra axis needs ~64 px of ticks and title: the canvas grows by
+    // that much per axis beyond the first at the top and the bottom, so the
+    // profile keeps its height; the margins hold the outermost axes
     const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
+    const extra = Math.max(0, nb - 1) + Math.max(0, nt - 1);
+    gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(64))}px)` : "";
+    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / H;
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
     const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(64), b: fz(64) }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
@@ -805,7 +804,7 @@
     const f = UW.currentFilter();
     if ((a.legs || []).some((id) => f.legs.has(id))) return true;
     const before = UW.tms(a.before);
-    if (!isNaN(before) && f.start < before) return true;
+    if (!isNaN(before) && UW.legsStart() < before) return true;
     return cal.view === "month" && !!a.before && cal.month < a.before.slice(0, 7);
   }
   function loadArchive() {
@@ -1164,7 +1163,8 @@
       eventListHtml(evs, s, cal.search.toLowerCase(), f, nHidden);
     wireEventList(host);
     const layout = { ...castLayout(), margin: { l: fz(130), r: 10, t: fz(28), b: fz(58) }, barmode: "overlay",
-      xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: fz(12) } }, tickfont: { size: fz(12) } },
+      xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: fz(12) } }, tickfont: { size: fz(12) },
+               ...(isFinite(UW.spanFilter().start) ? { range: [shifted(UW.spanFilter().start), shifted(UW.spanFilter().end + 3600e3)], autorange: false } : {}) },   // opens on the span; the log runs on before it
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
       annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: fz(11), color: C.now } }] };
