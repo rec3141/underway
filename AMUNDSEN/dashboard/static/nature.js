@@ -153,9 +153,10 @@
     if (sc.subject && !(sc._fam ||= family(sc.subject)).has(o.subject)) return false;
     return true;
   }
+  // the ship's own photographs stay on the map whatever page is open and whatever domains the menu allows
   function shownObs(forMap = false) {
     const sc = scopeOf();
-    return allObs().filter((o) => inScope(o, sc) && (!forMap || nat.domains.has(domainOfObs(o) || "other") || (!domainOfObs(o) && nat.domains.size)));
+    return allObs().filter((o) => (forMap && o._journal) || (inScope(o, sc) && (!forMap || nat.domains.has(domainOfObs(o) || "other") || (!domainOfObs(o) && nat.domains.size))));
   }
 
   // ---------------------------------------------------------------- vignettes
