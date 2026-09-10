@@ -1142,19 +1142,18 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
     const sites = hist.sites = siteItems();
     const year = (a) => { const y = yearOf(a.date_start); return y == null ? "" : ` · ${yearLabel(y)}`; };
     const hover = (a) => `${short(a.title)}${year(a)}`;
-    // the open track, if the page is one, is drawn last, wide and bright;
-    // the other tracks step back so the eye finds it
+    // tracks are faint until one is open: that one is drawn last, wide and bright
     const tracks = shown.filter((x) => x.type === "track" && x.geometry?.coordinates?.length > 1);
     const picked = hist.slug.startsWith("artifact/") ? tracks.find((x) => x.page === hist.slug) : null;
     for (const a of [...tracks.filter((x) => x !== picked), ...(picked ? [picked] : [])]) {
-      const c = a.geometry.coordinates, col = topicColour(a.topic), dim = picked && a !== picked;
+      const c = a.geometry.coordinates, col = topicColour(a.topic), bold = a === picked;
       out.push({ type: "scattermap", mode: "lines", name: `hist-${a.id}`, showlegend: false, hoverinfo: "text",
         lat: c.map((p) => p[1]), lon: c.map((p) => p[0]), text: c.map(() => hover(a)), customdata: c.map(() => `hist:${a.id}`),
-        line: { width: a === picked ? 4 : dim ? 1.6 : 2.4, color: col }, opacity: a === picked ? 1 : dim ? .3 : .85 });
+        line: { width: bold ? 4 : 2, color: col }, opacity: bold ? 1 : .3 });
       if (a.waypoints?.length) out.push({ type: "scattermap", mode: "markers", name: `hist-${a.id}-wp`, showlegend: false, hoverinfo: "text",
         lat: a.waypoints.map((w) => w.lat), lon: a.waypoints.map((w) => w.lon),
         text: a.waypoints.map((w) => siteText(sites, w.lat, w.lon, `${esc(dateLabel(w.date || ""))}${w.note ? " · " + short(w.note, 50) : ""}`)),
-        customdata: a.waypoints.map((w) => `hist:${a.id}|${w.date || ""}`), marker: { size: a === picked ? 8 : 6, color: col, opacity: dim ? .35 : .9 } });
+        customdata: a.waypoints.map((w) => `hist:${a.id}|${w.date || ""}`), marker: { size: bold ? 8 : 6, color: col, opacity: bold ? .9 : .35 } });
     }
     const pins = shown.filter((x) => x.type !== "track" && x.lat != null);
     if (pins.length) out.push({ type: "scattermap", mode: "markers", name: "history", showlegend: false, hoverinfo: "text",
