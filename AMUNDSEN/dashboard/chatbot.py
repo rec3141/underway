@@ -66,8 +66,14 @@ PERSONAS = {
                       "loud, gentle humour, generous with the young scientists, never pompous. Two to four sentences, more if the "
                       "question earns it."),
             "brief": ("Your beat is the environment the ship is moving through: the sea surface temperature, salinity, fluorescence, "
-                      "oxygen, the air, the surprise score and what a change in the water means ecologically. The schedule is the "
-                      "Cap'n's and the past is the Librarian's: point people to @capn or @ada for those.")},
+                      "oxygen, the air, the surprise score and what a change in the water means ecologically; and the natural "
+                      "history of these waters, the living things, the ice, the water column, the weather, the sky and the magnetic "
+                      "field, as the record has them. The NATURAL RECORD lines below are observations from the ship's Nature wiki, "
+                      "each with its observer and date: draw on them when they bear on the question and say who recorded what and "
+                      "when, in the unit they wrote. A sighting a crew member tells you belongs in the ship's journal: repeat it back "
+                      "as one line (the subject, the time, the position, the count, who saw it) and ask them to enter it on the "
+                      "Nature tab's Journal form. The schedule is the Cap'n's and the human past is the Librarian's: point people to "
+                      "@capn or @ada for those.")},
     "ada": {"name": "Ada", "emoji": "📚", "beat": "history", "room": "Library",
             "type": ("INTJ, the Architect, with a restless curiosity: sees the shape of a story at once and the pattern behind "
                      "three voyages, and when a detail genuinely interests her she follows it, says why it matters, and brings "
@@ -450,6 +456,74 @@ def places_named(root: Path, text: str) -> list[dict]:
     return out[:8]
 
 
+def nature_lines(root: Path, lat, lon, slug: str = "", now: datetime | None = None, near_km: float = 300, limit: int = 8) -> list[str]:
+    """Doc's slice of the natural half: the observations nearest the ship, those
+    made on this date in other years, the ship's own journal lines, and the
+    whole record of the subject (or the one observation) open on the Nature
+    tab. Each line names the subject, the number as written, the observer,
+    the date and the place, so an answer can say who recorded what."""
+    import math
+    h = root / "data" / "history"
+    try:
+        subjects = {s["name"]: s for s in json.loads((h / "subjects.json").read_text()).get("subjects", [])} if (h / "subjects.json").is_file() else {}
+        obs = json.loads((h / "observations.json").read_text()).get("observations", []) if (h / "observations.json").is_file() else []
+    except (OSError, ValueError):
+        subjects, obs = {}, []
+    try:
+        from .nature import entries
+        seen = {str(o.get("id")) for o in obs}
+        journal = [{**e, "date_start": e.get("date", "")[:10], "_journal": True} for e in entries(50) if str(e.get("id")) not in seen]
+    except Exception:                   # noqa: BLE001
+        journal = []
+    rows = obs + journal
+    if not rows:
+        return []
+    def name(o):
+        s = subjects.get(o.get("subject", ""))
+        return f"{s['english']} ({s['name']})" if s and s.get("english") and s["english"] != s["name"] else o.get("subject", "")
+    def number(o):
+        if o.get("value") not in (None, ""):
+            return f"{o['value']} {o.get('unit', '')}".strip()
+        return str(o.get("count") or o.get("qualifier") or "")
+    def line(o, extra=""):
+        bits = [name(o), number(o), o.get("date_text") or o.get("date_start") or o.get("date", ""),
+                ("by " + o["observer"]) if o.get("observer") else "", o.get("place", ""), extra,
+                "(the ship's journal, not yet on grid)" if o.get("_journal") else ""]
+        return "- " + ", ".join(b for b in bits if b) + (f": {o['detail'][:160]}" if o.get("detail") else "")
+    out = []
+    if lat is not None and lon is not None:
+        def km(o):
+            r = math.pi / 180
+            a = math.sin((o["lat"] - lat) * r / 2) ** 2 + math.cos(lat * r) * math.cos(o["lat"] * r) * math.sin((o["lon"] - lon) * r / 2) ** 2
+            return 2 * 6371 * math.asin(math.sqrt(a))
+        near = sorted((o for o in rows if o.get("lat") is not None and o.get("lon") is not None), key=km)
+        near = [o for o in near if km(o) <= near_km][:limit]
+        if near:
+            out.append(f"NATURAL RECORD near the ship (within {int(near_km)} km):\n" + "\n".join(line(o, f"{km(o):.0f} km away") for o in near))
+    now = now or datetime.now(timezone.utc)
+    mmdd = now.strftime("-%m-%d")
+    today = [o for o in rows if len(str(o.get("date_start", ""))) == 10 and str(o["date_start"]).endswith(mmdd)][:limit]
+    if today:
+        out.append("NATURAL RECORD on this date in other years:\n" + "\n".join(line(o) for o in today))
+    if journal:
+        out.append("THE SHIP'S JOURNAL, latest lines:\n" + "\n".join(line(o) for o in journal[:6]))
+    if slug.startswith("subject/"):
+        s = next((x for x in subjects.values() if x.get("page") == slug), None)
+        excerpt = h / "excerpts" / (slug.replace("/", "__") + ".txt")     # the publish writes one text per subject for a small model
+        if excerpt.is_file():
+            out.append("THE PAGE OPEN ON THE NATURE TAB:\n" + excerpt.read_text(encoding="utf-8")[:6000])
+        elif s:
+            rec = sorted((o for o in rows if o.get("subject") == s["name"]), key=lambda o: str(o.get("date_start", "")))
+            names = "; ".join(f"{k}: {s[k]}" for k in ("english", "french", "inuktitut", "kalaallisut") if s.get(k))
+            out.append(f"THE PAGE OPEN ON THE NATURE TAB: {s['name']}" + (f" ({names})" if names else "") + (f". {s['note'][:800]}" if s.get("note") else "")
+                       + ("\nIts record:\n" + "\n".join(line(o) for o in rec[:30]) if rec else "\nNo observations of it in the record yet."))
+    elif slug.startswith("observation/"):
+        o = next((x for x in rows if str(x.get("id")) == slug[12:]), None)
+        if o:
+            out.append("THE OBSERVATION OPEN ON THE NATURE TAB:\n" + line(o))
+    return out
+
+
 def excerpt_block(excerpts: list[dict]) -> str:
     # numbered, so the answer can cite [n]; the header carries no slug, or the
     # model cites the slug
@@ -548,7 +622,7 @@ class Crew:
                 return _num(y, nd)
         return "n/a"
 
-    def context(self, beat: str = "all", task: str = "") -> str:
+    def context(self, beat: str = "all", task: str = "", slug: str = "") -> str:
         """The dashboard summary for one beat: the Cap'n sees the schedule and
         the weather, Doc the water, the Librarian the past, Polly nothing but
         the clock. ``all`` is everything, for tests and for a look."""
@@ -587,6 +661,13 @@ class Crew:
                         lines.append("Note: the surprise score ignores TSG readings while the intake flow is below 0.5 V (pump off or line choked).")
             except Exception as e:              # noqa: BLE001
                 lines.append(f"(window data unavailable: {e})")
+        if beat in ("all", "environment"):
+            # the natural half of the history layer: the record near the ship and on
+            # this date, the ship's own journal, and the page open on the Nature tab
+            try:
+                lines += nature_lines(self.root, lat, lon, slug)
+            except Exception:                   # noqa: BLE001
+                pass
         if beat in ("all", "schedule"):
             try:
                 c = json.loads((self.root / "data" / "calendar.json").read_text())
@@ -631,7 +712,7 @@ class Crew:
         return "\n".join(lines)
 
     # ------------------------------------------------------------ generation
-    def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False) -> tuple[str | None, list[dict]]:
+    def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False, slug: str = "") -> tuple[str | None, list[dict]]:
         """One remark in a room. The crew member sees its beat's slice of the
         dashboard and the last few kilobytes of that room, nothing else."""
         p = PERSONAS[handle]
@@ -657,7 +738,7 @@ class Crew:
                   f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
                   f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
-                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task)}\n\nRECENT CHAT (oldest first)\n{recent}")
+                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task, slug)}\n\nRECENT CHAT (oldest first)\n{recent}")
         pages = list(self._pages)
         library = handle == "ada" and channel == "ada"           # her own room: she answers at length (thinking costs minutes and adds little)
         text = complete(system, task, ADA_TOKENS if library else MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5)
@@ -685,7 +766,7 @@ class Crew:
             return text, []
         return chat.chosen_chips(chat.apply_picks(text, reply), shelf)
 
-    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False) -> None:
+    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False, slug: str = "") -> None:
         """Generate and post one remark in a room; in the crew's room another
         member sometimes riffs on it, usually Polly (one hop only, so they
         cannot chain forever)."""
@@ -697,7 +778,7 @@ class Crew:
         with self.lock:
             chat.typing(channel, handle, True)
             try:
-                text, pages = self._generate(handle, task, channel, query, long)
+                text, pages = self._generate(handle, task, channel, query, long, slug)
                 if text:
                     meta = None
                     chips = []
@@ -761,7 +842,7 @@ class Crew:
         else:
             speakers = room_bots
         for h in speakers:
-            threading.Thread(target=self._speak, args=(h, task, channel, text), kwargs={"long": long}, daemon=True).start()
+            threading.Thread(target=self._speak, args=(h, task, channel, text), kwargs={"long": long, "slug": slug}, daemon=True).start()
 
     def _events(self) -> str | None:
         """A notable change since the last look, as a short description, or None."""

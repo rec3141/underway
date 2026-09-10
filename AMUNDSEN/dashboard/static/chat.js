@@ -110,7 +110,7 @@
   const linkify = (s) => esc(s)
     .replace(/\[(\d{1,2})\]\(#history\/([^)\s]+)\)/g, (m, n, slug) => `<sup><a href="#history/${slug}" data-slug="${slug}" class="ref" title="reference ${n}">${n}</a></sup>`)
     .replace(/\[([^\]]+)\]\(#history\/([^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)
-    .replace(/\[([^\]]+)\]\(((?:artifact|person|place|event|source|topic|vessel|animal|kind)\/[^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)   // a page written without the #history/ prefix
+    .replace(/\[([^\]]+)\]\(((?:artifact|person|place|event|source|topic|vessel|animal|kind|subject|observation)\/[^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)   // a page written without the #history/ prefix
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/(^|[^"'>])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
     .replace(/(^|\s)@(\w+)/g, '$1<span class="at">@$2</span>');
@@ -240,7 +240,8 @@
   });
   window.UW = Object.assign(window.UW || {}, {
     chatToggle: () => { if (st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } },
-    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } setRoom(room === "historian" ? "ada" : room); },
+    // a room by name, or a crew member's private room by handle (Ada has a room of her own; the others are met one to one)
+    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } if (room !== "ada" && st.crew.some((c) => c.handle === room)) openDM("@" + room); else setRoom(room === "historian" ? "ada" : room); },
   });
 
   nameIn.onchange = async () => {
@@ -262,6 +263,7 @@
     try {
       const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room };
       if (st.room === "ada" || st.roomBots.includes("ada")) body.slug = window.UW?.historyContext?.() || "";   // the page being read, as context
+      else if (st.roomBots.includes("doc")) body.slug = window.UW?.natureContext?.() || "";                    // the subject or observation open on the Nature tab
       const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); who.textContent = j.error || "not sent"; }
     } catch { who.textContent = "offline"; }

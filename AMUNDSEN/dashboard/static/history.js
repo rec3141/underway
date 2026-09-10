@@ -80,7 +80,9 @@
         maybe("provenance", "data/history/provenance.json"),
       ]);
       hist.animals = an?.animals || []; hist.vessels = ve?.vessels || []; hist.provenance = pv || null;
-      hist.index = index; hist.artifacts = arts.artifacts || []; hist.timeline = tl.timeline || [];
+      // the natural topics are the Nature tab's; a topic without a domain is human history
+      hist.index = { ...index, topics: (index.topics || []).filter((t) => t.domain !== "nature") };
+      hist.artifacts = arts.artifacts || []; hist.timeline = tl.timeline || [];
       hist.places = pl?.places || []; hist.people = pe?.people || []; hist.faces = fa?.faces || null; hist.events = ev?.events || [];
       hist.stamp = UW.M.history.stamp; hist.pages = new Map(); hist.bib = null; hist.names = null;
       for (const a of hist.artifacts) a._year = yearOf(a.date_start);
@@ -232,6 +234,7 @@
   function pageFor(kind, id) {
     if (kind === "artifact") return artifactById(id)?.page || "";
     if (kind === "event") return eventSlug(id);
+    if (kind === "observation") return `observation/${id}`;          // the natural half's atom: the Nature tab shows it
     return hist.index?.pages.find((p) => p.kind === kind && p.title === id)?.slug || "";
   }
   function onThisDay(now = new Date()) {
@@ -563,7 +566,7 @@
     const back = (p.backlinks || []).map((s) => hist.index.pages.find((x) => x.slug === s)).filter(Boolean);
     let head = crumb(...(t ? [`<a href="#history/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">${esc(kindLabel(p.kind))}</span>`, p.slug)) + `<h2>${esc(p.title)}${p.kind === "page" ? statusTag(p.status) : ""}</h2>`;
     if (p.summary && p.kind === "page") head += `<p class="lead">${esc(p.summary)}</p>`;
-    let media = "";
+    let media = "", tail = "";                                   // a route's waypoints table follows the description
     if (a) {
       const picture = a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url);
       if (picture && (a.type === "image" || a.type === "map")) media = `<figure><a href="${esc(a.url)}" target="_blank" rel="noopener"><img src="${esc(a.url)}" alt="${esc(a.title)}"></a><figcaption>${esc(a.credit)}${rights(a) ? " · " + esc(rights(a)) : ""}</figcaption></figure>`;
@@ -581,7 +584,7 @@
       head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || C.muted}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}${flagMark(a)}</div>`;
       head += peopleStrip(a.people);
       if (a.type === "track") media = `<figure class="routefig">${trackSketch(a, 480, 300, "sketch large")}</figure>` + media;
-      media += track;
+      tail = track;
     }
     // a generated page's body is the row's prose alone; the row's other
     // fields are laid out here, as facts under the title
@@ -624,7 +627,7 @@
     const backLinks = (xs) => xs.map((b) => `<a href="#history/${esc(b.slug)}" data-slug="${esc(b.slug)}">${esc(b.title)}</a>`).join("");
     const backSorted = [...back].sort((x, y) => (x.kind === "page" ? 0 : 1) - (y.kind === "page" ? 0 : 1));
     const backHTML = back.length ? `<div class="backlinks"><span class="lbl">Mentioned in</span>${backLinks(backSorted.slice(0, BACK_SHOWN))}${back.length > BACK_SHOWN ? `<span class="backmore" hidden>${backLinks(backSorted.slice(BACK_SHOWN))}</span><button type="button" class="chip small more" data-more="back">and ${back.length - BACK_SHOWN} more</button>` : ""}</div>` : "";
-    el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}</div>` + backHTML;
+    el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}${tail}</div>` + backHTML;
     const more = el.querySelector('button[data-more="back"]'); if (more) more.onclick = () => { el.querySelector(".backmore").hidden = false; more.remove(); };
     crossLink(el.querySelector(".wiki"), p.slug, a?.people || ev?.people || p.people, p.kind === "page" ? p.title : "");
     if (p.kind === "page") enrich(el.querySelector(".wiki"));
@@ -725,7 +728,7 @@
   // a slug written bare in the prose ("see davis-baffin-hudson", "frobisher-004")
   // becomes a link that reads as the page's title; an artifact's card then
   // follows the paragraph like any other link's
-  const SLUG_RX = /(?<![\w/#-])([a-z][a-z0-9]*(?:-[a-z0-9]+)+|(?:artifact|person|place|event|source|topic|vessel|animal)\/[a-z0-9][\w-]*)(?![\w/-])/g;
+  const SLUG_RX = /(?<![\w/#-])([a-z][a-z0-9]*(?:-[a-z0-9]+)+|(?:artifact|person|place|event|source|topic|vessel|animal|subject|observation)\/[a-z0-9][\w-]*)(?![\w/-])/g;
   function linkSlugs(root, self) {
     if (!root || !hist.index) return;
     const pageOf = (tok) => {
@@ -1076,6 +1079,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   const ALIAS = { timeline: "kind/event", people: "kind/people" };
   function open(slug, opts = {}) {
     slug = ALIAS[slug] || slug;
+    if (/^(subject|observation)\//.test(slug) && UW.natureOpen) { UW.natureOpen(slug); return; }   // the natural half: the Nature tab's pages
     hist.slug = slug; store.set("hist.slug", slug);
     hist.more = { today: false, here: false };
     if (hist.search) { hist.search = ""; const q = $("#histsearch"); if (q) q.value = ""; }
@@ -1237,36 +1241,41 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   // On the History tab the map is the history's: the ship's own layers step
   // aside and come back when the tab is left; plan, places and history stay.
   const SHIP_LAYERS = ["stations", "cameras", "events", "track"];
+  const PAST_TABS = { history: "history", nature: "nature" };      // each past tab switches its own layer on
   let stashed = null;
-  function historyMap(on) {
+  function historyMap(on, layer = "history") {
     const pill = (layer, state) => { const b = document.querySelector(`#maplayers button[data-layer="${layer}"]`); if (b) { b.classList.toggle("on", !!state); b.setAttribute("aria-pressed", String(!!state)); } };
     if (on && !stashed) {
-      stashed = { sat: UW.state.sat, satAt: UW.state.satAt, history: UW.state.history };
+      stashed = { sat: UW.state.sat, satAt: UW.state.satAt, history: UW.state.history, nature: UW.state.nature };
       for (const l of SHIP_LAYERS) { stashed[l] = UW.state[l]; UW.state[l] = false; pill(l, false); }
       UW.state.sat = ""; UW.state.satAt = null;
-      UW.state.history = true; pill("history", true);
     } else if (!on && stashed) {
       for (const l of SHIP_LAYERS) { UW.state[l] = stashed[l]; pill(l, stashed[l]); }
       UW.state.sat = stashed.sat; UW.state.satAt = stashed.satAt;
       UW.state.history = stashed.history; pill("history", stashed.history);
+      UW.state.nature = stashed.nature; pill("nature", stashed.nature);
       stashed = null;
     }
+    if (on) { UW.state[layer] = true; pill(layer, true); }
     document.body.classList.toggle("tab-history", on);
     renderChips();
   }
   const prevTab = UW.onTab;
   UW.onTab = (name) => {
     prevTab?.(name);
-    const on = name === "history";
-    const was = !!stashed;
-    historyMap(on);
-    if (on !== was) UW.renderMap();
-    if (!on) return;
+    const on = !!PAST_TABS[name];
+    const was = !!stashed, layerWas = stashed && Object.keys(PAST_TABS).find((k) => UW.state[k]);
+    historyMap(on, PAST_TABS[name]);
+    if (on !== was || (on && PAST_TABS[name] !== layerWas)) UW.renderMap();
+    if (name !== "history") return;
     ensure().then((ok) => { if (ok) render(); else renderMain(); }).catch(() => { UW.setLoadError("History", true); });
   };
   const prevRefresh = UW.refreshExtraData;
   UW.refreshExtraData = () => { prevRefresh?.(); const pill = document.querySelector('#maplayers button[data-layer="history"]'); if (pill) pill.hidden = !UW.M.history;
     if (!$("#pane-history").hidden || UW.state.history) ensure().then(() => { if (!$("#pane-history").hidden) render(); else { renderChips(); UW.renderMap(); } }).catch(() => {}); };
+  // the pane's helpers, for the Nature tab (nature.js, loaded next), so the two halves read alike
+  UW.histShared = { ensure, esc, yearOf, yearLabel, dateLabel, km, markdown, crossLink, coordLink, mapLink, facts, sourceRef, peopleStrip,
+    artifactCard, artifactById, eventById, topicOf, statusTag, pageLink, whereName, yearTicks, data: () => hist };
   wire();
   document.addEventListener("uw:theme", () => { if (!$("#pane-history").hidden && hist.artifacts) render(); });   // the chips, dots and the timeline take the new colours
   if (location.hash.startsWith("#history/") && $("#pane-history").hidden) UW.showTab("history");
