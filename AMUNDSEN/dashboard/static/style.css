@@ -1042,6 +1042,11 @@ main.mapfull.tab-history .map { grid-row: 2 / 4; }
 .chatlog .msg .artchip, .chatlog .msg .artchip.quote { max-width: 100%; }
 .artchip q { font-style: italic; color: var(--fg-2); font-size: 0.857rem; line-height: 1.4; quotes: "\201C" "\201D"; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 .histmain .artlinks { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+/* the row's fields under a generated page's title, one line each */
+.histmain .artfacts { margin: 2px 0 10px; font-size: 0.893rem; color: var(--fg-2); }
+.histmain .artfacts .fact { display: flex; gap: 8px; align-items: baseline; }
+.histmain .artfacts .lbl { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; flex: 0 0 auto; }
+.histmain .backlinks .backmore { display: contents; }
 /* a page's standing: marked while it is a draft */
 .histmain .status { display: inline-block; font-size: 0.714rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; margin-left: 8px; vertical-align: middle; color: var(--muted); line-height: 1.5; }
 .histmain .status.draft { color: var(--gold); }

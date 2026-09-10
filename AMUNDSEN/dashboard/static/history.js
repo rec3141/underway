@@ -583,19 +583,43 @@
       if (a.type === "track") media = `<figure class="routefig">${trackSketch(a, 480, 300, "sketch large")}</figure>` + media;
       media += track;
     }
-    if (pl && pl.lat != null) {
-      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.place.colour}"></span>${esc(pl.kind || "place")} · ${mapLink(pl.lat, pl.lon, pl.name, "place")}</div>`;
+    // a generated page's body is the row's prose alone; the row's other
+    // fields are laid out here, as facts under the title
+    if (a) head += facts([["credit", !(a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url) && (a.type === "image" || a.type === "map")) ? a.credit : ""], ["rights", a.url ? "" : rights(a)], ["source", sourceRef(a.bibkey, a.pages)]]);
+    if (pl) {
+      if (pl.lat != null) head += `<div class="artmeta"><span class="dot" style="background:${TYPES.place.colour}"></span>${esc(pl.kind || "place")} · ${coordLink(pl.lat, pl.lon, pl.name)} · ${mapLink(pl.lat, pl.lon, pl.name, "place")}</div>`;
+      head += facts([["also", [pl.inuktitut, pl.historic].filter(Boolean).join(", ")], ["source", sourceRef(pl.bibkey)]]);
     }
-    if (ev && ev.lat != null) {
-      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>event · ${coordLink(ev.lat, ev.lon, ev.title)} · ${mapLink(ev.lat, ev.lon, ev.title, "event")}</div>`;
+    if (ev) {
+      const when = ev.date_text || [ev.date_start, ev.date_end].filter(Boolean).map((d) => dateLabel(d)).join(" to ");
+      const at = ev.place ? (hist.places.find((x) => x.name === ev.place) ? `<a href="#history/${esc(hist.places.find((x) => x.name === ev.place).page)}" data-slug="${esc(hist.places.find((x) => x.name === ev.place).page)}">${esc(ev.place)}</a>` : esc(ev.place)) : "";
+      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>event${when ? " · " + esc(when) : ""}${at ? " · " + at : ""}${ev.lat != null ? " · " + coordLink(ev.lat, ev.lon, ev.title) + " · " + mapLink(ev.lat, ev.lon, ev.title, "event") : ""}</div>`;
+      head += peopleStrip(ev.people) + facts([["source", sourceRef(ev.bibkey)]]);
+    }
+    if (p.kind === "person") {
+      const r = hist.people.find((x) => x.page === p.slug);
+      if (r) head += facts([["", [r.role, r.affiliation, lifespan(r)].filter(Boolean).join(" · ")], ["also written", r.also], ["source", sourceRef(r.bibkey)]]);
+    }
+    if (p.kind === "animal") {
+      const r = hist.animals.find((x) => x.page === p.slug);
+      if (r) head += facts([["", [r.kind, r.role, r.affiliation, lifespan(r)].filter(Boolean).join(" · ")], ["also called", r.also], ["source", sourceRef(r.bibkey)]]);
+    }
+    if (p.kind === "vessel") {
+      const r = hist.vessels.find((x) => x.page === p.slug);
+      if (r) head += facts([["", [[r.kind_label || r.kind, r.kind_note].filter(Boolean).join(", "), r.affiliation, r.tonnage].filter(Boolean).join(" · ")], ["", r.role], ["built", r.built], ["fate", r.lost], ["also", r.also], ["source", sourceRef(r.bibkey)]]);
     }
     if (p.kind === "source") {
       const bib = await bibliography();
       const e = bib.find((x) => x.key === p.slug.split("/").pop());
-      if (e) head += `<p class="mlaline"><span class="lbl">MLA</span> ${mla(e)}</p>`;
+      if (e) head += `<p class="mlaline"><span class="lbl">MLA</span> ${mla(e)}</p>` + facts([["", e.keywords === "primary" ? "primary source" : e.keywords === "secondary" ? "secondary source" : ""], ["held", e.note]]);
     }
-    el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}</div>` +
-      (back.length ? `<div class="backlinks"><span class="lbl">Mentioned in</span>${back.map((b) => `<a href="#history/${esc(b.slug)}" data-slug="${esc(b.slug)}">${esc(b.title)}</a>`).join("")}</div>` : "");
+    // a well-cited source is mentioned by a couple of hundred artifacts: the
+    // narrative pages first, then the rest behind a fold
+    const backLinks = (xs) => xs.map((b) => `<a href="#history/${esc(b.slug)}" data-slug="${esc(b.slug)}">${esc(b.title)}</a>`).join("");
+    const backSorted = [...back].sort((x, y) => (x.kind === "page" ? 0 : 1) - (y.kind === "page" ? 0 : 1));
+    const backHTML = back.length ? `<div class="backlinks"><span class="lbl">Mentioned in</span>${backLinks(backSorted.slice(0, BACK_SHOWN))}${back.length > BACK_SHOWN ? `<span class="backmore" hidden>${backLinks(backSorted.slice(BACK_SHOWN))}</span><button type="button" class="chip small more" data-more="back">and ${back.length - BACK_SHOWN} more</button>` : ""}</div>` : "";
+    el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}</div>` + backHTML;
+    const more = el.querySelector('button[data-more="back"]'); if (more) more.onclick = () => { el.querySelector(".backmore").hidden = false; more.remove(); };
     crossLink(el.querySelector(".wiki"), p.slug, a?.people || ev?.people || p.people, p.kind === "page" ? p.title : "");
     if (p.kind === "page") enrich(el.querySelector(".wiki"));
     el.scrollTop = 0; window.scrollTo?.(0, 0);
@@ -635,6 +659,19 @@
     el.scrollTop = 0; window.scrollTo?.(0, 0);
   }
   // the people named on an artifact or an event, each a link to their page
+  // the facts under a generated page's title: [label, value] pairs, the
+  // empty ones dropped; a value may carry markup the caller has escaped
+  const BACK_SHOWN = 40;
+  const lifespan = (r) => (r.born || r.died) ? `${r.born || "?"}–${r.died || ""}` : "";
+  function sourceRef(bibkey, pages = "") {
+    if (!bibkey) return "";
+    const slug = `source/${bibkey}`, pg = hist.index?.pages.find((x) => x.slug === slug);
+    return `<a href="#history/${esc(slug)}" data-slug="${esc(slug)}">${esc(pg ? pg.title : bibkey)}</a>${pages ? ", " + esc(pages) : ""}`;
+  }
+  function facts(pairs) {
+    const rows = pairs.filter(([, v]) => v).map(([l, v]) => `<div class="fact">${l ? `<span class="lbl">${esc(l)}</span>` : ""}<span>${l === "source" ? v : esc(v)}</span></div>`);
+    return rows.length ? `<div class="artfacts">${rows.join("")}</div>` : "";
+  }
   function peopleStrip(names) {
     if (!names?.length) return "";
     const one = (n) => { const p = hist.people.find((x) => x.name === n); return p ? `<a class="chip small" href="#history/${esc(p.page)}" data-slug="${esc(p.page)}">${esc(n)}</a>` : `<span class="chip small wanted" title="no page yet">${esc(n)}</span>`; };
