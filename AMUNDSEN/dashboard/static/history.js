@@ -453,6 +453,10 @@
     const t = (m || d).trim();
     return t.length > 240 ? t.slice(0, 237) + "…" : t;
   }
+  // an artifact's rights line: the licence code's phrase (the publish
+  // supplies it; a build from before the codes has the wording itself), then
+  // the note on the holder or the term
+  const rights = (a) => [a.licence_label || a.licence, a.rights_note].filter(Boolean).join(". ");
   function artifactCard(a, opts = {}) {
     const t = TYPES[a.type] || {};
     let media = "";
@@ -560,7 +564,7 @@
     let media = "";
     if (a) {
       const picture = a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url);
-      if (picture && (a.type === "image" || a.type === "map")) media = `<figure><a href="${esc(a.url)}" target="_blank" rel="noopener"><img src="${esc(a.url)}" alt="${esc(a.title)}"></a><figcaption>${esc(a.credit)}${a.licence ? " · " + esc(a.licence) : ""}</figcaption></figure>`;
+      if (picture && (a.type === "image" || a.type === "map")) media = `<figure><a href="${esc(a.url)}" target="_blank" rel="noopener"><img src="${esc(a.url)}" alt="${esc(a.title)}"></a><figcaption>${esc(a.credit)}${rights(a) ? " · " + esc(rights(a)) : ""}</figcaption></figure>`;
       // the copies: the one on the ship, the original it was rendered from, and the one on the web
       const ext = (u) => esc(u.split(".").pop().toUpperCase());
       const links = [
@@ -942,6 +946,7 @@
     const tile = (v, l) => `<div class="stat"><b>${n(v)}</b><span>${l}</span></div>`;
     const types = Object.entries(c.artifacts_by_type || {}).map(([k, v]) => `${n(v)} ${esc(k)}${v === 1 ? "" : "s"}`).join(", ");
     const figures = `<div class="stats">${tile(c.topics ?? t.length, "topics")}${tile(c.pages, "narrative pages")}${tile(c.pages_draft, "still drafts")}${tile(c.page_versions, "earlier page versions kept")}${tile(c.artifacts, "artifacts")}${tile((c.artifacts_by_type?.image || 0) + (c.artifacts_by_type?.map || 0), "historical images and maps")}${tile(c.artifacts_by_type?.quote, "pinned quotations")}${tile(c.artifacts_by_type?.track, "reconstructed tracks")}${tile(c.waypoints, "waypoints on them")}${tile(c.sources, "works cited")}${tile(c.sources_primary, "primary sources")}${tile(c.sources_local, "works held on the ship")}${tile(c.languages, "languages")}${tile(c.people, "people")}${tile(c.people_indigenous, "of them Inuit and other Indigenous people")}${tile(c.places, "places")}${tile(c.places_inuktitut, "with an Inuktitut name")}${tile(c.events, "events")}${tile(c.dates, "dated records")}${tile(c.vessels, "vessels")}${tile(c.animals, "animals")}${tile(c.links, "links between pages")}${tile(answered, "requests answered by a person")}${tile(w.worklog, "worklog entries")}</div>` +
+      (c.licences ? `<p class="muted small">Rights: ${Object.entries(c.licences).map(([k, v]) => `${n(v)} ${esc((c.licence_labels || {})[k] || k)}`).join(", ")}.</p>` : "") +
       (types ? `<p class="muted small">Artifacts by kind: ${types}. ${n(c.artifacts_local)} have a copy on the ship and ${n(c.artifacts_linked)} link to the holding institution on the web.${w.first ? ` The worklog runs from ${day(w.first)} to ${day(w.last)}, ${n(w.runs)} named runs and passes.` : ""}</p>` : "") +
       (pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}, when this build published the history${c.links_wanted ? `; ${n(c.links_wanted)} links still point at pages not yet written` : ""}.</p>` : `<p class="muted small">The figures are not in this build yet; they are counted when the history is next published.</p>`);
     const aboard = `## What the models annotated

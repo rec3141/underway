@@ -84,6 +84,7 @@ try:
                     "page_versions": one("SELECT count(*) FROM page_history"),
                     "artifacts": one("SELECT count(*) FROM artifacts"),
                     "artifacts_by_type": dict(rows("SELECT type, count(*) FROM artifacts GROUP BY type ORDER BY 2 DESC")),
+                    "licences": dict(rows("SELECT licence, count(*) FROM artifacts WHERE licence != '' GROUP BY licence ORDER BY 2 DESC")),
                     "waypoints": sum(len(json.loads(w or "[]") or []) for (w,) in rows("SELECT waypoints FROM artifacts WHERE type = 'track'") if w and w.startswith("[")),
                     "artifacts_local": one("SELECT count(*) FROM artifacts WHERE local_file != ''"),
                     "artifacts_linked": one("SELECT count(*) FROM artifacts WHERE source_url != ''"),
@@ -126,6 +127,11 @@ try:
             }
         finally:
             c.close()
+        try:                                    # the codes' phrases, from the project once it has them
+            from arctic_history import licence_label
+            out["counts"]["licence_labels"] = {k: licence_label(k) for k in out["counts"]["licences"]}
+        except ImportError:
+            out["counts"]["licence_labels"] = {}
         account = Path(path).parent / "PROVENANCE.md"
         out["text"] = account.read_text() if account.is_file() else ""
         dst = root / "data" / "history" / "provenance.json"
