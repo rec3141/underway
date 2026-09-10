@@ -465,7 +465,7 @@
     const applyMapMode = () => {
       const m = mapMode(), main = $("main");
       main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
-      $("#maptoggle").textContent = MAP_ICON[m]; $("#maptoggle").title = `${MAP_WORD[m]} · click for ${MAP_WORD[m === "half" ? (mapDir === "up" ? "full" : "none") : "half"].toLowerCase()}`;
+      $("#maptoggle").innerHTML = `<span class="ico">${MAP_ICON[m]}</span> Map`; $("#maptoggle").title = `${MAP_WORD[m]} · click for ${MAP_WORD[m === "half" ? (mapDir === "up" ? "full" : "none") : "half"].toLowerCase()}`;
       $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
       if (main.dataset.mapmode === m) return;
       const first = !main.dataset.mapmode;
