@@ -1218,7 +1218,6 @@ html[data-theme^="navigator"] :where(button, .chip, select, summary):where(:not(
 html[data-theme^="navigator"] .tabs { background: transparent; border: 0; padding: 0; gap: 3px; }
 html[data-theme^="navigator"] .tabs button { padding: 5px 14px; }
 html[data-theme^="navigator"] .seg button, html[data-theme^="navigator"] .seg button:first-child, html[data-theme^="navigator"] .seg button:last-child { margin-left: 2px; }
-html[data-theme^="navigator"] .maplayers button.sat.on { color: #000080 !important; }
 html[data-theme^="navigator"] .schedlinks .bigcal, html[data-theme^="navigator"] .ticker .smallcal { padding: 4px 12px; }
 /* text boxes: white, bevelled in */
 html[data-theme^="navigator"] :is(input:not([type=range]):not([type=checkbox]), textarea) { border: 2px inset var(--bevel) !important; border-radius: 0 !important; background: var(--card) !important; color: var(--fg) !important; }
