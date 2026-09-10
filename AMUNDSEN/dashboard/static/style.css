@@ -968,12 +968,12 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .chat .msg .pages .lbl { color: var(--muted); }
 .chat .msg .cite { border-bottom: 1px dotted var(--accent); }
 .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
-/* the History tab's map: plan, places and history only; the ship's controls step aside */
-body.tab-history #maplayers button[data-layer="stations"], body.tab-history #maplayers button[data-layer="cameras"],
-body.tab-history #maplayers button[data-layer="events"], body.tab-history #maplayers button[data-layer="track"],
-body.tab-history #satpill, body.tab-history #satnav, body.tab-history .mapcolour, body.tab-history .maptrack,
-body.tab-history .top .controls, body.tab-history .pickhint { display: none !important; }
-body.tab-history #maplayers button[data-layer="history"] { display: inline-block; }
+/* the Wiki tab's map: plan, places, history and nature only; the ship's controls step aside */
+body.tab-wiki #maplayers button[data-layer="stations"], body.tab-wiki #maplayers button[data-layer="cameras"],
+body.tab-wiki #maplayers button[data-layer="events"], body.tab-wiki #maplayers button[data-layer="track"],
+body.tab-wiki #satpill, body.tab-wiki #satnav, body.tab-wiki .mapcolour, body.tab-wiki .maptrack,
+body.tab-wiki .top .controls, body.tab-wiki .pickhint { display: none !important; }
+body.tab-wiki #maplayers button[data-layer="history"], body.tab-wiki #maplayers button[data-layer="nature"] { display: inline-block; }
 /* the crew's model light: green when a model is loaded, grey when the crew are offline */
 .chat .mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--muted); box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 25%, transparent); }
 .chat .mdot.on { background: var(--ok); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 25%, transparent); }
@@ -1010,11 +1010,11 @@ body.tab-history #maplayers button[data-layer="history"] { display: inline-block
 .topicfig figcaption { color: var(--muted); font-size: 0.821rem; margin-top: 3px; }
 .chip.small { font-size: 0.821rem; padding: 2px 9px; vertical-align: middle; }
 .pin { color: var(--accent); font-weight: 700; text-decoration: none; }
-/* a past layer's filter under the map: a menu like the header's legs menu, a box per kind, beside the layer pills */
+/* a past layer's filter under the map: a menu like the header's legs menu, a box per kind, right after the layer's own pill */
 .maplayers .mapmenu .legmenu summary { border-radius: 999px; padding: 4px 11px; font-size: 0.857rem; color: var(--muted); }
 .maplayers .mapmenu .legmenu[open] summary, .maplayers .mapmenu .legmenu summary:hover { color: var(--fg); border-color: var(--accent); }
-.maplayers .mapmenu .pop { min-width: 260px; left: auto; right: 0; }                       /* hangs from its right edge, inside the map's card */
-@media (max-width: 640px) { .maplayers .mapmenu { order: 3; } .maplayers .mapmenu .pop { left: 0; right: auto; } }
+.maplayers .mapmenu .pop { min-width: 260px; }
+@media (max-width: 640px) { .maplayers .layers .mapmenu { flex: 0 0 auto; } .maplayers .mapmenu .pop { left: 0; right: auto; } }
 .maplayers .mapmenu li label { padding: 4px 8px; }
 .maplayers .mapmenu li.ghead { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px 2px; }
 table.sched.timeline td:first-child { white-space: nowrap; }
@@ -1051,8 +1051,29 @@ ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li 
 /* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
 #satpill { min-width: 7.2em; text-align: center; }
 
-/* the past tabs' tools: Back, Home, Explore, Ask, the search, and Browse (the kinds, the domains, the tab's own pages) */
+/* the wiki's tools: Back, Home, Explore, the two labels, Ask, the search, and Browse (the kinds, the domains, the wiki's own pages) */
 .histtools .histsel { flex: 0 1 auto; min-width: 0; max-width: 14em; }
+.histtools .domset { display: inline-flex; gap: 0; }
+.histtools .domset .chip.dom { border-radius: 0; margin-left: -1px; opacity: .7; }
+.histtools .domset .chip.dom:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
+.histtools .domset .chip.dom:last-child { border-radius: 0 999px 999px 0; }
+.histpane .histtools .domset .chip.dom.on { opacity: 1; border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card-2)); font-weight: 600; z-index: 1; }
+/* a collection as a chip: a picture from it, its name with a coloured dot, its count; the grid of them on a kind's page and a domain's */
+.colgrid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); margin: 10px 0; }
+.histpane .colchip { display: flex; gap: 10px; align-items: stretch; padding: 0; overflow: hidden; color: var(--fg); border: 1px solid var(--line); background: var(--card-2); border-radius: 8px; transition: border-color .12s; }
+.histpane .colchip:hover { border-color: var(--accent); }
+.colchip .pic { position: relative; flex: 0 0 auto; width: 84px; min-height: 72px; background: var(--media); }
+.colchip .pic img, .colchip .pic .sketch { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }   /* a portrait picture fills the box rather than stretching the row */
+.colchip .body { padding: 8px 10px 8px 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.colchip.nopic .body { padding-left: 10px; }
+.colchip .body b { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.colchip .body .n { color: var(--muted); font-size: 0.821rem; }
+/* the backlinks in sections, a kind each, in the order of the Browse menu */
+.histmain .backlinks.grouped { display: block; }
+.histmain .backlinks .bgroup { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin: 4px 0 6px; }
+.histmain .backlinks .bgroup .ghead { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; flex: 0 0 100%; }
+.histmain .backlinks .bgroup .ghead .muted { text-transform: none; letter-spacing: 0; margin-left: 4px; }
+.histmain .backlinks .bgroup .ghead .dot { width: 8px; height: 8px; }
 @media (max-width: 640px) {
   .histtools .histsel { flex: 1 1 100%; max-width: none; }
   .histtools .histexplore { display: none; }                            /* Explore is in Browse */
@@ -1107,10 +1128,10 @@ table.sched.timeline tr { scroll-margin-top: 60px; }
 @media (max-width: 900px) { .peoplecols { grid-template-columns: 1fr; } }
 /* the provenance opens inside its own scroll rather than past the page's edge */
 footer details .prov { max-height: 45vh; overflow-y: auto; }
-/* Full Map on the History tab keeps the tools above the map, so the map is never a dead end */
-main.mapfull.tab-history .side { display: flex; grid-column: 1 / 3; grid-row: 1; overflow: visible; padding-right: 0; }
-main.mapfull.tab-history .side .histmain { display: none; }
-main.mapfull.tab-history > .map { grid-row: 2 / 4; }
+/* Full Map on the Wiki tab keeps the tools above the map, so the map is never a dead end */
+main.mapfull.tab-wiki .side { display: flex; grid-column: 1 / 3; grid-row: 1; overflow: visible; padding-right: 0; }
+main.mapfull.tab-wiki .side .histmain { display: none; }
+main.mapfull.tab-wiki > .map { grid-row: 2 / 4; }
 
 /* the History tools stay put while the pane scrolls */
 .histpane > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }

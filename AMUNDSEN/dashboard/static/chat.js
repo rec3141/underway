@@ -264,8 +264,7 @@
     textIn.disabled = true;
     try {
       const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room };
-      if (st.room === "ada" || st.roomBots.includes("ada")) body.slug = window.UW?.historyContext?.() || "";   // the page being read, as context
-      else if (st.roomBots.includes("doc")) body.slug = window.UW?.natureContext?.() || "";                    // the subject or observation open on the Nature tab
+      if (st.room === "ada" || st.roomBots.length) body.slug = window.UW?.wikiContext?.() || "";   // the wiki page being read, as context for whoever answers
       const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); who.textContent = j.error || "not sent"; }
     } catch { who.textContent = "offline"; }

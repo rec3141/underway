@@ -1695,6 +1695,7 @@
   // The map stays; the right-hand pane and the header controls swap.
   function showTab(name) {
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
+    if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
     if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
