@@ -263,3 +263,72 @@ class OpsTests(unittest.TestCase):
                 sent = alerts.ops_check(state, now + timedelta(minutes=22), TG(), lambda cfg, to, subject, body: mails.append((to, subject)))
                 self.assertEqual(len(sent), 1); self.assertIn("recovered", sent[0])
                 self.assertIsNone(state["ops"]["stale_since"])
+
+
+class FlagTests(unittest.TestCase):
+    """Review flags on History artifacts: raised with a note by anyone,
+    withdrawn by the raiser alone or an admin, rate limited, reported once."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        p = patch.object(alerts, "DB_DIR", Path(self.tmp.name)); p.start(); self.addCleanup(p.stop)
+        p = patch.object(alerts, "is_admin", lambda name, token: (name, token) == ("Keeper", "ktok")); p.start(); self.addCleanup(p.stop)
+        p = patch.object(alerts, "ops_targets", lambda: ("keeper@example.org", {"host": "x", "user": "u", "password": "p"}, "42")); p.start(); self.addCleanup(p.stop)
+        self.now = datetime(2026, 9, 9, 13, 0, tzinfo=timezone.utc)
+
+    def test_raise_withdraw_and_who_may(self):
+        r = alerts.set_flag("thule-023", True, "tokA", "Ann", "Port Refuge", "artifact/thule-023", "wrong coordinates", self.now)
+        self.assertEqual([(f["id"], f["mine"], f["raisers"][0]["note"]) for f in r["flags"]], [("thule-023", True, "wrong coordinates")])
+        self.assertFalse(r["admin"])
+        self.assertNotIn("tokA", (Path(self.tmp.name) / "history_flags.json").read_text())      # the token itself is never written
+        self.assertFalse(alerts.flagged("tokB", "Bob")["flags"][0]["mine"])
+        with self.assertRaises(PermissionError):                                                 # not Bob's to withdraw
+            alerts.set_flag("thule-023", False, "tokB", "Bob", now=self.now)
+        alerts.set_flag("thule-023", True, "tokB", "Bob", note="agree", now=self.now)          # Bob adds his own
+        self.assertEqual(len(alerts.flagged()["flags"][0]["raisers"]), 2)
+        alerts.set_flag("thule-023", True, "tokB", "Bob", note="again", now=self.now)          # once per device
+        self.assertEqual(len(alerts.flagged()["flags"][0]["raisers"]), 2)
+        with self.assertRaises(PermissionError):                                                 # two people flagged: Ann alone cannot clear
+            alerts.set_flag("thule-023", False, "tokA", "Ann", now=self.now)
+        r = alerts.set_flag("thule-023", False, "ktok", "Keeper", now=self.now)
+        self.assertEqual((r["flags"], r["admin"]), ([], True))
+        with self.assertRaises(ValueError):
+            alerts.set_flag("../etc", True, "tokA", "Ann", now=self.now)
+        with self.assertRaises(ValueError):
+            alerts.set_flag("thule-023", True, "", "Ann", now=self.now)
+
+    def test_rate_limit(self):
+        for i in range(alerts.FLAGS_PER_HOUR):
+            alerts.set_flag(f"a-{i}", True, "tokA", "Ann", now=self.now + timedelta(minutes=i))
+        with self.assertRaises(alerts.TooMany):
+            alerts.set_flag("a-more", True, "tokA", "Ann", now=self.now + timedelta(minutes=30))
+        alerts.set_flag("a-more", True, "tokB", "Bob", now=self.now + timedelta(minutes=30))             # another device may
+        alerts.set_flag("a-later", True, "tokA", "Ann", now=self.now + timedelta(minutes=61))            # the hour has passed
+        with patch.object(alerts, "FLAGS_PER_HOUR_ALL", 3):
+            with self.assertRaises(alerts.TooMany):
+                alerts.set_flag("a-all", True, "tokC", "Cy", now=self.now + timedelta(minutes=62))
+
+    def test_reported_once_in_one_message(self):
+        alerts.set_flag("a-1", True, "tokA", "Ann", "First", "artifact/a-1", "typo", self.now)
+        alerts.set_flag("a-2", True, "tokB", "Bob", "Second", "artifact/a-2", "", self.now)
+        alerts.set_flag("a-3", True, "tokC", "", "Third", "artifact/a-3", "", self.now)
+        alerts.set_flag("a-3", False, "tokC", "", now=self.now)                                  # withdrawn before the run: unsent
+        mails, tg = [], FakeTelegram()
+        lines = alerts.flag_notices(tg, lambda cfg, to, subject, body: mails.append((to, subject, body)))
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(len(mails), 1)
+        self.assertEqual(mails[0][0], "keeper@example.org")
+        self.assertIn("2 history artifacts flagged", mails[0][1])
+        self.assertIn("Ann flagged First (a-1)", mails[0][2]); self.assertIn(": typo", mails[0][2]); self.assertIn("#history/artifact/a-2", mails[0][2])
+        self.assertNotIn("Third", mails[0][2])
+        self.assertEqual(tg.sent[0][0], "42"); self.assertIn("🚩", tg.sent[0][1])
+        self.assertEqual(alerts.flag_notices(tg, lambda *a: mails.append(a)), [])                # not again
+        self.assertEqual(len(mails), 1)
+        # a channel failure leaves them for the next run
+        alerts.set_flag("a-4", True, "tokA", "Ann", "Fourth", now=self.now)
+        def boom(*a): raise OSError("smtp down")
+        self.assertEqual(alerts.flag_notices(None, boom), [])
+        self.assertEqual(len(alerts.flag_notices(None, lambda cfg, to, subject, body: mails.append((to, subject, body)))), 1)
+        # and run() carries them
+        alerts.set_flag("a-5", True, "tokA", "Ann", "Fifth", now=self.now)
+        alerts.run(self.now, tg=FakeTelegram(), email=lambda cfg, to, subject, body: mails.append((to, subject, body)))
+        self.assertIn("Fifth", mails[-1][2])

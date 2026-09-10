@@ -47,6 +47,7 @@
 
   const hist = {
     index: null, artifacts: null, timeline: null, places: [], people: [], events: [], animals: [], vessels: [], bib: null, stamp: null, loading: null,
+    flags: new Map(),                                     // artifact id → the flag anyone has raised for review (shared through the server)
     names: null,                                          // every person and place name that has a page, longest first, for the cross-links
     slug: store.get("hist.slug", ""),                     // what is shown: "" home, explore, bib, kind/<k>, topic/<t>, or a page
     types: new Set(store.get("hist.types", Object.keys(TYPES))),   // the kinds the map layer shows
@@ -80,9 +81,56 @@
       hist.places = pl?.places || []; hist.people = pe?.people || []; hist.faces = fa?.faces || null; hist.events = ev?.events || [];
       hist.stamp = UW.M.history.stamp; hist.pages = new Map(); hist.bib = null; hist.names = null;
       for (const a of hist.artifacts) a._year = yearOf(a.date_start);
+      await loadFlags();
       return true;
     })().finally(() => { hist.loading = null; });
     return hist.loading;
+  }
+  // the review flags: raised on an artifact's card by anyone, with a note,
+  // and kept on the server so every browser shows the same ones; the alerts
+  // timer reports them to the keeper. Whoever raised a flag withdraws it
+  // while theirs is the only one; once several people have, only an admin.
+  const me = () => ({ token: store.get("chat.token", ""), name: store.get("chat.name", "") });
+  function takeFlags(r) {
+    hist.flags = new Map((r?.flags || []).map((f) => [f.id, f])); hist.admin = !!r?.admin;
+    for (const el of document.querySelectorAll("#pane-history .flag[data-flag]")) {
+      const f = hist.flags.get(el.dataset.flag);
+      el.classList.toggle("on", !!f); el.title = flagTitle(f); el.textContent = flagText(f);
+    }
+  }
+  async function loadFlags() {
+    const { token, name } = me();
+    try { const r = await fetch(`/api/history/flags?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}`, { cache: "no-store" }); if (r.ok) takeFlags(await r.json()); }
+    catch { /* the flags are a convenience; the page stands without them */ }
+  }
+  const flagText = (f) => "⚑" + (f && f.raisers.length > 1 ? f.raisers.length : "");
+  function flagTitle(f) {
+    if (!f) return "Flag for review";
+    const by = f.raisers.map((r) => (r.who || "someone") + (r.note ? ": " + r.note : "")).join("; ");
+    const can = hist.admin || (f.mine && f.raisers.length === 1);
+    return `Flagged for review by ${by} · ${can ? "click to withdraw" : f.mine ? "only an admin can withdraw it now" : "click to add your own flag"}`;
+  }
+  const flagMark = (a) => { const f = hist.flags.get(a.id); return `<span class="flag ${f ? "on" : ""}" role="button" tabindex="0" data-flag="${esc(a.id)}" title="${esc(flagTitle(f))}">${flagText(f)}</span>`; };
+  async function toggleFlag(id) {
+    const a = artifactById(id); if (!a) return;
+    const f = hist.flags.get(id), { token, name } = me();
+    let on, note = "";
+    if (!f || !(hist.admin || f.mine)) {                      // not flagged, or flagged by others: add this device's flag
+      on = true;
+      note = window.prompt(`${f ? "Also flag" : "Flag"} "${a.title}" for review.\nWhat should be looked at? (optional)`, "");
+      if (note === null) return;
+    } else if (hist.admin && f.raisers.length > 1) {
+      on = false;
+      if (!window.confirm(`Withdraw the flags ${f.raisers.length} people have raised on "${a.title}"?`)) return;
+    } else if (f.mine && f.raisers.length > 1) { UW.toast?.(flagTitle(f)); return; }
+    else on = false;
+    try {
+      const r = await fetch("/api/history/flag", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, on, token, name, title: a.title, page: a.page, note }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.status);
+      takeFlags(j);
+    } catch (e) { UW.toast?.(`The flag could not be saved: ${e.message || e}`); }
   }
   // the coastline under the route sketches: fetched once, as arrays of [lon, lat]
   let coastLoading = null;
@@ -413,7 +461,7 @@
     else if (a.type === "image" || a.type === "map") media = `<span class="thumb none">${a.url ? esc(a.url.split(".").pop().toUpperCase()) + " · no picture yet" : "interactive resource · no picture yet"}</span>`;
     const quote = a.type === "quote" && a.description ? `<q>${esc(quoteOf(a.description))}</q>` : "";
     const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
-    return `<a class="artcard ${esc(a.type)}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${media}<span class="dot" style="background:${t.colour || "#8b9bb0"}"></span>` +
+    return `<a class="artcard ${esc(a.type)}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${flagMark(a)}${media}<span class="dot" style="background:${t.colour || "#8b9bb0"}"></span>` +
       `<span class="kind">${esc(a.type)}</span><b>${esc(a.title)}</b>${quote}<span class="when">${esc(fmtDate(a))}${plat != null ? " " + mapLink(plat, plon, a.title, a.type) : ""}</span>` +
       (opts.creator && a.creator ? `<span class="who">${esc(a.creator)}</span>` : "") + `</a>`;
   }
@@ -443,6 +491,7 @@
     const plot = $("#histplot"); if (plot?.data) Plotly.purge(plot);
     if (!UW.M.history) { el.innerHTML = `<div class="empty">No history has been published yet.</div>`; return; }
     if (!hist.index) { el.innerHTML = `<div class="empty">Loading the history…</div>`; return; }
+    loadFlags();                                                   // what other browsers have flagged since; the cards update when it lands
     const q = hist.search.trim().toLowerCase();
     if (q) {                                                        // search: pages and artifacts, in the main area
       const words = q.split(/\s+/).filter(Boolean), t = curTopic();
@@ -520,7 +569,7 @@
       const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
       const where = plat != null ? ` · ${a.type === "track" ? "" : coordLink(plat, plon, a.title) + " · "}${mapLink(plat, plon, a.title, a.type)}` : "";
       const track = a.type === "track" && a.waypoints?.length ? `<div class="hscroll"><table class="waypoints"><tr><th>date</th><th>position</th><th>note</th></tr>${a.waypoints.map((w) => `<tr><td>${esc(dateLabel(w.date || ""))}</td><td>${w.lat != null ? coordLink(w.lat, w.lon, w.note || a.title) : ""}</td><td>${esc(w.note || "")}</td></tr>`).join("")}</table></div>` : "";
-      head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || "#8b9bb0"}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}</div>`;
+      head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || "#8b9bb0"}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}${flagMark(a)}</div>`;
       head += peopleStrip(a.people);
       if (a.type === "track") media = `<figure class="routefig">${trackSketch(a, 480, 300, "sketch large")}</figure>` + media;
       media += track;
@@ -947,6 +996,8 @@
     } else focusPoint(a.lat, a.lon, a.title);
   }
   document.addEventListener("click", (e) => {
+    const flag = e.target.closest("#pane-history .flag[data-flag]");
+    if (flag) { e.preventDefault(); e.stopPropagation(); toggleFlag(flag.dataset.flag); return; }
     const kw = e.target.closest('#pane-history a[href^="#kw-"]');
     if (kw) { e.preventDefault(); document.getElementById(kw.getAttribute("href").slice(1))?.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
     const pin = e.target.closest("#pane-history .pin[data-lat]");
@@ -961,6 +1012,10 @@
     }
     if (a.dataset.topic != null) open(`topic/${a.dataset.topic}`);
     else open(a.dataset.slug || "");
+  });
+  document.addEventListener("keydown", (e) => {
+    const flag = (e.key === "Enter" || e.key === " ") && e.target.closest?.("#pane-history .flag[data-flag]");
+    if (flag) { e.preventDefault(); toggleFlag(flag.dataset.flag); }
   });
   UW.onHistoryClick = (id, pt) => {
     // the mark moves to what was clicked; the map keeps its view; the page

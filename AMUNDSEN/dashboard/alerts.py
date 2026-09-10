@@ -27,7 +27,14 @@ An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
 else the address in the R scheduler's ``gmail_creds``, which may also carry
 the mail for it; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
 FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
-with a note when it recovers.
+with a note when it recovers. The History artifacts flagged for review from
+their cards (``db/history_flags.json``) go to the same keeper on the next
+run, all in one message; a flag withdrawn before then is dropped unsent.
+Whoever raised a flag can withdraw it while theirs is the only one; once
+several people have flagged the same artifact only an admin can, an admin
+being a chat name listed in ``UNDERWAY_ADMINS`` (comma-separated) or in
+``~/.config/underway/admins.json``, on the device that owns that name in
+the chat.
 
 Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` (or
 ``TELEGRAM_KEY``, as in ``~/.config/underway/underway.env``) or in
@@ -70,6 +77,8 @@ STALE_MIN = 30                  # the FULL_CSV normally grows every ten minutes
 WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", "/data/underway/www"))
 OPS_EMAIL = os.environ.get("UNDERWAY_OPS_EMAIL", "")
 OPS_TELEGRAM = os.environ.get("TELEGRAM_ID", "")
+FLAGS_PER_HOUR = 10             # review flags one device may raise in an hour …
+FLAGS_PER_HOUR_ALL = 60         # … and all devices together
 
 
 # ---------------------------------------------------------------- storage
@@ -130,6 +139,168 @@ def load_state() -> dict:
 
 def save_state(st: dict) -> None:
     _write(_state_path(), json.dumps(st))
+
+
+# ---------------------------------------------------------------- review flags
+#
+# A flag on a History artifact, raised from its card by anyone with a note;
+# several people may raise their own on the same artifact. The person who
+# raised it withdraws it while theirs is the only one; once several have,
+# only an admin can clear it. An admin is a chat name from ``admins()``
+# presented with the device token that owns that name in the chat. Raises
+# are rate limited per device and overall (``db/history_flags.json`` keeps
+# the last hour's).
+
+class TooMany(Exception):
+    """More flags than the limit allows this hour."""
+
+
+def _flags_path() -> Path:
+    return DB_DIR / "history_flags.json"
+
+
+def _load_flags() -> dict:
+    p = _flags_path()
+    try:
+        d = json.loads(p.read_text()) if p.is_file() else {}
+    except (OSError, ValueError):
+        d = {}
+    d.setdefault("flags", []); d.setdefault("raised", [])
+    return d
+
+
+def _save_flags(d: dict) -> None:
+    _write(_flags_path(), json.dumps(d, indent=1, ensure_ascii=False))
+
+
+def _owner(token: str) -> str:
+    """A device's mark on a flag: the hash of its chat token, never the token itself."""
+    import hashlib
+    return hashlib.sha256(token.encode()).hexdigest()[:32] if token else ""
+
+
+def admins() -> list[str]:
+    """The chat names that may clear anyone's flag: ``UNDERWAY_ADMINS``
+    (comma-separated), else the list in ``~/.config/underway/admins.json``;
+    read on every check, so an edit takes effect at once."""
+    env = os.environ.get("UNDERWAY_ADMINS", "")
+    if env:
+        return [x.strip() for x in env.split(",") if x.strip()]
+    p = CONF_DIR / "admins.json"
+    try:
+        names = json.loads(p.read_text()) if p.is_file() else []
+        return [str(x) for x in names] if isinstance(names, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def is_admin(name: str, token: str) -> bool:
+    if not name or not token or name not in admins():
+        return False
+    try:
+        from .chat import conn
+        c = conn()
+        try:
+            row = c.execute("SELECT token FROM names WHERE name = ?", (name,)).fetchone()
+        finally:
+            c.close()
+    except Exception as e:                      # noqa: BLE001
+        log.warning("alerts: admin check failed: %s", e)
+        return False
+    return bool(row and row[0] == token)
+
+
+def flagged(token: str = "", name: str = "") -> dict:
+    """What the page shows: every flagged artifact with who raised it and
+    why, whether this device is among them, and whether it is an admin's."""
+    me = _owner(token)
+    out = []
+    for f in _load_flags()["flags"]:
+        rs = f.get("raisers", [])
+        out.append({"id": f["id"], "title": f.get("title", ""), "page": f.get("page", ""),
+                    "raisers": [{"who": r.get("who", ""), "note": r.get("note", ""), "when": r.get("when", "")} for r in rs],
+                    "mine": any(r.get("owner") == me for r in rs) if me else False})
+    return {"flags": out, "admin": is_admin(name, token)}
+
+
+def set_flag(art_id: str, on: bool, token: str = "", name: str = "", title: str = "", page: str = "", note: str = "",
+             now: datetime | None = None) -> dict:
+    """Raise this device's flag on an artifact, or withdraw the flag. Raises
+    ValueError for a bad id, PermissionError when the flag is not this
+    device's to withdraw, TooMany past the hour's limit. Returns the flags
+    as the page sees them."""
+    art_id = art_id.strip()[:120]
+    if not re.fullmatch(r"[\w.-]+", art_id):
+        raise ValueError("that is not an artifact id")
+    if not token:
+        raise ValueError("this browser has no device token; reload the page")
+    now = now or datetime.now(timezone.utc)
+    me, name = _owner(token), name.strip()[:60]
+    with locked():
+        d = _load_flags()
+        f = next((x for x in d["flags"] if x.get("id") == art_id), None)
+        if on:
+            if f and any(r.get("owner") == me for r in f["raisers"]):
+                return flagged(token, name)                   # already this device's: nothing to add
+            since = (now - timedelta(hours=1)).isoformat(timespec="seconds")
+            d["raised"] = [r for r in d["raised"] if r["when"] > since]
+            if sum(1 for r in d["raised"] if r["owner"] == me) >= FLAGS_PER_HOUR:
+                raise TooMany(f"you have flagged {FLAGS_PER_HOUR} artifacts this hour; try again later")
+            if len(d["raised"]) >= FLAGS_PER_HOUR_ALL:
+                raise TooMany(f"{FLAGS_PER_HOUR_ALL} artifacts have been flagged this hour; try again later")
+            if f is None:
+                f = {"id": art_id, "title": title.strip()[:200], "page": re.sub(r"[^\w./-]", "", page)[:200], "raisers": []}
+                d["flags"].append(f)
+            when = now.isoformat(timespec="seconds")
+            f["raisers"].append({"owner": me, "who": name, "note": note.strip()[:1000], "when": when, "notified": False})
+            d["raised"].append({"owner": me, "when": when})
+        elif f is not None:
+            owners = {r.get("owner") for r in f["raisers"]}
+            if not is_admin(name, token):
+                if me not in owners:
+                    raise PermissionError("only whoever raised the flag, or an admin, can withdraw it")
+                if len(owners) > 1:
+                    raise PermissionError(f"{len(owners)} people have flagged this; only an admin can withdraw it")
+            d["flags"] = [x for x in d["flags"] if x is not f]
+        _save_flags(d)
+    return flagged(token, name)
+
+
+def flag_notices(tg=None, email=None) -> list[str]:
+    """Tell the keeper about every flag not yet reported, all in one message,
+    by the operations channels. They stay unreported while every channel
+    fails, so the next run tries again. Returns the lines sent."""
+    email = email or send_email
+    with locked():
+        d = _load_flags()
+        pending = [(f, r) for f in d["flags"] for r in f.get("raisers", []) if not r.get("notified")]
+        if not pending:
+            return []
+        lines = []
+        for f, r in pending:
+            when = datetime.fromisoformat(r["when"]).astimezone(TZ).strftime("%Y-%m-%d %H:%M %Z")
+            lines.append(f"{r.get('who') or 'someone'} flagged {f.get('title') or f['id']} ({f['id']}) at {when}"
+                         + (f": {r['note']}" if r.get("note") else "")
+                         + (f" — http://underway.local:8042/#history/{f['page']}" if f.get("page") else ""))
+        head = f"{len(pending)} history artifact{'s' if len(pending) > 1 else ''} flagged for review"
+        to, cfg, chat = ops_targets()
+        ok = False
+        try:
+            if to and cfg:
+                email(cfg, to, "Underway dashboard: " + head, head + ":\n\n" + "\n".join("- " + l for l in lines))
+                ok = True
+            if chat and tg is not None:
+                tg.send(chat, "🚩 " + head + "\n" + "\n".join("• " + l for l in lines))
+                ok = True
+            log.warning("alerts: %s", head)
+        except Exception as e:                  # noqa: BLE001
+            log.warning("alerts: flag notice failed: %s", e)
+        if not ok:
+            return []
+        for _, r in pending:
+            r["notified"] = True
+        _save_flags(d)
+    return lines
 
 
 # the bot's place in Telegram's update stream, apart from the timer's state
@@ -733,6 +904,7 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
         except Exception as e:                  # noqa: BLE001
             log.warning("alerts: telegram updates failed: %s", e)
     ops_check(state, now, tg=tg, email=email)
+    flag_notices(tg=tg, email=email)
     subs = load_subs()
     events = due_events(_rows(), state, now)
     sent = failed = 0
