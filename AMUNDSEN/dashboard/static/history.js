@@ -403,7 +403,9 @@
         if (cells.every((c) => /^:?-+:?$/.test(c))) continue;
         (table ||= []).push(cells); continue;
       }
-      if (list || quote.length || table) flush();
+      // a wrapped list item continues on the next line, as in Markdown
+      if (list && !para.length) { list.items[list.items.length - 1] += " " + line.trim(); continue; }
+      if (quote.length || table) flush();
       para.push(line.trim());
     }
     flush();
