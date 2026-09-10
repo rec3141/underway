@@ -259,10 +259,13 @@
     if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide tall');
     const vars = chosen.filter((v) => spec.vars[v]);
     const gdEl = $(`#${plotId}`);
-    // each extra axis needs ~58 px of ticks and title: the plot area gives up
-    // that much per axis and the margins hold the outermost ones
-    const H = Math.max(360, gdEl.clientHeight || 500), step = 64 / H;
+    // each extra axis needs ~64 px of ticks and title: the canvas grows by
+    // that much per axis beyond the first at the top and the bottom, so the
+    // profile keeps its height; the margins hold the outermost axes
     const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
+    const extra = Math.max(0, nb - 1) + Math.max(0, nt - 1);
+    gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(64))}px)` : "";
+    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / H;
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
     const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(64), b: fz(64) }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));

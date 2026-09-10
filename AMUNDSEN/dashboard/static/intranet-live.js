@@ -24,7 +24,7 @@
     if (!rows.length) { plot.innerHTML = `<div class="stale">${esc(j?.error || "waiting for the intranet live page…")}</div>`; return; }
     const items = rows.map(([k, v]) => {
       if (/^time \(utc\)/i.test(k)) { const ms = UW.tms(v); return [`Time (${UW.tzAbbr()})`, isNaN(ms) ? v : UW.fmtTs(ms).slice(11)]; }
-      return [k.replace(/^500HP /, "500HP · ").replace(/^Rosette /, "Rosette · "), v];
+      return [k.replace(/^500HP /, "500HP · ").replace(/^Rosette /, "Rosette · "), /^(nan|null|none|)$/i.test(String(v).trim()) ? "—" : v];   // an idle instrument reports NaN
     });
     plot.innerHTML = `<dl>${items.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` + (old ? `<div class="stale">${esc(j.error || "not refreshed for a while")}</div>` : "");
   }

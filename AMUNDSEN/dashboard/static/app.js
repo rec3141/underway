@@ -76,8 +76,12 @@
   // the graphs and the map read them from the root's custom properties. The
   // objects are updated in place, so a module that took THEME or C at load
   // sees the new theme at its next draw.
-  const THEMES = { "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light" };
-  const themeName = () => { const t = store.get("theme", null); return THEMES[t] ? t : "claude-dark"; };
+  const THEMES = { auto: "Auto (system)", "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light" };
+  const SIZES = { auto: "Theme's size", normal: "Normal text", large: "Large text" };
+  const themeName = () => { const t = store.get("theme", null); return THEMES[t] ? t : "auto"; };
+  const sizeName = () => { const t = store.get("textsize", null); return SIZES[t] ? t : "auto"; };
+  const lightOS = matchMedia("(prefers-color-scheme: light)");
+  const resolveTheme = (name) => name === "auto" ? (lightOS.matches ? "claude-light" : "claude-dark") : name;   // Auto follows the system
   const C = {};                                            // the theme's colours by token name, camel-cased: C.accent2, C.markerLine, C.palette[i]
   let fontScale = 1;                                       // the root font size over the 14px the graph sizes are written for
   const fz = (n) => Math.round(n * fontScale * 10) / 10;
@@ -106,10 +110,14 @@
   // the theme on the page: the attribute the stylesheet keys on, the colours
   // read back, and (after a change) every graph and the map drawn again
   function applyTheme(name, redraw = false) {
-    document.documentElement.dataset.theme = name;
+    const root = document.documentElement;
+    root.dataset.theme = resolveTheme(name);
+    const size = sizeName(); if (size === "auto") delete root.dataset.size; else root.dataset.size = size;
     readTheme();
+    root.classList.toggle("bigtype", fontScale > 1.1);            // the roomier controls, whichever theme or size asked for the large type
     const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = C.bg;
     const sel = $("#theme"); if (sel && sel.value !== name) sel.value = name;
+    const ssel = $("#textsize"); if (ssel && ssel.value !== size) ssel.value = size;
     if (!redraw) return;
     render();
     window.UW?.refreshActiveTab?.(true);
@@ -121,6 +129,11 @@
     sel.innerHTML = Object.entries(THEMES).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
     sel.value = themeName();
     sel.onchange = () => { store.set("theme", sel.value); applyTheme(sel.value, true); };
+    const ssel = $("#textsize");
+    ssel.innerHTML = Object.entries(SIZES).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+    ssel.value = sizeName();
+    ssel.onchange = () => { store.set("textsize", ssel.value); applyTheme(themeName(), true); };
+    lightOS.addEventListener?.("change", () => { if (themeName() === "auto") applyTheme("auto", true); });
   }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
 
@@ -365,9 +378,9 @@
     let idx = labels.indexOf(state.win);
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
-    $("#spanlabel").textContent = labels[idx];
+    $("#spanlabel").textContent = labels[idx]; r.setAttribute("aria-valuetext", labels[idx]);
     const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); loadWindow(); };
-    r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; };
+    r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; r.setAttribute("aria-valuetext", labels[r.value]); };
     r.onchange = () => pick(labels[r.value]);
     // the same choice as a dropdown, which is what a phone shows instead of the slider
     const sel0 = $("#spansel");
@@ -406,9 +419,9 @@
     {
       const r = $("#trackstep"), out = $("#tracksteplabel");
       if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
-      let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = 0;
-      r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]);
-      r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); };
+      let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
+      r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);
+      r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
       r.onchange = () => {
         const before = windowFile(currentWindow());
         setTrackDetail(TRACK_STEPS[r.value]);
@@ -911,7 +924,7 @@
   setInterval(() => {
     try { aimShip(); } catch { /* next tick */ }
     const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
-    if (z == null || !el.data) return;
+    if (z == null || !el.data || mapBusy()) return;
     const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
     if (state.communities && bucket !== lastLabelZoom) {
       lastLabelZoom = bucket;
@@ -936,7 +949,7 @@
   // the track (the gap markers, and the last fix, always stay). Every array
   // of the window is cut the same way, so hover, colours and the pump marks
   // line up with the points drawn.
-  const TRACK_STEPS = [0, 0.5, 1, 2, 5, 10, 20, 50];
+  const TRACK_STEPS = [50, 20, 10, 5, 2, 1, 0.5, 0];         // left to right: coarser to every point
   // the span picks a starting detail (up to a week: a point a km; months:
   // 5 km; years: 20 km) that the slider then overrides; "all points" is a
   // choice, never the default
@@ -948,7 +961,7 @@
   function setTrackDetail(km) {
     state.trackKm = km; store.set("trackKm", km);
     const r = $("#trackstep"), out = $("#tracksteplabel");
-    if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? 0 : i; out.textContent = detailLabel(km); }
+    if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? TRACK_STEPS.length - 1 : i; out.textContent = detailLabel(km); r.setAttribute("aria-valuetext", detailLabel(km)); }
   }
   let thinCache = { src: null, km: null, out: null };
   function thinTrack(d, km) {
@@ -986,7 +999,7 @@
   // called by the live poller: move the marker without redrawing the map
   function moveShip() {
     const el = $("#map"); const d = state.data;
-    if (!el?.data || !d) return;
+    if (!el?.data || !d || mapBusy()) return;                          // the next poll moves it
     const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
     const ship = shipNow(d, li);
     const idx = el.data.findIndex((t) => t.name === "latest");
@@ -997,6 +1010,16 @@
     Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]] }, [idx]).catch(() => {});
   }
   let mapDrawing = false, mapAgain = false;
+  // the MapLibre map behind the plot; a restyle or resize while its style is
+  // still loading (the style changes with the theme, a satellite picture or
+  // new geography) throws inside MapLibre, so callers wait for mapBusy()
+  const mapLibre = () => $("#map")._fullLayout?.map?._subplot?.map;
+  const mapBusy = () => mapDrawing || !(mapLibre()?.isStyleLoaded?.() ?? true);
+  const mapStyleLoaded = () => new Promise((res) => {
+    const ml = mapLibre(); if (!ml || ml.isStyleLoaded()) return res();
+    const t = setTimeout(done, 8000); function done() { clearTimeout(t); ml.off("style.load", done); res(); }
+    ml.on("style.load", done);
+  });
   function renderMap() {
     if (mapDrawing) { mapAgain = true; return; }
     const d = thinTrack(state.data, state.trackKm);
@@ -1027,8 +1050,8 @@
       marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
                 opacity: .95,
                 // the scale lies along the top of the map, under the Color by picker
-                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: fz(12) } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
-                  tickfont: { size: fz(11) }, outlinewidth: 0, bgcolor: C.plotLegendBg } },
+                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: fz(12), color: C.fg } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
+                  tickfont: { size: fz(11), color: C.fg }, outlinewidth: 0, bgcolor: C.plotLegendBg, bordercolor: C.line, borderwidth: 1 } },
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1106,7 +1129,7 @@
     const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
                      map: { style: mapStyle(sat, near), center: view.center, zoom: view.zoom, layers: [] } };
     mapDrawing = true;
-    Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(() => {
+    Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(mapStyleLoaded).then(() => {
       state.fitPending = false;
       try { aimShip(); } catch { /* the poll retries */ }
       if (!state.view) state.view = view;
@@ -1650,8 +1673,12 @@
     window.addEventListener("online", checkForUpdate);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
-    window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
-    new ResizeObserver(() => { if ($("#map").data) Plotly.Plots.resize($("#map")); }).observe($("#map"));   // the map box also changes as the bars round it fill, not only with the window
+    // the map box changes with the window and as the bars round it fill; a
+    // resize during a style reload waits for it
+    let resizeTimer = null;
+    const resizeMap = () => { clearTimeout(resizeTimer); if (!$("#map").data) return; if (mapBusy()) { resizeTimer = setTimeout(resizeMap, 300); return; } Plotly.Plots.resize($("#map")); };
+    window.addEventListener("resize", resizeMap);
+    new ResizeObserver(resizeMap).observe($("#map"));
     wirePlanDrop(); renderPlanPills();
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
   })();
