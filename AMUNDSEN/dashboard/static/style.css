@@ -444,6 +444,18 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .dock { position: sticky; bottom: 0; z-index: 9; display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 0 8px;
   background: linear-gradient(0deg, var(--bg) 75%, transparent); margin-top: 8px; }
 .chip { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 0.893rem; cursor: pointer; }
+/* the bar's boxes, one per source: a head that folds or restores the source's
+   panels, then the chips of the minimised ones, every chip the same width */
+.dockgroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.dockgroup .chips { display: contents; }
+.dockgroup .ghead { display: inline-flex; align-items: center; gap: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 0.893rem; font-weight: 600; cursor: pointer; }
+.dockgroup .ghead:hover { border-color: var(--accent); }
+.dockgroup .gn { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 0.786rem; }
+.dockgroup .gtog { color: var(--muted); }
+.dock .chip { width: 14em; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.dock .chip .cname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.dock .chip b { margin-left: 0; }
+.dock .chip span:last-child { margin-left: 0; }
 .chip b { font-family: var(--mono); color: var(--accent-2); margin-left: 4px; }
 .chip span { color: var(--muted); margin-left: 6px; font-size: 0.714rem; }
 .chip:hover { border-color: var(--accent); }

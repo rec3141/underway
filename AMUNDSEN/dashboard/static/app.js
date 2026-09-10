@@ -1272,6 +1272,19 @@
     return el;
   }
 
+  // the bottom bar groups the panels by where their data come from: an
+  // extra panel names its group when it registers; a variable's follows its
+  // source instrument
+  const GROUPS = ["Lab", "Met Station", "Bridge", "Deck", "Surprise", "Other"];
+  const GROUP_OF_INSTRUMENT = { TSG: "Lab", AVOS: "Met Station", ATS_Portside: "Met Station", ATS: "Met Station", POSMV: "Bridge", Multibeam: "Bridge" };
+  function panelGroup(name) {
+    const x = extraPanels.get(name); if (x) return x.group || "Other";
+    const v = VAR[name]; if (!v) return "Other";
+    if (name.startsWith("Surprise")) return "Surprise";
+    if (v.tsg) return "Lab";
+    if (/^(Sea state|Roll & pitch|Heading|Ship speed)/.test(name)) return "Bridge";
+    return GROUP_OF_INSTRUMENT[(v.source || "").split(" — ")[0].trim()] || "Other";
+  }
   function setPanelState(name, s) {
     if (s) state.panel[name] = s; else delete state.panel[name];
     store.set("panel", state.panel);
@@ -1281,27 +1294,48 @@
 
   function layoutPanels() {
     const grid = $("#panels"), dock = $("#dock");
-    for (const name of panelNames()) {
+    const names = panelNames();
+    const byGroup = new Map(GROUPS.map((g) => [g, []]));
+    for (const name of names) {
+      const g = panelGroup(name); if (!byGroup.has(g)) byGroup.set(g, []); byGroup.get(g).push(name);
       const el = panelEl(name);
-      const s = state.panel[name];
-      el.classList.toggle("wide", s === "wide");
-      if (s === "min") {
+      el.classList.toggle("wide", state.panel[name] === "wide");
+      if (state.panel[name] === "min") { if (el.parentElement) el.remove(); } else grid.appendChild(el);
+    }
+    // the bottom bar: a box per source, there whether or not anything is
+    // minimised, holding the chips of its minimised panels; its head
+    // minimises every panel of the source, or, once all are down, restores them
+    for (const [g, members] of byGroup) {
+      if (!members.length) continue;
+      let box = document.getElementById("g-" + cssId(g));
+      if (!box) {
+        box = document.createElement("div"); box.className = "dockgroup"; box.id = "g-" + cssId(g);
+        box.innerHTML = `<button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button><div class="chips"></div>`;
+      }
+      dock.appendChild(box);
+      const minned = members.filter((n) => state.panel[n] === "min"), allMin = minned.length === members.length;
+      box.querySelector(".gname").textContent = g;
+      box.querySelector(".gn").textContent = `${members.length - minned.length}/${members.length}`;
+      box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
+      box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this bar`;
+      box.querySelector(".ghead").onclick = () => {
+        for (const n of members) { if (allMin) delete state.panel[n]; else state.panel[n] = "min"; }
+        store.set("panel", state.panel);
+        layoutPanels();
+        if (allMin) for (const n of members) renderPanel(n);
+      };
+      const chips = box.querySelector(".chips");
+      for (const name of members) {
         let chip = document.getElementById("c-" + cssId(name));
-        if (!chip) {
-          chip = document.createElement("button");
-          chip.className = "chip"; chip.id = "c-" + cssId(name);
-          chip.onclick = () => setPanelState(name, null);
-          dock.appendChild(chip);
-        }
+        if (state.panel[name] !== "min") { chip?.remove(); continue; }
+        if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, null); }
+        chips.appendChild(chip);
         const y = state.data?.vars[name];
-        chip.innerHTML = `${name} <b>${fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit)}</b> <span>▲</span>`;
-        if (el.parentElement) el.remove();
-      } else {
-        document.getElementById("c-" + cssId(name))?.remove();
-        grid.appendChild(el);
+        chip.innerHTML = `<span class="cname">${name}</span><b>${fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit)}</b><span>▲</span>`;
+        chip.title = `${name}: restore`;
       }
     }
-    dock.hidden = !dock.children.length;
+    dock.hidden = !names.length;
     for (const el of grid.children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); }
   }
 

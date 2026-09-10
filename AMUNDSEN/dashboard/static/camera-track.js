@@ -35,7 +35,7 @@
     const onPoint=(d,i)=>openPhoto(matches(d)[i]);
     modes.forEach((name,k)=>UW.registerColour({name,resolved:true,unit:`PC${k+1}`,cmap:'Viridis',onPoint,values:d=>matches(d).map(p=>score(p,k)??null)}));
     UW.registerColour({name:RGB,resolved:true,unit:'RGB',rgb:true,onPoint,values:d=>matches(d).map(p=>p?'rgb('+p.rgb.join(',')+')':'#000000')});
-    UW.registerPanel('Camera · feature PC1 · mean RGB',{
+    UW.registerPanel('Camera · feature PC1 · mean RGB',{group:'Deck',
       unit:'PC1',resolved:true,log_ok:false,
       after:'Surprise (−log10 p)',
       layoutRevision:'camera-second-v1',
