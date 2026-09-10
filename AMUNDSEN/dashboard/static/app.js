@@ -207,68 +207,58 @@
   const legById = (id) => M.legs.find((l) => l.id === id);
   const legByIndex = (i) => M.legs[i];
   const shownLegs = () => M.legs.filter((l) => !state.hidden.has(l.id));
-  // The legs menu and the span slider filter every tab. The span runs back
-  // from the end of the record; times without a zone are UTC.
+  // The legs menu filters the data: what is loaded covers every shown leg
+  // (coverWindow) and hidden legs are masked out, on every tab. The span is
+  // a view on it: the panels' x axes open on the last so many hours, the map
+  // draws that stretch of track at a detail to suit its length, and the
+  // tables are untouched by it. The span runs back from the end of the
+  // record; times without a zone are UTC.
   const tms = (s) => { if (s == null || s === "") return NaN; if (typeof s === "number") return s;
     let t = String(s).trim().replace(" ", "T").replace(/^(\d{4})\/(\d{2})\/(\d{2})/, "$1-$2-$3");
     if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(t)) t += "Z"; return Date.parse(t); };
-  function currentFilter() {
-    const w = M.windows.find((x) => x.label === state.win) || M.windows[0];
-    const end = Date.parse(M.data_range.end);
-    return { legs: new Set(shownLegs().map((l) => l.id)), start: end - (w?.hours || 1) * 3600e3, end, label: w?.label };
-  }
-  // Legs and span keep each other honest: a span with none of the shown legs
-  // in it turns those legs on, and showing a leg the span cannot reach widens
-  // the span to the smallest one that does. Each such nudge gets a toast.
+  const spanWindowOf = (m) => m.windows.find((x) => x.label === state.win) || m.windows.find((x) => x.label === m.default_window) || m.windows[0];
+  const spanWindow = () => spanWindowOf(M);
   const legRange = (l) => ({ start: Date.parse(`${l.first_date.slice(0, 4)}-${l.first_date.slice(4, 6)}-${l.first_date.slice(6, 8)}T00:00:00Z`),
                              end: Date.parse(`${l.last_date.slice(0, 4)}-${l.last_date.slice(4, 6)}-${l.last_date.slice(6, 8)}T23:59:59Z`) });
-  const legsInSpan = (f) => M.legs.filter((l) => { const r = legRange(l); return r.end >= f.start && r.start <= f.end; });
+  // the first day of the earliest shown leg
+  const legsStartOf = (m) => { const s = m.legs.filter((l) => !state.hidden.has(l.id)); return s.length ? Math.min(...s.map((l) => legRange(l).start)) : Date.parse(m.data_range.end); };
+  const legsStart = () => legsStartOf(M);
+  // the smallest window reaching back from the record's end to every shown
+  // leg: the "leg" window when the newest leg is the only one (it is that
+  // leg by definition), else by the hours to the earliest one's first day
+  const coverWindowOf = (m) => {
+    const shown = m.legs.filter((l) => !state.hidden.has(l.id));
+    const legW = m.windows.find((w) => w.label === "leg");
+    if (legW && shown.length === 1 && shown[0].id === (m.live || newestLeg?.id)) return legW;
+    const end = Date.parse(m.data_range.end), need = legsStartOf(m);
+    return m.windows.find((w) => end - w.hours * 3600e3 <= need) || m.windows[m.windows.length - 1];
+  };
+  // the legs: what the tables show
+  function currentFilter() {
+    const end = Date.parse(M.data_range.end);
+    return { legs: new Set(shownLegs().map((l) => l.id)), start: -Infinity, end, label: spanWindow().label };
+  }
+  // the legs and the span: what the map draws and the graphs open on; the
+  // span never reaches before the loaded record
+  function spanFilter() {
+    const f = currentFilter();
+    const first = state.data?.t?.find((t) => t != null);
+    return { ...f, start: Math.max(f.end - spanWindow().hours * 3600e3, first ?? -Infinity) };
+  }
   function toast(text) {
     let t = $("#toast");
     if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
     t.textContent = text; t.hidden = false; t.classList.add("show");
     clearTimeout(toast._h); toast._h = setTimeout(() => { t.classList.remove("show"); }, 5000);
   }
-  // after a span change: make sure something shown falls inside it
-  function reconcileLegsToSpan() {
-    const f = currentFilter();
-    const inSpan = legsInSpan(f);
-    if (!inSpan.length || inSpan.some((l) => f.legs.has(l.id))) return;
-    for (const l of inSpan) state.hidden.delete(l.id);
-    store.set("hiddenLegs", [...state.hidden]);
-    toast(`No shown leg falls in the ${f.label} span — showing ${inSpan.map((l) => l.label).join(", ")}`);
-  }
-  // after a leg change: widen the span until it holds the whole of the leg
-  // just switched on, or, when legs were switched off, the whole of the
-  // newest leg still shown (a span that catches only a leg's last hours
-  // would look empty)
-  function reconcileSpanToLegs(justShown) {
-    const f = currentFilter();
-    const shown = shownLegs();
-    if (!shown.length) return false;
-    const newest = shown.reduce((a, b) => legRange(b).end > legRange(a).end ? b : a);
-    const need = legRange(justShown || newest).start;
-    if (need >= f.start) return false;
-    const w = M.windows.find((x) => f.end - x.hours * 3600e3 <= need) || M.windows[M.windows.length - 1];
-    if (w.label === state.win) return false;
-    state.win = w.label; store.set("win", state.win);
-    toast(`Span widened to ${w.label} to reach ${justShown ? justShown.label : "the shown legs"}`);
-    return true;
-  }
-  // a span picked by a table's "show all" link (the same path as the slider)
+  // a span picked by a link or the URL (the same path as the slider)
   function setSpan(label) {
     if (label === state.win || !M.windows.some((w) => w.label === label)) return;
     state.win = label; store.set("win", state.win);
-    setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); renderControls(); loadWindow();
+    setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); renderControls(); loadWindow();
   }
-  // the smallest span that reaches the first day of every shown leg
-  function widenSpan() {
-    const f = currentFilter(), shown = shownLegs();
-    if (!shown.length) return;
-    const need = Math.min(...shown.map((l) => legRange(l).start));
-    const w = M.windows.find((x) => f.end - x.hours * 3600e3 <= need) || M.windows[M.windows.length - 1];
-    setSpan(w.label);
-  }
+  // a table's "show all legs" link
+  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); loadWindow(); }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
     const t = tms(time);
@@ -287,6 +277,47 @@
     const shown = mask.filter(Boolean).length;
     return { ...raw, lat: nul(raw.lat), lon: nul(raw.lon), dist_km: nul(raw.dist_km), vars, shown,
              limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(raw) : null)])) };
+  }
+  // the span's stretch of the record, for the map: the bins from the span's
+  // start on; its colour limits colour the track and the graphs alike
+  function spanSlice(d) {
+    const start = spanFilter().start;
+    let i0 = d.t.findIndex((t) => t != null && t >= start); if (i0 < 0) i0 = d.t.length;
+    const cut = (a) => Array.isArray(a) ? a.slice(i0) : a;
+    const vars = Object.fromEntries(Object.entries(d.vars).map(([k, v]) => [k, cut(v)]));
+    const out = { ...d, t: cut(d.t), lat: cut(d.lat), lon: cut(d.lon), dist_km: cut(d.dist_km), leg: cut(d.leg), vars, pump_low: cut(d.pump_low), n: d.t.length - i0 };
+    out.shown = out.lat.filter((x) => x != null).length;
+    out.limits = Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(out) : null)]));
+    out.label = spanWindow().label;                                   // the map's foot names the span and its stretch
+    const t0 = out.t.find((t) => t != null); if (t0 != null) out.start = new Date(t0).toISOString();
+    return out;
+  }
+  // the cover window's bins before the span's first bin, then the span's
+  // own, finer bins: one record with the span at its native resolution
+  function mergeWindows(cover, span) {
+    if (!span || span === cover) return cover;
+    const t0 = span.t.find((t) => t != null); if (t0 == null) return cover;
+    let cut = cover.t.findIndex((t) => t != null && t >= t0); if (cut < 0) cut = cover.t.length;
+    const cat = (a, b, na, nb) => (a || new Array(na).fill(null)).slice(0, cut).concat(b || new Array(nb).fill(null));
+    const vars = {};
+    for (const k of new Set([...Object.keys(cover.vars), ...Object.keys(span.vars)])) vars[k] = cat(cover.vars[k], span.vars[k], cover.t.length, span.t.length);
+    // each file's distance runs from its own start: the span's continues the cover's
+    const base = lastFinite(cover.dist_km.slice(0, cut)) ?? 0, d0 = span.dist_km.find((x) => x != null) ?? 0;
+    const dist = span.dist_km.map((x) => (x == null ? null : x - d0 + base));
+    return { ...span, start: cover.start, n: cut + span.t.length, t: cat(cover.t, span.t), lat: cat(cover.lat, span.lat), lon: cat(cover.lon, span.lon),
+             dist_km: cat(cover.dist_km, dist), leg: cat(cover.leg, span.leg), vars,
+             pump_low: cover.pump_low && span.pump_low ? cat(cover.pump_low, span.pump_low) : null,
+             limits: span.limits || cover.limits };
+  }
+  // the graphs' x range for the span: the last so many hours of ship time,
+  // or the distance run over them
+  function spanRange(d) {
+    const f = spanFilter();
+    if (!isFinite(f.start)) return undefined;
+    if (state.xmode === "time") return [+shipAxis(f.start), +shipAxis(f.end + 60e3)];
+    let i0 = d.t.findIndex((t) => t != null && t >= f.start); if (i0 < 0) i0 = 0;
+    const first = d.dist_km.slice(i0).find((x) => x != null), last = lastFinite(d.dist_km);
+    return first != null && last != null && last > first ? [first, last] : undefined;
   }
 
   // Per bin, whether the intake pump was stopped: the build's flag (any
@@ -313,29 +344,25 @@
   function renderLegMenu() {
     const ul = $("#leglist");
     ul.innerHTML = "";
-    // which legs actually have points in the current window
-    const inWindow = new Set((state.raw?.leg || []).filter((c) => c != null));
     for (const l of [...M.legs].sort((a, b) => (b.year * 100 + b.number) - (a.year * 100 + a.number))) {
       const li = document.createElement("li");
       const span = l.first_date && l.last_date
         ? `${l.first_date.slice(4, 6)}/${l.first_date.slice(6)} – ${l.last_date.slice(4, 6)}/${l.last_date.slice(6)}` : "";
-      li.innerHTML = `<label class="${inWindow.has(l.index) ? "" : "outside"}"><input type="checkbox" ${state.hidden.has(l.id) ? "" : "checked"}>
+      li.innerHTML = `<label><input type="checkbox" ${state.hidden.has(l.id) ? "" : "checked"}>
         <span class="name">${l.label}</span>${l.live ? '<span class="live">live</span>' : ""}
-        <span class="span">${span}</span><span class="n">${l.files} d</span>
-        ${inWindow.has(l.index) ? "" : '<span class="pend">outside span</span>'}</label>`;
+        <span class="span">${span}</span><span class="n">${l.files} d</span></label>`;
       li.querySelector("input").onchange = (e) => {
         e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
         store.set("hiddenLegs", [...state.hidden]);
         requestFit();
-        if (reconcileSpanToLegs(e.target.checked ? l : null)) loadWindow(); else applyAndRender();
+        loadWindow();                                                // the loaded window reaches every shown leg
       };
       ul.appendChild(li);
     }
     $("#legsummary").textContent = `Legs · ${shownLegs().length}/${M.legs.length}`;
-    $("#legfoot").textContent = `${inWindow.size} leg${inWindow.size === 1 ? "" : "s"} fall within the current span`;
-    $("#legall").onclick = (e) => { e.preventDefault(); state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); applyAndRender(); };
-    // (showing every leg never empties the span, so no reconciling needed)
-    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); applyAndRender(); };
+    $("#legfoot").textContent = `${shownLegs().length} of ${M.legs.length} legs shown · the ${coverWindowOf(M).label} window loaded`;
+    $("#legall").onclick = (e) => { e.preventDefault(); showAllLegs(); };
+    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); loadWindow(); };
   }
 
   // ------------------------------------------------------------ header
@@ -379,7 +406,7 @@
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
     $("#spanlabel").textContent = labels[idx]; r.setAttribute("aria-valuetext", labels[idx]);
-    const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); reconcileLegsToSpan(); loadWindow(); };
+    const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); loadWindow(); };
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; r.setAttribute("aria-valuetext", labels[r.value]); };
     r.onchange = () => pick(labels[r.value]);
     // the same choice as a dropdown, which is what a phone shows instead of the slider
@@ -702,7 +729,7 @@
   // Daily camera timelapses (dashboard.cameras): a camera glyph where the
   // day's shots were taken; a click plays the day's video in a popup over
   // the map, with previous/next stepping through the shown days.
-  const camsShown = (f = currentFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
+  const camsShown = (f = spanFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
     .filter((c) => c.lat != null && c.lon != null && state.cameras && inFilter(c.leg, c.mid_utc, f))
     .sort((a, b) => a.day.localeCompare(b.day));
   function cameraTraces(f) {
@@ -1024,9 +1051,9 @@
   });
   function renderMap() {
     if (mapDrawing) { mapAgain = true; return; }
-    const d = thinTrack(state.data, state.trackKm);
+    const d = thinTrack(state.span, state.trackKm);
     const el = $("#map");
-    if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
+    if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1041,7 +1068,7 @@
     // track, and the station markers stay on top so they get the clicks
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
-    const f0 = currentFilter();
+    const f0 = spanFilter();
     const traces = [...planTraces((state.view || fitView(d.lat, d.lon)).zoom), ...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
     const evTraces = eventTraces(f0);
@@ -1086,7 +1113,7 @@
     });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
-    const f = currentFilter();
+    const f = spanFilter();
     // CTD casts (white; orange when selected) and the stations the event log
     // records without a cast (green), each a click target
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
@@ -1221,7 +1248,7 @@
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
-    el.querySelector(".reset").onclick = () => Plotly.relayout(el.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
+    el.querySelector(".reset").onclick = () => { const r = state.data && spanRange(state.data); Plotly.relayout(el.querySelector(".plot"), { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); };
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
     el.querySelector(".min").onclick = () => setPanelState(name, "min");
     el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", name); el.classList.add("dragging"); });
@@ -1338,7 +1365,7 @@
     // the div keeps its "plot" class while empty, so a later render finds it again
     const empty = (msg) => { if (plot.data) Plotly.purge(plot); plot.className = "plot empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
     if (!v.resolved) return empty("source column not found in any leg");
-    if (!d || !y || !y.some((x) => x != null)) return empty("no data in this span for the selected legs");
+    if (!d || !y || !y.some((x) => x != null)) return empty("no data for the selected legs");
     if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
     el.querySelector(".now").textContent = fmtVal(lastFinite(y), v.unit);
 
@@ -1375,11 +1402,13 @@
     const useLog = !!state.log[name] && y.some((q) => q > 0);
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
+    const xr = spanRange(d);                                           // the span: the axis opens on it, the data run on before it
     const layout = {
       ...THEME, margin: { l: fz(52), r: 8, t: fz(6), b: fz(34) }, showlegend: false, hovermode: "closest", hoverdistance: 14,
       dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
       uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) },
+               ...(xr ? { range: xr, autorange: false } : {}),
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
                ticksuffix: state.xmode === "time" ? "" : " km",
@@ -1457,6 +1486,8 @@
     // a remembered colour the page no longer offers (a module gone) falls back to the default
     if (!VAR[state.colour] && !extraColours.has(state.colour)) { state.colour = VAR["SST (°C)"] ? "SST (°C)" : M.variables[0]?.name; store.set("colour", state.colour); renderControls(); }
     state.data = applyLegFilter(state.raw);
+    state.span = spanSlice(state.data);
+    state.data.limits = state.span.limits;                              // the span's limits colour the graphs too
     renderLegMenu();
     render();
     window.UW?.onFilter?.();
@@ -1464,20 +1495,28 @@
 
   let loadSeq = 0;
   let windowLoading = false;
+  // the files a build's window set asks for: the cover window's, and the
+  // span's own when the span is the shorter (the "all points" variant of the
+  // span's where the build made one)
+  function windowFiles(manifest) {
+    const spanW = spanWindowOf(manifest), coverW = coverWindowOf(manifest);
+    if (coverW.hours <= spanW.hours) return [windowFile(coverW)];
+    return [coverW.file, windowFile(spanW)];
+  }
   async function loadWindow(manifest = M) {
-    const w = manifest.windows.find((x) => x.label === state.win) || manifest.windows.find((x) => x.label === manifest.default_window) || manifest.windows[0];
-    state.win = w.label;
+    state.win = spanWindowOf(manifest).label;
     renderControls();
+    const files = windowFiles(manifest), key = files.join("+");
+    if (manifest === M && state.rawFile === key && state.raw) { applyAndRender(); return true; }   // the same record: only the view changed
     const seq = ++loadSeq;
     windowLoading = true;
     try {
-      const file = windowFile(w);
-      const raw = await fetchJSON(`${file}?v=${encodeURIComponent(manifest.generated_utc)}`);
+      const [cover, span] = await Promise.all(files.map((f) => fetchJSON(`${f}?v=${encodeURIComponent(manifest.generated_utc)}`)));
       if (seq !== loadSeq) return false;
       // Commit the header/leg metadata and observations together only after
       // a successful download. A failed update keeps the last good pair.
       M = manifest; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
-      state.raw = raw; state.rawFile = file;
+      state.raw = mergeWindows(cover, span); state.rawFile = key;
       setLoadError("Underway", false);
       renderControls(); renderProvenance();
       applyAndRender(); renderAlert();
@@ -1507,7 +1546,7 @@
     try {
       const m = await fetchJSON(`data/manifest.json?t=${Date.now()}`);
       const want = m.windows.find((x) => x.label === state.win);
-      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || !want || state.rawFile !== windowFile(want))) {
+      if (!windowLoading && (m.generated_utc !== M.generated_utc || !state.raw || !want || state.rawFile !== windowFiles(m).join("+"))) {
         await loadWindow(m);
       } else if (!windowLoading) setLoadError("Underway", false);
     } catch { setLoadError("Underway", true); }
@@ -1625,7 +1664,7 @@
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown, toast,
+    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
       if (extraColours.has(state.colour)) render();
       else for (const name of extraPanels.keys()) renderPanel(name);

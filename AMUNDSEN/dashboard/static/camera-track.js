@@ -47,7 +47,7 @@
         const yValue=p=>selectedPC>=0?score(p,k):p.rgb.reduce((a,b)=>a+b,0)/3;
         el.querySelector('h3').textContent=selectedPC>=0?modes[k]:RGB;
         el.querySelector('h3').title='Click to cycle Texture → Brightness → Colorfulness → Patchiness → mean RGB. Names are provisional PC interpretations.';
-        const filter=UW.currentFilter(),rows=payload.photos.filter(p=>UW.inFilter(p.leg,p.time,filter)),d=UW.state.data,byLeg=new Map();
+        const filter=UW.spanFilter(),rows=payload.photos.filter(p=>UW.inFilter(p.leg,p.time,filter)),d=UW.state.data,byLeg=new Map();
         if(UW.state.xmode!=='time'&&d)for(let i=0;i<d.t.length;i++){
           if(d.dist_km[i]==null||d.leg[i]==null)continue;
           const leg=UW.M.legs.find(l=>l.index===d.leg[i])?.id;
