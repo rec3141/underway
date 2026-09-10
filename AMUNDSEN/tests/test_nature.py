@@ -52,6 +52,10 @@ class JournalTests(JournalDir):
         rows = nature.entries()
         self.assertEqual(len(rows), 1); self.assertEqual(rows[0]["count"], "2")
         self.assertEqual(len(nature.FILE.read_text().splitlines()), 2)   # append-only: both lines stand in the file
+        p = nature.append({**LINE, "image": "data:image/png;base64," + base64.b64encode(PNG).decode()})
+        c2 = nature.append({**LINE, "id": p["id"], "observer": "the keeper"})
+        self.assertEqual(c2["artifact_file"], p["artifact_file"])           # a correction without a new photograph keeps the one it has
+        self.assertEqual(nature.append({**LINE, "id": p["id"], "image": "data:image/png;base64," + base64.b64encode(PNG).decode()})["artifact_file"], p["artifact_file"])
         with self.assertRaises(nature.Refused):
             nature.append({**LINE, "id": "amundsen-2026-09-11-099"})    # not a line the journal has
 

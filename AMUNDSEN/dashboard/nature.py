@@ -178,6 +178,11 @@ def append(entry: dict, who: str = "") -> dict:
         row = {"kind": "observation", "id": id_, **{k: v for k, v in row.items() if k != "kind"}}
         if entry.get("image"):
             row["artifact_file"] = _image(entry["image"], id_)
+        else:
+            # a correction without a new photograph keeps the one the line has
+            before = next((e for e in reversed(lines) if e.get("id") == id_ and e.get("artifact_file")), None)
+            if before:
+                row["artifact_file"] = before["artifact_file"]
         with open(FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
         with open(JOURNAL_DIR / "journal.log", "a", encoding="utf-8") as f:
