@@ -454,9 +454,9 @@
     return t.length > 240 ? t.slice(0, 237) + "…" : t;
   }
   // an artifact's rights line: the licence code's phrase (the publish
-  // supplies it; a build from before the codes has the wording itself), then
-  // the note on the holder or the term
-  const rights = (a) => [a.licence_label || a.licence, a.rights_note].filter(Boolean).join(". ");
+  // supplies it; a build from before the codes has the wording itself). The
+  // rights note on the holder and the term is the crew's, not the reader's.
+  const rights = (a) => a.licence_label || a.licence || "";
   function artifactCard(a, opts = {}) {
     const t = TYPES[a.type] || {};
     let media = "";
