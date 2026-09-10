@@ -1045,15 +1045,19 @@
     const shown = shownArtifacts();
     const year = (a) => { const y = yearOf(a.date_start); return y == null ? "" : ` · ${yearLabel(y)}`; };
     const hover = (a) => `${esc(a.title.length > 60 ? a.title.slice(0, 57) + "…" : a.title)}${year(a)}`;
-    for (const a of shown.filter((x) => x.type === "track" && x.geometry?.coordinates?.length > 1)) {
-      const c = a.geometry.coordinates, col = topicColour(a.topic);
+    // the open track, if the page is one, is drawn last, wide and bright;
+    // the other tracks step back so the eye finds it
+    const tracks = shown.filter((x) => x.type === "track" && x.geometry?.coordinates?.length > 1);
+    const picked = hist.slug.startsWith("artifact/") ? tracks.find((x) => x.page === hist.slug) : null;
+    for (const a of [...tracks.filter((x) => x !== picked), ...(picked ? [picked] : [])]) {
+      const c = a.geometry.coordinates, col = topicColour(a.topic), dim = picked && a !== picked;
       out.push({ type: "scattermap", mode: "lines", name: `hist-${a.id}`, showlegend: false, hoverinfo: "text",
         lat: c.map((p) => p[1]), lon: c.map((p) => p[0]), text: c.map(() => hover(a)), customdata: c.map(() => `hist:${a.id}`),
-        line: { width: 2.4, color: col }, opacity: .85 });
+        line: { width: a === picked ? 4 : dim ? 1.6 : 2.4, color: col }, opacity: a === picked ? 1 : dim ? .3 : .85 });
       if (a.waypoints?.length) out.push({ type: "scattermap", mode: "markers", name: `hist-${a.id}-wp`, showlegend: false, hoverinfo: "text",
         lat: a.waypoints.map((w) => w.lat), lon: a.waypoints.map((w) => w.lon),
         text: a.waypoints.map((w) => `${esc(dateLabel(w.date || ""))}${w.note ? " · " + esc(w.note.length > 50 ? w.note.slice(0, 47) + "…" : w.note) : ""}`),
-        customdata: a.waypoints.map((w) => `hist:${a.id}|${w.date || ""}`), marker: { size: 6, color: col, opacity: .9 } });
+        customdata: a.waypoints.map((w) => `hist:${a.id}|${w.date || ""}`), marker: { size: a === picked ? 8 : 6, color: col, opacity: dim ? .35 : .9 } });
     }
     const pins = shown.filter((x) => x.type !== "track" && x.lat != null);
     if (pins.length) out.push({ type: "scattermap", mode: "markers", name: "history", showlegend: false, hoverinfo: "text",
