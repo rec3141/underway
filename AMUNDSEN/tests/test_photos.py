@@ -92,6 +92,8 @@ class WhenAndWhereTests(ShareDir):
         self.assertAlmostEqual(ex["lat"], 76.104, 3); self.assertAlmostEqual(ex["lon"], -92.41, 3); self.assertIsNone(ex["offset"])
         jpeg(self.pics / "bare.jpg")
         self.assertIsNone(photos.exif_of(self.pics / "bare.jpg")["taken"])
+        jpeg(self.pics / "unset.jpg", DateTimeOriginal="0000:00:00 00:00:00")                        # a clock never set
+        self.assertIsNone(photos.exif_of(self.pics / "unset.jpg")["taken"])
 
     def test_the_track_places_a_moment_between_fixes_or_not_at_all(self):
         t = datetime(2026, 9, 3, 12, 0, tzinfo=timezone.utc).timestamp()

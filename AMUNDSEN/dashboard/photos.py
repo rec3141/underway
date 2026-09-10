@@ -224,7 +224,7 @@ def _exif_row(row: dict) -> dict:
     out = {"taken": None, "offset": None, "lat": None, "lon": None,
            "model": " ".join(str(row.get(k) or "").strip() for k in ("Make", "Model")).strip()}
     m = re.match(r"^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})", str(row.get("DateTimeOriginal") or row.get("CreateDate") or ""))
-    if m:
+    if m and m[1] != "0000":                                 # a camera whose clock was never set writes all zeros
         out["taken"] = f"{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:{m[6]}"
     off = str(row.get("OffsetTimeOriginal") or row.get("OffsetTime") or "").strip()
     if OFFSET_RX.match(off):
@@ -270,7 +270,7 @@ def exif_pillow(path: Path) -> dict:
     except Exception as e:                      # noqa: BLE001  (a picture without readable EXIF is a picture without a time)
         log.debug("no EXIF in %s: %s", path.name, e)
     m = re.match(r"^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})", str(dt or ""))
-    if m:
+    if m and m[1] != "0000":
         out["taken"] = f"{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:{m[6]}"
     if off and OFFSET_RX.match(str(off).strip()):
         out["offset"] = str(off).strip()
@@ -808,7 +808,7 @@ def run(j: dict, root: Path) -> None:
                 it["camera"] = ex["model"]
                 when = taken_utc(ex, form["clock"])
                 if not when:
-                    it["status"], it["error"] = "skipped", "no time in the photograph's EXIF"
+                    it["status"], it["error"] = "skipped", "no time in the photograph's EXIF (the camera's clock was not set)"
                     continue
                 it["date"] = when.strftime("%Y-%m-%dT%H:%MZ")
                 whens[idx] = when
