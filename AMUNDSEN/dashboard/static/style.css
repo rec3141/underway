@@ -42,6 +42,8 @@
   --palette: #5cc8ff #ffb454 #7ee787 #ff7b72 #d2a8ff #f2cc60 #79c0ff #ffa198 #56d364 #e3b341 #a5d6ff #ff9bce;
   --radius: 10px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-head: var(--font);       /* headings and the History prose */
+  --plot-font: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;   /* the graphs' face (Plotly) */
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -95,6 +97,32 @@ html[data-theme="minimal-light"] {
   --map-bg: #c9dcea; --map-land: #ebe8df; --map-coast: #707070; --map-ice: #ffffff; --sketch-coast: #c4c4c4;
   --map-bathy: #dbe9f3 #cddfed #bfd5e7 #b1cbe1 #a3c1db #95b7d5 #87adcf #79a3c9 #6b99c3 #5d8fbd #4f85b7 #417bb1;
   --palette: #0b57d0 #b5430b #146c2e #b3261e #6b3fa0 #7a5b00 #0a4d9c #8f1e1e #0f5a26 #6e4400 #1a73e8 #a8326b;
+  color-scheme: light;
+}
+
+/* Navigator: the web of 1996 — a grey page, black type, navy for the
+   chosen thing, the sixteen colours of a VGA card for the data, yellow
+   tooltips; the look itself (bevels, the title bar, Times) is the block at
+   the end of this file */
+html[data-theme="navigator"] {
+  --bg: #c0c0c0; --bg-top: #000080; --card: #ffffff; --card-2: #d8d8d8; --line: #808080;
+  --fg: #000000; --fg-2: #202020; --muted: #404040;
+  --accent: #000080; --on-accent: #ffffff; --accent-2: #a04000; --on-accent-2: #ffffff; --warn: #c00000; --on-warn: #ffffff;
+  --ok: #008000; --ok-bg: #c8f0c8; --bad: #ff0000; --now: #ff0000;
+  --purple: #800080; --pink: #c000c0; --gold: #808000;
+  --tag: #d8d8d8; --tag-2: #e8e8e8; --tag-bad: #ffd0d0; --tag-amber: #ffe0b0; --tag-tm: #ffe0b0;
+  --pale: #000080; --on-pale: #ffffff; --media: #808080; --pop: #c0c0c0; --shadow: transparent;
+  --map-fg: #000000; --map-halo: #ffffff;
+  --plot-bg: #ffffff; --plot-fg: #000000; --plot-grid: #c0c0c0; --plot-line: #808080; --hover-bg: #ffffe1; --plot-legend-bg: #c0c0c0;
+  --marker: #ffffff; --marker-line: #000000; --floor: #c0c0c0; --floor-line: #808080;
+  --map-bg: #b0d0f0; --map-land: #c0c0c0; --map-coast: #000000; --map-ice: #ffffff; --sketch-coast: #808080;
+  --map-bathy: #d0e4f8 #c0daf4 #b0d0f0 #a0c4ec #90b8e8 #80ace4 #70a0e0 #6094d8 #5088d0 #407cc8 #3070c0 #2064b8;
+  --palette: #000080 #a04000 #008000 #ff0000 #800080 #808000 #0000ff #ff8000 #008080 #804000 #4040ff #c000c0;
+  --radius: 0;
+  --font: Arial, Helvetica, sans-serif;
+  --font-head: "Times New Roman", Times, serif;
+  --plot-font: "Times New Roman", Times, serif;
+  --mono: "Courier New", Courier, monospace;
   color-scheme: light;
 }
 
@@ -1119,3 +1147,77 @@ html[data-theme^="minimal"].chat-side main { padding-right: 460px; }
   .top .themepick .lbl { display: none; }
   html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
 }
+
+/* ---------------------------------------------------------------- Navigator
+   The web of 1996 as the look, not only the colours: every button a grey
+   bevel that presses in when chosen, boxes bevelled too, the header a navy
+   title bar, headings and the History prose in Times, links blue and
+   underlined, LIVE blinking, tooltips yellow, nothing rounded. The bevel
+   rules carry !important because every component styles its own buttons. */
+html[data-theme="navigator"] .top { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 2px outset #e8e8e8; color: #fff; }
+html[data-theme="navigator"] .top :is(.brand h1, .brand .sub, .brand .sub b, .pickhint, .themepick, .themepick label.select, .brand .sub .refresh) { color: #fff; }
+html[data-theme="navigator"] .brand .sub .refresh { border-bottom-color: #a0c0ff; }
+html[data-theme="navigator"] .brand h1 { font-family: var(--font-head); font-size: 1.6rem; letter-spacing: 0; }
+html[data-theme="navigator"] .brand .sub .srcpop table { color: var(--fg); }
+html[data-theme="navigator"] .top .live { color: #40ff40; }
+html[data-theme="navigator"] .brand .live { animation: nav-blink 1s steps(1) infinite; }   /* the word, as <blink> would have it */
+@keyframes nav-blink { 50% { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { html[data-theme="navigator"] .brand .live { animation: none; } }
+/* headings and prose in Times */
+html[data-theme="navigator"] :is(h1, h2, h3, h4, .block h3, .panel .head h3, .mdetail h4, .vigcard h3, .peoplelist h3) { font-family: var(--font-head); }
+html[data-theme="navigator"] .histmain, html[data-theme="navigator"] .histanswer, html[data-theme="navigator"] .chatlog .msg .txt { font-family: var(--font-head); font-size: 1.07rem; }
+/* links: blue, underlined, purple once followed (chips and pills excepted) */
+html[data-theme="navigator"] a { color: #0000ee; }
+html[data-theme="navigator"] :is(.wiki, .meta, .notes, .prov, .map-foot, .campop .foot, .chat .msg, .histmain p, .histmain li, .mla, .mlaline, .spannote) a:not(.chip):not(.artcard):not(.artchip):not(.pglink):not(.topiccard) { text-decoration: underline; }
+html[data-theme="navigator"] :is(.wiki, .meta, .notes, .prov) a:visited { color: #551a8b; }
+/* boxes: bevelled out, never rounded, never shaded */
+html[data-theme="navigator"] :is(.card, .panel, .legmenu .pop, .toast, .campop, .mapinfo, .chat, .dockgroup, .evlog, .mdetail, .bellmenu, .vigcard, .topiccard, .artcard, .histanswer, .livecfgform, .pagelist .pglink, .artchip, .provenance .stat, .tablewrap, .scol, .mcell, .dbody, .histtimeline, .brand .sub .srcpop table) {
+  border: 2px outset #e8e8e8; border-radius: 0; box-shadow: none; }
+html[data-theme="navigator"] .panel.on { border: 2px solid var(--accent); box-shadow: none; }
+html[data-theme="navigator"] .panel.surprise { border-color: var(--accent-2); }
+html[data-theme="navigator"] .panel .plot, html[data-theme="navigator"] .castplot .plot { border: 2px inset #e8e8e8; background: var(--plot-bg); }
+html[data-theme="navigator"] .plot.table { border: 2px inset #e8e8e8; }
+html[data-theme="navigator"] .map { padding: 4px; }
+html[data-theme="navigator"] #map { border: 2px inset #e8e8e8; }
+html[data-theme="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .kgroup, .histmain .status) { border-radius: 0; }
+/* buttons and chips: grey bevels; chosen ones press in, white, navy and bold */
+html[data-theme="navigator"] :where(button, .chip, select, summary, .schedlinks .bigcal, .ticker .smallcal, .bibexport a):where(:not(.bell, .flag, .tog, .nudge, .more, .chattoggle, .emojibtn, .refresh, .emojipick button, .chatrooms .tools button)) {
+  border: 2px outset #e8e8e8 !important; border-radius: 0 !important; background: #c0c0c0 !important; color: #000 !important; box-shadow: none !important; font-weight: normal; text-decoration: none; }
+html[data-theme="navigator"] :is(button, .chip, summary, a.chip).on:not(.chattoggle), html[data-theme="navigator"] button:active:not(.chattoggle), html[data-theme="navigator"] details[open] > summary:not(.refresh), html[data-theme="navigator"] .castside #castclear.has, html[data-theme="navigator"] #stnclear.has {
+  border-style: inset !important; background: #ffffff !important; color: #000080 !important; font-weight: bold; }
+html[data-theme="navigator"] :where(button, .chip, select, summary):where(:not(.on, :active, .refresh, .chattoggle, .bell, .flag)):hover { border-color: #f4f4f4 #606060 #606060 #f4f4f4 !important; }
+html[data-theme="navigator"] .tabs { background: transparent; border: 0; padding: 0; gap: 3px; }
+html[data-theme="navigator"] .tabs button { padding: 5px 14px; }
+html[data-theme="navigator"] .seg button, html[data-theme="navigator"] .seg button:first-child, html[data-theme="navigator"] .seg button:last-child { margin-left: 2px; }
+html[data-theme="navigator"] .maplayers button.sat.on { color: #000080 !important; }
+html[data-theme="navigator"] .schedlinks .bigcal, html[data-theme="navigator"] .ticker .smallcal { padding: 4px 12px; }
+/* text boxes: white, bevelled in */
+html[data-theme="navigator"] :is(input:not([type=range]):not([type=checkbox]), textarea) { border: 2px inset #e8e8e8 !important; border-radius: 0 !important; background: #fff !important; color: #000 !important; }
+html[data-theme="navigator"] input[type=range] { accent-color: #000080; }
+/* tables: grey heads, ruled cells */
+html[data-theme="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) th { background: #c0c0c0; color: #000; border: 1px outset #e8e8e8; }
+html[data-theme="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) td { border-bottom: 1px solid #c0c0c0; }
+html[data-theme="navigator"] .tablewrap { background: #fff; }
+/* the schedule band, the bars and the bottom bar as grey chrome; the in-app notes and the whiteboard yellow, like a tooltip */
+html[data-theme="navigator"] .alertbar, html[data-theme="navigator"] .alertbar.folded { background: #c0c0c0; border-bottom: 2px groove #e8e8e8; }
+html[data-theme="navigator"] .scol { background: #fff; border-left-width: 2px; }
+html[data-theme="navigator"] .scol.live { background: #e8ffe8; }
+html[data-theme="navigator"] .inapp, html[data-theme="navigator"] .whiteboard, html[data-theme="navigator"] tr.spannote td, html[data-theme="navigator"] li.spannote { background: #ffffe1; color: #000; border: 1px solid #000; }
+html[data-theme="navigator"] .pane-tools { border-bottom: 2px groove #e8e8e8; }
+html[data-theme="navigator"] .dock, html[data-theme="navigator"] #pane-calendar > .pane-tools, html[data-theme="navigator"] #pane-history > .pane-tools, html[data-theme="navigator"] main.tab-underway .plotctl { background: var(--bg); }
+html[data-theme="navigator"] .dockgroup { background: #c0c0c0; }
+html[data-theme="navigator"] .dockgroup .ghead { text-transform: none; }
+/* the chat as a window with a navy title bar */
+html[data-theme="navigator"] .chat .chathead { background: linear-gradient(90deg, #000080, #1084d0); border-radius: 0; }
+html[data-theme="navigator"] .chat .chattoggle { color: #fff; font-weight: bold; }
+html[data-theme="navigator"] .chat .chattoggle .muted, html[data-theme="navigator"] .chat .caret { color: #d0d0d0; }
+html[data-theme="navigator"] .chat .chatpicker, html[data-theme="navigator"] .emojipick { background: #c0c0c0; }
+html[data-theme="navigator"] .chatlog .msg .who { color: #000080; }
+/* the pills that are words, and the map's floating boxes */
+html[data-theme="navigator"] .livestate { border: 1px solid #000; }
+html[data-theme="navigator"] .campop, html[data-theme="navigator"] .mapinfo { background: #c0c0c0; }
+html[data-theme="navigator"] .legmenu .pop, html[data-theme="navigator"] .bellmenu { background: #c0c0c0; }
+html[data-theme="navigator"] .legmenu li label:hover { background: #000080; color: #fff; }
+html[data-theme="navigator"] .legmenu li label:hover :is(.span, .n) { color: #d0d0d0; }
+html[data-theme="navigator"] .month .mlegend i { background: #fff; }
+html[data-theme="navigator"] :focus-visible { outline: 1px dotted #000; outline-offset: -4px; }   /* the marching-ants focus of the day */
