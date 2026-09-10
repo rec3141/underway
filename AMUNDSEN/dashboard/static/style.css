@@ -1244,14 +1244,8 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
 .jentry { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .jentry .vig { flex: 1 1 auto; }
 .jentry .st { color: var(--muted); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .4px; }
-#natform { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 10px; margin-top: 8px; }
-#natform label { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-sm); color: var(--muted); position: relative; }
-#natform label.row { flex-direction: row; align-items: center; gap: 6px; }
-#natform label .muted { font-weight: 400; }
-#natform label .chip.small { position: absolute; right: 4px; bottom: 4px; }
-#natform .wide, #natimportform .wide { grid-column: 1 / -1; }
+#natimportform .wide { grid-column: 1 / -1; }
 .jtools { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.byhand { margin-top: 10px; } .byhand summary { cursor: pointer; color: var(--muted); font-size: var(--t-md); }
 /* the photo import: the share's folders and photographs as a grid to pick from, the form, then the results */
 .histpane .import { border-left: 4px solid var(--accent); padding: 8px 12px; margin: 4px 0 12px; background: var(--card); border-radius: 8px; }
 .histpane .import h3 { margin: 0 0 6px; font-size: var(--t-md); color: var(--accent); text-transform: uppercase; letter-spacing: .5px; }
@@ -1292,13 +1286,6 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
 .impitem.skipped, .impitem.failed { border-color: var(--warn); } .impitem.skipped .st, .impitem.failed .st { color: var(--warn); }
 .impitem .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .impitem .tags span { font-size: var(--t-xs); padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-2); }
 .histmain .lead .warn { color: var(--warn); }
-#natform input, #natform select, #natform textarea { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: var(--t-md); min-width: 0; }
-#natform input[type=checkbox] { width: auto; }
-#natform input[type=file] { padding: 3px; font-size: var(--t-sm); }
-#natform .wide { grid-column: 1 / -1; }
-#natform button.go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 7px; padding: 7px 14px; font: inherit; font-weight: 650; cursor: pointer; }
-#natform button.go:disabled { opacity: .5; cursor: wait; }
-#natform .hint { min-height: 1.2em; }
 /* ---------------------------------------------------------------- Navigator
    The web of 1996 as the look, not only the colours: every button a grey
    bevel that presses in when chosen, boxes bevelled too, the header a navy
