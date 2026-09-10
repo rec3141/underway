@@ -71,6 +71,7 @@ LICENCES = {                                    # what the form offers; the code
     "cc-by-sa-4.0": "CC BY-SA 4.0",
     "cc-by-nc-4.0": "CC BY-NC 4.0",
     "cc0": "CC0, no rights reserved",
+    "open-access": "open access: the ship's own pictures, free to use",
     "rights-reserved": "all rights reserved: shown on the ship's wiki, not for reuse",
 }
 CLOCKS = ("exif", "ship", "utc")                # or an offset, +02:00: what the camera's clock was set to
