@@ -1065,15 +1065,35 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     };
   }
 
-  // ---------------------------------------------------------------- the chips
-  // The kinds, twice: in the pane's tools each chip opens that kind's page;
-  // under the map's layer pills, while the history layer is on, each is a
-  // filter of what the map shows.
-  // in their hierarchy: a head with its kinds beside it, or a kind alone; a
-  // head the bar has no kind for (People, on the map) is a label
-  function chipsHTML(kinds, onOf, cls = "") {
-    const chip = (k, extra = "") => { const t = kinds[k]; return t ? `<button type="button" data-t="${k}" class="${cls} ${extra} ${onOf(k) ? "on" : ""}" title="${t.label}"><span class="dot" style="background:${t.colour}"></span>${t.label}</button>` : `<span class="ghead">${KINDS[k].label}</span>`; };
-    return GROUPS.filter((g) => kinds[g.head] || g.under.some((k) => kinds[k])).map((g) => g.under.length ? `<span class="kgroup">${chip(g.head, "head")}${g.under.map((k) => chip(k, "sub")).join("")}</span>` : chip(g.head)).join("");
+  // ---------------------------------------------------------------- the menus
+  // The kinds, twice: the pane's Browse dropdown opens a kind's page (or a
+  // domain's, or one of the tab's own pages); under the map's layer pills,
+  // while a past layer is on, a menu like the header's legs menu filters
+  // what the layer shows, a checkbox per kind.
+  // a layer's filter menu: built once in its bar, then kept in step with the
+  // set (its boxes, its count, its colours), so it stays open through a change
+  function renderMenu(bar, word, rows, set, storeKey, layerOn) {
+    const keys = rows.filter((r) => r.key).map((r) => r.key);
+    if (!bar.querySelector("details")) {
+      bar.innerHTML = `<details class="legmenu"><summary></summary><div class="pop">` +
+        `<div class="pophead">On the map · <a href="#" data-all>all</a> · <a href="#" data-none>none</a></div><ul>` +
+        rows.map((r) => r.key
+          ? `<li><label title="${esc(r.hint || "")}"><input type="checkbox" data-k="${r.key}"><span class="dot" data-k="${r.key}"></span><span class="name">${esc(r.label)}</span></label></li>`
+          : `<li class="ghead">${esc(r.label)}</li>`).join("") + `</ul></div></details>`;
+      const apply = () => { store.set(storeKey, [...set]); renderMenu(bar, word, rows, set, storeKey, layerOn); if (layerOn()) UW.renderMap(); };
+      for (const box of bar.querySelectorAll("input[data-k]")) box.onchange = () => { box.checked ? set.add(box.dataset.k) : set.delete(box.dataset.k); apply(); };
+      bar.querySelector("[data-all]").onclick = (e) => { e.preventDefault(); for (const k of keys) set.add(k); apply(); };
+      bar.querySelector("[data-none]").onclick = (e) => { e.preventDefault(); set.clear(); apply(); };
+    }
+    for (const box of bar.querySelectorAll("input[data-k]")) box.checked = set.has(box.dataset.k);
+    for (const r of rows) if (r.key) bar.querySelector(`.dot[data-k="${r.key}"]`).style.background = r.colour;
+    bar.querySelector("summary").textContent = `${word} · ${keys.filter((k) => set.has(k)).length}/${keys.length}`;
+  }
+  // the artifact kinds in their hierarchy, for the map's menu: a head with
+  // no kind of its own (People) is a label over its kinds
+  function typeRows() {
+    const row = (k) => ({ key: k, label: TYPES[k].label, colour: TYPES[k].colour });
+    return GROUPS.flatMap((g) => { const under = g.under.filter((k) => TYPES[k]); return [...(TYPES[g.head] ? [row(g.head)] : under.length ? [{ label: KINDS[g.head].label }] : []), ...under.map(row)]; });
   }
   // the kinds as a dropdown's groups, the one open selected
   function kindOptions(cur) {
@@ -1081,12 +1101,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     return GROUPS.map((g) => g.under.length ? `<optgroup label="${esc(KINDS[g.head].label)}">${opt(`kind/${g.head}`, `All ${KINDS[g.head].label.toLowerCase()}`)}${g.under.map((k) => opt(`kind/${k}`, KINDS[k].label)).join("")}</optgroup>` : opt(`kind/${g.head}`, KINDS[g.head].label)).join("");
   }
   function renderChips() {
-    const pane = $("#histkinds");
-    if (pane) {
-      pane.innerHTML = chipsHTML(KINDS, (k) => hist.slug === `kind/${k}`, "chip");
-      for (const b of pane.querySelectorAll("button[data-t]")) b.onclick = () => open(hist.slug === `kind/${b.dataset.t}` ? "" : `kind/${b.dataset.t}`);
-    }
-    // the phone's dropdown stands in for the kind chips and the page chips
+    // the Browse dropdown: the kinds, then the tab's own pages
     const sel = $("#histkindsel");
     if (sel) {
       const opt = (slug, label) => `<option value="${slug}" ${hist.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
@@ -1097,21 +1112,14 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     }
     const bar = $("#maphistlayers");
     if (bar) {
-      bar.innerHTML = chipsHTML(TYPES, (k) => hist.types.has(k));
-      for (const b of bar.querySelectorAll("button[data-t]")) b.onclick = () => {
-        if (hist.types.has(b.dataset.t)) hist.types.delete(b.dataset.t); else hist.types.add(b.dataset.t);
-        store.set("hist.types", [...hist.types]); renderChips(); if (UW.state.history) UW.renderMap();
-      };
+      renderMenu(bar, "Kinds", typeRows(), hist.types, "hist.types", () => UW.state.history || UW.state.nature);
       bar.hidden = !(UW.state.history || UW.state.nature) || !UW.M.history;
     }
   }
   function renderTools() {
     $("#histhome").classList.toggle("on", !hist.slug && !hist.search);
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
-    $("#histbibchip").classList.toggle("on", hist.slug === "bib");
-    $("#histprovchip").classList.toggle("on", hist.slug === "provenance");
     $("#histback").disabled = !hist.slug && nav.n === 0;
-    const mt = $("#maptoggle"); if (mt) $("#histmap").textContent = mt.textContent;
   }
   async function render() {
     ns = NS.history;
@@ -1288,12 +1296,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     $("#histback").onclick = goBack;
     $("#histhome").onclick = () => open("");
     $("#histexplore").onclick = () => open(hist.slug === "explore" ? "" : "explore");
-    $("#histbibchip").onclick = () => open(hist.slug === "bib" ? "" : "bib");
-    $("#histprovchip").onclick = () => open(hist.slug === "provenance" ? "" : "provenance");
     $("#histask").onclick = () => UW.chatRoom?.("ada");
-    // the Map chip is the header's map pill, where the pane's tools are
-    const mt = $("#maptoggle");
-    if (mt) { $("#histmap").onclick = () => mt.click(); new MutationObserver(() => { $("#histmap").textContent = mt.textContent; }).observe(mt, { childList: true, characterData: true, subtree: true }); }
     const pill = document.querySelector('#maplayers button[data-layer="history"]');
     if (pill) { pill.hidden = !UW.M.history; pill.addEventListener("click", () => setTimeout(renderChips, 0)); }
     hist.slug = ALIAS[hist.slug] || hist.slug;
@@ -1342,7 +1345,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   UW.histShared = { ensure, esc, yearOf, yearLabel, dateLabel, km, markdown, crossLink, coordLink, mapLink, facts, sourceRef, peopleStrip,
     artifactCard, artifactById, eventById, topicOf, statusTag, pageLink, whereName, yearTicks, pageDomain, topicDomain, data: () => hist,
     render: { search: asNature(renderSearch), topic: asNature(renderTopic), page: asNature(renderPage), kind: asNature(async (el, k) => { if (k === "track") await ensureCoast(); ns = NS.nature; renderKind(el, k); }) },
-    kindChips: (onOf) => chipsHTML(KINDS, onOf, "chip"), kindOptions, KINDS, topicCard: (t, full) => { const prev = ns; ns = NS.nature; try { return topicCard(t, full); } finally { ns = prev; } } };
+    menu: renderMenu, kindOptions, KINDS, topicCard: (t, full) => { const prev = ns; ns = NS.nature; try { return topicCard(t, full); } finally { ns = prev; } } };
   wire();
   document.addEventListener("uw:theme", () => { if (!$("#pane-history").hidden && hist.artifacts) render(); });   // the chips, dots and the timeline take the new colours
   if (location.hash.startsWith("#history/") && $("#pane-history").hidden) UW.showTab("history");
