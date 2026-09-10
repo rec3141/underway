@@ -523,18 +523,23 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 .dock { position: sticky; bottom: 0; z-index: 9; display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 0 8px;
   background: linear-gradient(0deg, var(--bg) 75%, transparent); margin-top: 8px; }
 .chip { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: var(--t-md); cursor: pointer; }
-/* the bar's boxes, one per source: a head that folds or restores the source's
-   panels, then the chips of the minimised ones, every chip the same width */
-.dockgroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
-.dockgroup .chips { display: contents; }
-.dockgroup .ghead { display: inline-flex; align-items: center; gap: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer; }
+/* the bar's groups, one per source: a chip like any other at the head (the
+   source, how many of its panels are up, fold or restore), and under it the
+   minimised panels as rows of a small table: the full name, the last value */
+.dockgroup { display: inline-flex; flex-direction: column; align-items: stretch; gap: 3px; width: 17em; vertical-align: top; }
+.dockgroup .ghead { display: flex; align-items: center; gap: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer; text-align: left; }
 .dockgroup .ghead:hover { border-color: var(--accent); }
+.dockgroup .gname { flex: 1; }
 .dockgroup .gn { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: var(--t-xs); }
 .dockgroup .gtog { color: var(--muted); }
-.dock .chip { width: 14em; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
-.dock .chip .cname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-.dock .chip b { margin-left: 0; }
-.dock .chip span:last-child { margin-left: 0; }
+.dockgroup .chips { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--card); overflow: hidden; }
+.dockgroup .chips:empty { display: none; }
+.dock .chip { display: grid; grid-template-columns: minmax(0, 1fr) auto 1em; align-items: baseline; gap: 8px; width: auto; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 4px 10px; text-align: left; white-space: normal; }
+.dock .chip:last-child { border-bottom: 0; }
+.dock .chip:hover { background: var(--card-2); }
+.dock .chip .cname { font-size: var(--t-sm); line-height: 1.25; }                  /* the full name, wrapping when it must */
+.dock .chip b { margin-left: 0; text-align: right; }
+.dock .chip span:last-child { margin-left: 0; text-align: right; }
 .chip b { font-family: var(--mono); color: var(--accent-2); margin-left: 4px; }
 .chip span { color: var(--muted); margin-left: 6px; font-size: var(--t-xs); }
 .chip:hover { border-color: var(--accent); }

@@ -82,9 +82,9 @@
       <div class="layers">
       <span class="pillset" title="the ship's own layers">
       <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
-      <button data-layer="track" title="the ship's track for the shown legs">Track</button>
+      <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
       <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
-      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs">Events</button>
+      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
       </span>
       <button data-layer="cameras" title="a camera for each day's timelapse; click one to play it"><span class="full">Cameras</span><span class="short">Cams</span></button>
       <button data-layer="communities" title="the settlements with people in them (GeoNames, CC BY 4.0); the empty sites are the wiki's Places">Places</button>
@@ -105,7 +105,7 @@
     </div>
     <div id="mapmsg" class="mapmsg" hidden></div>
     <div id="mapscale" class="mapscale" title="the scale at the centre of the map" hidden><span class="bar"></span><span class="lbl"></span></div>
-    <div class="maptrack" title="how many track points to draw: every point of the shown legs, or one per so many km along the track">
+    <div class="maptrack" title="how many track points to draw: every point of the span, or one per so many km along the track">
       <span class="lbl">Track detail</span>
       <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
       <output id="tracksteplabel" for="trackstep">all points</output>

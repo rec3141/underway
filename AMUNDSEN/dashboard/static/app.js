@@ -2,9 +2,8 @@
  * Self-contained: Plotly is bundled, and the basemap is Natural Earth GeoJSON
  * served from static/geo/ and drawn by Plotly's MapLibre map with no tiles.
  *
- * One record spans every leg; each point carries its leg, and the leg list
- * filters what is shown. The map draws the shown legs whole; a span back
- * from the latest data is where the graphs open. */
+ * One record spans every leg. A window is a span back from the latest data;
+ * each point carries its leg, and the leg list filters what is shown. */
 (() => {
   "use strict";
 
@@ -30,7 +29,7 @@
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
-  if (store.get("prefs.v", 0) < 4) { store.set("prefs.v", 4); store.set("trackKm", null); }   // track detail follows the shown legs
+  if (store.get("prefs.v", 0) < 5) { store.set("prefs.v", 5); store.set("trackKm", null); }   // track detail follows the span (a point a km)
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
     win: store.get("win", M.default_window),
@@ -38,7 +37,7 @@
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
-    trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the shown legs)
+    trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the span)
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
     cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
@@ -216,11 +215,11 @@
   const legByIndex = (i) => M.legs[i];
   const shownLegs = () => M.legs.filter((l) => !state.hidden.has(l.id));
   // The legs menu filters the data: what is loaded covers every shown leg
-  // (coverWindow) and hidden legs are masked out, on every tab. The map
-  // draws the shown legs whole, at a detail to suit their length. The span
-  // is a view for the graphs: the panels' x axes open on the last so many
-  // hours; the map and the tables are untouched by it. The span runs back
-  // from the end of the record; times without a zone are UTC.
+  // (coverWindow) and hidden legs are masked out, on every tab. The span is
+  // a view on it: the panels' x axes open on the last so many hours, the map
+  // draws that stretch of track at a detail to suit its length, and the
+  // tables are untouched by it. The span runs back from the end of the
+  // record; times without a zone are UTC.
   const tms = (s) => { if (s == null || s === "") return NaN; if (typeof s === "number") return s;
     let t = String(s).trim().replace(" ", "T").replace(/^(\d{4})\/(\d{2})\/(\d{2})/, "$1-$2-$3");
     if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(t)) t += "Z"; return Date.parse(t); };
@@ -241,13 +240,13 @@
     const end = Date.parse(m.data_range.end), need = legsStartOf(m);
     return m.windows.find((w) => end - w.hours * 3600e3 <= need) || m.windows[m.windows.length - 1];
   };
-  // the legs: what the map and the tables show
+  // the legs: what the tables show
   function currentFilter() {
     const end = Date.parse(M.data_range.end);
     return { legs: new Set(shownLegs().map((l) => l.id)), start: -Infinity, end, label: spanWindow().label };
   }
-  // the legs and the span: what the graphs open on; the span never reaches
-  // before the loaded record
+  // the legs and the span: what the map draws and the graphs open on; the
+  // span never reaches before the loaded record
   function spanFilter() {
     const f = currentFilter();
     const first = state.data?.t?.find((t) => t != null);
@@ -263,13 +262,10 @@
   function setSpan(label) {
     if (label === state.win || !M.windows.some((w) => w.label === label)) return;
     state.win = label; store.set("win", state.win);
-    renderControls(); loadWindow();
+    setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); renderControls(); loadWindow();
   }
-  // the shown legs changed: the track detail follows their length, the map
-  // refits, and the loaded window reaches every one of them
-  function legsChanged() { setTrackDetail(detailFor(coverWindowOf(M).hours)); requestFit(); loadWindow(); }
   // a table's "show all legs" link
-  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); legsChanged(); }
+  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); loadWindow(); }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
     const t = tms(time);
@@ -288,6 +284,20 @@
     const shown = mask.filter(Boolean).length;
     return { ...raw, lat: nul(raw.lat), lon: nul(raw.lon), dist_km: nul(raw.dist_km), vars, shown,
              limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(raw) : null)])) };
+  }
+  // the span's stretch of the record, for the map: the bins from the span's
+  // start on; its colour limits colour the track and the graphs alike
+  function spanSlice(d) {
+    const start = spanFilter().start;
+    let i0 = d.t.findIndex((t) => t != null && t >= start); if (i0 < 0) i0 = d.t.length;
+    const cut = (a) => Array.isArray(a) ? a.slice(i0) : a;
+    const vars = Object.fromEntries(Object.entries(d.vars).map(([k, v]) => [k, cut(v)]));
+    const out = { ...d, t: cut(d.t), lat: cut(d.lat), lon: cut(d.lon), dist_km: cut(d.dist_km), leg: cut(d.leg), vars, pump_low: cut(d.pump_low), n: d.t.length - i0 };
+    out.shown = out.lat.filter((x) => x != null).length;
+    out.limits = Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(out) : null)]));
+    out.label = spanWindow().label;                                   // the map's foot names the span and its stretch
+    const t0 = out.t.find((t) => t != null); if (t0 != null) out.start = new Date(t0).toISOString();
+    return out;
   }
   // the cover window's bins before the span's first bin, then the span's
   // own, finer bins: one record with the span at its native resolution
@@ -351,14 +361,15 @@
       li.querySelector("input").onchange = (e) => {
         e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
         store.set("hiddenLegs", [...state.hidden]);
-        legsChanged();
+        requestFit();
+        loadWindow();                                                // the loaded window reaches every shown leg
       };
       ul.appendChild(li);
     }
     $("#legsummary").textContent = `Legs · ${shownLegs().length}/${M.legs.length}`;
     $("#legfoot").textContent = `${shownLegs().length} of ${M.legs.length} legs shown · the ${coverWindowOf(M).label} window loaded`;
     $("#legall").onclick = (e) => { e.preventDefault(); showAllLegs(); };
-    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); legsChanged(); };
+    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); loadWindow(); };
   }
 
   // ------------------------------------------------------------ header
@@ -402,7 +413,7 @@
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
     $("#spanlabel").textContent = labels[idx]; r.setAttribute("aria-valuetext", labels[idx]);
-    const pick = (label) => { state.win = label; store.set("win", state.win); loadWindow(); };
+    const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); loadWindow(); };
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; r.setAttribute("aria-valuetext", labels[r.value]); };
     r.onchange = () => pick(labels[r.value]);
     // the same choice as a dropdown, which is what a phone shows instead of the slider
@@ -441,7 +452,7 @@
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
     {
       const r = $("#trackstep"), out = $("#tracksteplabel");
-      if (state.trackKm == null) setTrackDetail(detailFor(coverWindowOf(M).hours));
+      if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
       let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
       r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);
       r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
@@ -726,7 +737,7 @@
   // Daily camera timelapses (dashboard.cameras): a camera glyph where the
   // day's shots were taken; a click plays the day's video in a popup over
   // the map, with previous/next stepping through the shown days.
-  const camsShown = (f = currentFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
+  const camsShown = (f = spanFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
     .filter((c) => c.lat != null && c.lon != null && state.cameras && inFilter(c.leg, c.mid_utc, f))
     .sort((a, b) => a.day.localeCompare(b.day));
   function cameraTraces(f) {
@@ -974,9 +985,10 @@
   // of the window is cut the same way, so hover, colours and the pump marks
   // line up with the points drawn.
   const TRACK_STEPS = [50, 20, 10, 5, 2, 1, 0.5, 0];         // left to right: coarser to every point
-  // the shown legs' length picks a starting detail (up to half a day: every
-  // point; a week: a point a km; months: 5 km; years: 20 km) that the slider
-  // then overrides; "all points" is a choice, never the default
+  // the span picks a starting detail (up to a week: a point a km; months:
+  // 5 km; years: 20 km) that the slider then overrides; "all points" is a
+  // choice, never the default
+  // the track detail a span asks for: every point up to half a day, then coarser as the span grows
   const detailFor = (hours) => hours <= 12 ? 0 : hours <= 48 ? 0.5 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
   const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
   const currentWindow = () => M.windows.find((x) => x.label === state.win);
@@ -1069,9 +1081,9 @@
   });
   function renderMap() {
     if (mapDrawing) { mapAgain = true; return; }
-    const d = thinTrack(state.data, state.trackKm);
+    const d = thinTrack(state.span, state.trackKm);
     const el = $("#map");
-    if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected, or no track for them" : "no data"); $("#mapfoot").textContent = ""; return; }
+    if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1086,7 +1098,7 @@
     // track, and the station markers stay on top so they get the clicks
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
-    const f0 = currentFilter();
+    const f0 = spanFilter();
     const traces = [...planTraces((state.view || fitView(d.lat, d.lon)).zoom), ...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
     const evTraces = eventTraces(f0);
@@ -1127,7 +1139,7 @@
     });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
-    const f = currentFilter();
+    const f = spanFilter();
     // CTD casts (white; orange when selected) and the stations the event log
     // records without a cast (green), each a click target
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
@@ -1208,17 +1220,15 @@
     });
 
     // distance travelled: the along-track extent of each selected leg's
-    // points (dist_km runs on through the whole record)
+    // points in the span (dist_km runs on through the whole record)
     const ext = new Map();
     d.dist_km.forEach((x, i) => { if (x == null || d.lat[i] == null || d.leg[i] == null) return; const e = ext.get(d.leg[i]); if (!e) ext.set(d.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
     const km = [...ext.values()].reduce((a, [lo, hi]) => a + hi - lo, 0);
     const nLegs = shownLegs().length;
-    let t0 = null, t1 = null;                                          // the first and last points drawn
-    for (let i = 0; i < d.t.length; i++) if (d.t[i] != null && d.lat[i] != null) { if (t0 == null) t0 = d.t[i]; t1 = d.t[i]; }
     $("#mapfoot").innerHTML =
-      `<span><b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
+      `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
-      (t0 != null ? `<span class="mono">${fmtTs(t0)} → ${fmtTs(t1)} ${tzAbbr()}</span>` : "") +
+      `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
       (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat && !state.satAt && satImages()[state.sat + "near"] ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages()[state.sat + "near"].scene || satImages()[state.sat + "near"].fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
       plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
@@ -1538,6 +1548,8 @@
     // a remembered colour the page no longer offers (a module gone) falls back to the default
     if (!VAR[state.colour] && !extraColours.has(state.colour)) { state.colour = VAR["SST (°C)"] ? "SST (°C)" : M.variables[0]?.name; store.set("colour", state.colour); renderControls(); }
     state.data = applyLegFilter(state.raw);
+    state.span = spanSlice(state.data);
+    state.data.limits = state.span.limits;                              // the span's limits colour the graphs too
     renderLegMenu();
     render();
     window.UW?.onFilter?.();

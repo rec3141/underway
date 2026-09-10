@@ -6,9 +6,8 @@ lines — variable name, then instrument — 10-second cadence, ~68 columns).
 
 The page shows a map of the ship's track coloured by any variable, a panel per
 variable, and a "surprise" panel that flags minutes that look unusual against
-the previous 48 hours. A leg list filters what is shown, and the map draws the
-chosen legs whole; a span slider opens the graphs on the last hour up to the
-whole record.
+the previous 48 hours. A span slider reaches from the last hour back across
+every leg on the share, and a leg list filters what is shown.
 
 A Theme picker in the header offers four looks: Claude dark (the default),
 Claude light, and Minimal dark and light, which set bigger type on flat
@@ -130,8 +129,8 @@ minute, and any colliding host can be listed in `SHIP_EXTRA_HOSTS` for its own
 ### Map layers
 
 Besides the track, stations and tow tracks, the map offers an **Event log**
-layer (geolocated entries of the ship's event log, filtered by the shown legs,
-grouped by position so several events at one spot share a marker and
+layer (geolocated entries of the ship's event log, filtered by the shown legs
+and span, grouped by position so several events at one spot share a marker and
 one hover) and a **Places** layer: settlements of Nunavut, the NWT,
 Labrador, the northern shores of Québec/Ontario/Manitoba and all of Greenland,
 from GeoNames (CC BY 4.0), with a curated list of Inuit, Greenlandic and older
@@ -366,7 +365,7 @@ retried even if the build timestamp has not changed.
 
 - *Page loads but map is blank*: check `static/geo/*.geojson` served (200) and
   that the browser has WebGL. The map is Plotly `scattermap` (MapLibre).
-- *"nothing to show"*: all legs unticked, or the ticked legs have no track.
+- *"nothing to show"*: all legs unticked, or the span holds no data.
 - *Timer runs but nothing changes*: `journalctl -u underway.service`; a lock
   held by a stuck run is `AMUNDSEN/cache/.run.lock`.
 - *Mount points empty after boot*: `systemctl start mnt-ship-Data.automount
