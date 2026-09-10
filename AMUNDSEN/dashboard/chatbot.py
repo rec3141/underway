@@ -899,10 +899,16 @@ class Crew:
             speakers = handles
         elif channel == "crew":
             speakers = handles or ([random.choice(room_bots)] if room_bots else [])
-        elif channel == "ada" or (channel.startswith("dm:") and room_bots == ["doc"]):
-            h = "ada" if channel == "ada" else "doc"
-            speakers = [h] if h in room_bots else []
-            task = (f"{name} asks in the {PERSONAS[h]['room']}: \"{text}\". Answer fully from {'the record and ' if h == 'doc' else ''}the "
+        elif channel == "ada" or channel == "deck" or (channel.startswith("dm:") and room_bots == ["doc"]):
+            # a reading room: the Library (Ada), the Lab (Doc), or the Deck, where both are and both answer
+            # (or the one asked for by handle), each from their own half
+            if channel == "deck":
+                speakers = [h for h in handles if h in room_bots] or list(room_bots)
+            else:
+                h = "ada" if channel == "ada" else "doc"
+                speakers = [h] if h in room_bots else []
+            where = "on the Deck, where Ada and Doc both are" if channel == "deck" else f"in the {PERSONAS[speakers[0]]['room']}" if speakers else ""
+            task = (f"{name} asks {where}: \"{text}\". Answer fully from the record and the "
                     f"pages you have, citing each you draw on by its number in square brackets after the sentence it supports, never "
                     f"by title; speak of the sources by name, never of 'the wiki' or 'the excerpts'; and where you have nothing, say "
                     f"so as yourself. Where a picture or a quotation on the shelf shows what a paragraph of yours says, end that "

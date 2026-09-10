@@ -38,10 +38,19 @@
   const isDM = (ch) => ch.startsWith("dm:");
   // a private room with a crew member is named for where they are found
   const partnerTitle = (n) => { if (!n.startsWith("@")) return n; const c = st.crew.find((x) => x.handle === n.slice(1)); return c ? (c.room || c.name) : n; };
-  const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: ch === "ship" ? "Ship" : ch === "crew" ? "Crew" : ch === "ada" ? "Library" : ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).map(partnerTitle).join(", ") || "Me", kind: isDM(ch) ? "dm" : "room" };
+  // the rooms that are always there: the Mess (everyone), the Lounge (the crew's own), the Library (Ada), the Deck (Ada and Doc together)
+  const ROOMS = [
+    { ch: "ship", title: "Mess", icon: "🍽️", hint: "the Mess: everyone; the crew answer when @mentioned" },
+    { ch: "crew", title: "Lounge", icon: "🛋️", hint: "the Lounge: the AI crew's room, where they talk among themselves" },
+    { ch: "ada", title: "Library", icon: "📖", hint: "the Library: ask Ada, the librarian, about the region's past" },
+    { ch: "deck", title: "Deck", icon: "🧭", hint: "the Deck: ask Ada and Doc together, the history and the nature" },
+  ];
+  const fixedRoom = (ch) => ROOMS.find((r) => r.ch === ch);
+  const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: fixedRoom(ch)?.title || (ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).map(partnerTitle).join(", ") || "Me"), kind: isDM(ch) ? "dm" : "room" };
   const roomTitle = (ch) => roomInfo(ch).title;
   const dmWith = (ch, h) => isDM(ch) && ch.slice(3).split("|").includes("@" + h);   // a direct message with this crew member
   const placeholder = (ch) => ch === "ada" ? "ask Ada, the librarian · Enter to send"
+    : ch === "deck" ? "ask Ada and Doc · Enter to send"
     : dmWith(ch, "doc") ? "ask Doc, the naturalist · Enter to send"
     : ch === "crew" ? "talk to the crew · Enter to send"
     : isDM(ch) ? `message ${roomTitle(ch)} · Enter to send` : "message · Enter to send";
@@ -64,39 +73,37 @@
       for (const p of document.querySelectorAll(".plot, #map")) if (p.data && p.offsetParent) window.Plotly?.Plots.resize(p);
     }, 80);
   }
-  // the room bar: the three rooms, then the direct messages, a dot on any with news
+  // the room bar: the rooms that are always there, the crew's own rooms (a private room with each), then the
+  // private rooms with people, a dot on any with news
+  const dmChannel = (withName) => "dm:" + [st.myName.toLowerCase(), withName.toLowerCase()].sort().join("|");
   function renderRooms() {
-    const fixed = ["ship", "crew", "ada"].map((ch) => roomInfo(ch));
-    const dms = st.rooms.filter((r) => r.kind === "dm" && !(st.closed[r.channel] && (r.latest || 0) <= st.closed[r.channel]));
-    if (isDM(st.room) && !dms.some((r) => r.channel === st.room)) dms.unshift(roomInfo(st.room));   // a room just opened, empty so far
-    roomsEl.innerHTML = [...fixed, ...dms].map((r) => {
-      const fresh = r.channel !== st.room && (st.latest[r.channel] || 0) > (st.seen[r.channel] || 0);
-      return `<button type="button" data-ch="${esc(r.channel)}" class="${r.channel === st.room ? "on" : ""} ${r.kind}" title="${esc(r.kind === "dm" ? "direct messages with " + r.title : r.channel === "ship" ? "the ship's room: everyone; the crew answer when @mentioned" : r.channel === "crew" ? "the AI crew's room" : "the Library: ask Ada about the region's past")}"><span class="rdot" ${fresh ? "" : "hidden"}></span>${esc(r.title)}</button>`;
-    }).join("") + `<button type="button" id="chatnew" title="a direct message with someone here, or with a crew member">+</button>` +
+    const fresh = (ch) => ch !== st.room && (st.latest[ch] || 0) > (st.seen[ch] || 0);
+    const btn = (ch, label, hint, cls = "room") => `<button type="button" data-ch="${esc(ch)}" class="${ch === st.room ? "on" : ""} ${cls}" title="${esc(hint)}"><span class="rdot" ${fresh(ch) ? "" : "hidden"}></span>${label}</button>`;
+    const fixed = ROOMS.map((r) => btn(r.ch, `${r.icon} ${esc(r.title)}`, r.hint));
+    const crewRooms = st.crew.filter((c) => c.handle !== "ada").map((c) => btn(st.myName ? dmChannel("@" + c.handle) : `@${c.handle}`, `${esc(c.emoji)} ${esc(c.room || c.name)}`, `the ${c.room || c.name}: a private room with ${c.name} (${c.beat})`, "room crew"));
+    const dms = st.rooms.filter((r) => r.kind === "dm" && !(st.closed[r.channel] && (r.latest || 0) <= st.closed[r.channel]) && !st.crew.some((c) => dmWith(r.channel, c.handle)));
+    if (isDM(st.room) && !dms.some((r) => r.channel === st.room) && !st.crew.some((c) => dmWith(st.room, c.handle))) dms.unshift(roomInfo(st.room));   // a room just opened, empty so far
+    roomsEl.innerHTML = [...fixed, ...crewRooms, ...dms.map((r) => btn(r.channel, esc(r.title), "a private room with " + r.title, "dm"))].join("") +
+      `<button type="button" id="chatnew" title="a private room with someone here">+</button>` +
       // the room's own tools sit at the right end of the row, out of the head
       `<span class="tools">${st.room === "ship" ? `<button type="button" id="chataibtn" title="${st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names"}">${st.noai ? "show AI" : "hide AI"}</button>` : ""}` +
       (isDM(st.room)
         ? `<button type="button" id="chatclearbtn" title="close this conversation: its history is erased and the room leaves the row">close</button>`
         : `<button type="button" id="chatclearbtn" title="clear this room on this device; others keep their copy">clear</button>`) + `</span>`;
-    for (const b of roomsEl.querySelectorAll("button[data-ch]")) b.onclick = () => setRoom(b.dataset.ch);
+    for (const b of roomsEl.querySelectorAll("button[data-ch]")) b.onclick = () => (b.dataset.ch.startsWith("@") ? openDM(b.dataset.ch) : setRoom(b.dataset.ch));   // a crew room before a name is given asks for the name
     $("#chatnew").onclick = () => togglePicker();
     $("#chatclearbtn").onclick = clearRoom;
     const ai = $("#chataibtn"); if (ai) ai.onclick = () => { st.noai = !st.noai; store.set("chat.noai", st.noai); layout(); poll(); };
   }
-  // who a direct message can be with: people here, and the crew
+  // a private room with someone here
   function togglePicker(force) {
     const show = force ?? pickerEl.hidden;
     if (!show) { pickerEl.hidden = true; return; }
     const me = st.myName.toLowerCase();
     const people = st.online.filter((n) => n.name.toLowerCase() !== me);
-    const crew = st.crew.map((c) => ({ name: "@" + c.handle, label: `${c.emoji} ${c.name}`, sub: c.room ? `the ${c.room}` : c.beat }));
-    pickerEl.innerHTML = `<div class="pickhead">Rooms</div>` +
-      ["ship", "crew", "ada"].map((ch) => `<button type="button" data-room="${ch}">${esc(roomTitle(ch))}</button>`).join("") +
-      `<div class="pickhead">Message…</div>` +
-      (people.length ? people.map((n) => `<button type="button" data-with="${esc(n.name)}">${esc(n.emoji || "•")} ${esc(n.name)}</button>`).join("") : `<div class="muted small">nobody else has the page open</div>`) +
-      `<div class="pickhead">The crew</div>` + crew.map((c) => `<button type="button" data-with="${esc(c.name)}">${esc(c.label)} <span class="muted">${esc(c.sub)}</span></button>`).join("");
+    pickerEl.innerHTML = `<div class="pickhead">A private room with…</div>` +
+      (people.length ? people.map((n) => `<button type="button" data-with="${esc(n.name)}">${esc(n.emoji || "•")} ${esc(n.name)}</button>`).join("") : `<div class="muted small">nobody else has the page open</div>`);
     for (const b of pickerEl.querySelectorAll("button[data-with]")) b.onclick = () => { pickerEl.hidden = true; openDM(b.dataset.with); };
-    for (const b of pickerEl.querySelectorAll("button[data-room]")) b.onclick = () => { pickerEl.hidden = true; setRoom(b.dataset.room); };
     pickerEl.hidden = false;
   }
   function openDM(withName) {
@@ -177,6 +184,7 @@
         who.classList.remove("warn");
         who.textContent = isDM(room) ? (dmWith(room, "doc") ? "the Lab: ask Doc about the living things, the ice, the water and the sky" : st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
           : room === "ada" ? "the Library: ask Ada about the region's past"
+          : room === "deck" ? "the Deck: Ada and Doc together, the history and the nature"
           : st.online.length ? `${st.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
       }
       who.title = st.online.map((n) => n.name).join(", ");
@@ -189,8 +197,8 @@
       const members = st.crew.filter((c) => st.roomBots.includes(c.handle));
       crewEl.hidden = !st.crew.length || noai;
       crewEl.innerHTML = !st.crew.length ? "" : room === "ship"
-        ? `${light}AI crew${on ? "" : " offline"}, answer when mentioned: ` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ")
-        : `${light}${on ? "" : "offline: no model loaded, and the chat never loads one itself. "}${members.map((c) => `${esc(c.emoji)} ${esc(c.name)}`).join(", ")}${members.length ? (room === "ada" ? " is here" : room === "crew" ? " are here and may speak first" : " is here and may speak first") : ""}`;
+        ? `${light}AI crew${on ? "" : " offline"}, answer when mentioned:<br>` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ")
+        : `${light}${on ? "" : "offline: no model loaded, and the chat never loads one itself. "}${members.map((c) => `${esc(c.emoji)} ${esc(c.name)}`).join(", ")}${members.length ? (room === "crew" ? " are here and may speak first" : members.length > 1 ? " are here" : " is here") : ""}`;
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
       el.classList.toggle("model-off", !on);
       layout();
@@ -245,7 +253,7 @@
   window.UW = Object.assign(window.UW || {}, {
     chatToggle: () => { if (st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } },
     // a room by name, or a crew member's private room by handle (Ada has a room of her own; the others are met one to one)
-    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } if (room !== "ada" && st.crew.some((c) => c.handle === room)) openDM("@" + room); else setRoom(room === "historian" ? "ada" : room); },
+    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } if (!fixedRoom(room) && st.crew.some((c) => c.handle === room)) openDM("@" + room); else setRoom(room === "historian" ? "ada" : room); },
   });
 
   nameIn.onchange = async () => {
