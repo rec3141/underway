@@ -267,6 +267,48 @@ _STOP = set("the and for with that this from were was are have has had not but h
             "wiki mention mentioned anything something about".split())
 
 
+def _read_rows(root: Path, name: str) -> list[dict]:
+    f = root / "data" / "history" / f"{name}.json"
+    try:
+        return json.loads(f.read_text(encoding="utf-8")).get(name, []) if f.is_file() else []
+    except (OSError, ValueError):
+        return []
+
+
+def row_facts(root: Path) -> dict[str, str]:
+    """One line of facts per generated page, by slug, from the published rows:
+    what the page body no longer carries and the historian must still see."""
+    out: dict[str, str] = {}
+    def line(parts) -> str:
+        return "; ".join(f"{k}: {v}" if k else str(v) for k, v in parts if v not in (None, "", [], "[]"))
+    def span(r) -> str:
+        return f"{r.get('born') or '?'}–{r.get('died') or ''}" if (r.get("born") or r.get("died")) else ""
+    def pos(r) -> str:
+        return f"{float(r['lat']):.3f}, {float(r['lon']):.3f}" if r.get("lat") is not None and r.get("lon") is not None else ""
+    for a in _read_rows(root, "artifacts"):
+        out[a.get("page", f"artifact/{a.get('id')}")] = line([("kind", a.get("type")), ("date", a.get("date_text") or a.get("date_start")),
+            ("creator", a.get("creator")), ("position", pos(a)), ("credit", a.get("credit")), ("source", a.get("bibkey")),
+            ("pages", a.get("pages")), ("people", ", ".join(a.get("people") or []))])
+    for r in _read_rows(root, "places"):
+        out[r.get("page", "")] = line([("kind", r.get("kind")), ("Inuktitut name", r.get("inuktitut")), ("historic name", r.get("historic")),
+            ("position", pos(r)), ("source", r.get("bibkey"))])
+    for r in _read_rows(root, "people"):
+        out[r.get("page", "")] = line([("role", r.get("role")), ("affiliation", r.get("affiliation")), ("lived", span(r)),
+            ("also written", r.get("also")), ("Indigenous", "yes" if r.get("indigenous") else ""), ("source", r.get("bibkey"))])
+    for r in _read_rows(root, "animals"):
+        out[r.get("page", "")] = line([("kind", r.get("kind")), ("role", r.get("role")), ("affiliation", r.get("affiliation")),
+            ("lived", span(r)), ("also called", r.get("also")), ("source", r.get("bibkey"))])
+    for r in _read_rows(root, "vessels"):
+        out[r.get("page", "")] = line([("kind", ", ".join(x for x in (r.get("kind_label") or r.get("kind"), r.get("kind_note")) if x)),
+            ("role", r.get("role")), ("built", r.get("built")), ("fate", r.get("lost")), ("affiliation", r.get("affiliation")),
+            ("tonnage", r.get("tonnage")), ("also", r.get("also")), ("source", r.get("bibkey"))])
+    for e in _read_rows(root, "events"):
+        when = e.get("date_text") or " to ".join(x for x in (e.get("date_start"), e.get("date_end")) if x)
+        out[f"event/{e.get('id')}"] = line([("date", when), ("place", e.get("place")), ("position", pos(e)),
+            ("people", ", ".join(e.get("people") or [])), ("source", e.get("bibkey"))])
+    return {k: v for k, v in out.items() if k and v}
+
+
 def wiki_pages(root: Path) -> list[dict]:
     """Every published History page, held in memory until the build publishes anew."""
     idx = root / "data" / "history" / "index.json"
@@ -276,6 +318,7 @@ def wiki_pages(root: Path) -> list[dict]:
     if _wiki_cache["stamp"] == stamp:
         return _wiki_cache["pages"]
     pages = []
+    facts = row_facts(root)
     for f in sorted((root / "data" / "history" / "pages").glob("*.json")):
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
@@ -283,6 +326,11 @@ def wiki_pages(root: Path) -> list[dict]:
             continue
         text = re.sub(r"<[^>]+>", " ", d.get("html", ""))
         text = re.sub(r"\]\([^)]*\)", "]", text)              # link targets are noise for matching
+        # a generated page's body is its row's prose alone; the row's other
+        # fields (the date, the position, the source, the people) are what
+        # the historian needs to answer where and when, so they go back on
+        if d.get("slug") in facts:
+            text = (text.rstrip() + "\n" + facts[d["slug"]]).strip()
         d["_text"] = text
         d["_words"] = _WORD_RX.findall((d.get("title", "") + " " + d.get("summary", "") + " " + text).lower())
         pages.append(d)

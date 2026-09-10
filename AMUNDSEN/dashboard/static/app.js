@@ -71,13 +71,57 @@
   }
   let VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
 
+  // ------------------------------------------------------------ theme
+  // The stylesheet owns the colours (style.css, the token block at the top);
+  // the graphs and the map read them from the root's custom properties. The
+  // objects are updated in place, so a module that took THEME or C at load
+  // sees the new theme at its next draw.
+  const THEMES = { "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light" };
+  const themeName = () => { const t = store.get("theme", null); return THEMES[t] ? t : "claude-dark"; };
+  const C = {};                                            // the theme's colours by token name, camel-cased: C.accent2, C.markerLine, C.palette[i]
+  let fontScale = 1;                                       // the root font size over the 14px the graph sizes are written for
+  const fz = (n) => Math.round(n * fontScale * 10) / 10;
   const THEME = {
-    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#121920",
-    font: { color: "#c9d4e0", family: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", size: 12.5 },
-    xaxis: { gridcolor: "#243040", zerolinecolor: "#243040", linecolor: "#34435a" },
-    yaxis: { gridcolor: "#243040", zerolinecolor: "#243040", linecolor: "#34435a" },
-    hoverlabel: { bgcolor: "#1b242e", bordercolor: "#5cc8ff", font: { color: "#e6ecf2", size: 12 } },
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "",
+    font: { color: "", family: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", size: 12.5 },
+    xaxis: {}, yaxis: {},
+    hoverlabel: { bgcolor: "", bordercolor: "", font: { color: "", size: 12 } },
   };
+  function readTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = (k) => cs.getPropertyValue("--" + k).trim();
+    for (const k of ["bg", "card", "card-2", "line", "fg", "fg-2", "muted", "accent", "on-accent", "accent-2", "warn", "ok", "bad", "now", "purple", "pink", "gold",
+                     "marker", "marker-line", "floor", "floor-line", "map-bg", "map-land", "map-coast", "map-ice", "sketch-coast", "plot-legend-bg"])
+      C[k.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())] = v(k);
+    C.palette = v("palette").split(/\s+/);
+    C.bathy = v("map-bathy").split(/\s+/);
+    C.dark = cs.colorScheme !== "light";
+    fontScale = (parseFloat(cs.fontSize) || 14) / 14;
+    THEME.plot_bgcolor = v("plot-bg");
+    Object.assign(THEME.font, { color: v("plot-fg"), size: fz(12.5) });
+    for (const ax of ["xaxis", "yaxis"]) Object.assign(THEME[ax], { gridcolor: v("plot-grid"), zerolinecolor: v("plot-grid"), linecolor: v("plot-line") });
+    Object.assign(THEME.hoverlabel, { bgcolor: v("hover-bg"), bordercolor: v("accent") });
+    Object.assign(THEME.hoverlabel.font, { color: v("fg"), size: fz(12) });
+  }
+  // the theme on the page: the attribute the stylesheet keys on, the colours
+  // read back, and (after a change) every graph and the map drawn again
+  function applyTheme(name, redraw = false) {
+    document.documentElement.dataset.theme = name;
+    readTheme();
+    const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = C.bg;
+    const sel = $("#theme"); if (sel && sel.value !== name) sel.value = name;
+    if (!redraw) return;
+    render();
+    window.UW?.refreshActiveTab?.(true);
+    document.dispatchEvent(new CustomEvent("uw:theme", { detail: { name } }));
+  }
+  applyTheme(themeName());
+  {
+    const sel = $("#theme");
+    sel.innerHTML = Object.entries(THEMES).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+    sel.value = themeName();
+    sel.onchange = () => { store.set("theme", sel.value); applyTheme(sel.value, true); };
+  }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
 
   // Shift+scroll zooms the x axis alone, Ctrl+scroll the y axis alone, about
@@ -453,8 +497,7 @@
   }
 
   // ------------------------------------------------------------ basemap
-  const DEPTH_FILL = [[0, "#28556f"], [200, "#234b66"], [1000, "#1d405b"], [2000, "#183650"], [3000, "#142d45"],
-    [4000, "#10253a"], [5000, "#0d1e30"], [6000, "#0a1828"], [7000, "#081422"], [8000, "#07111d"], [9000, "#060e19"], [10000, "#050c15"]];
+  const DEPTHS = [0, 200, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];   // the bathymetry contours, coloured by C.bathy in order
 
   // The basemap lives in the MapLibre style, not in Plotly's layer list.
   // Plotly drops and re-adds its layout layers on every react, which made
@@ -497,13 +540,13 @@
     // which MapLibre rejects on installations without raster tiles.
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const relief = !!SITE.raster;
-    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${sat?.url || ""}|${near?.url || ""}`,
+    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}`,
                     sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
                     sprite: base0 + (SITE.sprite || "static/geo/sprite"),   // squares, triangles, the ship (tools/make_sprite.py); versioned by the build
                     // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
                     // Open Sans Regular PBFs are served locally so it works offline
                     glyphs: base0 + "static/geo/glyphs/{fontstack}/{range}.pbf",
-                    layers: [{ id: "bg", type: "background", paint: { "background-color": "#0b1620" } }] };
+                    layers: [{ id: "bg", type: "background", paint: { "background-color": C.mapBg } }] };
     if (relief) {
       // the pyramid is the globe up to one zoom and, above that, only a box (the
       // Arctic at z9): a source per run, the boxed one with bounds, so MapLibre
@@ -525,19 +568,19 @@
                               ...(vt.bounds ? { bounds: vt.bounds } : {}), attribution: vt.attribution };
     }
     if (!relief) {
-      for (const [depth, color] of DEPTH_FILL) add(`bathy-${depth}`, g.bathy?.[depth], { type: "fill", paint: { "fill-color": color, "fill-opacity": 1 } });
-      if (vt) style.layers.push({ id: "land", type: "fill", source: "coast", "source-layer": "land", paint: { "fill-color": "#2b3441" } });
-      add("land", g.land, { type: "fill", paint: { "fill-color": "#2b3441" } });
-      add("islands", g.isl, { type: "fill", paint: { "fill-color": "#2b3441" } });
+      DEPTHS.forEach((depth, i) => add(`bathy-${depth}`, g.bathy?.[depth], { type: "fill", paint: { "fill-color": C.bathy[i] || C.bathy[C.bathy.length - 1], "fill-opacity": 1 } }));
+      if (vt) style.layers.push({ id: "land", type: "fill", source: "coast", "source-layer": "land", paint: { "fill-color": C.mapLand } });
+      add("land", g.land, { type: "fill", paint: { "fill-color": C.mapLand } });
+      add("islands", g.isl, { type: "fill", paint: { "fill-color": C.mapLand } });
     }
-    add("ice", g.glac, { type: "fill", paint: { "fill-color": "#dfe7ef", "fill-opacity": relief ? .35 : .9 } });
+    add("ice", g.glac, { type: "fill", paint: { "fill-color": C.mapIce, "fill-opacity": relief ? .35 : .9 } });
     for (const [id, im, op] of [["sat", sat, .95], ["satnear", near, 1]]) {
       if (!im) continue;
       style.sources[id] = { type: "image", url: new URL(im.url, location.href).href, coordinates: im.corners };
       style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": op } });
     }
-    if (vt) style.layers.push({ id: "coast", type: "line", source: "coast", "source-layer": "coast", paint: { "line-color": "#8ea3ba", "line-width": 1 } });
-    add("coast", g.coast, { type: "line", paint: { "line-color": "#8ea3ba", "line-width": 1 } });
+    if (vt) style.layers.push({ id: "coast", type: "line", source: "coast", "source-layer": "coast", paint: { "line-color": C.mapCoast, "line-width": 1 } });
+    add("coast", g.coast, { type: "line", paint: { "line-color": C.mapCoast, "line-width": 1 } });
     return style;
   }
 
@@ -711,7 +754,7 @@
       lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon),
       text: cs.map((c) => (c.pop >= minPop || (c.code === "PPLA" && zoom >= 2.5)) ? c.name : ""),
       hovertext: cs.map((c) => `<b>${esc(c.name)}</b>${c.alt?.length ? " · " + esc(c.alt.join(" · ")) : ""}<br>${esc(c.region)}, ${c.cc === "GL" ? "Greenland" : "Canada"}${c.pop ? ` · pop. ${c.pop.toLocaleString()}` : ""}`),
-      textposition: "top right", textfont: { size: 11, color: "#f2e7c9", family: "Open Sans Regular" },
+      textposition: "top right", textfont: { size: fz(11), color: "#f2e7c9", family: "Open Sans Regular" },
       marker: { symbol: "square", size: sz, opacity: .9 },
     }));
   }
@@ -796,7 +839,7 @@
         lat: t.coords.map((c) => c[1]), lon: t.coords.map((c) => c[0]), hovertext: t.coords.map(() => t.name), hovertemplate: "%{hovertext}<extra></extra>",
         line: { width: t.alternate ? 1.2 : 2.2, color: pl.colour }, opacity: t.alternate ? .45 : .95 });
       if (pl.stations.length) out.push({ type: "scattermap", mode: "markers+text", name: `${pl.key}-stations`, showlegend: false,
-        lat: pl.stations.map((s) => s.lat), lon: pl.stations.map((s) => s.lon), text: planLabels(pl.stations, zoom), textposition: "top right", textfont: { size: 11, color: pl.label },
+        lat: pl.stations.map((s) => s.lat), lon: pl.stations.map((s) => s.lon), text: planLabels(pl.stations, zoom), textposition: "top right", textfont: { size: fz(11), color: pl.label },
         hovertext: pl.stations.map((s) => `<b>${esc(s.name)}</b>${s.type ? " · " + esc(s.type) : ""}${s.region ? "<br>" + esc(s.region) : ""}${s.group ? "<br>" + esc(s.group) : ""}${s.depth_m != null ? `<br>depth ${Math.round(s.depth_m)} m` : ""}<br>planned station`),
         hovertemplate: "%{hovertext}<extra></extra>", marker: { size: 7, color: pl.colour, opacity: .95 } });
     }
@@ -984,8 +1027,8 @@
       marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
                 opacity: .95,
                 // the scale lies along the top of the map, under the Color by picker
-                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: 12 } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
-                  tickfont: { size: 11 }, outlinewidth: 0, bgcolor: "rgba(15,20,25,.6)" } },
+                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: fz(12) } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
+                  tickfont: { size: fz(11) }, outlinewidth: 0, bgcolor: C.plotLegendBg } },
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1035,9 +1078,9 @@
       type: "scattermap", mode: "markers+text", name: "stations", showlegend: false,
       lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
       customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, (state.view || fitView(d.lat, d.lon)).zoom),
-      textposition: "top right", textfont: { size: 11, color: "#e8f4ff", family: "Open Sans Regular" },
+      textposition: "top right", textfont: { size: fz(11), color: "#e8f4ff", family: "Open Sans Regular" },
       marker: { size: st.map((s) => selected.has(stKey(s)) ? 14 : 9),
-                color: st.map((s) => selected.has(stKey(s)) ? "#ffb454" : s.kind === "event" ? "#7ee787" : "rgba(255,255,255,.9)"),
+                color: st.map((s) => selected.has(stKey(s)) ? C.accent2 : s.kind === "event" ? C.ok : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
     // an all-but-invisible oversized copy on top gives each station a generous
@@ -1052,7 +1095,7 @@
     if (state.focus) traces.push({
       type: "scattermap", mode: "markers", name: "focus", showlegend: false, hoverinfo: "text", text: [state.focus.label],
       lat: [state.focus.lat, state.focus.lat], lon: [state.focus.lon, state.focus.lon],
-      marker: { size: [22, 12], color: ["#5cc8ff", "#0f1419"], opacity: [.9, 1] },
+      marker: { size: [22, 12], color: [C.accent, C.bg], opacity: [.9, 1] },
     });
 
     const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
@@ -1308,15 +1351,15 @@
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const layout = {
-      ...THEME, margin: { l: 52, r: 8, t: 6, b: 34 }, showlegend: false, hovermode: "closest", hoverdistance: 14,
+      ...THEME, margin: { l: fz(52), r: 8, t: fz(6), b: fz(34) }, showlegend: false, hovermode: "closest", hoverdistance: 14,
       dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
       uirevision: uirev,
-      xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 },
+      xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) },
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
                ticksuffix: state.xmode === "time" ? "" : " km",
                ...(window.innerWidth < 640 ? { nticks: 4, tickangle: 0 } : {}) },   // a phone's plot: few, level ticks, clear of the title
-      yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
+      yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
     if (!useLog && !v.circular) {
@@ -1555,7 +1598,7 @@
 
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
-    state, SITE, THEME, CFG, fetchJSON, setLoadError,
+    state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, inFilter, tms, setSpan, widenSpan, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
@@ -1608,6 +1651,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
     window.addEventListener("resize", () => { Plotly.Plots.resize($("#map")); });
+    new ResizeObserver(() => { if ($("#map").data) Plotly.Plots.resize($("#map")); }).observe($("#map"));   // the map box also changes as the bars round it fill, not only with the window
     wirePlanDrop(); renderPlanPills();
     document.addEventListener("click", (e) => { const m = $("#legmenu"); if (m.open && !m.contains(e.target)) m.open = false; });
   })();

@@ -4,9 +4,9 @@
   "use strict";
   const UW = window.UW;
   const $ = (s) => document.querySelector(s);
-  const { THEME, CFG, fmtTs, fmtVal, dms, store } = UW;
+  const { THEME, C, fz, CFG, fmtTs, fmtVal, dms, store } = UW;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const PALETTE = ["#5cc8ff", "#ffb454", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
+  const pal = (i) => C.palette[i % C.palette.length];      // the theme's data palette, round and round
   const getJSON = UW.fetchJSON;
   const cachedJSON = window.UWData.generationCache(getJSON, () => UW.M.generated_utc);
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
@@ -93,15 +93,15 @@
       const sel = tows.filter((c) => casts.sel.has(c.id));
       if (sel.length) out.push({ type: "scattermap", mode: "lines", name: "selected tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
         lat: sel.flatMap((c) => [...c.track.map((t) => t[0]), null]), lon: sel.flatMap((c) => [...c.track.map((t) => t[1]), null]),
-        line: { width: 4, color: "#ffb454" } });
+        line: { width: 4, color: C.accent2 } });
       const dips = tows.flatMap((c) => dipSel(c.id).map((i) => ({ c, i })));
       if (dips.length) out.push({ type: "scattermap", mode: "markers", name: "selected dips", showlegend: false, hoverinfo: "text",
         lat: dips.map(({ c, i }) => c.track[i]?.[0]), lon: dips.map(({ c, i }) => c.track[i]?.[1]),
-        text: dips.map(({ c, i }) => `${castLabel(c)} · dip ${i + 1}`), marker: { size: 9, color: "#ffb454" } });
+        text: dips.map(({ c, i }) => `${castLabel(c)} · dip ${i + 1}`), marker: { size: 9, color: C.accent2 } });
       out.push({ type: "scattermap", mode: "markers", name: "MVP tow starts", showlegend: false, hoverinfo: "text",
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
         text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)} · click to select the tow`),
-        marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? "#ffb454" : "#7ee787"), symbol: "circle" } });
+        marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? C.accent2 : C.ok), symbol: "circle" } });
       // generous click target for tow starts (drawn beneath the station targets)
       out.push({ type: "scattermap", mode: "markers", name: "tow hit targets", showlegend: false, hoverinfo: "skip",
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
@@ -264,17 +264,17 @@
     const H = Math.max(360, gdEl.clientHeight || 500), step = 64 / H;
     const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
-    const traces = [], layout = { ...CAST_LAYOUT, hovermode: "closest", margin: { l: 56, r: 16, t: 64, b: 64 }, showlegend: false };
+    const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(64), b: fz(64) }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
     layout.yaxis = depthAxis(maxD * 1.04, { domain: [y0, y1] });
     const yv = spec.depth.map(yT);
     vars.forEach((v, i) => {
-      const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = PALETTE[i % PALETTE.length];
+      const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = pal(i);
       const bottom = i % 2 === 0, k = Math.floor(i / 2);
       const unit = spec.units?.[v] ? ` (${spec.units[v]})` : "";
       // each axis carries a baseline in its colour, ticks tight against it and the
       // title tight against the ticks, so the stacked axes read as groups
-      layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: 12, color }, standoff: 2 }, tickfont: { size: 11, color }, ticks: "outside", ticklen: 3, tickcolor: color,
+      layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: fz(12), color }, standoff: 2 }, tickfont: { size: fz(11), color }, ticks: "outside", ticklen: 3, tickcolor: color,
         showline: true, linecolor: color, linewidth: 1.5, showgrid: i === 0, side: bottom ? "bottom" : "top",
         ...(i === 0 ? { anchor: "y" } : { overlaying: "x", anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) }) };
       const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v}${dash ? " up" : ""}`, xaxis: ax, yaxis: "y",
@@ -285,13 +285,13 @@
     });
     if (spec.nowDepth != null && vars.length) {
       const li = spec.depth.length - 1;
-      traces.push({ type: "scatter", mode: "markers", xaxis: "x", yaxis: "y", x: [spec.vars[vars[0]][li]], y: [yT(spec.nowDepth)], marker: { size: 11, color: "#ffb454", symbol: "diamond" }, hoverinfo: "skip", name: "now" });
+      traces.push({ type: "scatter", mode: "markers", xaxis: "x", yaxis: "y", x: [spec.vars[vars[0]][li]], y: [yT(spec.nowDepth)], marker: { size: 11, color: C.accent2, symbol: "diamond" }, hoverinfo: "skip", name: "now" });
     }
     // the bottle firings: white dots down the right edge, on an axis of their own
     if (casts.bottles && spec.bottles?.length && vars.length) {
       layout.xaxis20 = { overlaying: "x", range: [0, 1], visible: false, fixedrange: true };
       traces.push({ type: "scatter", mode: "markers", xaxis: "x20", yaxis: "y", name: "bottles", x: spec.bottles.map(() => 0.975), y: spec.bottles.map((b) => yT(bottleDepth(b, spec.lat))),
-        text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: "#ffffff", line: { color: "#0b1620", width: 1 } } });
+        text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
     if (!vars.length) { body.innerHTML = '<div class="empty">Tick at least one variable above.</div>'; return; }
     Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd, { x: false }));
@@ -460,7 +460,7 @@
   const yT = (d) => d == null ? null : casts.dscale === "sqrt" ? Math.sqrt(Math.max(0, d)) : d;
   const DEPTH_TICKS = [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
   function depthAxis(maxD, extra = {}) {
-    const ax = { ...THEME.yaxis, title: { text: casts.dscale === "sqrt" ? "depth (m, compressed)" : "depth (m)", font: { size: 12 }, standoff: 2 }, tickfont: { size: 12 },
+    const ax = { ...THEME.yaxis, title: { text: casts.dscale === "sqrt" ? "depth (m, compressed)" : "depth (m)", font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
       autorange: false, range: [yT(maxD), 0], ...extra };
     if (casts.dscale === "sqrt") { const t = DEPTH_TICKS.filter((d) => d <= maxD); ax.tickvals = t.map(yT); ax.ticktext = t.map(String); }
     return ax;
@@ -523,7 +523,7 @@
     }
     for (const chip of host.querySelectorAll(".dock .chip")) chip.onclick = () => { castPanelState.min.delete(chip.dataset.var); saveCastPanels(); rerender(); };
   }
-  const CAST_LAYOUT = { ...THEME, margin: { l: 52, r: 8, t: 6, b: 36 }, showlegend: false, dragmode: "pan" };
+  const castLayout = () => ({ ...THEME, margin: { l: fz(52), r: 8, t: fz(6), b: fz(36) }, showlegend: false, dragmode: "pan" });   // read at draw time: the theme may have changed
 
   function renderProfiles(host, data) {
     // the legend is a panel like the graphs (movable, minimisable), named LEGEND in the order
@@ -533,7 +533,7 @@
     if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
     const legendHtml = () => castPanelHtml("cp-legend", LEGEND, `${data.length} cast${data.length === 1 ? "" : "s"}`, true, true, false, false)
       .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
-      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${PALETTE[i % PALETTE.length]}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
+      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
     host.innerHTML = vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("") +
       (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "");
     for (const v of vars) {
@@ -543,7 +543,7 @@
         const ps = profilesOf(d);
         ps.forEach((p, j) => {
           if (!p.vars[v]) return;
-          const colour = ps.length > 1 ? towShade(PALETTE[i % PALETTE.length], j, ps.length) : PALETTE[i % PALETTE.length];
+          const colour = ps.length > 1 ? towShade(pal(i), j, ps.length) : pal(i);
           traces.push({
             type: "scatter", mode: "lines", name: p.label, x: drawn(p, v), y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
             line: { width: ps.length > 1 ? 1 : 1.6, color: colour },
@@ -555,12 +555,12 @@
             type: "scatter", mode: "markers", name: `${p.label} bottles`, showlegend: false,
             x: bts.map((b) => valueAt(p, v, b.p ?? b.depth_m)), y: bts.map((b) => yT(bottleDepth(b, p.lat ?? d.lat))),
             text: bts.map((b) => `${esc(p.label)}<br>${bottleText(b)} · ${Math.round(bottleDepth(b, p.lat ?? d.lat))} m`), hoverinfo: "text",
-            marker: { size: 7, color: colour, line: { color: "#ffffff", width: 1 } },
+            marker: { size: 7, color: colour, line: { color: C.marker, width: 1 } },
           });
         });
       });
-      const layout = { ...CAST_LAYOUT, hovermode: "closest",
-        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 } },
+      const layout = { ...castLayout(), hovermode: "closest",
+        xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) } },
         yaxis: depthAxis(Math.max(1, ...data.flatMap((d) => profilesOf(d).flatMap((p) => p.vars[v] ? depths(p) : []))) * 1.02) };
       Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
     }
@@ -719,10 +719,10 @@
     if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = "Time"; renderCastPlots(); };
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
-        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: 12 }, outlinewidth: 0 },
+        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: fz(12) }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
-        textfont: { size: 10, color: "#c9d4e0" }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: "#ffb454" },
+        textfont: { size: fz(10), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
         hovertext: withVar.map((d, i) => `${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
     // echo-sounder bottom where there is one, else the deepest sample; the
@@ -734,17 +734,17 @@
     const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
     traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => yT(maxD + step)), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
     traces.push({ type: "scatter", mode: "lines+markers", x: xPts, y: bottoms.map(yT), name: "bottom",
-      line: { color: "#3b4658", width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: "rgba(43,52,65,.92)",
-      marker: { size: sounded.map((b) => b ? 5 : 0), color: "#8ea3ba", symbol: "diamond" },
+      line: { color: C.floorLine, width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: C.floor,
+      marker: { size: sounded.map((b) => b ? 5 : 0), color: C.muted, symbol: "diamond" },
       hovertext: withVar.map((d, i) => sounded[i] ? `${d.label}<br>bottom ${Math.round(d.bottom_m)} m` : `${d.label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
     // the bottle firings, after the bottom: its fill runs to the trace before it
     if (casts.bottles) {
       const bx = [], by = [], bt = [];
       withVar.forEach((d, i) => { for (const b of d.bottles || []) { const dep = bottleDepth(b, d.lat ?? d.parent?.lat); if (dep == null) continue; bx.push(xPts[i]); by.push(yT(dep)); bt.push(`${d.label}<br>${bottleText(b)} · ${Math.round(dep)} m`); } });
-      if (bx.length) traces.push({ type: "scatter", mode: "markers", name: "bottles", x: bx, y: by, text: bt, hoverinfo: "text", marker: { size: 6, color: "#ffffff", line: { color: "#0b1620", width: 1 } } });
+      if (bx.length) traces.push({ type: "scatter", mode: "markers", name: "bottles", x: bx, y: by, text: bt, hoverinfo: "text", marker: { size: 6, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
-    const layout = { ...CAST_LAYOUT, margin: { l: 54, r: 8, t: 18, b: 40 },
-      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: 12 }, standoff: 4 }, tickfont: { size: 12 }, type: byTime ? "date" : "linear" },
+    const layout = { ...castLayout(), margin: { l: fz(54), r: 8, t: fz(18), b: fz(40) },
+      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) }, type: byTime ? "date" : "linear" },
       yaxis: depthAxis(maxD + step) };
     Plotly.react($("#cs-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
@@ -1112,7 +1112,8 @@
   // rows and its scheduled bars so a scheduled CTD and a logged CTD match
   const OP_KINDS = [["transit", /transit|steam/i], ["ctd", /ctd|rosette/i], ["core", /core|corer/i], ["net", /net|ikmt|hydrobios|tucker|monster|catcher|pump/i],
     ["camera", /cam|rov|subocean|hydroscat|c-ops/i], ["boat", /zodiac|barge|community|tour|open house/i], ["mapping", /mapping|survey|multibeam/i], ["break", /break|lunch|dinner|meal/i]];
-  const OP_COLOUR = { transit: "#8ea3ba", ctd: "#5cc8ff", core: "#e3b341", net: "#7ee787", camera: "#d2a8ff", boat: "#ff9bce", mapping: "#79c0ff", break: "#6b7787" };
+  const OP_COLOUR = { get transit() { return C.muted; }, get ctd() { return C.accent; }, get core() { return C.gold; }, get net() { return C.ok; },
+    get camera() { return C.purple; }, get boat() { return C.pink; }, get mapping() { return pal(6); }, get break() { return C.muted; } };
   const opKind = (name) => (OP_KINDS.find(([, re]) => re.test(name || "")) || [""])[0];
   // the instrument or process behind a free-text activity or operation name,
   // so the timeline has one row for "Box Core", "Box Core - GEO" and "Box core
@@ -1147,7 +1148,7 @@
       const idx = recent.map((e, j) => [e, j]).filter(([e]) => typeOf(e) === t).map(([, j]) => `e:${j}`);
       return { type: "scatter", mode: "markers", name: t, x: es.map(when), y: es.map(() => t), customdata: idx,
         text: es.map((e) => `${esc(e.station || "")} · ${esc(e.activity || "")} · ${esc(e.event || "")} ${esc(e.label || "")}`), hovertemplate: "%{x|%Y-%m-%d %H:%M} " + tzAbbr() + "<br>%{text}<extra>" + esc(t) + "</extra>",
-        marker: { size: 8, color: opColour(t, PALETTE[i % PALETTE.length]) } };
+        marker: { size: 8, color: opColour(t, pal(i)) } };
     });
     // scheduled operations as bars on their own row, coloured like the
     // event-log row of the same kind: current ones bright, former ones (off
@@ -1155,25 +1156,25 @@
     const f = UW.currentFilter();
     const rows = scheduledRows(s).map((r) => ({ r, d0: shifted(UW.tms(r.start_utc)), d1: shifted(UW.tms(r.end_utc)) })).filter((b) => b.d1 - offsetMs(b.d1) >= f.start);
     const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
-    const barColour = (b) => opColour(b.r.operation, PALETTE[(b.r.operation || "").length % PALETTE.length]);
+    const barColour = (b) => opColour(b.r.operation, pal((b.r.operation || "").length));
     if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${stampL(UW.tms(b.r.start_utc))}–${hmL(UW.tms(b.r.end_utc))} ${tzAbbr()}`),
       hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => rgba(barColour(b), b.r.former ? .3 : .8)), line: { color: rows.map(barColour), width: 1 } }, width: .5 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span · click a point for its log entry`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
       eventListHtml(evs, s, cal.search.toLowerCase(), f, nHidden);
     wireEventList(host);
-    const layout = { ...CAST_LAYOUT, margin: { l: 130, r: 10, t: 28, b: 58 }, barmode: "overlay",
-      xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: 12 } }, tickfont: { size: 12 } },
-      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: 12 }, fixedrange: true },
-      shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: "#ff5c5c", width: 2 } }],
-      annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: 11, color: "#ff5c5c" } }] };
+    const layout = { ...castLayout(), margin: { l: fz(130), r: 10, t: fz(28), b: fz(58) }, barmode: "overlay",
+      xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: fz(12) } }, tickfont: { size: fz(12) } },
+      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, fixedrange: true },
+      shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
+      annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: fz(11), color: C.now } }] };
     Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
     wireCastPanels(host, () => renderTimeline(host, evs, s));
   }
   // Calendar view: a month grid or three days centred on a day, from the
   // Google calendars (imported at build time) and the intranet schedule.
   // Click an entry for its details.
-  const GCAL_COLOUR = { schedule: "#5cc8ff", surprise: "#ffb454", intranet: "#8ea3ba" };
+  const GCAL_COLOUR = { get schedule() { return C.accent; }, get surprise() { return C.accent2; }, get intranet() { return C.muted; } };
   function calendarItems(q) {
     const items = [];
     for (const f of cal.data.gcal || []) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
@@ -1205,7 +1206,7 @@
   // "[status] ", "scheduled · " / "was scheduled · ", and a trailing " at <date>"
   const shortSummary = (t) => String(t || "").replace(/^\[[^\]]*\]\s*/, "").replace(/^(was )?scheduled · /, "").replace(/ at \d{4}-\d{2}-\d{2}[^,;]*$/, "");
   function entryHtml(e, cont) {
-    return `<div class="mev" data-id="${e.id}" style="border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${esc(e.summary)}">` +
+    return `<div class="mev" data-id="${e.id}" style="border-color:${GCAL_COLOUR[e.cal] || C.muted}" title="${esc(e.label)}\n${esc(e.summary)}">` +
       `<span class="mt">${cont || e.all_day ? "" : hmL(evStart(e))}</span> ${esc(e.summary || "")}</div>`;
   }
   function detailHtml(e) {
@@ -1214,7 +1215,7 @@
       `${stampL(t0)} → ${stampL(t1)} ${tzAbbr(t1)} · ${((t1 - t0) / 3600e3).toFixed(1)} h`;
     const pos = /Position:\s*([\d.]+)°([NS]),\s*([\d.]+)°([EW])/.exec(e.description || "");
     return `<div class="mdetail"><button class="mclose" title="close">✕</button>
-      <div class="mdlabel" style="color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}">${esc(e.label)}</div>
+      <div class="mdlabel" style="color:${GCAL_COLOUR[e.cal] || C.muted}">${esc(e.label)}</div>
       <h4>${esc(e.summary || "")}</h4>
       <div class="mdwhen">${esc(when)}</div>
       ${e.description ? `<pre class="mddesc">${esc(e.description)}</pre>` : ""}
@@ -1239,7 +1240,7 @@
     host.innerHTML = `<section class="card block month">
       <div class="mhead"><div class="group seg small" id="calspan"><button data-s="days" ${cal.span === "days" ? 'class="on"' : ""}>3 days</button><button data-s="month" ${cal.span === "month" ? 'class="on"' : ""}>Month</button></div>
         <button id="mprev" title="previous">‹</button><h3>${esc(title)}</h3><button id="mnext" title="next">›</button><button id="mtoday">today</button>
-        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || "#8ea3ba"}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:#8ea3ba"></i>intranet schedule</span></div>
+        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || C.muted}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:${C.muted}"></i>intranet schedule</span></div>
       <div id="mdetailbox" hidden></div>
       ${body}
       <p class="muted small">Times are ship time (${tzAbbr()}). Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
@@ -1314,7 +1315,7 @@
       const blocks = sorted.map((e, i) => {
         const s = Math.max(0, (evStart(e) - d0) / 3600e3), t = Math.min(hours, (evEnd(e) - d0) / 3600e3);
         // a short event still gets one readable line: the block is at least ~40 min tall
-        return `<div class="dblock mev ${statusClass(e.status)}" data-id="${e.id}" style="top:${(s / hours * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / hours * 100).toFixed(2)}%;left:${(e._lane / e._nl * 100).toFixed(1)}%;width:${(100 / e._nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || "#8ea3ba"}" title="${esc(e.label)}\n${hmL(evStart(e))} ${esc(e.summary)}">${esc(shortSummary(e.summary))}</div>`;
+        return `<div class="dblock mev ${statusClass(e.status)}" data-id="${e.id}" style="top:${(s / hours * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / hours * 100).toFixed(2)}%;left:${(e._lane / e._nl * 100).toFixed(1)}%;width:${(100 / e._nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || C.muted}" title="${esc(e.label)}\n${hmL(evStart(e))} ${esc(e.summary)}">${esc(shortSummary(e.summary))}</div>`;
       }).join("");
       const nowLine = k === today ? `<div class="dnow" style="top:${((now - d0) / (d1 - d0) * 100).toFixed(2)}%"><span>${hmL(now)}</span></div>` : "";
       const head = new Date(d0 + 43200e3).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: LTZ });
