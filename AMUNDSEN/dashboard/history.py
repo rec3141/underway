@@ -51,11 +51,12 @@ try:
         return entry
 
     def provenance(root: Path, db: Path | None = None) -> dict | None:
-        """The figures behind the tab's provenance page (``provenance.json``):
-        what is in the database, how the crew's runs and the review passes
-        went, what the person answered, and what the local models annotated.
-        Counted here rather than published by the project so the page can
-        say things the research backend does not need to know."""
+        """The provenance page's material (``provenance.json``): the project's
+        own account, ``db/history/PROVENANCE.md``, as Markdown, and the
+        figures counted from the database now: what is in it, how the crew's
+        runs and the review passes went, what the person answered, and what
+        the local models annotated. Counted here rather than published by
+        the project so the figures are the build's, not a snapshot's."""
         import json
         import sqlite3
         from datetime import datetime, timezone
@@ -83,6 +84,7 @@ try:
                     "page_versions": one("SELECT count(*) FROM page_history"),
                     "artifacts": one("SELECT count(*) FROM artifacts"),
                     "artifacts_by_type": dict(rows("SELECT type, count(*) FROM artifacts GROUP BY type ORDER BY 2 DESC")),
+                    "waypoints": sum(len(json.loads(w or "[]") or []) for (w,) in rows("SELECT waypoints FROM artifacts WHERE type = 'track'") if w and w.startswith("[")),
                     "artifacts_local": one("SELECT count(*) FROM artifacts WHERE local_file != ''"),
                     "artifacts_linked": one("SELECT count(*) FROM artifacts WHERE source_url != ''"),
                     "sources": one("SELECT count(*) FROM sources"),
@@ -124,6 +126,8 @@ try:
             }
         finally:
             c.close()
+        account = Path(path).parent / "PROVENANCE.md"
+        out["text"] = account.read_text() if account.is_file() else ""
         dst = root / "data" / "history" / "provenance.json"
         dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(json.dumps(out, ensure_ascii=False))

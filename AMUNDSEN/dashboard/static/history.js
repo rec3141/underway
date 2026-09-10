@@ -905,7 +905,10 @@
     const a = Object.assign(document.createElement("a"), { href: url, download: name }); document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  // how the history was made: the crews, the review, the models, the figures
+  // how the history was made: the project's own account (PROVENANCE.md,
+  // written on grid and pulled with the data) with its snapshot of the
+  // numbers replaced by this build's, then what happens aboard: the models'
+  // annotations, the reader's flag, the historian
   function renderProvenance(el) {
     const pv = hist.provenance, c = pv?.counts || {}, w = pv?.work || {}, m = pv?.machine || {};
     const n = (x) => (x == null ? "–" : Number(x).toLocaleString("en-CA"));
@@ -915,30 +918,34 @@
     const flagsNow = hist.flags.size;
     const tile = (v, l) => `<div class="stat"><b>${n(v)}</b><span>${l}</span></div>`;
     const types = Object.entries(c.artifacts_by_type || {}).map(([k, v]) => `${n(v)} ${esc(k)}${v === 1 ? "" : "s"}`).join(", ");
-    el.innerHTML = crumb(here("Provenance", "provenance")) + `<h2>How this history was made</h2>
-<div class="provenance">
-<p class="lead">Everything in this tab was researched, entered and written by AI, from the sources named on each item, and then checked. This page says how, so a reader can weigh it.</p>
+    const figures = `<div class="stats">${tile(c.topics ?? t.length, "topics")}${tile(c.pages, "narrative pages")}${tile(c.pages_draft, "still drafts")}${tile(c.page_versions, "earlier page versions kept")}${tile(c.artifacts, "artifacts")}${tile((c.artifacts_by_type?.image || 0) + (c.artifacts_by_type?.map || 0), "historical images and maps")}${tile(c.artifacts_by_type?.quote, "pinned quotations")}${tile(c.artifacts_by_type?.track, "reconstructed tracks")}${tile(c.waypoints, "waypoints on them")}${tile(c.sources, "works cited")}${tile(c.sources_primary, "primary sources")}${tile(c.sources_local, "works held on the ship")}${tile(c.languages, "languages")}${tile(c.people, "people")}${tile(c.people_indigenous, "of them Inuit and other Indigenous people")}${tile(c.places, "places")}${tile(c.places_inuktitut, "with an Inuktitut name")}${tile(c.events, "events")}${tile(c.dates, "dated records")}${tile(c.vessels, "vessels")}${tile(c.animals, "animals")}${tile(c.links, "links between pages")}${tile(answered, "requests answered by a person")}${tile(w.worklog, "worklog entries")}</div>` +
+      (types ? `<p class="muted small">Artifacts by kind: ${types}. ${n(c.artifacts_local)} have a copy on the ship and ${n(c.artifacts_linked)} link to the holding institution on the web.${w.first ? ` The worklog runs from ${day(w.first)} to ${day(w.last)}, ${n(w.runs)} named runs and passes.` : ""}</p>` : "") +
+      (pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}, when this build published the history${c.links_wanted ? `; ${n(c.links_wanted)} links still point at pages not yet written` : ""}.</p>` : `<p class="muted small">The figures are not in this build yet; they are counted when the history is next published.</p>`);
+    const aboard = `## What the models annotated
 
-<h3>The research</h3>
-<p>The work was done by a crew of AI research agents (Claude, run as Claude Code agents on a university workstation with library access), one agent to a topic, each working from a written brief. An agent read the primary sources for its topic: voyage narratives, published journals, ships' logs, archival scans, Inuit testimony as recorded by others, modern scholarship. It fetched what the library licenses, and entered what it found into a shared database through a command-line tool, as it went. The brief requires a source for every row: every artifact carries the work it came from, the pages, the credit and the licence; every date its precision and its source. Agents wrote the narrative pages from those rows, linking each claim to the artifacts and sources behind it, and left a worklog line after every step, so that a later run, or a person, could see what was done and why.</p>
-<p>Runs are short and get cut off, so the database is the record, not any one run. ${w.worklog ? `The worklog holds ${n(w.worklog)} entries from ${n(w.runs)} named runs and passes` : "The worklog records every run"}${w.first ? `, from ${day(w.first)} to ${day(w.last)}` : ""}.</p>
+${m.keywords ? `${n(m.keyword_artifacts)} artifacts carry ${n(m.keywords)} subject keywords assigned by a local language model (${(m.keyword_models || []).join(", ")}) under a subject tree it drew up${m.ontology_model ? ` (${m.ontology_model})` : ""}; they are marked as the model's in the database, apart from the crew's tags. ` : ""}${m.faces ? `${n(m.faces)} faces were found in the pictures by a face detector${(m.detectors || []).length ? ` (${m.detectors.join(", ")})` : ""}; ${n(m.faces_identified)} were matched to a named person only where the caption named one person and the picture held one face, and the rest are left unnamed. ` : ""}${m.animals_detected ? `${n(m.animals_detected)} animals were found the same way, ${n(m.animals_identified)} of them named. ` : ""}${m.rejected_by_operator ? `${n(m.rejected_by_operator)} machine identification${m.rejected_by_operator === 1 ? " was" : "s were"} rejected by the operator. ` : ""}${!m.keywords && !m.faces ? "No model annotations are in this build." : ""}
 
-<h3>The review</h3>
-<p>A new page is a draft, and shows as <span class="status draft">draft</span> until it has been checked. Pages without the mark have been through a review pass: the text read against its sources and the links resolved, and then promoted. ${w.review_entries ? `${n(w.review_entries)} worklog entries are review and quality passes over what the research runs entered. ` : ""}Every save keeps the version it replaced${c.page_versions ? ` (${n(c.page_versions)} earlier versions are kept)` : ""}, so a change can be traced or undone.</p>
-<p>What an agent could not do alone it asked a person: a download over the size limit, a title the library does not hold, a judgement call. ${answered ? `${n(answered)} such requests have been answered by a person: ${n(req.approved || 0)} approved, ${n(req.denied || 0)} denied, ${n(req.done || 0)} done.` : ""}</p>
-<p>Readers take part too. Anything that looks wrong can be flagged from its card with the small flag in the corner, with a note; flags go to the dashboard's keeper by email${flagsNow ? `, and ${n(flagsNow)} ${flagsNow === 1 ? "is" : "are"} flagged now` : ""}.</p>
+## Aboard the ship
 
-<h3>What the machines added</h3>
-<p>Beyond the research crews, smaller models annotated what the crews entered, and their work is marked as theirs in the database. ${m.keywords ? `${n(m.keyword_artifacts)} artifacts carry ${n(m.keywords)} subject keywords assigned by a local language model (${esc((m.keyword_models || []).join(", "))}) under a subject tree it drew up${m.ontology_model ? ` (${esc(m.ontology_model)})` : ""}. ` : ""}${m.faces ? `${n(m.faces)} faces were found in the pictures by a face detector${(m.detectors || []).length ? ` (${esc(m.detectors.join(", "))})` : ""}; ${n(m.faces_identified)} were matched to a named person only where the caption named one person and the picture held one face, and the rest are left unnamed. ` : ""}${m.animals_detected ? `${n(m.animals_detected)} animals were found the same way, ${n(m.animals_identified)} of them named. ` : ""}${m.rejected_by_operator ? `${n(m.rejected_by_operator)} machine identification${m.rejected_by_operator === 1 ? " was" : "s were"} rejected by the operator. ` : ""}The historian in the chat answers from these pages, using a local model on the ship: it is given the pages that bear on a question and cites them, and it is not itself a source.</p>
-
-<h3>How to read it</h3>
-<p>AI research errs in particular ways: a date transposed, a coordinate placed by name rather than by the source, a quotation trimmed, two people of one name run together. Treat the pages as a guide to the sources, and the sources as the authority. Each artifact's page links the ship's copy, the original it was rendered from and the holding institution; the <a href="#history/bib" data-slug="bib">bibliography</a> lists every work cited.</p>
-
-<h3>The figures</h3>
-<div class="stats">${tile(c.topics ?? t.length, "topics")}${tile(c.pages, "narrative pages")}${tile(c.pages_draft, "still drafts")}${tile(c.artifacts, "artifacts")}${tile(c.sources, "works cited")}${tile(c.sources_primary, "primary sources")}${tile(c.sources_local, "works held on the ship")}${tile(c.people, "people")}${tile(c.people_indigenous, "of them Inuit and other Indigenous people")}${tile(c.places, "places")}${tile(c.places_inuktitut, "with an Inuktitut name")}${tile(c.events, "events")}${tile(c.dates, "dated records")}${tile(c.vessels, "vessels")}${tile(c.animals, "animals")}${tile(c.links, "links between pages")}</div>
-${types ? `<p class="muted small">Artifacts by kind: ${types}. ${n(c.artifacts_local)} have a copy on the ship and ${n(c.artifacts_linked)} link to the holding institution on the web.</p>` : ""}
-${pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}${c.links_wanted ? `; ${n(c.links_wanted)} links still point at pages not yet written` : ""}.</p>` : `<p class="muted small">The figures are not in this build yet; they are counted when the history is next published.</p>`}
-</div>`;
+The historian in the chat (Ask Ada) answers from these pages with a local model on the ship: it is given the pages that bear on a question and cites them by title, and it is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner, with a note; flags go to the layer's author by email${flagsNow ? `, and ${n(flagsNow)} ${flagsNow === 1 ? "is" : "are"} flagged now` : ""}.`;
+    let body;
+    if (pv?.text) {
+      // their account, section by section: the H1 is the page's own title,
+      // the numbers section is replaced by this build's figures, and the
+      // ship's sections go in before the tooling
+      const parts = pv.text.replace(/\r/g, "").replace(/^#\s+[^\n]*\n/, "").split(/\n(?=## )/);
+      body = parts.map((sec) => {
+        if (/^## The record, in numbers/i.test(sec)) return `<h3>The record, in numbers</h3>${figures}`;
+        if (/^## Tooling/i.test(sec)) return markdown(aboard) + markdown(sec);
+        return markdown(sec);
+      }).join("\n");
+      if (!/## Tooling/i.test(pv.text)) body += markdown(aboard);
+      if (!/## The record, in numbers/i.test(pv.text)) body += `<h3>The record, in numbers</h3>${figures}`;
+    } else {
+      body = `<p class="lead">Everything in this tab was researched, entered and written by AI research agents from the sources named on each item, and then checked; the project's own account of how travels with the data and is not in this build yet.</p>
+<p>A new page is a draft, and shows as <span class="status draft">draft</span> until it has been checked against its sources; pages without the mark have been through that review. ${answered ? `${n(answered)} requests for what an agent could not do alone were answered by a person.` : ""}</p>` + markdown(aboard) + `<h3>The record, in numbers</h3>${figures}`;
+    }
+    el.innerHTML = crumb(here("Provenance", "provenance")) + `<h2>How this history was made</h2><div class="provenance wiki">${body}</div>`;
   }
   async function renderBib(el) {
     const bib = await bibliography();
