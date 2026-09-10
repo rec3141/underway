@@ -36,7 +36,7 @@ class ShareDir(unittest.TestCase):
         root = Path(self.tmp.name)
         self.share = root / "share"; (self.share / "2026" / "2026_LEG_03" / "Pictures" / "Eric").mkdir(parents=True)
         (self.share / "2026" / "2026_LEG_03" / "Coring").mkdir()
-        for name, val in (("SHARE_ROOT", self.share), ("THUMB_DIR", root / "thumbs"), ("JOBS_DIR", root / "imports")):
+        for name, val in (("SHARE_ROOT", self.share), ("THUMB_DIR", root / "thumbs"), ("JOBS_DIR", root / "imports"), ("IMPORTED", root / "imported.json"), ("WATCHES", root / "watches.json")):
             p = patch.object(photos, name, val); p.start(); self.addCleanup(p.stop)
         d = root / "_journal"
         for name, val in (("JOURNAL_DIR", d), ("IMG_DIR", d / "img"), ("FILE", d / "journal.jsonl")):
@@ -155,10 +155,12 @@ class ImportTests(ShareDir):
             with self.assertRaises(ValueError):
                 photos.start(root, {"folders": ["2026/2026_LEG_03/Pictures/Eric"], "name": ""})
             with self.assertRaises(ValueError):
-                photos.start(root, {"files": [], "name": "Eric"})
+                photos.start(root, {"files": ["2026/2026_LEG_03/Pictures/Eric/bear.jpg"], "name": "Eric"})       # single files are not taken
             with self.assertRaises(ValueError):
-                photos.start(root, {"folders": ["2026/2026_LEG_03/Pictures/Eric"], "name": "Eric", "licence": "mine"})
-            spec = {"folders": ["2026/2026_LEG_03/Pictures/Eric"], "name": "Eric Collins", "org": "UM", "email": "e@example.org", "licence": "cc-by-4.0", "clock": "exif"}
+                photos.start(root, {"folder": "2026/2026_LEG_03/Coring", "name": "Eric"})                        # nothing in it
+            with self.assertRaises(ValueError):
+                photos.start(root, {"folder": "2026/2026_LEG_03/Pictures/Eric", "name": "Eric", "licence": "mine"})
+            spec = {"folder": "2026/2026_LEG_03/Pictures/Eric", "name": "Eric Collins", "org": "UM", "email": "e@example.org", "licence": "cc-by-4.0", "clock": "exif"}
             job = {"id": "20260910-000000-abcdef", "status": "queued", "started": "", "finished": None, "form": {k: spec[k] for k in ("name", "org", "email", "licence", "clock")},
                    "who": "Eric", "total": 0, "done": 0, "stage": "", "error": "", "items": [{"file": f, "status": "queued"} for f in photos._files_of(spec)]}
             job["total"] = len(job["items"])
@@ -188,6 +190,19 @@ class ImportTests(ShareDir):
         self.assertEqual(saved["form"]["email"], "e@example.org")
         self.assertNotIn("email", photos.public(saved)["form"])                                      # the page never sees it
         self.assertEqual(photos.jobs()[0]["imported"], 3)
+        reg = photos.imported()
+        self.assertEqual({f for f, v in reg.items() if not v.startswith("skipped")}, {by[k]["file"] for k in ("bear.jpg", "gps.jpg", "deep.jpg")})   # the registry: what the journal has
+        self.assertTrue(reg[by["bare.jpg"]["file"]].startswith("skipped: no time"))                    # and what could not be placed, so it is not read again
+        with self.assertRaises(ValueError) as cm:
+            photos.start(root, spec)                                                                 # nothing new in the folder
+        self.assertIn("already", str(cm.exception))
+        jpeg(d / "new.jpg", DateTimeOriginal="2026:09:03 12:40:00", OffsetTimeOriginal="+02:00")
+        with patch.object(photos, "TRACK_SOURCE", lambda a, b: [f for f in fixes if a <= f[0] <= b]), patch.object(photos, "TAGGER", tagger), patch.object(photos, "run", lambda j, r: None):
+            j2 = photos.start(root, {**spec, "watch": True})
+        self.assertEqual(([i["file"].split("/")[-1] for i in j2["items"]], j2["known"], j2["watch"]), (["new.jpg"], 5, True))   # only the new one, the rest passed over
+        self.assertEqual([w["path"] for w in photos.watches()], ["2026/2026_LEG_03/Pictures/Eric"])              # and the folder is watched under that form
+        self.assertEqual(photos.watches()[0]["form"]["email"], "e@example.org"); self.assertNotIn("email", photos.watches_public()[0]["form"])
+        photos._JOBS.clear()
 
     def test_a_model_that_does_not_answer_still_lets_the_photographs_in(self):
         root = Path(self.tmp.name) / "www"; (root / "data").mkdir(parents=True)
@@ -197,13 +212,43 @@ class ImportTests(ShareDir):
                "who": "Eric", "total": 1, "done": 0, "stage": "", "error": "", "items": [{"file": "2026/2026_LEG_03/Pictures/Eric/one.jpg", "status": "queued"}]}
         def boom(url, n):
             raise RuntimeError("model offline")
-        with patch.object(photos, "exif_of", lambda p: {"taken": "2026-09-03T06:00:00", "offset": None, "lat": None, "lon": None, "model": ""}), \
+        with patch.object(photos, "exif_many", lambda ps: {p: {"taken": "2026-09-03T06:00:00", "offset": None, "lat": None, "lon": None, "model": ""} for p in ps}), \
              patch.object(photos, "TRACK_SOURCE", lambda a, b: [(t.timestamp(), 76.0, -92.0)]), patch.object(photos, "TAGGER", boom):
             photos.run(job, root)
         it = job["items"][0]
         self.assertEqual((job["status"], it["status"], it["subject_page"]), ("done", "imported", None))
         self.assertIn("did not answer", job["error"])
         self.assertEqual(nature.entries()[0]["subject"], "photograph")
+
+
+class WatchTests(ShareDir):
+    def test_a_watched_folder_is_imported_for_what_is_new_and_settled(self):
+        root = Path(self.tmp.name) / "www"; (root / "data").mkdir(parents=True)
+        d = self.pics / "Eric"; jpeg(d / "old.jpg"); jpeg(d / "fresh.jpg")
+        import os, time as _t
+        os.utime(d / "old.jpg", (_t.time() - 3600, _t.time() - 3600))                                # settled an hour ago; fresh.jpg is seconds old
+        form = {"name": "Eric", "org": "", "email": "e@example.org", "licence": "attribution", "clock": "ship"}
+        self.assertIsNone(photos.watch_scan(root))                                                    # nothing watched
+        photos.watch_add("2026/2026_LEG_03/Pictures/Eric/", form, "Eric")
+        started = []
+        with patch.object(photos, "run", lambda j, r: started.append(j)):
+            j = photos.watch_scan(root)
+        self.assertEqual([i["file"].split("/")[-1] for i in j["items"]], ["old.jpg"])                # the settled one now, the fresh one next time
+        self.assertTrue(j["from_watch"]); self.assertEqual(j["who"], "Eric (watched folder)")
+        self.assertEqual(photos.watches()[0]["last_job"], j["id"]); self.assertIsNotNone(photos.watches()[0]["checked"])
+        photos._JOBS.clear()
+        photos._register("2026/2026_LEG_03/Pictures/Eric/old.jpg", "amundsen-2026-09-03-001")
+        os.utime(d / "fresh.jpg", (_t.time() - 3600, _t.time() - 3600))
+        with patch.object(photos, "run", lambda j, r: started.append(j)):
+            j = photos.watch_scan(root)
+        self.assertEqual([i["file"].split("/")[-1] for i in j["items"]], ["fresh.jpg"])
+        photos._JOBS.clear(); photos._register("2026/2026_LEG_03/Pictures/Eric/fresh.jpg", "amundsen-2026-09-03-002")
+        self.assertIsNone(photos.watch_scan(root))                                                    # all in: nothing to do
+        self.assertTrue(photos.watch_remove("2026/2026_LEG_03/Pictures/Eric")); self.assertFalse(photos.watch_remove("2026/2026_LEG_03/Pictures/Eric"))
+        self.assertEqual(photos.watches(), [])
+        photos.watch_add("2026/2026_LEG_03/Pictures/Gone", form)
+        (self.pics / "Gone").mkdir(); (self.pics / "Gone").rmdir()
+        self.assertIsNone(photos.watch_scan(root)); self.assertIn("no such folder", photos.watches()[0]["error"])   # a folder that went away is noted, not fatal
 
 
 class RouteTests(ShareDir):
@@ -232,19 +277,25 @@ class RouteTests(ShareDir):
         with Image.open(io.BytesIO(data)) as im:
             self.assertEqual(im.size, (200, 133))
         status, data, _ = self.call("GET", "/api/nature/import")
-        self.assertEqual(status, 200); self.assertEqual(json.loads(data)["jobs"], []); self.assertIn("cc-by-4.0", json.loads(data)["licences"])
-        status, data, _ = self.call("POST", "/api/nature/import", {"files": ["2026/2026_LEG_03/Pictures/Eric/a.jpg"], "name": ""})
+        self.assertEqual(status, 200); self.assertEqual(json.loads(data)["jobs"], []); self.assertIn("cc-by-4.0", json.loads(data)["licences"]); self.assertEqual(json.loads(data)["watches"], [])
+        status, data, _ = self.call("POST", "/api/nature/import", {"folder": "2026/2026_LEG_03/Pictures/Eric", "name": ""})
         self.assertEqual(status, 400); self.assertIn("name", json.loads(data)["error"])
+        status, data, _ = self.call("POST", "/api/nature/import", {"files": ["2026/2026_LEG_03/Pictures/Eric/a.jpg"], "name": "Eric"})
+        self.assertEqual(status, 400); self.assertIn("folder", json.loads(data)["error"])
         started = threading.Event()
         def hold(j, root):
             started.wait(2); j["status"] = "done"; photos._save(j)
         with patch.object(photos, "run", hold):
-            status, data, _ = self.call("POST", "/api/nature/import", {"files": ["2026/2026_LEG_03/Pictures/Eric/a.jpg"], "name": "Eric", "email": "e@example.org"})
+            status, data, _ = self.call("POST", "/api/nature/import", {"folder": "2026/2026_LEG_03/Pictures/Eric", "name": "Eric", "email": "e@example.org", "watch": True})
             self.assertEqual(status, 200, data); job = json.loads(data)["job"]
-            self.assertEqual((job["total"], job["status"]), (1, "queued")); self.assertNotIn("email", job["form"])
-            status, data, _ = self.call("POST", "/api/nature/import", {"files": ["2026/2026_LEG_03/Pictures/Eric/a.jpg"], "name": "Eric"})
+            self.assertEqual((job["total"], job["status"], job["watch"]), (1, "queued", True)); self.assertNotIn("email", job["form"])
+            status, data, _ = self.call("POST", "/api/nature/import", {"folder": "2026/2026_LEG_03/Pictures/Eric", "name": "Eric"})
             self.assertEqual(status, 400); self.assertIn("already running", json.loads(data)["error"])
             started.set()
+        status, data, _ = self.call("GET", "/api/nature/import")
+        self.assertEqual([w["path"] for w in json.loads(data)["watches"]], ["2026/2026_LEG_03/Pictures/Eric"])
+        status, data, _ = self.call("POST", "/api/nature/watch", {"path": "2026/2026_LEG_03/Pictures/Eric", "stop": True})
+        self.assertEqual(status, 200); self.assertEqual(json.loads(data)["watches"], []); self.assertTrue(json.loads(data)["stopped"])
         status, data, _ = self.call("GET", f"/api/nature/import?job={job['id']}")
         self.assertEqual(status, 200); self.assertEqual(json.loads(data)["id"], job["id"])
         status, data, _ = self.call("GET", "/api/nature/import?job=nope")
