@@ -5,13 +5,15 @@ on grid and published with the rest of the layer; the ship reads it. What
 the ship writes is a journal: an append-only file of observation rows in the
 CLI's own vocabulary, one JSON object per line, under ``db/history/_journal/``
 in the ship's clone of the project, with the photographs beside it in
-``_journal/img/``. The journal is rsynced up to grid, where
-``history-db.py ingest --journal`` turns each line into rows through the same
+``_journal/img/``. The journal is rsynced up to grid (``history-sync.sh push-journal``, into
+``_journal/incoming/``), where ``history-db.py ingest --journal`` turns each line into rows through the same
 writers as everything else; that ingest is idempotent on ``id``, so a
 corrected line with the same id replaces the row.
 
-Ids carry the ``amundsen-<date>-<n>`` prefix, so they never collide with
-research ids. Nothing here writes to the database or the repository.
+Ids carry the ``amundsen-<date>-<nnn>`` prefix, so they never collide with
+research ids. A line carries only the writer's fields (``db/history/JOURNAL.md``
+on grid is the contract); who wrote it goes to ``journal.log`` beside it.
+Nothing here writes to the database or the repository.
 """
 
 from __future__ import annotations
@@ -31,13 +33,13 @@ log = logging.getLogger(__name__)
 JOURNAL_DIR = HISTORY_DIR / "_journal"
 IMG_DIR = JOURNAL_DIR / "img"
 FILE = JOURNAL_DIR / "journal.jsonl"
-METHODS = {"sighting", "hunt", "specimen", "transect", "aerial-survey", "camera", "acoustic", "edna", "catch-record", "testimony",
-           "instrument", "sounding", "dredge", "core", "sample", "station-record"}
+# the writer's vocabulary on grid (arctic_history.METHODS); db/history/JOURNAL.md there is the contract
+METHODS = {"sighting", "hunt", "specimen", "transect", "aerial-survey", "camera", "acoustic", "edna", "catch-record", "testimony", "instrument", "sounding", "dredge", "trawl", "net", "trap", "core", "sample", "station-record", "survey", "satellite", "chart"}
 ORIGINS = {"ship", "crew"}
 IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 IMAGE_MAX = 10 * 1024 * 1024
 TEXT = {"count": 60, "unit": 30, "qualifier": 120, "instrument": 80, "observer": 80, "vessel": 60, "place": 120,
-        "detail": 2000, "confidence": 20, "stage": 30, "sex": 20, "behaviour": 120, "note": 400}
+        "detail": 2000, "confidence": 20, "stage": 30, "sex": 20, "behaviour": 120, "licence": 40, "topic": 60, "bibkey": 60}
 DATE_RX = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?Z?)?$")
 ID_RX = re.compile(r"^amundsen-\d{4}-\d{2}-\d{2}-\d{3}$")
 LINES_PER_DAY = 500
@@ -160,7 +162,8 @@ def append(entry: dict, who: str = "") -> dict:
         lines = _lines()
         day = row["date"][:10]
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        if sum(1 for e in lines if str(e.get("written", "")).startswith(today)) >= LINES_PER_DAY:
+        logf = JOURNAL_DIR / "journal.log"
+        if logf.is_file() and sum(1 for l in logf.read_text().splitlines() if l.startswith(today)) >= LINES_PER_DAY:
             raise Refused("the journal has taken enough lines for one day; tell the keeper")
         id_ = str(entry.get("id") or "").strip()
         if id_ and not (ID_RX.match(id_) and any(e.get("id") == id_ for e in lines)):
@@ -170,9 +173,8 @@ def append(entry: dict, who: str = "") -> dict:
         row = {"kind": "observation", "id": id_, **{k: v for k, v in row.items() if k != "kind"}}
         if entry.get("image"):
             row["artifact_file"] = _image(entry["image"], id_)
-        row["written"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        if who:
-            row["written_by"] = who[:60]
         with open(FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        with open(JOURNAL_DIR / "journal.log", "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} {id_} {who[:60] or '-'}\n")
     return row

@@ -35,7 +35,9 @@ class JournalTests(JournalDir):
     def test_lines_get_the_days_next_id_and_read_back_newest_first(self):
         a = nature.append(LINE, "Eric")
         self.assertEqual(a["id"], "amundsen-2026-09-11-001")
-        self.assertEqual(a["kind"], "observation"); self.assertEqual(a["written_by"], "Eric"); self.assertEqual(a["origin"], "ship")
+        self.assertEqual(a["kind"], "observation"); self.assertEqual(a["origin"], "ship")
+        self.assertEqual(set(a), {"kind", "id", "subject", "date", "lat", "lon", "count", "method", "observer", "vessel", "detail", "origin", "sensitive"})   # the writer's fields, nothing else
+        self.assertIn(" amundsen-2026-09-11-001 Eric", (self.dir / "journal.log").read_text())
         b = nature.append({**LINE, "date": "2026-09-11T15:00Z", "subject": "aurora", "qualifier": "first of the season", "count": ""})
         self.assertEqual(b["id"], "amundsen-2026-09-11-002")
         self.assertNotIn("count", b)                                   # empty fields are not written
@@ -66,6 +68,7 @@ class JournalTests(JournalDir):
         data = "data:image/png;base64," + base64.b64encode(PNG).decode()
         a = nature.append({**LINE, "image": data})
         self.assertEqual(a["artifact_file"], f"_journal/img/{a['id']}.png")
+        b = nature.append({**LINE, "image": data, "licence": "cc-by-4.0"}); self.assertEqual(b["licence"], "cc-by-4.0")
         self.assertEqual((nature.IMG_DIR / f"{a['id']}.png").read_bytes(), PNG)
         with self.assertRaises(nature.Refused):
             nature.append({**LINE, "image": "data:image/gif;base64,AAAA"})

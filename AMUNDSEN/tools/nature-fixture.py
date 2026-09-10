@@ -123,6 +123,7 @@ def main():
     for s in SUBJECTS:
         row = {"kind": "", "domain": "", "rank": "", "parent": "", "english": "", "french": "", "inuktitut": "", "kalaallisut": "", "also": "", "unit": "", "status": "", "backbone_id": "", "note": "", "bibkey": "", "topic": "", **s}
         row["page"] = f"subject/{slugify(row['name'])}"
+        row["children"] = [x["name"] for x in SUBJECTS if x.get("parent") == row["name"]]
         subjects.append(row)
         index["pages"].append({"slug": row["page"], "kind": "subject", "title": row["name"], "topic": row["topic"], "summary": row["note"][:160], "status": ""})
     observations = []
@@ -132,7 +133,9 @@ def main():
                              "depth": None, "height": None, "value": value, "unit": unit, "count": count, "qualifier": qualifier, "stage": "", "sex": "", "behaviour": "",
                              "method": method, "instrument": "", "observer": observer, "vessel": vessel, "detail": detail, "confidence": "certain" if value is not None or count else "probable",
                              "artifact_id": "", "event_id": None, "sensitive": 1 if subject == "Odobenus rosmarus" else 0, "origin": "research",
-                             "bibkey": bibkey(pat), "pages": "", "topic": topic or next((s["topic"] for s in subjects if s["name"] == subject), "")})
+                             "bibkey": bibkey(pat), "pages": "", "tags": [], "topic": topic or next((s["topic"] for s in subjects if s["name"] == subject), ""),
+                             "domain": next((s["domain"] for s in subjects if s["name"] == subject), ""), "kind": next((s["kind"] for s in subjects if s["name"] == subject), ""),
+                             "subject_page": f"subject/{slugify(subject)}", "label": ", ".join(b for b in (subject, (f"{value:g} {unit}".strip() if value is not None else count), qualifier) if b)})
     # the timeline gains observations as a kind
     tl = json.loads((live / "timeline.json").read_text())
     tl["timeline"] = [r for r in tl["timeline"] if r.get("entity_kind") != "observation"] + [
@@ -141,6 +144,8 @@ def main():
         for o in observations if o["date_start"]]
     (out / "index.json").write_text(json.dumps(index, ensure_ascii=False))
     (out / "timeline.json").write_text(json.dumps(tl, ensure_ascii=False))
+    for s in subjects:
+        s["observations"] = sum(1 for o in observations if o["subject"] == s["name"])
     (out / "subjects.json").write_text(json.dumps({"fixture": True, "subjects": subjects}, ensure_ascii=False))
     (out / "observations.json").write_text(json.dumps({"fixture": True, "observations": observations}, ensure_ascii=False))
     # one page per subject: the body is the row's note, as the design says; the

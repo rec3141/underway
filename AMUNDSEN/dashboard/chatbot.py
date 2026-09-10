@@ -509,7 +509,10 @@ def nature_lines(root: Path, lat, lon, slug: str = "", now: datetime | None = No
         out.append("THE SHIP'S JOURNAL, latest lines:\n" + "\n".join(line(o) for o in journal[:6]))
     if slug.startswith("subject/"):
         s = next((x for x in subjects.values() if x.get("page") == slug), None)
-        if s:
+        excerpt = h / "excerpts" / (slug.replace("/", "__") + ".txt")     # the publish writes one text per subject for a small model
+        if excerpt.is_file():
+            out.append("THE PAGE OPEN ON THE NATURE TAB:\n" + excerpt.read_text(encoding="utf-8")[:6000])
+        elif s:
             rec = sorted((o for o in rows if o.get("subject") == s["name"]), key=lambda o: str(o.get("date_start", "")))
             names = "; ".join(f"{k}: {s[k]}" for k in ("english", "french", "inuktitut", "kalaallisut") if s.get(k))
             out.append(f"THE PAGE OPEN ON THE NATURE TAB: {s['name']}" + (f" ({names})" if names else "") + (f". {s['note'][:800]}" if s.get("note") else "")

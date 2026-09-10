@@ -31,14 +31,14 @@
     meteorology: dom("Meteorology", 5, "the weather and the climate, as the expeditions and the stations recorded them"),
     astronomy: dom("Astronomy", 11, "the sky: aurora, the polar night and the midnight sun, eclipses and comets"),
     geomagnetism: dom("Geomagnetism", 3, "the field: declination, dip, the Magnetic Pole's wander, the storms"),
+    freshwater: dom("Freshwater", 8, "the rivers and the lakes, and what lives in them"),
   };
   const OTHER = dom("Other", 7, "");
   const domainOf = (d) => DOMAINS[d] || OTHER;
   // a subject's kinds, in the order of the design's table
   const KINDS = { taxon: "Taxa", unit: "Rock units", fossil: "Fossils", mineral: "Minerals", landform: "Landforms", ice: "Ice", water: "Water",
     weather: "Weather", sky: "Sky", field: "Field", phenomenon: "Phenomena" };
-  const METHODS = ["sighting", "hunt", "specimen", "transect", "aerial-survey", "camera", "acoustic", "edna", "catch-record", "testimony",
-    "instrument", "sounding", "dredge", "core", "sample", "station-record"];
+  const METHODS = ["sighting", "hunt", "specimen", "transect", "aerial-survey", "camera", "acoustic", "edna", "catch-record", "testimony", "instrument", "sounding", "dredge", "trawl", "net", "trap", "core", "sample", "station-record", "survey", "satellite", "chart"];   // the writer's vocabulary on grid
   const NEAR_KM = 300;                                    // "near the ship" reaches this far
   const VIG_N = 6;
   const BACK_SHOWN = 40;
@@ -472,6 +472,7 @@
       <label class="wide">Detail <span class="muted">the sentence that says what was seen, naming the observer</span><textarea name="detail" rows="2" required maxlength="2000"></textarea></label>
       <label class="row"><input type="checkbox" name="sensitive"> sensitive site <span class="muted">a den, a nest, a haul-out, a calving ground: published coarsened</span></label>
       <label>Photograph<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
+      <label>Its licence<select name="licence"><option value="attribution">attribution, the photographer credited</option><option value="cc-by-4.0">CC BY 4.0</option></select></label>
       <div class="wide"><button type="submit" class="go">Add to the journal</button> <span class="muted small" id="natformmsg"></span></div>
     </form>`;
   }
@@ -496,6 +497,7 @@
       if (file) {
         if (file.size > 10 * 1024 * 1024) { msg.textContent = "the photograph is over 10 MB"; return; }
         entry.image = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+        entry.licence = f.licence.value;
       }
       form.querySelector("button.go").disabled = true; msg.textContent = "writing…";
       try {
