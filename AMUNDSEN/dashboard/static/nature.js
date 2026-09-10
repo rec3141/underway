@@ -7,9 +7,11 @@
  * places and events, which history.js renders into this pane the way it
  * renders the human half into its own (UW.histShared.render, in this tab's
  * namespace). The topics of the index carry a domain, "history" or "nature",
- * and this tab takes the natural ones. The ship's own sightings go into a
- * journal through the form here and reach grid on the next push; until grid
- * ingests them they show as the ship's, ringed on the map. Doc, the resident
+ * and this tab takes the natural ones. The ship's own lines go into a
+ * journal, most of them photographs imported from the share (placed by their
+ * own time and position, captioned by the model), a few written by hand on
+ * the form here, and reach grid on the next push; until grid ingests them
+ * they show as the ship's, ringed on the map. Doc, the resident
  * scientist, answers from this half in the chat. Loaded after history.js. */
 (() => {
   "use strict";
@@ -338,6 +340,7 @@
       return;
     }
     if (nat.slug === "journal") { el.innerHTML = crumb(here("The ship's journal", "journal")) + journalHTML(false); wireJournal(el); return; }
+    if (nat.slug.startsWith("import/")) { await renderImport(el, nat.slug.slice(7)); return; }
     if (nat.slug.startsWith("domain/")) {
       const d = nat.slug.slice(7), D = domainOf(d);
       const subs = nat.subjects.filter((s) => s.domain === d).sort((a, b) => a.name.localeCompare(b.name));
@@ -457,20 +460,136 @@
   }
 
   // ---------------------------------------------------------------- the journal
-  // The ship's own observations: a form that writes one line of the journal
-  // in the CLI's vocabulary, with the position from the ship's GPS and the
-  // time from the clock, the subject picked from the published list by any
-  // of its names, a photograph attached, a sensitive sighting marked. The
-  // line reaches grid on the next push; grid's writer validates it, so the
-  // form asks only for what a line must carry.
+  // The ship's own observations. The main way in is the photo import: a
+  // browser over the share to pick folders or photographs, a form for who
+  // they are and how the pictures may be used, and a job on the server that
+  // places each photograph, reads it with the model and writes its line;
+  // the page follows the job and lists what became of each. Beside it, a
+  // form writes one line by hand, in the CLI's vocabulary, with the position
+  // from the ship's GPS and the time from the clock. Lines reach grid on the
+  // next push; grid's writer validates them.
+  const share = { path: null, list: null, files: new Set(), folders: new Set(), jobs: [], licences: {}, watch: null };
   function journalHTML(brief) {
     const lines = brief ? nat.journal.slice(0, 5) : nat.journal;
     const status = (o) => nat.obs.some((x) => x.id === o.id) ? `<span class="st">published</span>` : `<span class="st">awaiting grid</span>`;
     const entry = (o) => `<div class="jentry">${obsLine(o, `<b>${esc((o.date || o.date_start || "").slice(0, 16).replace("T", " ").replace(/(\d\d:\d\d)$/, "$1 UTC"))}</b>`)}${status(o)}</div>`;
     const list = lines.length ? lines.map(entry).join("") + (brief && nat.journal.length > lines.length ? `<a class="chip small" href="#nature/journal" data-nslug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
-    const form = brief ? `<button type="button" class="chip" id="natnew">+ New observation</button>` : formHTML();
-    return `<section class="journal card"><h3>The ship's journal${brief ? ` <a class="chip small" href="#nature/journal" data-nslug="journal">open</a>` : ""}</h3>${list}${form}</section>`;
+    const tools = brief ? `<div class="jtools"><button type="button" class="chip" id="natimport">Import photographs from the share</button> <button type="button" class="chip small" id="natnew">one observation by hand</button></div>` : "";
+    const body = brief ? "" : importHTML() + `<details class="byhand"><summary>Add one observation by hand</summary>${formHTML()}</details>`;
+    return `<section class="journal card"><h3>The ship's journal${brief ? ` <a class="chip small" href="#nature/journal" data-nslug="journal">open</a>` : ""}</h3>${brief ? "" : body}${list}${tools}</section>`;
   }
+  // the import panel: where the browser is on the share, what is picked, the form, the imports so far
+  const CLOCKS = [["exif", "as the camera wrote it, else ship time"], ["ship", "ship time (Eastern)"], ["utc", "UTC"], ["+01:00", "+01:00 (CET, BST)"], ["+02:00", "+02:00 (central European summer time)"], ["-05:00", "-05:00 (central daylight time)"], ["-06:00", "-06:00 (mountain daylight time)"], ["-07:00", "-07:00 (Pacific daylight time)"]];
+  function importHTML() {
+    const name = store.get("chat.name", ""), f = store.get("nat.import.form", {}) || {};
+    const l = share.list, at = (nm) => (l.path ? l.path + "/" : "") + nm;
+    const crumbs = l ? ["Share", ...l.path.split("/").filter(Boolean)].map((seg, i, a) => i === a.length - 1 ? `<b>${esc(seg)}</b>` : `<a href="#" data-share="${esc(a.slice(1, i + 1).join("/"))}">${esc(seg)}</a>`).join(" › ") : "…";
+    const folders = l ? l.folders.map((d) => `<label class="shfolder ${share.folders.has(at(d.name)) ? "on" : ""}"><input type="checkbox" data-folder="${esc(at(d.name))}" ${share.folders.has(at(d.name)) ? "checked" : ""} title="every photograph in this folder and the folders in it"><a href="#" data-share="${esc(at(d.name))}" title="open">📁 ${esc(d.name)}</a>${d.images ? `<span class="muted">${d.images}</span>` : ""}</label>`).join("") : "";
+    const files = l ? l.files.map((x) => `<label class="shfile ${share.files.has(at(x.name)) ? "on" : ""}"><input type="checkbox" data-file="${esc(at(x.name))}" ${share.files.has(at(x.name)) ? "checked" : ""}><img src="/api/nature/share/thumb?path=${encodeURIComponent(at(x.name))}" alt="" loading="lazy"><span class="nm" title="${esc(x.name)}">${esc(x.name)}</span></label>`).join("") : "";
+    const lic = Object.entries(share.licences).map(([k, v]) => `<option value="${esc(k)}" ${(f.licence || "attribution") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
+    const clocks = CLOCKS.map(([k, v]) => `<option value="${k}" ${(f.clock || "exif") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
+    const w = share.watch;
+    return `<section class="import card">
+      <h3>Import photographs from the share</h3>
+      <p class="muted small">Pick a folder, or the photographs themselves, anywhere under /Share. Each is placed by its own time and position (the camera's, or the ship's track at that moment), read by the model for a caption and tags, and written into the journal with the picture beside it: on the map, in the record, and up to grid with the next push. The share is only read.</p>
+      <div class="sharebar"><span class="crumbs">${crumbs}</span>${l ? `<span class="muted small">${l.files.length} photograph${l.files.length === 1 ? "" : "s"} · ${l.folders.length} folder${l.folders.length === 1 ? "" : "s"}${l.error ? ` · <span class="warn">${esc(l.error)}</span>` : ""}</span>` : ""}${l && l.files.length ? `<button type="button" class="chip small" id="shall">all here</button>` : ""}${share.files.size || share.folders.size ? `<button type="button" class="chip small" id="shnone">clear the pick</button>` : ""}</div>
+      <div class="sharelist" id="sharelist">${l ? (folders + files || `<p class="muted small">Nothing here.</p>`) : `<p class="muted small">Reading the share…</p>`}</div>
+      <form id="natimportform" autocomplete="off">
+        <label>Your name <span class="muted">as the photographs are credited</span><input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
+        <label>Organisation<input name="org" value="${esc(f.org || "")}" maxlength="120" placeholder="university, agency, the ship's company"></label>
+        <label>Email <span class="muted">kept on the ship, for questions about the pictures</span><input name="email" type="email" value="${esc(f.email || "")}" maxlength="120"></label>
+        <label>Licence <span class="muted">how the pictures may be used</span><select name="licence">${lic}</select></label>
+        <label>Camera clock <span class="muted">when a photograph does not say its zone</span><select name="clock">${clocks}</select></label>
+        <div class="wide"><button type="submit" class="go" id="natimportgo"></button> <span class="muted small" id="natimportmsg">${w ? watchLine(w) : ""}</span></div>
+      </form>
+      ${share.jobs.length ? `<div class="imports"><span class="lbl">Imports so far</span>${share.jobs.slice(0, 8).map((j) => `<a class="chip small" href="#nature/import/${esc(j.id)}" data-nslug="import/${esc(j.id)}">${esc(j.form?.name || "")} · ${j.imported}/${j.total}${j.status !== "done" ? " · " + esc(j.status) : ""}</a>`).join(" ")}</div>` : ""}
+    </section>`;
+  }
+  // the line under the form for the import being followed, and after it: how far it is, or what came of it
+  const watchLine = (j) => j.status === "done" || j.status === "failed"
+    ? `${j.status === "done" ? `${j.done} of ${j.total} photograph${j.total === 1 ? "" : "s"} imported` : `failed: ${esc(j.error || "")}`} · <a href="#nature/import/${esc(j.id)}" data-nslug="import/${esc(j.id)}">see them</a>`
+    : `${esc(j.stage || j.status)}${j.total ? ` · ${j.done}/${j.total}` : ""} · <a href="#nature/import/${esc(j.id)}" data-nslug="import/${esc(j.id)}">follow</a>`;
+  async function loadShare(path) {
+    try {
+      const r = await fetch(`/api/nature/share${path == null ? "" : "?path=" + encodeURIComponent(path)}`, { cache: "no-store" });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+      share.list = j; share.path = j.path;
+    } catch (e) { share.list = { path: path || "", parent: null, folders: [], files: [], error: e.message || String(e) }; }
+  }
+  async function loadImports() {
+    try { const r = await fetch("/api/nature/import", { cache: "no-store" }); const j = await r.json(); share.jobs = j.jobs || []; share.licences = j.licences || share.licences; } catch { /* the panel stands without the list */ }
+  }
+  function wireImport(el) {
+    const box = el.querySelector(".import"); if (!box) return;
+    if (!share.list) Promise.all([loadShare(share.path), loadImports()]).then(() => { if (nat.slug === "journal") renderMain(); });
+    for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); share.list = null; share.path = a.dataset.share; renderMain(); };
+    const go = box.querySelector("#natimportgo");
+    const label = () => { const n = share.files.size, m = share.folders.size; go.disabled = !(n || m); go.textContent = n || m ? `Import ${n ? `${n} photograph${n === 1 ? "" : "s"}` : ""}${n && m ? " and " : ""}${m ? `${m} folder${m === 1 ? "" : "s"}` : ""}` : "Import (pick some photographs first)"; };
+    label();
+    for (const c of box.querySelectorAll("input[data-file], input[data-folder]")) c.onchange = () => {
+      const set = c.dataset.file ? share.files : share.folders, key = c.dataset.file || c.dataset.folder;
+      c.checked ? set.add(key) : set.delete(key); c.closest("label").classList.toggle("on", c.checked); label();
+    };
+    const all = box.querySelector("#shall"); if (all) all.onclick = () => { for (const c of box.querySelectorAll("input[data-file]")) { c.checked = true; c.onchange(); } };
+    const none = box.querySelector("#shnone"); if (none) none.onclick = () => { share.files.clear(); share.folders.clear(); renderMain(); };
+    const form = box.querySelector("#natimportform"), msg = box.querySelector("#natimportmsg");
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const f = form.elements;
+      const body = { files: [...share.files], folders: [...share.folders], name: f.name.value.trim(), org: f.org.value.trim(), email: f.email.value.trim(), licence: f.licence.value, clock: f.clock.value, token: store.get("chat.token", "") };
+      store.set("nat.import.form", { name: body.name, org: body.org, email: body.email, licence: body.licence, clock: body.clock });
+      if (body.name) store.set("chat.name", body.name);
+      go.disabled = true; msg.textContent = "starting…";
+      try {
+        const r = await fetch("/api/nature/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+        share.files.clear(); share.folders.clear(); share.watch = j.job;
+        UW.toast?.(`Importing ${j.job.total} photographs`);
+        watchJob(j.job.id);
+        renderMain();
+      } catch (e) { msg.textContent = `not started: ${e.message || e}`; label(); }
+    };
+  }
+  // the job followed from the page: the message under the form while it runs; the journal and the map when it is done
+  async function watchJob(id) {
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 2500));
+      let j; try { const r = await fetch(`/api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); j = await r.json(); if (!r.ok) throw new Error(); } catch { continue; }
+      share.watch = j;
+      const msg = $("#natimportmsg"); if (msg) msg.innerHTML = watchLine(j);
+      if (j.status === "done" || j.status === "failed") {
+        await Promise.all([loadJournal(), loadImports()]);
+        if (nat.slug === "journal" || nat.slug === `import/${id}` || !nat.slug) renderMain();
+        if (UW.state.nature) UW.renderMap();
+        UW.toast?.(j.status === "done" ? `Imported ${j.done} of ${j.total} photographs: see the journal` : `The import failed: ${j.error}`);
+        return;
+      }
+    }
+  }
+  // an import's page: what became of each photograph, live while it runs
+  async function renderImport(el, id) {
+    let j = null;
+    try { const r = await fetch(`/api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); if (r.ok) j = await r.json(); } catch { /* shown as missing */ }
+    if (!j) { el.innerHTML = crumb(here("Import", nat.slug)) + `<p class="muted">No such import.</p>`; return; }
+    const live = j.status === "queued" || j.status === "running";
+    const item = (it) => {
+      const pic = it.artifact_file ? `journal/${esc(it.artifact_file.replace(/^_journal\/img\//, ""))}` : `/api/nature/share/thumb?path=${encodeURIComponent(it.file)}`;
+      const s = it.subject_page ? subjectOf(it.subject_page) : null;
+      const subj = s ? `<a href="#nature/${esc(s.page)}" data-nslug="${esc(s.page)}"><span class="dot" style="background:${domainOf(s.domain).colour}"></span>${esc(displayName(s))}</a>` : esc(it.subject || "");
+      const where = it.lat != null ? `${(+it.lat).toFixed(3)}, ${(+it.lon).toFixed(3)}${it.position ? ` <span class="muted">(${esc(it.position)})</span>` : ""}` : "";
+      return `<article class="impitem ${esc(it.status)}">${it.id ? `<a href="#nature/observation/${esc(it.id)}" data-nslug="observation/${esc(it.id)}">` : "<span>"}<img src="${pic}" alt="" loading="lazy">${it.id ? "</a>" : "</span>"}<div class="body"><b>${esc(it.caption || it.file.split("/").pop())}</b>
+        <div class="meta">${[subj, it.kind ? esc(it.kind) : "", it.date ? esc(it.date.replace("T", " ").replace("Z", " UTC")) : "", where].filter(Boolean).join(" · ")}</div>
+        ${it.tags?.length ? `<div class="tags">${it.tags.map((t) => `<span>${esc(t)}</span>`).join("")}</div>` : ""}
+        <div class="st">${esc(it.status)}${it.error ? `: ${esc(it.error)}` : ""}${it.id ? ` · ${esc(it.id)}` : ""} · <span class="muted">${esc(it.file)}</span></div></div></article>`;
+    };
+    const n = j.items.filter((it) => it.id).length, bad = j.items.filter((it) => it.status === "skipped" || it.status === "failed").length;
+    el.innerHTML = crumb(hlinkJournal(), here("Import", nat.slug)) +
+      `<h2>${esc(j.form?.name || "")}'s photographs${j.form?.org ? ` <span class="muted">${esc(j.form.org)}</span>` : ""}</h2>` +
+      `<p class="lead">${live ? `${esc(j.stage)}… ${j.done}/${j.total}` : `${n} of ${j.total} photograph${j.total === 1 ? "" : "s"} in the journal${bad ? `, ${bad} left out` : ""}`}${j.error ? ` <span class="warn">${esc(j.error)}</span>` : ""} · ${esc(share.licences[j.form?.licence] || j.form?.licence || "")} · started ${esc((j.started || "").replace("T", " ").slice(0, 16))} UTC</p>` +
+      `<div class="implist">${j.items.map(item).join("")}</div>`;
+    if (live) setTimeout(() => { if (nat.slug === `import/${id}`) renderMain(); }, 3000);
+  }
+  const hlinkJournal = () => `<a href="#nature/journal" data-nslug="journal">The ship's journal</a>`;
   function formHTML() {
     const pos = UW.M.latest || {}, name = store.get("chat.name", "");
     const now = new Date().toISOString().slice(0, 16) + "Z";
@@ -495,7 +614,9 @@
     </form>`;
   }
   function wireJournal(el) {
-    const add = el.querySelector("#natnew"); if (add) add.onclick = () => open("journal");
+    const add = el.querySelector("#natnew"); if (add) add.onclick = () => { open("journal"); setTimeout(() => { const d = $("#natmain details.byhand"); if (d) { d.open = true; d.scrollIntoView(); } }, 50); };
+    const imp = el.querySelector("#natimport"); if (imp) imp.onclick = () => open("journal");
+    wireImport(el);
     const form = el.querySelector("#natform"); if (!form) return;
     const msg = form.querySelector("#natformmsg"), hint = form.querySelector("#natsubhint");
     const sub = form.elements.subject;
@@ -631,7 +752,7 @@
   // ---------------------------------------------------------------- Doc
   // the page being read, for Doc's context in the chat: a subject or an observation
   // the page being read, for Doc's context in the chat: a subject, an observation or a document
-  UW.natureContext = () => (nat.slug && !["explore", "record", "journal"].includes(nat.slug) && !/^(topic|kind|subjects|domain|at)\//.test(nat.slug)) ? nat.slug : "";
+  UW.natureContext = () => (nat.slug && !["explore", "record", "journal"].includes(nat.slug) && !/^(topic|kind|subjects|domain|at|import)\//.test(nat.slug)) ? nat.slug : "";
   UW.natureOpen = (slug) => open(slug);
 
   // ---------------------------------------------------------------- wiring
