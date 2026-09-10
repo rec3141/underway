@@ -40,8 +40,8 @@
     trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the span)
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
-    cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
-    communities: store.get("communities", true),        // settlements on the map
+    photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
+    communities: true,                                  // the settlements with people in them are always on the map
     plan: store.get("plan", true),                      // the leg's planned track and stations
     history: store.get("history", false),               // the History tab's artifacts and voyage tracks
     nature: store.get("nature", false),                 // the Nature tab's observations
@@ -446,7 +446,7 @@
       const layer = b.dataset.layer;
       b.classList.toggle("on", !!state[layer]);
       b.setAttribute("aria-pressed", String(!!state[layer]));
-      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "cameras") closeCamera(); renderMap(); };
+      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "photos") closeCamera(); renderMap(); };
     }
     renderSatPill();
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
@@ -738,7 +738,7 @@
   // day's shots were taken; a click plays the day's video in a popup over
   // the map, with previous/next stepping through the shown days.
   const camsShown = (f = spanFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
-    .filter((c) => c.lat != null && c.lon != null && state.cameras && inFilter(c.leg, c.mid_utc, f))
+    .filter((c) => c.lat != null && c.lon != null && state.photos && inFilter(c.leg, c.mid_utc, f))
     .sort((a, b) => a.day.localeCompare(b.day));
   function cameraTraces(f) {
     const cs = camsShown(f);

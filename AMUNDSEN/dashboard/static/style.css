@@ -987,7 +987,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .chat .msg .cite { border-bottom: 1px dotted var(--accent); }
 .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
 /* the Wiki tab's map: plan, places, history and nature only; the ship's controls step aside */
-body.tab-wiki #maplayers button[data-layer="stations"], body.tab-wiki #maplayers button[data-layer="cameras"],
+body.tab-wiki #maplayers button[data-layer="stations"],
 body.tab-wiki #maplayers button[data-layer="events"], body.tab-wiki #maplayers button[data-layer="track"],
 body.tab-wiki #satpill, body.tab-wiki #satnav, body.tab-wiki .mapcolour, body.tab-wiki .maptrack,
 body.tab-wiki .top .controls, body.tab-wiki .pickhint { display: none !important; }

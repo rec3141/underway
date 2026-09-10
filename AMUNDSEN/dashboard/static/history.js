@@ -1487,7 +1487,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   // On the Wiki tab the map is the wiki's: the ship's own layers step aside
   // and come back when the tab is left; plan and places stay, and the two
   // past layers follow the labels.
-  const SHIP_LAYERS = ["stations", "cameras", "events", "track"];
+  const SHIP_LAYERS = ["stations", "events", "track"];             // Photos stays: the ship's own photographs belong to the wiki too
   let stashed = null;
   function historyMap(on) {
     if (on && !stashed) {
