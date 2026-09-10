@@ -822,10 +822,11 @@ class Crew:
             return text, []
         return chat.chosen_chips(chat.apply_picks(text, reply), shelf)
 
-    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False, slug: str = "") -> None:
-        """Generate and post one remark in a room; in the crew's room another
-        member sometimes riffs on it, usually Polly (one hop only, so they
-        cannot chain forever)."""
+    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False, slug: str = "", hop: int = 0) -> None:
+        """Generate and post one remark in a room. A member the remark
+        @mentions answers it, and in the crew's room another member
+        sometimes riffs on it, usually Polly; either is one hop only
+        (`hop`), so they cannot chain forever."""
         if not self.enabled:
             return
         from . import chat
@@ -860,13 +861,22 @@ class Crew:
                 log.info("crew %s stayed quiet (%s)", handle, e)
             finally:
                 chat.typing(channel, handle, False)
+        if text and hop == 0:
+            # the members they spoke to by handle answer, where they can be in that room
+            room_bots = chat.bots_in(channel)
+            asked = [h.lower() for h in HANDLE_RX.findall(text)]
+            asked = [h for h in dict.fromkeys(asked) if h in PERSONAS and h != handle and (h in room_bots or channel == "ship")]
+            for other in asked:
+                self._speak(other, f"{p['name']} just said to you in the chat: \"{text}\". Reply to them as yourself.", channel, banter=False, hop=1)
+            if asked:
+                return
         if text and banter and channel == "crew" and random.random() < BANTER_P:
             # the reporting gets reported on: Polly, usually; another now and then
             other = "polly" if handle != "polly" and random.random() < 0.7 else random.choice([h for h in PERSONAS if h not in (handle, "polly")])
             time.sleep(random.uniform(8, 25))
             self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
                                f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
-                        channel, banter=False)
+                        channel, banter=False, hop=1)
 
     # ------------------------------------------------------------ triggers
     def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "") -> None:

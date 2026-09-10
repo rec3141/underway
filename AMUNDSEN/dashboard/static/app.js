@@ -136,11 +136,11 @@
     ssel.value = sizeName();
     ssel.onchange = () => { store.set("textsize", ssel.value); applyTheme(themeName(), true); };
     lightOS.addEventListener?.("change", () => { if (themeName() === "auto") applyTheme("auto", true); });
-    // the top line by width: on a desktop the map cycler, the tabs, the theme picker at the right; on a
-    // phone the cycler flows with the tab buttons and the picker goes to the very foot of the page
-    const pick = document.querySelector(".themepick"), cycler = document.querySelector(".top .maptoggle"), row = document.querySelector(".tabrow"), tabs = $("#tabs"), foot = document.querySelector("main > footer");
+    // the top line by width: on a desktop the tabs and the theme picker at the right; on a phone the
+    // picker goes to the very foot of the page
+    const pick = document.querySelector(".themepick"), row = document.querySelector(".tabrow"), foot = document.querySelector("main > footer");
     const narrow = matchMedia("(max-width: 640px)");
-    const place = () => { if (!(pick && cycler && row && tabs && foot)) return; (narrow.matches ? foot : row).append(pick); (narrow.matches ? tabs : row).prepend(cycler); };
+    const place = () => { if (!(pick && row && foot)) return; (narrow.matches ? foot : row).append(pick); };
     place(); narrow.addEventListener?.("change", place);
   }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
@@ -456,7 +456,8 @@
     // whole page, no pane) or none (the pane takes the whole width). The
     // header pill cycles through them; the map's own — and ⤢ buttons pick
     // none and full (⤢ again, back to half). Every plot resizes after.
-    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half Map", full: "Full Map", none: "No Map" };
+    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half map", full: "Full map", none: "No map" };
+    const MAP_ICON = { half: "◧", full: "■", none: "□" };          // the cycler in the tab row shows the state it is in
     const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
     // the classes and labels follow the stored mode; the plots resize and
     // the map refits only when the mode has actually changed (this runs on
@@ -464,7 +465,7 @@
     const applyMapMode = () => {
       const m = mapMode(), main = $("main");
       main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
-      $("#maptoggle").textContent = MAP_WORD[m];
+      $("#maptoggle").textContent = MAP_ICON[m]; $("#maptoggle").title = `${MAP_WORD[m]} · click for ${MAP_WORD[m === "half" ? (mapDir === "up" ? "full" : "none") : "half"].toLowerCase()}`;
       $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
       if (main.dataset.mapmode === m) return;
       const first = !main.dataset.mapmode;
@@ -479,11 +480,11 @@
     window.UW = Object.assign(window.UW || {}, { mapMode, setMapMode });
     // the pill swings: none, half, full, half, none, ... so half is always one click away
     let mapDir = "up";
-    $("#maptoggle").onclick = () => {
+    window.UW = Object.assign(window.UW || {}, { cycleMap() {
       const m = mapMode();
       if (m === "half") setMapMode(mapDir === "up" ? "full" : "none");
       else { mapDir = m === "none" ? "up" : "down"; setMapMode("half"); }
-    };
+    } });
     $("#mapnone").onclick = () => setMapMode("none");
     $("#mapfull").onclick = () => setMapMode(mapMode() === "full" ? "half" : "full");
     applyMapMode();
@@ -784,7 +785,7 @@
     const minPop = zoom < 3.5 ? 2000 : zoom < 5 ? 400 : zoom < 6.5 ? 100 : 0;
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const groups = new Map();
-    for (const c of state.communities_data) { const sz = placeBucket(c.pop); if (!groups.has(sz)) groups.set(sz, []); groups.get(sz).push(c); }
+    for (const c of state.communities_data) { if (!(c.pop > 0)) continue; const sz = placeBucket(c.pop); if (!groups.has(sz)) groups.set(sz, []); groups.get(sz).push(c); }   // the empty sites are the wiki's Places
     return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([sz, cs]) => ({
       type: "scattermap", mode: "markers+text", name: "places", showlegend: false, hoverinfo: "text",
       lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon),
@@ -1695,8 +1696,9 @@
   // The map stays; the right-hand pane and the header controls swap.
   function showTab(name) {
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
+    if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
     if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
-    for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
+    for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat" && b.dataset.tab !== "map") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
     if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
     const mn = document.querySelector("main"); mn.className = "tab-" + name + (mn.classList.contains("mapmin") ? " mapmin" : mn.classList.contains("mapfull") ? " mapfull" : "");   // No Map survives a tab change

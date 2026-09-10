@@ -108,8 +108,10 @@
 
   const fmtT = (t) => { const d = new Date(t * 1000); const now = new Date();
     return (d.toDateString() === now.toDateString() ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " ") + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); };
+  // a link written inside another's label ("[[Axel Heiberg](…) Island](…)") is one link with the outer's address
+  const flatten = (s) => { let t = String(s ?? ""), prev; do { prev = t; t = t.replace(/\[([^\[\]]*)\[([^\[\]]*)\]\([^()]*\)([^\[\]]*)\]\(/g, "[$1$2$3]("); } while (t !== prev); return t; };
   // links: Markdown links to History pages, bare URLs, and @handles
-  const linkify = (s) => esc(s)
+  const linkify = (s) => esc(flatten(s))
     .replace(/\[(\d{1,2})\]\(#history\/([^)\s]+)\)/g, (m, n, slug) => `<sup><a href="#history/${slug}" data-slug="${slug}" class="ref" title="reference ${n}">${n}</a></sup>`)
     .replace(/\[([^\]]+)\]\(#history\/([^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)
     .replace(/\[([^\]]+)\]\(((?:artifact|person|place|event|source|topic|vessel|animal|kind|subject|observation)\/[^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)   // a page written without the #history/ prefix

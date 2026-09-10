@@ -545,19 +545,33 @@
     for (const d of docs) for (const m of String(d?.html || "").matchAll(/\]\((artifact\/[^)\s]+)\)/g)) if (!order.has(m[1])) order.set(m[1], n++);
     return order;
   }
-  // search: the pane's pages, artifacts and events, in the main area
+  // search: the pane's pages, artifacts and events, a section a kind in the
+  // Browse menu's order, the title hits first within each
+  const SEARCH_MAX = 60;
   function renderSearch(el, query) {
     const q = query.trim().toLowerCase();
     const words = q.split(/\s+/).filter(Boolean), t = curTopic();
     const hit = (s) => { const t = String(s || "").toLowerCase(); return words.every((w) => t.includes(w)); };
-    const pages = pagesOf().filter((p) => (!t || p.topic === t || !p.topic) && (hit(p.title) || hit(p.summary)))
-      .sort((a, b) => (hit(b.title) - hit(a.title)) || (a.kind === "page" ? -1 : 1));
-    const found = arts().filter((a) => (!t || a.topic === t) && (hit(a.title) || hit(a.description) || hit((a.people || []).join(" ")) || hit((a.tags || []).join(" "))));
-    const evs = hist.events.filter(inDomain).filter((e) => (!t || e.topic === t) && (hit(e.title) || hit(e.detail) || hit(e.place) || hit((e.people || []).join(" "))));
-    el.innerHTML = crumb(`search <i>${esc(query.trim())}</i>`) + `<h2>${pages.length} pages · ${found.length} artifacts · ${evs.length} events</h2>` +
-      `<div class="pagelist">${pages.slice(0, 80).map((p) => pageLink(p)).join("")}</div>` +
-      (found.length ? `<div class="artgrid">${found.slice(0, 80).map((a) => artifactCard(a, { creator: true })).join("")}</div>` : "") +
-      (evs.length ? `<div class="pagelist">${evs.slice(0, 80).map((e) => pageLink({ slug: `event/${e.id}`, kind: "event", title: e.title, summary: [dateLabel(e.date_text || e.date_start || ""), e.place].filter(Boolean).join(" · ") })).join("")}</div>` : "");
+    const groups = new Map();                                   // kind -> [{ p (a page row) | a (an artifact), title, first }]
+    const add = (kind, item) => { if (!groups.has(kind)) groups.set(kind, []); groups.get(kind).push(item); };
+    for (const p of pagesOf()) if (p.kind !== "artifact" && (!t || p.topic === t || !p.topic) && (hit(p.title) || hit(p.summary))) add(p.kind === "person" ? "people" : p.kind, { p, title: p.title, first: hit(p.title) });
+    for (const a of arts()) if ((!t || a.topic === t) && (hit(a.title) || hit(a.description) || hit((a.people || []).join(" ")) || hit((a.tags || []).join(" ")))) add(a.type, { a, title: a.title, first: hit(a.title) });
+    const seen = new Set((groups.get("event") || []).map((x) => x.p?.slug).filter(Boolean));   // an event found by its detail or its place, not already by its page
+    for (const e of hist.events.filter(inDomain)) if (!seen.has(`event/${e.id}`) && (!t || e.topic === t) && (hit(e.title) || hit(e.detail) || hit(e.place) || hit((e.people || []).join(" "))))
+      add("event", { p: { slug: `event/${e.id}`, kind: "event", title: e.title, summary: [dateLabel(e.date_text || e.date_start || ""), e.place].filter(Boolean).join(" · ") }, title: e.title, first: hit(e.title) });
+    const rank = (k) => { const i = BACK_ORDER.indexOf(k); return i < 0 ? BACK_ORDER.length : i; };
+    const total = [...groups.values()].reduce((n, xs) => n + xs.length, 0);
+    const section = ([k, xs]) => {
+      xs.sort((x, y) => (y.first - x.first) || x.title.localeCompare(y.title));
+      const K = KINDS[k], colour = K ? K.colour : k === "page" ? C.accent : C.muted;
+      const head = `<h3><span class="dot" style="background:${colour}"></span><span class="muted">${xs.length}</span> ${esc(K ? K.label : BACK_LABEL[k] || k)}</h3>`;
+      const shown = xs.slice(0, SEARCH_MAX), more = xs.length > SEARCH_MAX ? `<p class="muted small">and ${xs.length - SEARCH_MAX} more: narrow the search</p>` : "";
+      const pages = shown.filter((x) => x.p), cards = shown.filter((x) => x.a);   // the events: their pages, and the artifacts of that kind
+      return head + (pages.length ? `<div class="pagelist">${pages.map((x) => pageLink(x.p)).join("")}</div>` : "") +
+        (cards.length ? `<div class="artgrid ${k === "image" || k === "map" ? "pictures" : ""} ${k === "quote" ? "quotes" : ""}">${cards.map((x) => artifactCard(x.a, { creator: true })).join("")}</div>` : "") + more;
+    };
+    el.innerHTML = crumb(`search <i>${esc(query.trim())}</i>`) + `<h2>${total} found</h2>` +
+      [...groups.entries()].sort((x, y) => rank(x[0]) - rank(y[0]) || x[0].localeCompare(y[0])).map(section).join("");
     if (domainOn("nature")) UW.natureViews?.searchExtra?.(el, query);
   }
   const LEAD = {
@@ -1228,7 +1242,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     if (sel) {
       const opt = (slug, label) => `<option value="${slug}" ${hist.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
       const natv = domainOn("nature") ? UW.natureViews : null;
-      const pages = [opt("explore", "Explore"), opt("bib", "Bibliography"), opt("provenance", "Provenance"), ...(natv ? [opt("record", "The record"), opt("journal", "The ship's journal")] : [])].join("");
+      const pages = [opt("explore", "Explore"), opt("bib", "Bibliography"), opt("provenance", "Provenance"), ...(natv ? [opt("record", "Observations"), opt("journal", "/Share Photos")] : [])].join("");
       sel.innerHTML = `<option value="" ${!hist.slug || !/^(kind\/|domain\/|subjects\/|explore$|bib$|provenance$|record$|journal$)/.test(hist.slug) ? "selected" : ""}>Browse…</option>` +
         `<optgroup label="Pages">${pages}</optgroup>` +
         kindOptions(hist.slug.split("/").slice(0, 2).join("/")) +
@@ -1430,6 +1444,12 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
       if (pl.length) out.push({ type: "scattermap", mode: "markers", name: `${ns.key}-places`, showlegend: false, hoverinfo: "text",
         lat: pl.map((p) => p.lat), lon: pl.map((p) => p.lon), text: pl.map((p) => siteText(sites, p.lat, p.lon, `${esc(p.name)}${p.kind ? " · " + esc(p.kind) : ""}`)), customdata: pl.map((p) => `hist:place:${p.page}`),
         marker: { size: 7, color: TYPES.place.colour, opacity: .85 } });
+      // the gazetteer's sites with nobody in them (abandoned settlements, camps, stations) belong here
+      // rather than on the ship's Places layer, which keeps the settlements with people
+      const empty = ns.key === "history" && !t ? (UW.state.communities_data || []).filter((c) => !(c.pop > 0) && c.lat != null) : [];
+      if (empty.length) out.push({ type: "scattermap", mode: "markers", name: "history-sites", showlegend: false, hoverinfo: "text",
+        lat: empty.map((c) => c.lat), lon: empty.map((c) => c.lon), text: empty.map((c) => `${esc(c.name)}${c.alt?.length ? " · " + esc(c.alt.join(" · ")) : ""}<br>${esc(c.region)}, ${c.cc === "GL" ? "Greenland" : "Canada"} · no one lives here now`),
+        marker: { symbol: "square", size: 5, color: TYPES.place.colour, opacity: .55 } });
     }
   }
 

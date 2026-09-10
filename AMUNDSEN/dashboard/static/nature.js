@@ -133,7 +133,7 @@
   function scopeOf() {
     const s = slug();
     if (s.startsWith("topic/")) return { topic: s.slice(6) };
-    if (s.startsWith("domain/")) return { domain: s.slice(7) };
+    if (s.startsWith("domain/")) return { domain: s.split("/")[1] };
     if (s.startsWith("subjects/")) return { kind: s.slice(9) };
     if (s.startsWith("subject/")) { const su = subjectBySlug(s); return su ? { subject: su } : {}; }
     if (s.startsWith("observation/")) { const o = obsById(s.slice(12)); const su = o ? subjectOf(o.subject) : null; return su ? { subject: su } : {}; }
@@ -224,7 +224,7 @@
         `<td>${num ? `<b>${esc(num)}</b> ` : ""}${o.qualifier && !/\bat$/.test(o.qualifier) ? `<i>${esc(o.qualifier)}</i> ` : ""}${o.depth != null ? `<span class="muted">${esc(fmtNum(o.depth))} m down</span> ` : ""}${o.height != null ? `<span class="muted">${esc(fmtNum(o.height))} m up</span> ` : ""}<span class="muted">${esc(short(o.detail || "", 110))}</span></td>` +
         `<td>${where}${pin}</td><td>${esc(o.observer || "")}${o.vessel ? ` <span class="muted">${esc(o.vessel)}</span>` : ""}</td><td>${src}</td></tr>`;
     };
-    const chart = rows.length >= 2 ? `<section class="panel card castplot wide solo" data-cp="natplot"><div class="head"><h3>${esc(opts.title || "The record")}</h3><div class="tools"><span class="now">${rows.length} observations · scroll to zoom, drag to pan, click a point for its row</span><button type="button" class="reset" id="natplotreset" title="the whole record">⟲</button></div></div><div class="plot" id="natplot"></div></section>` : "";
+    const chart = rows.length >= 2 ? `<section class="panel card castplot wide solo" data-cp="natplot"><div class="head"><h3>${esc(opts.title || "Observations")}</h3><div class="tools"><span class="now">${rows.length} observations · scroll to zoom, drag to pan, click a point for its row</span><button type="button" class="reset" id="natplotreset" title="the whole record">⟲</button></div></div><div class="plot" id="natplot"></div></section>` : "";
     return chart + `<div class="hscroll" id="natrecord"><table class="sched timeline record"><thead><tr><th>Date</th>${opts.subject ? "" : "<th>Subject</th>"}<th>Observation</th><th>Where</th><th>Observer</th><th>Source</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>`;
   }
   const short = (t, n = 60) => t.length > n ? t.slice(0, n - 3) + "…" : t;
@@ -298,7 +298,7 @@
     const doms = [...Object.keys(DOMAINS), ...[...counts.keys()].filter((d) => !DOMAINS[d])].map((d) => domainChip(d, counts.get(d) || 0)).join("");
     return (nat.available ? "" : `<p class="lead">The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.</p>`) +
       journalHTML(true) +
-      `<h2>Domains <a class="chip small" href="#wiki/record" data-slug="record">The whole record</a></h2><div class="domgrid">${doms}</div>`;
+      `<h2>Domains <a class="chip small" href="#wiki/record" data-slug="record">All observations</a></h2><div class="domgrid">${doms}</div>`;
   }
   const wireHome = (el) => wireJournal(el);
   // Explore, after the topics: the kinds of subject
@@ -323,11 +323,11 @@
     if (!nat.subjects) { el.innerHTML = `<div class="empty">Loading the record…</div>`; return; }
     if (s === "record") {
       const rows = shownObs().sort(byDate);
-      el.innerHTML = crumb(here("The record", "record")) + `<h2><span class="muted">${rows.length}</span> Observations</h2><div class="domgrid">${Object.keys(DOMAINS).map((d) => domainChip(d, rows.filter((o) => domainOfObs(o) === d).length)).join("")}</div>` + (rows.length ? recordHTML(rows, { title: "The record" }) : `<p class="muted">Nothing in the record yet.</p>`);
+      el.innerHTML = crumb(here("Observations", "record")) + `<h2><span class="muted">${rows.length}</span> Observations</h2><div class="domgrid">${Object.keys(DOMAINS).map((d) => domainChip(d, rows.filter((o) => domainOfObs(o) === d).length)).join("")}</div>` + (rows.length ? recordHTML(rows, { title: "Observations" }) : `<p class="muted">Nothing in the record yet.</p>`);
       drawRecord(rows);
       return;
     }
-    if (s === "journal") { el.innerHTML = crumb(here("The ship's journal", "journal")) + journalHTML(false); wireJournal(el); return; }
+    if (s === "journal") { el.innerHTML = crumb(here("/Share Photos", "journal")) + journalHTML(false); wireJournal(el); return; }
     if (s.startsWith("import/")) { await renderImport(el, s.slice(7)); return; }
     if (s.startsWith("domain/")) { const [, d, part] = s.split("/"); renderDomain(el, d, part || ""); return; }
     if (s.startsWith("subjects/")) {
@@ -345,7 +345,7 @@
   // topics': the page is a chip per part, narrative, images, events, maps
   // and glossary (the subjects), each opening its own page, over the record
   // of its observations.
-  const DOMAIN_PARTS = [["pages", "Narrative", "pages"], ["images", "Images", "images"], ["events", "Events", "events"], ["maps", "Maps", "maps"], ["glossary", "Glossary", "subjects"]];
+  const DOMAIN_PARTS = [["pages", "Narrative", "pages"], ["images", "Images", "images"], ["events", "Events", "events"], ["maps", "Maps", "maps"], ["glossary", "Glossary", "subjects"], ["observations", "Observations", "observations"]];
   function domainTopics(d) {
     const t = new Set();
     for (const x of nat.subjects) if (x.domain === d && x.topic) t.add(x.topic);
@@ -359,7 +359,8 @@
       images: (hd.artifacts || []).filter((a) => a.type === "image" && t.has(a.topic)),
       maps: (hd.artifacts || []).filter((a) => a.type === "map" && t.has(a.topic)),
       events: (hd.events || []).filter((e) => t.has(e.topic)),
-      glossary: nat.subjects.filter((x) => x.domain === d) };
+      glossary: nat.subjects.filter((x) => x.domain === d),
+      observations: allObs().filter((o) => domainOfObs(o) === d).sort(byDate) };
   }
   const byYear = (p, q) => ((p._year ?? H.yearOf(p.date_start) ?? 9e9) - (q._year ?? H.yearOf(q.date_start) ?? 9e9)) || String(p.title).localeCompare(String(q.title));
   function renderDomain(el, d, part) {
@@ -367,13 +368,10 @@
     const dlink = `<a href="#wiki/domain/${esc(d)}" data-slug="domain/${esc(d)}">${esc(D.label)}</a>`;
     const h2 = (n, label) => `<h2><span class="dot" style="background:${D.colour}"></span>${n != null ? `<span class="muted">${n}</span> ` : ""}${esc(label)}</h2>`;
     if (!part) {
-      const rows = shownObs().sort(byDate);
       const chips = DOMAIN_PARTS.filter(([k]) => sets[k].length).map(([k, label, word]) =>
         H.collectionChip({ slug: `domain/${d}/${k}`, label, colour: D.colour, count: sets[k].length, word, items: k === "maps" ? sets.maps : sets.images })).join("");
       el.innerHTML = crumb(here(esc(D.label), `domain/${d}`)) + h2(null, D.label) + `<p class="lead">${esc(D.hint)}</p>` +
-        (chips ? `<div class="colgrid">${chips}</div>` : `<p class="muted">No documents of this domain in the wiki yet.</p>`) +
-        (rows.length ? `<h3><span class="muted">${rows.length}</span> Observations</h3>` + recordHTML(rows, { title: D.label }) : `<p class="muted">No observations in this domain yet.</p>`);
-      drawRecord(rows);
+        (chips ? `<div class="colgrid">${chips}</div>` : `<p class="muted">Nothing of this domain in the wiki yet.</p>`);
       return;
     }
     const P = DOMAIN_PARTS.find(([k]) => k === part);
@@ -382,12 +380,14 @@
     let body;
     if (part === "pages") body = `<div class="pagelist">${xs.map((p) => H.pageLink(p)).join("")}</div>`;
     else if (part === "images" || part === "maps") body = `<div class="artgrid pictures">${xs.sort(byYear).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>`;
+    else if (part === "observations") body = recordHTML(xs, { title: D.label });
     else if (part === "events") body = `<div class="pagelist">${xs.sort(byYear).map((e) => H.pageLink({ slug: `event/${e.id}`, kind: "event", title: e.title, summary: [H.dateLabel(e.date_text || e.date_start || ""), e.place].filter(Boolean).join(" · ") })).join("")}</div>`;
     else {
       const kinds = [...new Set(xs.map((x) => x.kind))];
       body = kinds.map((k) => `<h3>${esc(SUBJECT_KINDS[k] || k)} <span class="muted">${xs.filter((x) => x.kind === k).length}</span></h3><div class="peoplelist subjlist">${xs.filter((x) => x.kind === k).sort((a, b) => a.name.localeCompare(b.name)).map(subjectRow).join("")}</div>`).join("");
     }
     el.innerHTML = crumb(dlink, here(esc(label), `domain/${d}/${part}`)) + h2(xs.length, label) + (xs.length ? body : `<p class="muted">Nothing here yet.</p>`);
+    if (part === "observations") drawRecord(xs);
   }
   // the taxa and the rock units as a tree: a root is a row with no parent in the list
   function treeHTML(subs) {
@@ -421,7 +421,7 @@
       `<div class="wiki">${H.markdown(p?.html || row.note || "")}</div>` +
       (pictures.length ? `<h3>Pictures <span class="muted">${pictures.length}</span></h3><div class="artgrid pictures">${pictures.slice(0, 24).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>${pictures.length > 24 ? `<p class="muted small">and ${pictures.length - 24} more among the <a href="#wiki/kind/image" data-slug="kind/image">images</a></p>` : ""}` : "") +
       (kids.length ? `<h3>Below it <span class="muted">${kids.length}</span></h3><div class="peoplelist subjlist">${kids.map(subjectRow).join("")}</div>` : "") +
-      `<h3>The record <span class="muted">${rows.length}</span></h3>` + (rows.length ? recordHTML(rows, { subject: true, title: shortName(row) }) : `<p class="muted">No observations of it in the record yet.</p>`) +
+      `<h3>Observations <span class="muted">${rows.length}</span></h3>` + (rows.length ? recordHTML(rows, { subject: true, title: shortName(row) }) : `<p class="muted">No observations of it in the record yet.</p>`) +
       H.backlinksHTML(p?.backlinks || []);
     H.wireBackmore(el);
     H.crossLink(el.querySelector(".wiki"), slug, p?.people, row.name);
@@ -465,7 +465,7 @@
       facts + `<div class="wiki"><p>${esc(o.detail || "")}</p></div>` +
       (art ? `<h3>Evidence</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
       (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
-      (s ? `<div class="backlinks"><span class="lbl">The record</span><a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}">every observation of ${esc(shortName(s))}</a></div>` : "");
+      (s ? `<div class="backlinks"><span class="lbl">Observations</span><a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}">every observation of ${esc(shortName(s))}</a></div>` : "");
     if (o.lat != null) focusPoint(o.lat, o.lon, o.subject);
   }
 
@@ -486,7 +486,7 @@
     const list = lines.length ? lines.map(entry).join("") + (brief && nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
     const tools = brief ? `<div class="jtools"><button type="button" class="chip" id="natimport">Import a folder of photographs from the share</button> <button type="button" class="chip small" id="natnew">one observation by hand</button></div>` : "";
     const body = brief ? "" : importHTML() + `<details class="byhand"><summary>Add one observation by hand</summary>${formHTML()}</details>`;
-    return `<section class="journal card"><h3>The ship's journal${brief ? ` <a class="chip small" href="#wiki/journal" data-slug="journal">open</a>` : ""}</h3>${brief ? "" : body}${list}${tools}</section>`;
+    return `<section class="journal card"><h3>/Share Photos${brief ? ` <a class="chip small" href="#wiki/journal" data-slug="journal">open</a>` : ""}</h3>${brief ? "" : body}${list}${tools}</section>`;
   }
   // the import panel: the browser over the share (the folder open is the one imported), the form with the
   // permission to keep importing from it, the folders being watched, the imports so far
@@ -602,7 +602,7 @@
       `<div class="implist">${j.items.map(item).join("")}</div>`;
     if (live) setTimeout(() => { if (slug() === `import/${id}`) H.rerender(); }, 3000);
   }
-  const hlinkJournal = () => `<a href="#wiki/journal" data-slug="journal">The ship's journal</a>`;
+  const hlinkJournal = () => `<a href="#wiki/journal" data-slug="journal">/Share Photos</a>`;
   function formHTML() {
     const pos = UW.M.latest || {}, name = store.get("chat.name", "");
     const now = new Date().toISOString().slice(0, 16) + "Z";
