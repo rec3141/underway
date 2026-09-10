@@ -338,15 +338,15 @@ main > footer { grid-column: 2; grid-row: 3; }                  /* the provenanc
   .cbar { flex: 1 0 100%; margin: 4px 0 0; }
   .cbar .grad { flex: 1; width: auto; }
 }
-.map { grid-column: 1; grid-row: 1 / 3; }
+main > .map { grid-column: 1; grid-row: 1 / 3; }
 .side { grid-column: 2; grid-row: 2; }
 /* No Map: the pickers, the pane and the provenance span both columns */
 main.mapmin { grid-template-columns: 0 minmax(0, 1fr); column-gap: 0; }
 main.mapmin .plotctl, main.mapmin .side, main.mapmin > footer { grid-column: 1 / 3; }
-main.mapmin .map { display: none; }
+main.mapmin > .map { display: none; }
 /* Full Map: the map is the whole page; no pane, pickers or provenance */
 main.mapfull { grid-template-columns: minmax(0, 1fr) 0; column-gap: 0; }
-main.mapfull .map { grid-column: 1 / 3; grid-row: 1 / 4; }
+main.mapfull > .map { grid-column: 1 / 3; grid-row: 1 / 4; }
 main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none; }
 .group.maptoggle .xcycle { min-width: 6.5em; }
 /* the map's tool buttons, at the right end of the layer bar, like a graph's */
@@ -365,14 +365,15 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .maplayers .tools button.on { color: var(--fg); border-color: var(--accent); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 
-.map { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 6px; margin-bottom: 14px; overflow-y: auto; }   /* the bars round the map may outgrow the column (big type, a short window): the card scrolls rather than the map shrinking to a strip */
+/* the map pane is main's own child: an artifact card of type map (.artcard.map) must never take these */
+main > .map { position: relative; display: flex; flex-direction: column; min-height: 0; padding: 6px; margin-bottom: 14px; overflow-y: auto; }   /* the bars round the map may outgrow the column (big type, a short window): the card scrolls rather than the map shrinking to a strip */
 #map { flex: 1 1 auto; min-height: 240px; width: 100%; }
 .map-foot { flex: 0 0 auto; color: var(--muted); font-size: 0.857rem; padding: 4px 8px 2px; display: flex; gap: 14px; flex-wrap: wrap; }
 .map-foot b { color: var(--fg); font-weight: 600; }
 .map-foot .mono { font-family: var(--mono); }
 .map-foot .hint { margin-left: auto; opacity: .7; }
 .mapmsg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 1rem; pointer-events: none; }
-.map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; }   /* a KMZ held over the map */
+main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; }   /* a KMZ held over the map */
 /* the layer toggles: a bar above the map, each button on or off */
 .maplayers { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 4px 8px; font-size: 0.893rem; }
 .maplayers button { background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 0.893rem; cursor: pointer; }
@@ -417,9 +418,9 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
   .plotctl { order: 2; padding: 4px 0; }
   main.tab-underway .plotctl { order: 0; position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 6px 0; margin: -10px 0 6px; }
   /* on a narrow screen the pane is the point on every tab: the map follows it, shorter */
-  .map { position: relative; order: 2; height: auto; margin: 12px 0 14px; }
+  main > .map { position: relative; order: 2; height: auto; margin: 12px 0 14px; }
   #map { flex: none; height: 45vh; }                    /* the plot keeps its height whatever the bars around it take */
-  main.mapmin .map { display: none; }
+  main.mapmin > .map { display: none; }
   main.mapfull #map { height: calc(100vh - 220px); }
   main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none; }
   .side { overflow: visible; }
@@ -1104,7 +1105,7 @@ footer details .prov { max-height: 45vh; overflow-y: auto; }
 /* Full Map on the History tab keeps the tools above the map, so the map is never a dead end */
 main.mapfull.tab-history .side { display: flex; grid-column: 1 / 3; grid-row: 1; overflow: visible; padding-right: 0; }
 main.mapfull.tab-history .side .histmain { display: none; }
-main.mapfull.tab-history .map { grid-row: 2 / 4; }
+main.mapfull.tab-history > .map { grid-row: 2 / 4; }
 
 /* the History tools stay put while the pane scrolls */
 .histpane > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }
@@ -1242,7 +1243,7 @@ html[data-theme^="navigator"] .panel.on { border: 2px solid var(--accent); box-s
 html[data-theme^="navigator"] .panel.surprise { border-color: var(--accent-2); }
 html[data-theme^="navigator"] .panel .plot, html[data-theme^="navigator"] .castplot .plot { border: 2px inset var(--bevel); background: var(--plot-bg); }
 html[data-theme^="navigator"] .plot.table { border: 2px inset var(--bevel); }
-html[data-theme^="navigator"] .map { padding: 4px; }
+html[data-theme^="navigator"] main > .map { padding: 4px; }
 html[data-theme^="navigator"] #map { border: 2px inset var(--bevel); }
 html[data-theme^="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .kgroup, .histmain .status) { border-radius: 0; }
 /* buttons and chips: grey bevels; chosen ones press in, white, navy and bold */
