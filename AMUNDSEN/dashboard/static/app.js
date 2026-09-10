@@ -980,7 +980,8 @@
   // the span picks a starting detail (up to a week: a point a km; months:
   // 5 km; years: 20 km) that the slider then overrides; "all points" is a
   // choice, never the default
-  const detailFor = (hours) => hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
+  // the track detail a span asks for: every point up to half a day, then coarser as the span grows
+  const detailFor = (hours) => hours <= 12 ? 0 : hours <= 48 ? 0.5 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
   const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
   const currentWindow = () => M.windows.find((x) => x.label === state.win);
   // "all points" loads the window's fine variant when the build made one
