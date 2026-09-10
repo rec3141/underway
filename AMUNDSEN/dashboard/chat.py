@@ -365,7 +365,7 @@ def link_citations(text: str, pages: list[dict]) -> tuple[str, list[dict]]:
         if m:
             text = text[:m.start()] + f"[{name}](#history/{p['slug']})" + text[m.end():]
     refs = [{**pages[i - 1], "n": n} for n, i in enumerate(cited, 1)]
-    return text, refs
+    return flatten_links(text), refs
 
 
 # ---------------------------------------------------------------- the chips
@@ -561,6 +561,19 @@ def gazetteer() -> list[tuple[str, str]]:
 _LINK_SPAN_RX = re.compile(r"\[[^\]]*\]\([^)]*\)")
 
 
+_NESTED_RX = re.compile(r"\[([^\[\]]*)\[([^\[\]]*)\]\([^()]*\)([^\[\]]*)\]\(")
+
+
+def flatten_links(text: str) -> str:
+    """A link written inside another link's label ("[[Axel Heiberg](…) Island](…)")
+    becomes one link, the outer's, with the label read plain."""
+    while True:
+        out = _NESTED_RX.sub(lambda m: f"[{m.group(1)}{m.group(2)}{m.group(3)}](", text)
+        if out == text:
+            return out
+        text = out
+
+
 def link_entities(text: str) -> str:
     """The first plain mention of any published person or place becomes a
     link to its page. Existing links are left alone; a name inside one is
@@ -587,7 +600,7 @@ def link_entities(text: str) -> str:
                 part[0] = part[0][:m.start()] + f"[{name}](#history/{slug})" + part[0][m.end():]
                 done.add(slug)
                 break
-    return "".join(p[0] for p in parts)
+    return flatten_links("".join(p[0] for p in parts))
 
 
 def new_token() -> str:
