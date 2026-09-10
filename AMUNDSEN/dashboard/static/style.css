@@ -969,6 +969,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .chat .chatrooms button:hover { color: var(--fg); border-color: var(--accent); }
 .chat .chatrooms button.on { color: var(--on-accent); background: var(--accent); border-color: var(--accent); font-weight: 650; }
 .chat .chatrooms button.dm { font-style: italic; }
+.chat .chatrooms button.crew { font-style: normal; }
 .chat .chatrooms #chatnew { font-weight: 700; padding: 2px 9px; }
 .chat .chatrooms .rdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); margin-right: 5px; vertical-align: middle; }
 .chat .chatpicker { border-bottom: 1px solid var(--line); padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 4px; background: var(--card-2); }
@@ -1221,7 +1222,7 @@ html.bigtype .map-foot .hint { display: none; }
 html.bigtype .panel .head .tools button, html.bigtype .maplayers .tools button { padding: .25em .6em; min-height: 2em; min-width: 2.2em; }
 html.bigtype .chat { width: 400px; }
 html.bigtype .chat.sidebar { width: 440px; }
-html[data-theme^="minimal"].chat-side main, html[data-theme^="minimal"].chat-side .top, html[data-theme^="minimal"].chat-side .alertbar { padding-right: 460px; }
+html.bigtype.chat-side main, html.bigtype.chat-side .top, html.bigtype.chat-side .alertbar { padding-right: 460px; }   /* the wider side bar of the large type, whichever theme asked for it */
 @media (max-width: 640px) {
   .themepick .lbl { display: none; }
   html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */

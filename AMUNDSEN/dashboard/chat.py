@@ -44,7 +44,7 @@ CHAT_PAGE = 100             # messages sent to a fresh page of a room
 CONTEXT_BYTES = 5000        # what a crew member sees of the room it speaks in
 NAME_MAX, TEXT_MAX = 24, 500
 PRESENCE_S = 45             # a poll this recent means the page is open
-FIXED = {"ship": "Ship", "crew": "Crew", "ada": "Library"}
+FIXED = {"ship": "Mess", "crew": "Lounge", "ada": "Library", "deck": "Deck"}   # channel -> the room's name
 
 _lock = threading.Lock()
 _online: dict[str, dict] = {}           # name -> {"t", "room", "emoji"}: who has which room open
@@ -138,6 +138,8 @@ def bots_in(channel: str) -> list[str]:
         return list(bots())
     if channel == "ada":
         return ["ada"] if "ada" in bots() else []
+    if channel == "deck":
+        return [h for h in ("ada", "doc") if h in bots()]
     return [p[1:] for p in participants(channel) if p.startswith("@") and p[1:] in bots()]
 
 

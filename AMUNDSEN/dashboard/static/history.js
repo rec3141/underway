@@ -1261,7 +1261,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   const ASK = {
     history: { label: "Ask Ada", room: "ada", title: "open the Library in the chat and ask Ada, the librarian, about the region's past" },
     nature: { label: "Ask Doc", room: "doc", title: "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal" },
-    both: { label: "Ask Crew", room: "crew", title: "open the crew's room in the chat and ask them: Ada has the history, Doc the nature" },
+    both: { label: "Ask both", room: "deck", title: "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature" },
   };
   const askTarget = () => ASK[hist.domains.size > 1 ? "both" : domainOn("nature") ? "nature" : "history"];
   function renderTools() {
