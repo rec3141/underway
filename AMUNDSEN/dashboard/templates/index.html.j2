@@ -35,6 +35,7 @@
     <button data-tab="casts" role="tab">Casts</button>
     <button data-tab="table" role="tab">Table</button>
     <button data-tab="history" role="tab" title="the region's history: voyages, people, places and artifacts on the map, with a library and Ada to ask">History</button>
+    <button data-tab="nature" role="tab" title="the region's natural history: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal and Doc to ask">Nature</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
   </nav>
   <div class="pickhint phone">Select leg and time span:</div>
@@ -83,10 +84,12 @@
       <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
       <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
       <button data-layer="history" title="historical voyages, wrecks, winterings, places and artifacts from the History tab; click one to read about it" hidden>History</button>
+      <button data-layer="nature" title="observations of nature from the Nature tab: sightings, soundings, readings and the ship's own journal; click one to read it" hidden>Nature</button>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>
       <div class="layers histlayers" id="maphistlayers" hidden></div>
+      <div class="layers histlayers" id="mapnatlayers" hidden></div>
       <div class="tools"><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
     </div>
     <div id="map"></div>
@@ -158,20 +161,36 @@
       <div class="tablewrap"><table id="stationtable"></table></div>
     </div>
 
-    <div class="pane" id="pane-history" hidden>
+    <div class="pane histpane" id="pane-history" hidden>
       <div class="pane-tools compact histtools">
-        <button type="button" id="histback" class="chip" title="back to the view before">‹ Back</button>
+        <button type="button" id="histback" class="chip histback" title="back to the view before">‹ Back</button>
         <button type="button" id="histhome" class="chip" title="the History front page: today, here, and the narratives">Home</button>
         <button type="button" id="histmap" class="chip" title="how much of the page the map takes: half, all of it, or none">Half Map</button>
-        <button type="button" id="histexplore" class="chip" title="every topic, with its pages and artifacts">Explore</button>
+        <button type="button" id="histexplore" class="chip histexplore" title="every topic, with its pages and artifacts">Explore</button>
         <button type="button" id="histask" class="chip ask" title="open the Library in the chat and ask Ada about the region's past">Ask Ada</button>
-        <input type="search" id="histsearch" placeholder="search: voyages, people, places, artifacts" aria-label="Search the history">
+        <input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, artifacts" aria-label="Search the history">
         <select id="histkindsel" class="histsel" aria-label="Browse a kind or a page"></select>
         <div class="group histkinds" id="histkinds" title="everything of a kind, on one page"></div>
-        <button type="button" id="histbibchip" class="chip" title="every work cited, in MLA form, with the list to export">Bibliography</button>
-        <button type="button" id="histprovchip" class="chip" title="how this history was made: the AI research crews, the review, the figures">Provenance</button>
+        <button type="button" id="histbibchip" class="chip histpagechip" title="every work cited, in MLA form, with the list to export">Bibliography</button>
+        <button type="button" id="histprovchip" class="chip histpagechip" title="how this history was made: the AI research crews, the review, the figures">Provenance</button>
       </div>
       <article class="histmain" id="histmain"><div class="empty">Loading the history…</div></article>
+    </div>
+
+    <div class="pane histpane" id="pane-nature" hidden>
+      <div class="pane-tools compact histtools">
+        <button type="button" id="natback" class="chip histback" title="back to the view before">‹ Back</button>
+        <button type="button" id="nathome" class="chip" title="the Nature front page: today, near the ship, the journal, the domains">Home</button>
+        <button type="button" id="natmap" class="chip" title="how much of the page the map takes: half, all of it, or none">Half Map</button>
+        <button type="button" id="natexplore" class="chip histexplore" title="every natural topic, and the kinds of subject">Explore</button>
+        <button type="button" id="natask" class="chip ask" title="open the Lab in the chat and ask Doc, the resident scientist; a sighting told to Doc goes into the journal">Ask Doc</button>
+        <input type="search" id="natsearch" class="histsearch" placeholder="search: species, rock, ice, weather, observers" aria-label="Search the natural history">
+        <select id="natkindsel" class="histsel" aria-label="Browse a domain or a page"></select>
+        <div class="group histkinds" id="natkinds" title="everything of a domain, on one page"></div>
+        <button type="button" id="natrecordchip" class="chip histpagechip" title="every observation in the record, charted and listed">The record</button>
+        <button type="button" id="natjournalchip" class="chip histpagechip" title="the ship's own journal: what the watch and the crew have seen, and the form to add to it">Journal</button>
+      </div>
+      <article class="histmain" id="natmain"><div class="empty">Loading the record…</div></article>
     </div>
 
     <div class="pane" id="pane-table" hidden>
@@ -234,6 +253,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
 <script src="static/history.js?v={{ site.asset_version }}"></script>
+<script src="static/nature.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
 </body>
 </html>

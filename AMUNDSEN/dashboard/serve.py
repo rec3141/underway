@@ -98,6 +98,7 @@ class IntranetLive:
 TILES_DIR = Path(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles"))
 # the camera timelapses are built by their own job outside the web root
 from .config import CAMERA_OUTPUT
+from .nature import IMG_DIR as JOURNAL_IMG
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -178,6 +179,14 @@ class Handler(SimpleHTTPRequestHandler):
                     c.close()
             except FileNotFoundError:
                 return self._json(200, {"requests": []})
+        if u.path == "/api/nature/journal":
+            # the ship's own observations of nature, newest first, for the Nature tab
+            from .nature import entries
+            try:
+                return self._json(200, {"entries": entries()})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("journal read failed: %s", e)
+                return self._json(500, {"error": "the journal could not be read"})
         if u.path == "/api/history/flags":
             # the artifacts anyone has flagged for review, so every browser
             # shows the same flags; with this browser's chat token and name,
@@ -283,6 +292,24 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("history ask failed: %s", e)
                 return self._json(503, {"error": "the historian is not answering right now; the model may be busy or off"})
+        if u.path == "/api/nature/journal":
+            # one line of the ship's journal, from the Nature tab's form: the observation's
+            # fields in the CLI's vocabulary, with an optional photograph as a data URL
+            from .nature import Refused, append
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 14 * 1024 * 1024:
+                    raise Refused("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict):
+                    raise Refused("Bad request")
+                who = str(payload.get("name", ""))[:60]
+                return self._json(200, {"ok": True, "entry": append(payload, who)})
+            except (Refused, ValueError) as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("journal write failed: %s", e)
+                return self._json(500, {"error": "the journal could not be written"})
         if u.path == "/api/history/flag":
             # the flag on an artifact's card: {"id": ..., "on": true, "token": <chat token>, "name": ...,
             # "title": ..., "page": "artifact/...", "note": ...}; the alerts timer tells the keeper
@@ -336,7 +363,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def translate_path(self, path):
         p = unquote(urlsplit(path).path)
-        for prefix, base in (("/static/tiles/", TILES_DIR), ("/camera/", CAMERA_OUTPUT)):   # read at call time: tests swap the roots
+        for prefix, base in (("/static/tiles/", TILES_DIR), ("/camera/", CAMERA_OUTPUT), ("/journal/", JOURNAL_IMG)):   # read at call time: tests swap the roots
             if not p.startswith(prefix):
                 continue
             rel = Path(p[len(prefix):])

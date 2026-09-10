@@ -851,7 +851,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .pagelist .pglink { background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--fg); }
 .histyears { gap: 6px; } .histyears .lbl { color: var(--muted); font-size: 0.893rem; }
 .histyears input[type=number] { width: 68px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font: inherit; font-size: 0.893rem; }
-#histkinds button .dot { margin-right: 4px; }
+.histkinds button .dot { margin-right: 4px; }
 .histtimeline { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
 .histask { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 .histask input { flex: 1; min-width: 240px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; font: inherit; }
@@ -958,24 +958,24 @@ ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li 
 .peoplelist .role { display: block; color: var(--muted); font-size: 0.857rem; }
 
 /* links are never underlined; a chip is highlighted by its border, the same way everywhere */
-#pane-history a, .chat a { text-decoration: none; border-bottom: 0; }
+.histpane a, .chat a { text-decoration: none; border-bottom: 0; }
 .histmain .wanted { border-bottom: 0; color: var(--muted); }
 .chat .msg .cite, .histanswer .cite { border-bottom: 0; }
 .peoplelist .person.inuit b { border-bottom: 0; color: var(--accent-2); }
-#pane-history .chip, #pane-history #histkinds button, .maplayers .histlayers button, .chat .chatrooms button, .chat .chatpicker button,
-#pane-history .pglink, #pane-history .artcard, #pane-history .topiccard, #pane-history .vig, #pane-history .person, .chatcrew .mention {
+.histpane .chip, .histpane .histkinds button, .maplayers .histlayers button, .chat .chatrooms button, .chat .chatpicker button,
+.histpane .pglink, .histpane .artcard, .histpane .topiccard, .histpane .vig, .histpane .person, .chatcrew .mention {
   border: 1px solid var(--line); background: var(--card-2); color: var(--fg); border-radius: 8px; transition: border-color .12s; }
-#pane-history .chip:hover, #pane-history #histkinds button:hover, .maplayers .histlayers button:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
-#pane-history .pglink:hover, #pane-history .artcard:hover, #pane-history .topiccard:hover, #pane-history .vig:hover, #pane-history .person:hover, .chatcrew .mention:hover {
+.histpane .chip:hover, .histpane .histkinds button:hover, .maplayers .histlayers button:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
+.histpane .pglink:hover, .histpane .artcard:hover, .histpane .topiccard:hover, .histpane .vig:hover, .histpane .person:hover, .chatcrew .mention:hover {
   border-color: var(--accent); background: var(--card-2); color: var(--fg); }
-#pane-history .chip.on, #pane-history #histkinds button.on, .maplayers .histlayers button.on, .chat .chatrooms button.on {
+.histpane .chip.on, .histpane .histkinds button.on, .maplayers .histlayers button.on, .chat .chatrooms button.on {
   border-color: var(--accent); color: var(--accent); background: var(--card-2); font-weight: 600; box-shadow: none; }
-#pane-history .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
-#pane-history .topiccard { border-left-width: 4px; }
-#pane-history .vig { border: 1px solid transparent; background: transparent; }
-#pane-history .vig:hover { border-color: var(--accent); }
-#pane-history .person { border: 1px solid transparent; background: transparent; }
-#pane-history .person:hover { border-color: var(--accent); background: transparent; }
+.histpane .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
+.histpane .topiccard { border-left-width: 4px; }
+.histpane .vig { border: 1px solid transparent; background: transparent; }
+.histpane .vig:hover { border-color: var(--accent); }
+.histpane .person { border: 1px solid transparent; background: transparent; }
+.histpane .person:hover { border-color: var(--accent); background: transparent; }
 /* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
 #satpill { min-width: 7.2em; text-align: center; }
 
@@ -984,25 +984,25 @@ ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li 
 .histtools .histsel { display: none; }                                  /* the phone's stand-in for the kind chips and the page chips */
 @media (max-width: 640px) {
   .histtools .histsel { display: inline-block; flex: 1 1 100%; }
-  .histtools .histkinds, .histtools #histexplore, .histtools #histbibchip, .histtools #histprovchip { display: none; }
-  .histtools #histsearch { flex: 1 1 100%; min-width: 0; }
+  .histtools .histkinds, .histtools .histexplore, .histtools .histpagechip { display: none; }
+  .histtools .histsearch { flex: 1 1 100%; min-width: 0; }
 }
-.histtools #histback:disabled { opacity: .45; cursor: default; }
-.histtools #histback:disabled:hover { border-color: var(--line); }
-#pane-history .chip.small { padding: 2px 9px; }
+.histtools .histback:disabled { opacity: .45; cursor: default; }
+.histtools .histback:disabled:hover { border-color: var(--line); }
+.histpane .chip.small { padding: 2px 9px; }
 /* the vignettes: five lines, the rest behind "see more" */
-#pane-history .vig .pin { margin-left: 4px; }
-#pane-history button.more { display: block; margin: 4px 0 0 4px; background: transparent; border: 0; color: var(--accent); font: inherit; font-size: 0.893rem; cursor: pointer; padding: 2px 0; }
-#pane-history button.more:hover { color: var(--accent-2); }
+.histpane .vig .pin { margin-left: 4px; }
+.histpane button.more { display: block; margin: 4px 0 0 4px; background: transparent; border: 0; color: var(--accent); font: inherit; font-size: 0.893rem; cursor: pointer; padding: 2px 0; }
+.histpane button.more:hover { color: var(--accent-2); }
 /* the kind pages */
 .histmain h2 .dot { width: 12px; height: 12px; margin-right: 8px; vertical-align: baseline; }
 .artgrid.pictures { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 .artgrid.pictures .artcard .thumb { height: 150px; }
 .peoplelist .person .pin { margin-left: 4px; }
-#pane-history .pin[data-lat] { cursor: pointer; color: var(--accent); font-weight: 600; }
-#pane-history .pin.coord { font-weight: 500; }
-#pane-history .pin[data-lat]:hover { color: var(--accent-2); }
-#pane-history .artcard .maplink { margin-left: 6px; }
+.histpane .pin[data-lat] { cursor: pointer; color: var(--accent); font-weight: 600; }
+.histpane .pin.coord { font-weight: 500; }
+.histpane .pin[data-lat]:hover { color: var(--accent-2); }
+.histpane .artcard .maplink { margin-left: 6px; }
 /* the Events page: the timeline chart above the table, like the Event Log's */
 .histmain .castplot { margin: 6px 0 14px; }
 .histmain .castplot .plot { height: 420px; }
@@ -1027,9 +1027,9 @@ table.sched.timeline tr { scroll-margin-top: 60px; }
 .peoplecols.nofaces { grid-template-columns: 1fr; }
 .faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; align-content: start; }
 /* the pane fills the side column and its body is the one thing that scrolls: the tools stay above it on every page */
-#pane-history:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-#pane-history .histmain { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-@media (max-width: 1100px) { #pane-history:not([hidden]) { display: block; } #pane-history .histmain { overflow: visible; } }   /* the page itself scrolls on a phone */
+.histpane:not([hidden]) { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.histpane .histmain { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+@media (max-width: 1100px) { .histpane:not([hidden]) { display: block; } .histpane .histmain { overflow: visible; } }   /* the page itself scrolls on a phone */
 .faces .face { display: block; aspect-ratio: 1; overflow: hidden; border-radius: 6px; border: 1px solid var(--line); background: var(--media); }
 .faces .face img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .faces .face:hover { border-color: var(--accent); }
@@ -1042,10 +1042,10 @@ main.mapfull.tab-history .side .histmain { display: none; }
 main.mapfull.tab-history .map { grid-row: 2 / 4; }
 
 /* the History tools stay put while the pane scrolls */
-#pane-history > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }
+.histpane > .pane-tools { position: sticky; top: 0; z-index: 20; background: var(--bg); }
 /* Explore is the loud one */
-#pane-history #histexplore { border-color: var(--bad); color: var(--bad); }
-#pane-history #histexplore:hover, #pane-history #histexplore.on { border-color: var(--bad); color: color-mix(in srgb, var(--bad) 55%, var(--fg)); box-shadow: 0 0 0 1px var(--bad) inset; }
+.histpane .histexplore { border-color: var(--bad); color: var(--bad); }
+.histpane .histexplore:hover, .histpane .histexplore.on { border-color: var(--bad); color: color-mix(in srgb, var(--bad) 55%, var(--fg)); box-shadow: 0 0 0 1px var(--bad) inset; }
 /* a route drawn large on its own page */
 .routefig { margin: 6px 0 12px; } .routefig .sketch.large { width: min(100%, 560px); height: auto; aspect-ratio: 8 / 5; }
 /* the kinds in their hierarchy: a head with its kinds beside it in a box; People on the map is a label */
@@ -1119,3 +1119,32 @@ html[data-theme^="minimal"].chat-side main { padding-right: 460px; }
   .top .themepick .lbl { display: none; }
   html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
 }
+
+/* ---- the Nature tab: the same pane as History, with the names in the region's languages, the record and the journal */
+.histmain .names { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 0.929rem; margin: 6px 0 10px; }
+.histmain .names .lbl { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; padding-top: 2px; }
+.histmain .sci, .subjlist .sci { font-style: italic; }
+.histmain .status { display: inline-block; font-size: 0.75rem; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); vertical-align: middle; margin-left: 4px; }
+.histmain .status.draft { color: var(--accent-2); border-color: var(--accent-2); }
+.domgrid { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.histpane .domgrid .chip { padding: 3px 10px; font-size: 0.893rem; }
+table.sched.record td:nth-child(3) { min-width: 14em; }
+.subjlist.tree .tnode .person { padding-left: 8px; border-left: 1px solid var(--line); border-radius: 0 6px 6px 0; }
+/* the journal: the ship's lines, and the form that writes one */
+.histpane .journal { border-left: 4px solid var(--accent-2); padding: 8px 12px; margin: 8px 0 14px; }
+.histpane .journal h3 { margin: 0 0 6px; font-size: 0.929rem; color: var(--accent-2); text-transform: uppercase; letter-spacing: .5px; }
+.jentry { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.jentry .vig { flex: 1 1 auto; }
+.jentry .st { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; }
+#natform { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 10px; margin-top: 8px; }
+#natform label { display: flex; flex-direction: column; gap: 2px; font-size: 0.821rem; color: var(--muted); position: relative; }
+#natform label.row { flex-direction: row; align-items: center; gap: 6px; }
+#natform label .muted { font-weight: 400; }
+#natform label .chip.small { position: absolute; right: 4px; bottom: 4px; }
+#natform input, #natform select, #natform textarea { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 0.929rem; min-width: 0; }
+#natform input[type=checkbox] { width: auto; }
+#natform input[type=file] { padding: 3px; font-size: 0.821rem; }
+#natform .wide { grid-column: 1 / -1; }
+#natform button.go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 7px; padding: 7px 14px; font: inherit; font-weight: 650; cursor: pointer; }
+#natform button.go:disabled { opacity: .5; cursor: wait; }
+#natform .hint { min-height: 1.2em; }

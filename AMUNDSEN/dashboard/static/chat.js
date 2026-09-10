@@ -240,7 +240,8 @@
   });
   window.UW = Object.assign(window.UW || {}, {
     chatToggle: () => { if (st.open) { toggle(false); } else { st.side = true; store.set("chat.side", true); toggle(true); } },
-    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } setRoom(room === "historian" ? "ada" : room); },
+    // a room by name, or a crew member's private room by handle (Ada has a room of her own; the others are met one to one)
+    chatRoom: (room) => { if (!st.side) { st.side = true; store.set("chat.side", true); } if (room !== "ada" && st.crew.some((c) => c.handle === room)) openDM("@" + room); else setRoom(room === "historian" ? "ada" : room); },
   });
 
   nameIn.onchange = async () => {
@@ -262,6 +263,7 @@
     try {
       const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room };
       if (st.room === "ada" || st.roomBots.includes("ada")) body.slug = window.UW?.historyContext?.() || "";   // the page being read, as context
+      else if (st.roomBots.includes("doc")) body.slug = window.UW?.natureContext?.() || "";                    // the subject or observation open on the Nature tab
       const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); who.textContent = j.error || "not sent"; }
     } catch { who.textContent = "offline"; }

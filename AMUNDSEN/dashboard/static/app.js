@@ -44,6 +44,7 @@
     communities: store.get("communities", true),        // settlements on the map
     plan: store.get("plan", true),                      // the leg's planned track and stations
     history: store.get("history", false),               // the History tab's artifacts and voyage tracks
+    nature: store.get("nature", false),                 // the Nature tab's observations
     planData: null, planStamp: null,                    // the plan as published, and which version it is
     sat: store.get("sat", ""),                          // satellite picture under the track: "" | "s1" | "s2"
     satAt: null,                                        // an archived picture's scene time, or null for the newest
@@ -1176,6 +1177,7 @@
         if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
         if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
         if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5), p);
+        if (typeof p?.customdata === "string" && p.customdata.startsWith("nat:")) return window.UW?.onNatureClick?.(p.customdata.slice(4), p);
         if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
         if (p?.lat != null && p.data?.name !== "focus") { state.focus = { lat: +p.lat, lon: +p.lon, label: String(p.text || p.hovertext || "").replace(/<[^>]+>/g, "") }; renderMap(); }   // the mark moves to what was clicked
         if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
