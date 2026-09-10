@@ -628,7 +628,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "live": next((leg.id for leg, _ in stores if leg.live), None),
         "variables": [{
             "name": r.variable.name, "unit": r.variable.unit, "derived": r.variable.derived,
-            "log_ok": r.variable.log_ok, "circular": r.variable.circular, "tsg": r.variable.tsg, "cmap": r.variable.cmap,
+            "log_ok": r.variable.log_ok, "circular": r.variable.circular, "tsg": r.variable.tsg, "cmap": r.variable.cmap, "reverse": r.variable.reverse,
             "resolved": r.resolved, "source": r.display,
             "coverage": {leg_id: cov[r.variable.name] for leg_id, cov in coverage.items()},
         } for r in res],

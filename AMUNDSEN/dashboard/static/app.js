@@ -1043,7 +1043,8 @@
     const tr = el._fullData?.find((t) => t.name === "track");
     const key = v?.cmap || "Viridis";
     if (tr?.marker?.colorscale && !v?.rgb) scaleStops.set(JSON.stringify(key), tr.marker.colorscale);
-    const stops = Array.isArray(key) ? key : scaleStops.get(JSON.stringify(key));
+    let stops = Array.isArray(key) ? key : scaleStops.get(JSON.stringify(key));
+    if (stops && v?.reverse) stops = stops.map(([t, col]) => [1 - t, col]).reverse();   // a map read the other way (depth: deep is dark)
     for (const bar of document.querySelectorAll(".cbar")) {
       const show = !!stops && !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
       bar.hidden = !show;
@@ -1094,7 +1095,7 @@
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
+      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1435,7 +1436,7 @@
     const trace = {
       x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
-      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false,
+      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", reversescale: !!cv?.reverse, cmin: lim?.[0], cmax: lim?.[1], showscale: false,
                 opacity: 1 },
       text: legText,
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,

@@ -41,7 +41,29 @@ from .config import DB_DIR
 
 log = logging.getLogger(__name__)
 
-DEFAULT_TCP = os.environ.get("UNDERWAY_CTD_TCP", "10.0.0.22:49161")   # Seasave's TCP/IP Out; "" for none
+DEFAULT_TCP = os.environ.get("UNDERWAY_CTD_TCP", "10.0.0.22:49161,49162")   # Seasave's TCP/IP Out, the ports it may use; "" for none
+TARGET_RX = re.compile(r"^[\w.-]+:\d{1,5}$")
+PORT_RX = re.compile(r"^\d{1,5}$")
+
+
+def parse_targets(tcp: str) -> list[tuple[str, int]]:
+    """``host:port``, or several to try in turn, comma-separated: a bare
+    port after the first takes its host (``10.0.0.22:49161,49162``)."""
+    out: list[tuple[str, int]] = []
+    for item in tcp.split(","):
+        item = item.strip()
+        if not item:
+            raise ValueError("Source must be host:port, more ports with commas (empty for none)")
+        if TARGET_RX.match(item):
+            host, _, port = item.rpartition(":")
+        elif PORT_RX.match(item) and out:
+            host, port = out[-1][0], item
+        else:
+            raise ValueError("Source must be host:port, more ports with commas (empty for none)")
+        if not 0 < int(port) < 65536:
+            raise ValueError("Source must be host:port, more ports with commas (empty for none)")
+        out.append((host, int(port)))
+    return out
 TCP_RETRY_S = 5
 SAVE_EVERY_S = 5           # how often the casts go to disk while one is in the water
 ANNOUNCE_S = 15            # Seasave sends its field list at once; a connection without one by then is stale
@@ -92,7 +114,10 @@ def xml_columns(settings: str) -> tuple[list[str], list[str], list[str]]:
 class LiveCTD:
     def __init__(self, tcp: str = ""):
         self.lock = threading.Lock()
-        self.tcp = ""                           # Seasave TCP/IP Out, host:port ("" = off)
+        self.tcp = ""                           # Seasave TCP/IP Out, host:port or several ("" = off)
+        self.targets: list[tuple[str, int]] = []   # the addresses to try in turn
+        self.active = ""                        # the one connected, host:port
+        self._ti = 0                            # which of them is tried next
         self.tcp_state = "off"
         self.columns: list[str] = []
         self._xml_tags: list[str] = []          # field tags in column order, from the settings element
@@ -114,14 +139,14 @@ class LiveCTD:
 
     # ------------------------------------------------------------ config
     def configure(self, tcp: str | None) -> None:
-        """Point the listener at ``host:port`` ("" for none); None leaves it."""
+        """Point the listener at ``host:port``, or several to try in turn
+        (``host:port,port``; "" for none); None leaves it."""
         if tcp is None:
             return
         if not isinstance(tcp, str):
-            raise ValueError("Source must be host:port")
+            raise ValueError("Source must be host:port, more ports with commas")
         tcp = tcp.strip()
-        if tcp and not re.fullmatch(r"[\w.-]+:\d{1,5}", tcp):
-            raise ValueError("Source must be host:port (empty for none)")
+        targets = parse_targets(tcp) if tcp else []
         with self.lock:
             if self._stop.is_set():
                 raise ValueError("Listener is closed")
@@ -129,7 +154,8 @@ class LiveCTD:
                 return
             self._end_cast(time.time(), "configuration changed")
             self._xml_tags, self._xml_names, self.columns = [], [], []
-            self.tcp, self.tcp_state = tcp, ("connecting" if tcp else "off")
+            self.tcp, self.targets, self.active, self._ti = tcp, targets, "", 0
+            self.tcp_state = "connecting" if tcp else "off"
             log.info("live CTD: Seasave source %s", tcp or "off")
 
     def close(self) -> None:
@@ -189,21 +215,24 @@ class LiveCTD:
         while not self._stop.is_set():
             with self.lock:
                 target = self.tcp
-            if not target:
+                targets = list(self.targets)
+                host, port = targets[self._ti % len(targets)] if targets else ("", 0)
+            if not target or not targets:
                 self._stop.wait(0.2)
                 continue
-            host, _, port = target.rpartition(":")
             try:
-                s = socket.create_connection((host, int(port)), timeout=5)
+                s = socket.create_connection((host, port), timeout=5)
                 s.settimeout(2.0)
             except OSError as e:
                 with self.lock:
                     if self.tcp == target:
                         self.tcp_state = f"connecting ({e.strerror or e})"
-                self._stop.wait(TCP_RETRY_S)
+                        self._ti += 1                             # the next address gets the next try
+                self._stop.wait(max(1.0, TCP_RETRY_S / len(targets)))
                 continue
             with self.lock:
                 self.tcp_state = "connected"
+                self.active = f"{host}:{port}"
             buf = ""
             last_rx = time.time()
             try:
@@ -238,6 +267,8 @@ class LiveCTD:
             with self.lock:
                 if self.tcp == target:
                     self.tcp_state = "connecting"
+                    self.active = ""
+                    self._ti += 1                                 # a lost connection: the other address next
             self._stop.wait(TCP_RETRY_S)
 
     def _xml_feed(self, buf: str, now: float) -> str:
@@ -356,7 +387,7 @@ class LiveCTD:
                 return {"started": c["started"], "ended": c.get("ended"), "n": len(t), "n_raw": c["n_raw"], "max_p": round(c["max_p"], 1),
                         "direction": direction, "depth_like": c["depth_like"], "t": t[:], "cols": {k: v[:] for k, v in c["cols"].items()},
                         "columns": c["columns"][:], "pressure_col": c["pressure_col"], "end_reason": c.get("end_reason")}
-            return {"tcp": self.tcp, "tcp_state": self.tcp_state, "fields": self._xml_names[:],
+            return {"tcp": self.tcp, "active": self.active, "tcp_state": self.tcp_state, "fields": self._xml_names[:],
                     "columns": self.columns[:], "pressure_col": self.columns[self.pcol] if self.pcol >= 0 else None,
                     "no_pressure": bool(self._xml_tags) and self.pcol < 0,
                     "packets": self.packets, "last_packet_age_s": round(now - self.last_t, 1) if self.last_t else None,
