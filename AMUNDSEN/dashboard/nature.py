@@ -10,6 +10,11 @@ in the ship's clone of the project, with the photographs beside it in
 writers as everything else; that ingest is idempotent on ``id``, so a
 corrected line with the same id replaces the row.
 
+Most lines come in by the photo import (``photos.py``): a photograph from
+the share, placed by its own time and position and captioned by the model,
+becomes a line through ``append`` like any other; the form on the tab writes
+one line by hand.
+
 Ids carry the ``amundsen-<date>-<nnn>`` prefix, so they never collide with
 research ids. A line carries only the writer's fields (``db/history/JOURNAL.md``
 on grid is the contract); who wrote it goes to ``journal.log`` beside it.

@@ -1209,6 +1209,38 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
 #natform label.row { flex-direction: row; align-items: center; gap: 6px; }
 #natform label .muted { font-weight: 400; }
 #natform label .chip.small { position: absolute; right: 4px; bottom: 4px; }
+#natform .wide, #natimportform .wide { grid-column: 1 / -1; }
+.jtools { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.byhand { margin-top: 10px; } .byhand summary { cursor: pointer; color: var(--muted); font-size: 0.893rem; }
+/* the photo import: the share's folders and photographs as a grid to pick from, the form, then the results */
+.histpane .import { border-left: 4px solid var(--accent); padding: 8px 12px; margin: 4px 0 12px; background: var(--card); border-radius: 8px; }
+.histpane .import h3 { margin: 0 0 6px; font-size: 0.929rem; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; }
+.sharebar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 6px 0; font-size: 0.929rem; }
+.sharebar .crumbs a { color: var(--accent); } .sharebar .warn { color: var(--warn); }
+.sharelist { display: flex; flex-wrap: wrap; gap: 8px; max-height: 440px; overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-2); }
+.shfolder { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: 0.929rem; }
+.shfolder a { color: var(--fg); } .shfolder .muted { font-size: 0.821rem; }
+.shfile { position: relative; width: 132px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--card); overflow: hidden; cursor: pointer; }
+.shfile img { width: 132px; height: 100px; object-fit: cover; background: var(--media); }
+.shfile input, .shfolder input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.shfile input { position: absolute; top: 6px; left: 6px; }
+.shfile .nm { font-size: 0.75rem; color: var(--muted); padding: 2px 6px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shfile.on, .shfolder.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+#natimportform { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 10px; margin-top: 10px; }
+#natimportform label { display: flex; flex-direction: column; gap: 2px; font-size: 0.821rem; color: var(--muted); }
+#natimportform label .muted { font-weight: 400; }
+#natimportform input, #natimportform select { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 0.929rem; min-width: 0; }
+#natimportform button.go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 7px; padding: 6px 14px; font: inherit; font-weight: 650; cursor: pointer; }
+#natimportform button.go:disabled { opacity: .5; cursor: default; }
+.imports { margin-top: 8px; font-size: 0.857rem; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .imports .lbl { color: var(--muted); }
+.implist { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.impitem { display: grid; grid-template-columns: 120px 1fr; gap: 10px; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.893rem; min-width: 0; }
+.impitem img { width: 120px; height: 90px; object-fit: cover; border-radius: 5px; background: var(--media); }
+.impitem .body { min-width: 0; } .impitem .body b { display: block; }
+.impitem .meta, .impitem .st { color: var(--muted); font-size: 0.821rem; margin-top: 3px; overflow-wrap: anywhere; }
+.impitem.skipped, .impitem.failed { border-color: var(--warn); } .impitem.skipped .st, .impitem.failed .st { color: var(--warn); }
+.impitem .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .impitem .tags span { font-size: 0.75rem; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg-2); }
+.histmain .lead .warn { color: var(--warn); }
 #natform input, #natform select, #natform textarea { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 0.929rem; min-width: 0; }
 #natform input[type=checkbox] { width: auto; }
 #natform input[type=file] { padding: 3px; font-size: 0.821rem; }

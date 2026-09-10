@@ -120,6 +120,14 @@ class Handler(SimpleHTTPRequestHandler):
         SimpleHTTPRequestHandler.end_headers(self)
         self.wfile.write(body)
 
+    def _bytes(self, code: int, ctype: str, body: bytes, cache: str = "private, max-age=86400") -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", cache)
+        SimpleHTTPRequestHandler.end_headers(self)
+        self.wfile.write(body)
+
     def _client(self) -> str:
         return self.headers.get("X-Forwarded-For", "").split(",")[0].strip() or self.client_address[0]
 
@@ -179,6 +187,43 @@ class Handler(SimpleHTTPRequestHandler):
                     c.close()
             except FileNotFoundError:
                 return self._json(200, {"requests": []})
+        if u.path == "/api/nature/share":
+            # one folder of the ship's share for the Nature tab's photo browser: ?path=<relative to the share>;
+            # without a path, where the browser opens (the newest leg's Pictures)
+            from .photos import listing, start_path
+            q = parse_qs(u.query)
+            try:
+                rel = q.get("path", [None])[0]
+                start = start_path(Path(self.directory))
+                out = listing(start if rel is None else rel)
+                out["start"] = start
+                return self._json(200, out)
+            except ValueError as e:
+                return self._json(404, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("share listing failed: %s", e)
+                return self._json(503, {"error": "the share is not reachable right now"})
+        if u.path == "/api/nature/share/thumb":
+            # a small JPEG of one photograph on the share, for the browser's grid
+            from .photos import thumb
+            q = parse_qs(u.query)
+            try:
+                data = thumb(q.get("path", [""])[0])
+            except ValueError as e:
+                return self._json(404, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.info("thumbnail failed: %s", e)
+                return self._json(503, {"error": "the photograph could not be read"})
+            return self._bytes(200, "image/jpeg", data)
+        if u.path == "/api/nature/import":
+            # an import of photographs as it stands (?job=<id>), or the imports so far and the licences offered
+            from .photos import LICENCES, job, jobs, public
+            q = parse_qs(u.query)
+            jid = q.get("job", [""])[0]
+            if jid:
+                j = job(jid)
+                return self._json(200, public(j)) if j else self._json(404, {"error": "no such import"})
+            return self._json(200, {"jobs": jobs(), "licences": LICENCES})
         if u.path == "/api/nature/journal":
             # the ship's own observations of nature, newest first, for the Nature tab
             from .nature import entries
@@ -310,6 +355,23 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("journal write failed: %s", e)
                 return self._json(500, {"error": "the journal could not be written"})
+        if u.path == "/api/nature/import":
+            # photographs from the share into the journal: {"files": [...], "folders": [...], "name", "org", "email",
+            # "licence", "clock"}; the import runs on in a thread and the page follows it by its job id
+            from .photos import start
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 256 * 1024:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                return self._json(200, {"ok": True, "job": start(Path(self.directory), payload, str(payload.get("name", ""))[:60])})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("photo import failed to start: %s", e)
+                return self._json(500, {"error": "the import could not be started"})
         if u.path == "/api/history/flag":
             # the flag on an artifact's card: {"id": ..., "on": true, "token": <chat token>, "name": ...,
             # "title": ..., "page": "artifact/...", "note": ...}; the alerts timer tells the keeper
