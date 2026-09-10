@@ -212,7 +212,7 @@
     const hd = H.data(), isNature = (x) => x.topic && H.topicDomain(x.topic) === "nature";
     const n = { people: hd.people.filter(isNature).length, animal: hd.animals.filter(isNature).length, vessel: hd.vessels.filter(isNature).length,
       place: hd.places.filter(isNature).length, event: hd.events.filter(isNature).length };
-    for (const a of hd.artifacts) if (isNature(a)) n[a.type] = (n[a.type] || 0) + 1;
+    for (const a of hd.artifacts || []) if (isNature(a)) n[a.type] = (n[a.type] || 0) + 1;   // the artifacts may still be loading
     return `<div class="domgrid">${Object.entries(H.KINDS).filter(([k]) => n[k]).map(([k, K]) => `<a class="chip" href="#nature/kind/${k}" data-nslug="kind/${k}"><span class="dot" style="background:${K.colour}"></span>${esc(K.label)} <span class="muted">${n[k]}</span></a>`).join("")}</div>`;
   }
   // a link to a page, on whichever tab owns it
@@ -324,7 +324,7 @@
       return;
     }
     if (nat.slug === "explore") {
-      const hd = H.data(), nArts = hd.artifacts.filter((a) => a.topic && H.topicDomain(a.topic) === "nature").length;
+      const hd = H.data(), nArts = (hd.artifacts || []).filter((a) => a.topic && H.topicDomain(a.topic) === "nature").length;
       el.innerHTML = crumb(here("Explore", "explore")) + `<h2>Explore</h2><p class="lead">${nat.topics.length} topics, ${nat.subjects.length} subjects, ${allObs().length} observations and ${nArts} documents: what the archipelago is and does, as the people of the History tab wrote it down on the way, and as the stations, the surveys and the ship record it now. Every observation cites its source; every number stands in the unit it was written in.</p>` +
         (nat.topics.length ? `<div class="topicgrid">${nat.topics.map((t) => H.topicCard(t, true)).join("")}</div>` : `<p class="muted">No natural topics in this build yet.</p>`) +
         `<h3>Documents</h3>` + documentChips() +
@@ -395,7 +395,7 @@
     // the pictures of it: the evidence of its observations, and the natural topics' images tagged with its names
     const evidence = new Set(rows.map((o) => o.artifact_id).filter(Boolean));
     const hd = H.data(), lname = [row.name, row.english].filter(Boolean).map((x) => x.toLowerCase());
-    const pictures = hd.artifacts.filter((a) => (a.type === "image" || a.type === "map") && (evidence.has(a.id) || (a.topic && H.topicDomain(a.topic) === "nature" && (a.tags || []).some((x) => lname.includes(String(x).toLowerCase())))));
+    const pictures = (hd.artifacts || []).filter((a) => (a.type === "image" || a.type === "map") && (evidence.has(a.id) || (a.topic && H.topicDomain(a.topic) === "nature" && (a.tags || []).some((x) => lname.includes(String(x).toLowerCase())))));
     el.innerHTML = crumb(...(t ? [`<a href="#nature/topic/${esc(t.slug)}" data-nslug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(row.domain || "other")]), here(`<span class="kind">subject</span>`, slug)) +
       `<h2>${row.kind === "taxon" ? `<i>${esc(row.name)}</i>` : esc(row.name)}${row.english && row.english !== row.name ? ` <span class="muted">${esc(row.english)}</span>` : ""}</h2>` +
       `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${meta ? " · " + meta : ""}${parent ? ` · under ${subjectLink(parent)}` : ""}${backbone ? " · " + backbone : ""}</div>` +
@@ -531,23 +531,11 @@
     };
   }
 
-  // ---------------------------------------------------------------- the chips
-  // two rows in the pane's tools: the document kinds (as on the History tab,
-  // each a page of the natural topics' documents) and the domains
-  function chipsHTML(onOf, cls = "") {
-    return Object.entries(DOMAINS).map(([d, D]) => `<button type="button" data-d="${d}" class="${cls} ${onOf(d) ? "on" : ""}" title="${esc(D.hint)}"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}</button>`).join("");
-  }
+  // ---------------------------------------------------------------- the menus
+  // the pane's Browse dropdown (the document kinds as on the History tab,
+  // the domains, the tab's own pages) and, under the map's layer pills while
+  // the nature layer is on, the domains as a filter menu (history.js's)
   function renderChips() {
-    const docs = $("#natdocs");
-    if (docs) {
-      docs.innerHTML = H.kindChips((k) => nat.slug === `kind/${k}`);
-      for (const b of docs.querySelectorAll("button[data-t]")) b.onclick = () => open(nat.slug === `kind/${b.dataset.t}` ? "" : `kind/${b.dataset.t}`);
-    }
-    const pane = $("#natkinds");
-    if (pane) {
-      pane.innerHTML = chipsHTML((d) => nat.slug === `domain/${d}`, "chip");
-      for (const b of pane.querySelectorAll("button[data-d]")) b.onclick = () => open(nat.slug === `domain/${b.dataset.d}` ? "" : `domain/${b.dataset.d}`);
-    }
     const sel = $("#natkindsel");
     if (sel) {
       const opt = (slug, label) => `<option value="${slug}" ${nat.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
@@ -559,21 +547,14 @@
     }
     const bar = $("#mapnatlayers");
     if (bar) {
-      bar.innerHTML = chipsHTML((d) => nat.domains.has(d));
-      for (const b of bar.querySelectorAll("button[data-d]")) b.onclick = () => {
-        if (nat.domains.has(b.dataset.d)) nat.domains.delete(b.dataset.d); else nat.domains.add(b.dataset.d);
-        store.set("nat.domains", [...nat.domains]); renderChips(); if (UW.state.nature) UW.renderMap();
-      };
+      H.menu(bar, "Domains", Object.entries(DOMAINS).map(([d, D]) => ({ key: d, label: D.label, colour: D.colour, hint: D.hint })), nat.domains, "nat.domains", () => UW.state.nature);
       bar.hidden = !UW.state.nature || !UW.M.history;
     }
   }
   function renderTools() {
     $("#nathome").classList.toggle("on", !nat.slug && !nat.search);
     $("#natexplore").classList.toggle("on", nat.slug === "explore");
-    $("#natrecordchip").classList.toggle("on", nat.slug === "record");
-    $("#natjournalchip").classList.toggle("on", nat.slug === "journal");
     $("#natback").disabled = !nat.slug && nav.n === 0;
-    const mt = $("#maptoggle"); if (mt) $("#natmap").textContent = mt.textContent;
   }
   async function render() {
     renderChips(); renderTools();
@@ -659,11 +640,7 @@
     $("#natback").onclick = goBack;
     $("#nathome").onclick = () => open("");
     $("#natexplore").onclick = () => open(nat.slug === "explore" ? "" : "explore");
-    $("#natrecordchip").onclick = () => open(nat.slug === "record" ? "" : "record");
-    $("#natjournalchip").onclick = () => open(nat.slug === "journal" ? "" : "journal");
     $("#natask").onclick = () => UW.chatRoom?.("doc");
-    const mt = $("#maptoggle");
-    if (mt) { $("#natmap").onclick = () => mt.click(); new MutationObserver(() => { $("#natmap").textContent = mt.textContent; }).observe(mt, { childList: true, characterData: true, subtree: true }); }
     const pill = document.querySelector('#maplayers button[data-layer="nature"]');
     if (pill) { pill.hidden = !UW.M.history; pill.addEventListener("click", () => setTimeout(renderChips, 0)); }
     if (location.hash.startsWith("#nature/")) { nat.slug = decodeURIComponent(location.hash.slice(8)); store.set("nat.slug", nat.slug); try { history.replaceState({ nat: nat.slug, n: 0 }, "", location.hash); } catch {} }

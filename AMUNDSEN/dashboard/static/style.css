@@ -917,7 +917,6 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .pagelist .pglink { background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--fg); }
 .histyears { gap: 6px; } .histyears .lbl { color: var(--muted); font-size: 0.893rem; }
 .histyears input[type=number] { width: 68px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; font: inherit; font-size: 0.893rem; }
-.histkinds button .dot { margin-right: 4px; }
 .histtimeline { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
 .histask { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
 .histask input { flex: 1; min-width: 240px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; font: inherit; }
@@ -970,7 +969,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 body.tab-history #maplayers button[data-layer="stations"], body.tab-history #maplayers button[data-layer="cameras"],
 body.tab-history #maplayers button[data-layer="events"], body.tab-history #maplayers button[data-layer="track"],
 body.tab-history #satpill, body.tab-history #satnav, body.tab-history .mapcolour, body.tab-history .maptrack,
-body.tab-history .legmenu, body.tab-history .group.span, body.tab-history .pickhint { display: none !important; }
+body.tab-history #legmenu, body.tab-history .group.span, body.tab-history .pickhint { display: none !important; }
 body.tab-history #maplayers button[data-layer="history"] { display: inline-block; }
 /* the crew's model light: green when a model is loaded, grey when the crew are offline */
 .chat .mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--muted); box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 25%, transparent); }
@@ -1008,9 +1007,13 @@ body.tab-history #maplayers button[data-layer="history"] { display: inline-block
 .topicfig figcaption { color: var(--muted); font-size: 0.821rem; margin-top: 3px; }
 .chip.small { font-size: 0.821rem; padding: 2px 9px; vertical-align: middle; }
 .pin { color: var(--accent); font-weight: 700; text-decoration: none; }
-.maplayers .histlayers { flex: 1 0 100%; padding-top: 4px; }
-.maplayers .histlayers button { font-size: 0.821rem; padding: 1px 8px; }
-.maplayers .histlayers .dot { margin-right: 4px; }
+/* a past layer's filter under the map: a menu like the header's legs menu, a box per kind, beside the layer pills */
+.maplayers .mapmenu .legmenu summary { border-radius: 999px; padding: 4px 11px; font-size: 0.857rem; color: var(--muted); }
+.maplayers .mapmenu .legmenu[open] summary, .maplayers .mapmenu .legmenu summary:hover { color: var(--fg); border-color: var(--accent); }
+.maplayers .mapmenu .pop { min-width: 260px; left: auto; right: 0; }                       /* hangs from its right edge, inside the map's card */
+@media (max-width: 640px) { .maplayers .mapmenu { order: 3; } .maplayers .mapmenu .pop { left: 0; right: auto; } }
+.maplayers .mapmenu li label { padding: 4px 8px; }
+.maplayers .mapmenu li.ghead { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px 2px; }
 table.sched.timeline td:first-child { white-space: nowrap; }
 table.sched.timeline .dot { margin-right: 5px; }
 ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li { margin: 4px 0; }
@@ -1028,13 +1031,13 @@ ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li 
 .histmain .wanted { border-bottom: 0; color: var(--muted); }
 .chat .msg .cite, .histanswer .cite { border-bottom: 0; }
 .peoplelist .person.inuit b { border-bottom: 0; color: var(--accent-2); }
-.histpane .chip, .histpane .histkinds button, .maplayers .histlayers button, .chat .chatrooms button, .chat .chatpicker button,
+.histpane .chip, .chat .chatrooms button, .chat .chatpicker button,
 .histpane .pglink, .histpane .artcard, .histpane .topiccard, .histpane .vig, .histpane .person, .chatcrew .mention {
   border: 1px solid var(--line); background: var(--card-2); color: var(--fg); border-radius: 8px; transition: border-color .12s; }
-.histpane .chip:hover, .histpane .histkinds button:hover, .maplayers .histlayers button:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
+.histpane .chip:hover, .chat .chatrooms button:hover, .chat .chatpicker button:hover,
 .histpane .pglink:hover, .histpane .artcard:hover, .histpane .topiccard:hover, .histpane .vig:hover, .histpane .person:hover, .chatcrew .mention:hover {
   border-color: var(--accent); background: var(--card-2); color: var(--fg); }
-.histpane .chip.on, .histpane .histkinds button.on, .maplayers .histlayers button.on, .chat .chatrooms button.on {
+.histpane .chip.on, .chat .chatrooms button.on {
   border-color: var(--accent); color: var(--accent); background: var(--card-2); font-weight: 600; box-shadow: none; }
 .histpane .chip.ask { border-color: var(--accent-2); color: var(--accent-2); }
 .histpane .topiccard { border-left-width: 4px; }
@@ -1045,12 +1048,11 @@ ol.mla { padding-left: 22px; font-size: 0.929rem; line-height: 1.5; } ol.mla li 
 /* the satellite pill keeps one width through Sat off → S1 radar → S2 optical, so it cycles under a still pointer */
 #satpill { min-width: 7.2em; text-align: center; }
 
-/* the History tools: Back, Home, Map, Explore, Ask Ada, the search, one chip per kind, Bibliography */
-.histtools .histkinds { display: flex; flex-wrap: wrap; gap: 6px; }
-.histtools .histsel { display: none; }                                  /* the phone's stand-in for the kind chips and the page chips */
+/* the past tabs' tools: Back, Home, Explore, Ask, the search, and Browse (the kinds, the domains, the tab's own pages) */
+.histtools .histsel { flex: 0 1 auto; min-width: 0; max-width: 14em; }
 @media (max-width: 640px) {
-  .histtools .histsel { display: inline-block; flex: 1 1 100%; }
-  .histtools .histkinds, .histtools .histexplore, .histtools .histpagechip { display: none; }
+  .histtools .histsel { flex: 1 1 100%; max-width: none; }
+  .histtools .histexplore { display: none; }                            /* Explore is in Browse */
   .histtools .histsearch { flex: 1 1 100%; min-width: 0; }
 }
 .histtools .histback:disabled { opacity: .45; cursor: default; }
@@ -1115,9 +1117,6 @@ main.mapfull.tab-history > .map { grid-row: 2 / 4; }
 /* a route drawn large on its own page */
 .routefig { margin: 6px 0 12px; } .routefig .sketch.large { width: min(100%, 560px); height: auto; aspect-ratio: 8 / 5; }
 /* the kinds in their hierarchy: a head with its kinds beside it in a box; People on the map is a label */
-.kgroup { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 4px 2px 2px; border: 1px solid var(--line); border-radius: 10px; }
-.kgroup .sub, .maplayers .histlayers .kgroup .sub { font-size: 0.786rem; padding: 1px 7px; }
-.ghead { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; padding: 0 4px 0 6px; }
 /* the people on an artifact or an event; the people and places a page names */
 .histmain .artpeople, .histmain .onpage { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 0.893rem; }
 .histmain .artpeople .lbl, .histmain .onpage .lbl { color: var(--muted); font-size: 0.786rem; text-transform: uppercase; letter-spacing: .4px; margin-right: 2px; }
@@ -1245,7 +1244,7 @@ html[data-theme^="navigator"] .panel .plot, html[data-theme^="navigator"] .castp
 html[data-theme^="navigator"] .plot.table { border: 2px inset var(--bevel); }
 html[data-theme^="navigator"] main > .map { padding: 4px; }
 html[data-theme^="navigator"] #map { border: 2px inset var(--bevel); }
-html[data-theme^="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .kgroup, .histmain .status) { border-radius: 0; }
+html[data-theme^="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .histmain .status) { border-radius: 0; }
 /* buttons and chips: grey bevels; chosen ones press in, white, navy and bold */
 html[data-theme^="navigator"] :where(button, .chip, select, summary, .schedlinks .bigcal, .ticker .smallcal, .bibexport a):where(:not(.bell, .flag, .tog, .nudge, .more, .chattoggle, .emojibtn, .refresh, .emojipick button, .chatrooms .tools button)) {
   border: 2px outset var(--bevel) !important; border-radius: 0 !important; background: var(--face) !important; color: var(--fg) !important; box-shadow: none !important; font-weight: normal; text-decoration: none; }

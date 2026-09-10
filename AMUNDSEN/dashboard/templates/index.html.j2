@@ -79,17 +79,17 @@
       <div class="layers">
       <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
       <button data-layer="cameras" title="a camera for each day's timelapse; click one to play it"><span class="full">Cameras</span><span class="short">Cams</span></button>
-      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
+      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs">Events</button>
       <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
-      <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
+      <button data-layer="track" title="the ship's track for the shown legs">Track</button>
       <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
       <button data-layer="history" title="historical voyages, wrecks, winterings, places and artifacts from the History tab; click one to read about it" hidden>History</button>
       <button data-layer="nature" title="observations of nature from the Nature tab: sightings, soundings, readings and the ship's own journal; click one to read it" hidden>Nature</button>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>
-      <div class="layers histlayers" id="maphistlayers" hidden></div>
-      <div class="layers histlayers" id="mapnatlayers" hidden></div>
+      <div class="mapmenu" id="maphistlayers" hidden></div>
+      <div class="mapmenu" id="mapnatlayers" hidden></div>
       <div class="tools"><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
     </div>
     <div id="map"></div>
@@ -101,7 +101,7 @@
     </div>
     <div id="mapmsg" class="mapmsg" hidden></div>
     <div id="mapscale" class="mapscale" title="the scale at the centre of the map" hidden><span class="bar"></span><span class="lbl"></span></div>
-    <div class="maptrack" title="how many track points to draw: every point of the span, or one per so many km along the track">
+    <div class="maptrack" title="how many track points to draw: every point of the shown legs, or one per so many km along the track">
       <span class="lbl">Track detail</span>
       <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
       <output id="tracksteplabel" for="trackstep">all points</output>
@@ -165,14 +165,10 @@
       <div class="pane-tools compact histtools">
         <button type="button" id="histback" class="chip histback" title="back to the view before">‹ Back</button>
         <button type="button" id="histhome" class="chip" title="the History front page: today, here, and the narratives">Home</button>
-        <button type="button" id="histmap" class="chip" title="how much of the page the map takes: half, all of it, or none">Half Map</button>
         <button type="button" id="histexplore" class="chip histexplore" title="every topic, with its pages and artifacts">Explore</button>
         <button type="button" id="histask" class="chip ask" title="open the Library in the chat and ask Ada about the region's past">Ask Ada</button>
         <input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, artifacts" aria-label="Search the history">
-        <select id="histkindsel" class="histsel" aria-label="Browse a kind or a page"></select>
-        <div class="group histkinds" id="histkinds" title="everything of a kind, on one page"></div>
-        <button type="button" id="histbibchip" class="chip histpagechip" title="every work cited, in MLA form, with the list to export">Bibliography</button>
-        <button type="button" id="histprovchip" class="chip histpagechip" title="how this history was made: the AI research crews, the review, the figures">Provenance</button>
+        <select id="histkindsel" class="histsel" aria-label="Browse a kind or a page" title="everything of a kind on one page; the bibliography; how this history was made"></select>
       </div>
       <article class="histmain" id="histmain"><div class="empty">Loading the history…</div></article>
     </div>
@@ -181,15 +177,10 @@
       <div class="pane-tools compact histtools">
         <button type="button" id="natback" class="chip histback" title="back to the view before">‹ Back</button>
         <button type="button" id="nathome" class="chip" title="the Nature front page: today, near the ship, the journal, the domains">Home</button>
-        <button type="button" id="natmap" class="chip" title="how much of the page the map takes: half, all of it, or none">Half Map</button>
         <button type="button" id="natexplore" class="chip histexplore" title="every natural topic, and the kinds of subject">Explore</button>
         <button type="button" id="natask" class="chip ask" title="open the Lab in the chat and ask Doc, the resident scientist; a sighting told to Doc goes into the journal">Ask Doc</button>
         <input type="search" id="natsearch" class="histsearch" placeholder="search: species, rock, ice, weather, observers" aria-label="Search the natural history">
-        <select id="natkindsel" class="histsel" aria-label="Browse a kind, a domain or a page"></select>
-        <div class="group histkinds" id="natdocs" title="the natural topics' documents of a kind, on one page"></div>
-        <div class="group histkinds" id="natkinds" title="everything of a domain, on one page"></div>
-        <button type="button" id="natrecordchip" class="chip histpagechip" title="every observation in the record, charted and listed">The record</button>
-        <button type="button" id="natjournalchip" class="chip histpagechip" title="the ship's own journal: what the watch and the crew have seen, and the form to add to it">Journal</button>
+        <select id="natkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="the documents of a kind or a domain on one page; the record; the ship's journal"></select>
       </div>
       <article class="histmain" id="natmain"><div class="empty">Loading the record…</div></article>
     </div>
