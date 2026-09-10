@@ -79,7 +79,7 @@
     if (!casts.idx || casts.kind === "CTD") return out;
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
-    const f = UW.currentFilter();
+    const f = UW.spanFilter();
     const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
