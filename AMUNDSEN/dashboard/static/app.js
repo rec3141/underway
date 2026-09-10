@@ -136,6 +136,12 @@
     ssel.value = sizeName();
     ssel.onchange = () => { store.set("textsize", ssel.value); applyTheme(themeName(), true); };
     lightOS.addEventListener?.("change", () => { if (themeName() === "auto") applyTheme("auto", true); });
+    // the top line by width: on a desktop the map cycler, the tabs, the theme picker at the right; on a
+    // phone the cycler flows with the tab buttons and the picker goes to the very foot of the page
+    const pick = document.querySelector(".themepick"), cycler = document.querySelector(".top .maptoggle"), row = document.querySelector(".tabrow"), tabs = $("#tabs"), foot = document.querySelector("main > footer");
+    const narrow = matchMedia("(max-width: 640px)");
+    const place = () => { if (!(pick && cycler && row && tabs && foot)) return; (narrow.matches ? foot : row).append(pick); (narrow.matches ? tabs : row).prepend(cycler); };
+    place(); narrow.addEventListener?.("change", place);
   }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
 
