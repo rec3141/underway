@@ -62,6 +62,31 @@ class HistoryTests(unittest.TestCase):
             former = calendar._remember([_row("CardS-1", "CTD", "06/09/26", "12:00", "13:00")], "Leg")
             self.assertEqual([(f["station"], f["start"]) for f in former], [("CardS-3", "09:35")])
 
+    def test_updated_stamp_moves_only_when_the_row_changes(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(calendar, "DB_DIR", Path(tmp)):
+            hist_p = Path(tmp) / "schedule_history.json"
+            row = _row("CardS-3", "CTD-Rosette", "06/09/26", "09:05", "10:05")
+            calendar._remember([row], "Leg")
+            first = json.loads(hist_p.read_text())["CardS-3|CTD-Rosette"]["updated_utc"]
+            self.assertTrue(first)
+            old = {"CardS-1|CTD": {"first_seen": "2026-09-05T10:00:00+00:00", "last_seen": "2026-09-06T10:00:00+00:00", "start_utc": "x", "station": "CardS-1"}}
+            hist_p.write_text(json.dumps(dict(json.loads(hist_p.read_text()), **old)))
+            calendar._remember([row], "Leg")
+            hist = json.loads(hist_p.read_text())
+            self.assertEqual(hist["CardS-1|CTD"]["updated_utc"], "2026-09-06T10:00:00+00:00")     # a former row from before the stamp: when it left
+            self.assertEqual(hist["CardS-3|CTD-Rosette"]["updated_utc"], first)
+            with patch.object(calendar, "datetime", wraps=calendar.datetime) as dt:
+                from datetime import datetime as real
+                dt.now.return_value = real(2026, 9, 9, 18, 40, tzinfo=calendar.timezone.utc)
+                calendar._remember([row], "Leg")                                       # seen again, unchanged
+                self.assertEqual(json.loads(hist_p.read_text())["CardS-3|CTD-Rosette"]["updated_utc"], first)
+                calendar._remember([dict(row, status="Completed")], "Leg")
+                self.assertEqual(json.loads(hist_p.read_text())["CardS-3|CTD-Rosette"]["updated_utc"], "2026-09-09T18:40:00+00:00")
+                canceled = dict(row, status="Canceled", date="", start="", end="", start_utc=None, end_utc=None)
+                calendar._remember([canceled], "Leg")
+                h = json.loads(hist_p.read_text())["CardS-3|CTD-Rosette"]
+                self.assertEqual((h["status"], h["start"]), ("Canceled", "09:05"))
+
 
 class GcalTests(unittest.TestCase):
     def test_schedule_item_is_the_same_when_moved(self):
@@ -82,18 +107,46 @@ class GcalTests(unittest.TestCase):
         items = gcal.schedule_items({"rows": [canceled]}, history=hist)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0][1], "sch|Norwegian Bay 1|Tucker Net")
-        self.assertTrue(items[0][2]["summary"].startswith("[Canceled]"))
+        self.assertEqual(items[0][2]["summary"], "[Norwegian Bay 1] [Tucker Net] [Canceled]")
         self.assertEqual(items[0][2]["start"], gcal._when(r["start_utc"]))
         self.assertEqual(gcal.schedule_items({"rows": [canceled]}, history={}), [])       # nothing remembered: nothing to update
+
+    def test_summary_carries_the_last_change(self):
+        r = _row("MSG-5", "CTD-Rosette", "09/09/26", "15:40", "16:40", status="")
+        hist = {"MSG-5|CTD-Rosette": dict(r, updated_utc="2026-09-09T18:40:00+00:00", last_seen="2026-09-09T20:00:00+00:00")}
+        (_, _, body), = gcal.schedule_items({"rows": [r]}, history=hist)
+        self.assertEqual(body["summary"], "[MSG-5] [CTD-Rosette] [Scheduled] [last updated Sep 9 14:40 EDT]")
+        self.assertIn("Updated: Sep 9 14:40 EDT", body["description"])
+        transit = _row("", "Transit to MSG-5", "09/09/26", "14:40", "15:40", status="In progress")
+        (_, _, body), = gcal.schedule_items({"rows": [transit]}, history={"|Transit to MSG-5": {"first_seen": "2026-09-09T18:40:00+00:00"}})
+        self.assertEqual(body["summary"], "[Transit to MSG-5] [In progress] [last updated Sep 9 14:40 EDT]")
+
+    def test_former_rows_are_kept_up_to_date_and_dropped_ones_deleted(self):
+        done = dict(_row("JSW-01", "Mapping", "06/09/26", "03:15", "06:00", status="Completed"), former=True)
+        canceled = dict(_row("GF-5", "Gravity Core", "09/09/26", "08:40", "09:10", status="Canceled"), former=True)
+        dropped = dict(_row("GF-PC2", "Piston Core", "09/09/26", "16:15", "19:00", status=""), former=True)
+        coming = _row("MSG-5", "CTD-Rosette", "09/09/26", "15:40", "16:40", status="")
+        items = gcal.schedule_items({"rows": [coming], "former": [done, canceled, dropped]}, history={})
+        self.assertEqual([(fp, None if b is None else b["summary"].split("] [")[2].rstrip("]")) for _, fp, b in items],
+                         [("sch|MSG-5|CTD-Rosette", "Scheduled"), ("sch|JSW-01|Mapping", "Completed"),
+                          ("sch|GF-5|Gravity Core", "Canceled"), ("sch|GF-PC2|Piston Core", None)])
+        state = {"items": {"sch|GF-PC2|Piston Core": {"cal": "schedule", "event_id": "p", "hash": "x"}}}
+        ops = {fp: op for op, _, fp, _, _ in gcal._pending(items, state)}
+        self.assertEqual(ops["sch|GF-PC2|Piston Core"], "delete")
+        self.assertEqual(ops["sch|JSW-01|Mapping"], "insert")
+        self.assertEqual(gcal._pending([("schedule", "sch|GF-PC2|Piston Core", None)], {"items": {}}), [])   # never pushed: nothing to delete
 
     def test_push_patches_the_moved_row(self):
         class Api:
             calls = []
             def insert(self, cal_id, body): self.calls.append(("insert", body["extendedProperties"]["private"])); return "new"
             def patch(self, cal_id, eid, body): self.calls.append(("patch", eid, body["extendedProperties"]["private"]))
-        items = gcal.schedule_items({"rows": [_row("CardS-3", "CTD-Rosette", "06/09/26", "09:35", "10:35")]})
+            def delete(self, cal_id, eid): self.calls.append(("delete", eid))
+        items = gcal.schedule_items({"rows": [_row("CardS-3", "CTD-Rosette", "06/09/26", "09:35", "10:35")]}, history={})
         items.append(("surprise", "pump|x", {"summary": "pump", "extendedProperties": {"private": {"underwayPump": "pump|x"}}}))
-        state = {"last_sync": None, "items": {"sch|CardS-3|CTD-Rosette": {"cal": "schedule", "event_id": "b", "hash": "x"}}}
+        items.append(("schedule", "sch|GF-PC2|Piston Core", None))
+        state = {"last_sync": None, "items": {"sch|CardS-3|CTD-Rosette": {"cal": "schedule", "event_id": "b", "hash": "x"},
+                                              "sch|GF-PC2|Piston Core": {"cal": "schedule", "event_id": "p", "hash": "y"}}}
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp)
             (db / "gcal_queue.json").write_text(json.dumps({"items": [list(x) for x in items]}))
@@ -101,9 +154,9 @@ class GcalTests(unittest.TestCase):
             with patch.object(gcal, "DB_DIR", db), patch.object(gcal, "_Api", Api), \
                     patch.object(gcal, "import_calendars", lambda fetch: []), patch.object(gcal, "GCAL_CREDS", db / "gcal_queue.json"):
                 info = gcal.push()
-                self.assertEqual((info["patched"], info["inserted"], info["pending"]), (1, 1, 0))
+                self.assertEqual((info["patched"], info["inserted"], info["deleted"], info["pending"]), (1, 1, 1, 0))
                 self.assertEqual(Api.calls, [("patch", "b", {"fp": "sch|CardS-3|CTD-Rosette"}),
-                                             ("insert", {"underwayPump": "pump|x", "fp": "pump|x"})])
+                                             ("insert", {"underwayPump": "pump|x", "fp": "pump|x"}), ("delete", "p")])
                 st = json.loads((db / "gcal_state.json").read_text())["items"]
                 self.assertEqual(sorted(st), ["pump|x", "sch|CardS-3|CTD-Rosette"])
                 self.assertEqual(st["sch|CardS-3|CTD-Rosette"]["event_id"], "b")

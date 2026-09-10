@@ -1182,14 +1182,17 @@
       items[i].summary === "TSG pump off / low intake flow" && pump.some(e => UW.tms(e.time_utc) === UW.tms(items[i].start))) items.splice(i, 1);
     for (const e of pump) items.push({start:e.time_utc,end:e.end_utc,summary:e.event,
       description:e.comment,cal:"pump",label:"TSG intake",leg:e.leg});
-    // the intranet rows are also pushed to the Amundsen Schedule calendar as
-    // "[status] station — operation"; the row itself is the fresher copy (the
-    // public feed lags the push by minutes to hours), so a feed event that
-    // names one of our rows gives way to the row whatever time it still shows
+    // the intranet rows are also pushed to the Amundsen Schedule calendar,
+    // with "Operation: …" and "Station: …" lines in the description; the row
+    // itself is the fresher copy (the public feed lags the push by minutes to
+    // hours), so a feed event that names one of our rows gives way to the row
+    // whatever time it still shows
     const rows = scheduledRows(cal.data.schedule || {});
     const rowName = (station, op) => `${station || ""} — ${op || ""}`.replace(/\s+/g, " ").trim();
     const rowNames = new Set(rows.map((r) => rowName(r.station, r.operation)));
-    const isRowCopy = (e) => { const m = /^\[(?!EventLog\])[^\]]*\]\s*(.*)$/.exec(e.summary || ""); return e.cal === "schedule" && m && rowNames.has(m[1].replace(/\s+/g, " ").trim()); };
+    const descLine = (e, label) => ((e.description || "").match(new RegExp(`^${label}: ?(.*)$`, "m")) || [])[1] || "";
+    const isRowCopy = (e) => e.cal === "schedule" && !/^\[EventLog\]/.test(e.summary || "") && !!descLine(e, "Operation") &&
+      rowNames.has(rowName(descLine(e, "Station"), descLine(e, "Operation")));
     for (let i = items.length - 1; i >= 0; i--) if (isRowCopy(items[i])) items.splice(i, 1);
     for (const r of rows) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
       description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule", status: r.status, key: r.key });

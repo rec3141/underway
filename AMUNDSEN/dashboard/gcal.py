@@ -4,7 +4,11 @@ tab, and the ship's operations and surprise episodes are pushed to them.
 * ``schedule`` ("Amundsen Schedule"): one event per event-log operation
   (station × activity × type × local day) and one per row of the intranet
   operations schedule (station × operation, ``calendar.row_key``), edited in
-  place as its times, status and comment change.
+  place as its times, status and comment change — the rows the page shows
+  and the former ones the history keeps, so an edit made just before a row
+  left the page still reaches the calendar. A row that left the page before
+  it started or completed is deleted from the calendar; a canceled or
+  completed one stays, saying so.
 * ``surprise`` ("Underway Updates"): one event per surprise episode — a run of
   minutes with the ``SURPRISE_ALERT_SCALE`` score above ``SURPRISE_ALERT``,
   runs less than half an hour apart merged — extended while it continues.
@@ -17,7 +21,8 @@ feed cache and works through the queue with the service account in
 calendars), at most ``GCAL_MAX_CALLS`` requests per run. Every pushed item
 is remembered in ``db/gcal_state.json`` by fingerprint with its event id and
 a hash of its body, so nothing is inserted twice and only changes are
-patched; an empty state adopts what is already on the calendars.
+patched; a queued item without a body deletes the event and forgets it. An
+empty state adopts what is already on the calendars.
 """
 
 from __future__ import annotations
@@ -172,6 +177,11 @@ class _Api:
             raise KeyError(event_id)
         r.raise_for_status()
 
+    def delete(self, cal_id: str, event_id: str) -> None:
+        r = self.rq.delete(f"{API}/calendars/{cal_id}/events/{event_id}", headers=self.h, timeout=TIMEOUT)
+        if r.status_code not in (404, 410):    # already gone by hand: done
+            r.raise_for_status()
+
 
 def _when(iso: str) -> dict:
     return {"dateTime": datetime.fromisoformat(iso).astimezone(TZ).isoformat(), "timeZone": LOCAL_TZ}
@@ -235,11 +245,25 @@ def eventlog_items(events: list[dict]) -> list[tuple[str, str, dict]]:
     return out
 
 
-def schedule_items(sched: dict, history: dict | None = None) -> list[tuple[str, str, dict]]:
-    """One item per current schedule row, fingerprinted by the row's identity
-    so that an edited row is the same item. A row the page shows without
-    times (a canceled one) keeps the times the history remembers for it, so
-    its event is updated rather than left as it was."""
+def _stamp(iso: str | None) -> str:
+    """``Sep 9 14:40 EDT`` for a UTC instant, in ship time."""
+    if not iso:
+        return ""
+    try:
+        return datetime.fromisoformat(iso).astimezone(TZ).strftime("%b %-d %H:%M %Z")
+    except ValueError:
+        return ""
+
+
+def schedule_items(sched: dict, history: dict | None = None) -> list[tuple[str, str, dict | None]]:
+    """One item per schedule row the tab shows — the page's rows and the
+    former ones — fingerprinted by the row's identity so that an edited row
+    is the same item. A row the page shows without times (a canceled one)
+    keeps the times the history remembers for it, so its event is updated
+    rather than left as it was. A former row that never started or completed
+    was dropped from the plan: its item has no body, which deletes the event.
+    The summary reads ``[station] [operation] [status] [last updated …]``,
+    the stamp being when the row last changed on the page."""
     from .calendar import row_key
     if history is None:
         p = DB_DIR / "schedule_history.json"
@@ -247,20 +271,30 @@ def schedule_items(sched: dict, history: dict | None = None) -> list[tuple[str, 
             history = json.loads(p.read_text()) if p.is_file() else {}
         except (OSError, ValueError):
             history = {}
+    since = _utc(GCAL_SINCE)
     out = []
-    for r in sched.get("rows", []):
+    for r in list(sched.get("rows", [])) + list(sched.get("former") or []):
+        key = row_key(r)
+        h = history.get(key) or {}
         if not r.get("start_utc") or not r.get("end_utc"):
-            h = history.get(row_key(r)) or {}
             if not h.get("start_utc") or not h.get("end_utc"):
                 continue
             r = dict(h, **{k: v for k, v in r.items() if v not in (None, "")}, start_utc=h["start_utc"], end_utc=h["end_utc"])
+        t0 = _utc(r["start_utc"])
+        if since and t0 and t0 < since:
+            continue
+        if r.get("former") and not r.get("status"):
+            out.append(("schedule", f"sch|{key}", None))
+            continue
         status = r.get("status") or "Scheduled"
         ops = r.get("operation") or ""
+        updated = _stamp(r.get("updated_utc") or h.get("updated_utc") or h.get("first_seen"))
+        summary = " ".join(f"[{x}]" for x in (r.get("station") or "", ops, status, f"last updated {updated}" if updated else "") if x)
         desc = "\n".join(x for x in (f"Operation: {ops}", f"Station: {r.get('station', '')}", f"Status: {status}",
-                                     f"Comment: {r['comment']}" if r.get("comment") else "") if x)
-        body = {"summary": f"[{status}] {r.get('station', '')} — {ops}".strip(), "description": desc,
-                "start": _when(r["start_utc"]), "end": _when(r["end_utc"])}
-        out.append(("schedule", f"sch|{row_key(r)}", body))
+                                     f"Comment: {r['comment']}" if r.get("comment") else "",
+                                     f"Updated: {updated}" if updated else "") if x)
+        body = {"summary": summary, "description": desc, "start": _when(r["start_utc"]), "end": _when(r["end_utc"])}
+        out.append(("schedule", f"sch|{key}", body))
     return out
 
 
@@ -308,10 +342,17 @@ def _state() -> dict:
 
 
 def _pending(items: list, state: dict) -> list:
+    """(op, calendar, fingerprint, body, hash) for every queued item the
+    calendar does not hold yet: an insert, a patch, or — for an item without
+    a body — a delete of the event the state knows for it."""
     todo = []
     for cal, fp, body in items:
-        h = _hash(body)
         known = state["items"].get(fp)
+        if body is None:
+            if known and known.get("event_id"):
+                todo.append(("delete", cal, fp, None, None))
+            continue
+        h = _hash(body)
         if known is None:
             todo.append(("insert", cal, fp, body, h))
         elif known.get("hash") != h:
@@ -338,8 +379,8 @@ def queue(events: list[dict], sched: dict, frame: pd.DataFrame | None) -> dict:
 
 
 def push() -> dict:
-    """The ``gcal-push`` command: refresh the feed cache, then insert or patch
-    queued items up to ``GCAL_MAX_CALLS`` requests. Never raises."""
+    """The ``gcal-push`` command: refresh the feed cache, then insert, patch
+    or delete queued items up to ``GCAL_MAX_CALLS`` requests. Never raises."""
     try:
         feeds = import_calendars(fetch=True)
         log.info("gcal: feeds %s", ", ".join(f"{f['label']} {len(f.get('events', []))}{' (stale)' if f.get('stale') else ''}" for f in feeds))
@@ -353,7 +394,7 @@ def push() -> dict:
     items = [tuple(x) for x in json.loads(qp.read_text())["items"]]
     state = _state()
     todo = _pending(items, state)
-    inserted = patched = failed = 0
+    inserted = patched = deleted = failed = 0
     if todo:
         try:
             api = _Api()
@@ -373,9 +414,19 @@ def push() -> dict:
                 log.warning("gcal: could not list existing events (%s)", e)
                 return {"skipped": f"no listing: {e}"}
         for op, cal, fp, body, h in todo:
-            if inserted + patched + failed >= GCAL_MAX_CALLS:
+            if inserted + patched + deleted + failed >= GCAL_MAX_CALLS:
                 break
             cal_id = GCAL[cal]["id"]
+            if op == "delete":
+                try:
+                    api.delete(cal_id, state["items"][fp]["event_id"]); deleted += 1
+                    state["items"].pop(fp, None)
+                except Exception as e:          # noqa: BLE001
+                    failed += 1
+                    log.warning("gcal delete %s failed: %s", fp, e)
+                    if failed >= 5:
+                        break
+                continue
             priv = dict((body.get("extendedProperties") or {}).get("private") or {}, fp=fp)
             body = dict(body, extendedProperties={"private": priv})
             try:
@@ -397,7 +448,8 @@ def push() -> dict:
     state["last_sync"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     DB_DIR.mkdir(parents=True, exist_ok=True)
     (DB_DIR / "gcal_state.json").write_text(json.dumps(state))
-    info = {"items": len(items), "inserted": inserted, "patched": patched, "failed": failed,
-            "pending": max(0, len(todo) - inserted - patched)}
-    log.info("gcal: %d items, %d inserted, %d patched, %d failed, %d pending", len(items), inserted, patched, failed, info["pending"])
+    info = {"items": len(items), "inserted": inserted, "patched": patched, "deleted": deleted, "failed": failed,
+            "pending": max(0, len(todo) - inserted - patched - deleted)}
+    log.info("gcal: %d items, %d inserted, %d patched, %d deleted, %d failed, %d pending",
+             len(items), inserted, patched, deleted, failed, info["pending"])
     return info
