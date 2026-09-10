@@ -611,7 +611,13 @@
     if (p.kind === "source") {
       const bib = await bibliography();
       const e = bib.find((x) => x.key === p.slug.split("/").pop());
-      if (e) head += `<p class="mlaline"><span class="lbl">MLA</span> ${mla(e)}</p>` + facts([["", e.keywords === "primary" ? "primary source" : e.keywords === "secondary" ? "secondary source" : ""], ["held", e.note]]);
+      // the bibliography's note joins the archive, the call number, the
+      // licence and the source's own note; that note is the page body, so
+      // the held line keeps only what comes before it
+      const plain = String(p.html || "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\s+/g, " ").trim();
+      let held = (e?.note || "").replace(/\s+/g, " ").trim();
+      if (plain && held.endsWith(plain)) held = held.slice(0, -plain.length).replace(/;\s*$/, "").trim();
+      if (e) head += `<p class="mlaline"><span class="lbl">MLA</span> ${mla(e)}</p>` + facts([["", e.keywords === "primary" ? "primary source" : e.keywords === "secondary" ? "secondary source" : ""], ["held", held]]);
     }
     // a well-cited source is mentioned by a couple of hundred artifacts: the
     // narrative pages first, then the rest behind a fold
@@ -960,7 +966,7 @@
     for (const x of items) {
       const slug = x.kind === "place" ? x.p.page : x.a.page;
       if (!byPage.has(slug)) byPage.set(slug, { kind: x.kind, title: x.kind === "place" ? x.p.name : x.a.title, slug, visits: [], note: x.kind === "place" ? [x.p.kind, x.p.note].filter(Boolean).join(" · ") : x.kind === "track" ? "" : fmtDate(x.a) });
-      if (x.w) byPage.get(slug).visits.push(`${dateLabel(x.w.date || "")}${x.w.note ? ": " + x.w.note : ""}`);
+      if (x.w) byPage.get(slug).visits.push([dateLabel(x.w.date || ""), x.w.note].filter(Boolean).join(": "));
     }
     const order = { place: 0, track: 1 };
     const chips = [...byPage.values()].sort((p, q) => ((order[p.kind] ?? 2) - (order[q.kind] ?? 2)) || p.title.localeCompare(q.title));
@@ -972,47 +978,32 @@
     el.scrollTop = 0;
   }
   // how the history was made: the project's own account (PROVENANCE.md,
-  // written on grid and pulled with the data) with its snapshot of the
-  // numbers replaced by this build's, then what happens aboard: the models'
-  // annotations, the reader's flag, the historian
+  // written on grid and pulled with the data), with its numbers section
+  // replaced by a few of this build's figures and a word on what happens
+  // aboard. Short, for readers of the history rather than its makers.
   function renderProvenance(el) {
-    const pv = hist.provenance, c = pv?.counts || {}, w = pv?.work || {}, m = pv?.machine || {};
+    const pv = hist.provenance, c = pv?.counts || {}, w = pv?.work || {};
     const n = (x) => (x == null ? "–" : Number(x).toLocaleString("en-CA"));
     const day = (iso) => iso ? new Date(iso).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }) : "";
-    const t = hist.index?.topics || [];
     const req = w.requests || {}, answered = (req.approved || 0) + (req.denied || 0) + (req.done || 0);
     const flagsNow = hist.flags.size;
     const tile = (v, l) => `<div class="stat"><b>${n(v)}</b><span>${l}</span></div>`;
-    const types = Object.entries(c.artifacts_by_type || {}).map(([k, v]) => `${n(v)} ${esc(k)}${v === 1 ? "" : "s"}`).join(", ");
-    const figures = `<div class="stats">${tile(c.topics ?? t.length, "topics")}${tile(c.pages, "narrative pages")}${tile(c.pages_draft, "still drafts")}${tile(c.page_versions, "earlier page versions kept")}${tile(c.artifacts, "artifacts")}${tile((c.artifacts_by_type?.image || 0) + (c.artifacts_by_type?.map || 0), "historical images and maps")}${tile(c.artifacts_by_type?.quote, "pinned quotations")}${tile(c.artifacts_by_type?.track, "reconstructed tracks")}${tile(c.waypoints, "waypoints on them")}${tile(c.sources, "works cited")}${tile(c.sources_primary, "primary sources")}${tile(c.sources_local, "works held on the ship")}${tile(c.languages, "languages")}${tile(c.people, "people")}${tile(c.people_indigenous, "of them Inuit and other Indigenous people")}${tile(c.places, "places")}${tile(c.places_inuktitut, "with an Inuktitut name")}${tile(c.events, "events")}${tile(c.dates, "dated records")}${tile(c.vessels, "vessels")}${tile(c.animals, "animals")}${tile(c.links, "links between pages")}${tile(answered, "requests answered by a person")}${tile(w.worklog, "worklog entries")}</div>` +
-      (c.licences ? `<p class="muted small">Rights: ${Object.entries(c.licences).map(([k, v]) => `${n(v)} ${esc((c.licence_labels || {})[k] || k)}`).join(", ")}.</p>` : "") +
-      (types ? `<p class="muted small">Artifacts by kind: ${types}. ${n(c.artifacts_local)} have a copy on the ship and ${n(c.artifacts_linked)} link to the holding institution on the web.${w.first ? ` The worklog runs from ${day(w.first)} to ${day(w.last)}, ${n(w.runs)} named runs and passes.` : ""}</p>` : "") +
-      (pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}, when this build published the history${c.links_wanted ? `; ${n(c.links_wanted)} links still point at pages not yet written` : ""}.</p>` : `<p class="muted small">The figures are not in this build yet; they are counted when the history is next published.</p>`);
-    const aboard = `## What the models annotated
+    const figures = `<div class="stats">${tile(c.pages, "narrative pages")}${tile(c.artifacts, "artifacts")}${tile(c.sources, "works cited")}${tile(c.people, "people named")}</div>` +
+      (pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}${c.pages_draft ? `; ${n(c.pages_draft)} pages are still drafts` : ""}${answered ? `; ${n(answered)} questions answered by a person` : ""}.</p>` : `<p class="muted small">The figures are counted when the history is next published.</p>`);
+    const aboard = `## Aboard the ship
 
-${m.keywords ? `${n(m.keyword_artifacts)} artifacts carry ${n(m.keywords)} subject keywords assigned by a local language model (${(m.keyword_models || []).join(", ")}) under a subject tree it drew up${m.ontology_model ? ` (${m.ontology_model})` : ""}; they are marked as the model's in the database, apart from the crew's tags. ` : ""}${m.faces ? `${n(m.faces)} faces were found in the pictures by a face detector${(m.detectors || []).length ? ` (${m.detectors.join(", ")})` : ""}; ${n(m.faces_identified)} were matched to a named person only where the caption named one person and the picture held one face, and the rest are left unnamed. ` : ""}${m.animals_detected ? `${n(m.animals_detected)} animals were found the same way, ${n(m.animals_identified)} of them named. ` : ""}${m.rejected_by_operator ? `${n(m.rejected_by_operator)} machine identification${m.rejected_by_operator === 1 ? " was" : "s were"} rejected by the operator. ` : ""}${!m.keywords && !m.faces ? "No model annotations are in this build." : ""}
-
-## Aboard the ship
-
-The historian in the chat (Ask Ada) answers from these pages with a local model on the ship: it is given the pages that bear on a question and cites them by title, and it is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner, with a note; flags go to the layer's author by email${flagsNow ? `, and ${n(flagsNow)} ${flagsNow === 1 ? "is" : "are"} flagged now` : ""}.`;
+Ask Ada answers from these pages with a local model on the ship: it cites the pages it was given and is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner; flags go to the layer's author${flagsNow ? `, and ${n(flagsNow)} ${flagsNow === 1 ? "is" : "are"} flagged now` : ""}.`;
     let body;
     if (pv?.text) {
-      // their account, section by section: the H1 is the page's own title,
-      // the numbers section is replaced by this build's figures, and the
-      // ship's sections go in before the tooling
+      // their account, section by section: the H1 is the page's own title
+      // and the numbers section is replaced by this build's figures
       const parts = pv.text.replace(/\r/g, "").replace(/^#\s+[^\n]*\n/, "").split(/\n(?=## )/);
-      body = parts.map((sec) => {
-        if (/^## The record, in numbers/i.test(sec)) return `<h3>The record, in numbers</h3>${figures}`;
-        if (/^## Tooling/i.test(sec)) return markdown(aboard) + markdown(sec);
-        return markdown(sec);
-      }).join("\n");
-      if (!/## Tooling/i.test(pv.text)) body += markdown(aboard);
+      body = parts.map((sec) => /^## The record, in numbers/i.test(sec) ? `<h3>The record, in numbers</h3>${figures}` : markdown(sec)).join("\n");
       if (!/## The record, in numbers/i.test(pv.text)) body += `<h3>The record, in numbers</h3>${figures}`;
     } else {
-      body = `<p class="lead">Everything in this tab was researched, entered and written by AI research agents from the sources named on each item, and then checked; the project's own account of how travels with the data and is not in this build yet.</p>
-<p>A new page is a draft, and shows as <span class="status draft">draft</span> until it has been checked against its sources; pages without the mark have been through that review. ${answered ? `${n(answered)} requests for what an agent could not do alone were answered by a person.` : ""}</p>` + markdown(aboard) + `<h3>The record, in numbers</h3>${figures}`;
+      body = `<p class="lead">Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.</p><h3>The record, in numbers</h3>${figures}`;
     }
-    el.innerHTML = crumb(here("Provenance", "provenance")) + `<h2>How this history was made</h2><div class="provenance wiki">${body}</div>`;
+    el.innerHTML = crumb(here("Provenance", "provenance")) + `<h2>How this history was made</h2><div class="provenance wiki">${body}${markdown(aboard)}</div>`;
   }
   async function renderBib(el) {
     const bib = await bibliography();
