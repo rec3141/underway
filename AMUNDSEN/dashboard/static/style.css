@@ -958,7 +958,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 .vig .txt { min-width: 0; }
 .small { font-size: var(--t-md); }
 /* the chat's rooms: Ship, Crew, Ada, then the direct messages; a dot on any with news */
-.chat .chatrooms { display: flex; gap: 4px; padding: 6px 8px 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); flex: 0 0 auto; align-items: center; }
+.chat .chatrooms { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px 4px; border-bottom: 1px solid var(--line); flex: 0 0 auto; align-items: center; }   /* the rooms wrap to more lines rather than running off the right; the tools end the last */
 .chat .chatpicker { flex: 0 0 auto; }
 .chat .chatrooms .tools { margin-left: auto; display: flex; gap: 4px; flex: 0 0 auto; padding-left: 8px; }
 .chat .chatrooms .tools button { border: 0; background: transparent; color: var(--muted); padding: 2px 6px; font-size: var(--t-sm); }
