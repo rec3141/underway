@@ -40,7 +40,9 @@
   const partnerTitle = (n) => { if (!n.startsWith("@")) return n; const c = st.crew.find((x) => x.handle === n.slice(1)); return c ? (c.room || c.name) : n; };
   const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: ch === "ship" ? "Ship" : ch === "crew" ? "Crew" : ch === "ada" ? "Library" : ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).map(partnerTitle).join(", ") || "Me", kind: isDM(ch) ? "dm" : "room" };
   const roomTitle = (ch) => roomInfo(ch).title;
+  const dmWith = (ch, h) => isDM(ch) && ch.slice(3).split("|").includes("@" + h);   // a direct message with this crew member
   const placeholder = (ch) => ch === "ada" ? "ask Ada, the librarian · Enter to send"
+    : dmWith(ch, "doc") ? "ask Doc, the naturalist · Enter to send"
     : ch === "crew" ? "talk to the crew · Enter to send"
     : isDM(ch) ? `message ${roomTitle(ch)} · Enter to send` : "message · Enter to send";
 
@@ -171,14 +173,14 @@
       if (st.error) { who.textContent = st.error; who.classList.add("warn"); }
       else {
         who.classList.remove("warn");
-        who.textContent = isDM(room) ? (st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
+        who.textContent = isDM(room) ? (dmWith(room, "doc") ? "the Lab: ask Doc about the living things, the ice, the water and the sky" : st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
           : room === "ada" ? "the Library: ask Ada about the region's past"
           : st.online.length ? `${st.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
       }
       who.title = st.online.map((n) => n.name).join(", ");
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
       const noai = st.noai && room === "ship";
-      typing.hidden = !t.length || noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} ${room === "ada" || t.some((c) => c.handle === "ada") ? "looking it up…" : "typing…"}` : "";
+      typing.hidden = !t.length || noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} ${room === "ada" || dmWith(room, "doc") || t.some((c) => c.handle === "ada") ? "looking it up…" : "typing…"}` : "";
       // the crew line: who belongs to this room, and whether their model is up
       const on = st.modelOn;
       const light = `<span class="mdot ${on ? "on" : "off"}" title="${on ? "model online: " + esc(j.model || "") : "no model loaded: the crew cannot answer (" + esc(j.model || "") + "); the operator has been told"}"></span>`;
