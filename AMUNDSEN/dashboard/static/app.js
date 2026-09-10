@@ -1013,10 +1013,12 @@
   // the MapLibre map behind the plot; a restyle or resize while its style is
   // still loading (the style changes with the theme, a satellite picture or
   // new geography) throws inside MapLibre, so callers wait for mapBusy()
+  // (the stylesheet's own flag: isStyleLoaded() also waits for every tile)
   const mapLibre = () => $("#map")._fullLayout?.map?._subplot?.map;
-  const mapBusy = () => mapDrawing || !(mapLibre()?.isStyleLoaded?.() ?? true);
+  const styleLoading = (ml) => !!ml?.style && ml.style._loaded === false;
+  const mapBusy = () => mapDrawing || styleLoading(mapLibre());
   const mapStyleLoaded = () => new Promise((res) => {
-    const ml = mapLibre(); if (!ml || ml.isStyleLoaded()) return res();
+    const ml = mapLibre(); if (!styleLoading(ml)) return res();
     const t = setTimeout(done, 8000); function done() { clearTimeout(t); ml.off("style.load", done); res(); }
     ml.on("style.load", done);
   });
