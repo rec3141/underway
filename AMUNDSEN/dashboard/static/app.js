@@ -77,7 +77,7 @@
   // the graphs and the map read them from the root's custom properties. The
   // objects are updated in place, so a module that took THEME or C at load
   // sees the new theme at its next draw.
-  const THEMES = { auto: "Auto (system)", "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light" };
+  const THEMES = { auto: "Auto (system)", "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light", navigator: "Navigator", "navigator-dark": "Navigator dark" };
   const SIZES = { auto: "Theme's size", normal: "Normal text", large: "Large text" };
   const themeName = () => { const t = store.get("theme", null); return THEMES[t] ? t : "auto"; };
   const sizeName = () => { const t = store.get("textsize", null); return SIZES[t] ? t : "auto"; };
@@ -103,10 +103,10 @@
     C.dark = cs.colorScheme !== "light";
     fontScale = (parseFloat(cs.fontSize) || 14) / 14;
     THEME.plot_bgcolor = v("plot-bg");
-    Object.assign(THEME.font, { color: v("plot-fg"), size: fz(12.5) });
+    Object.assign(THEME.font, { color: v("plot-fg"), size: fz(12.5), family: v("plot-font") || THEME.font.family });
     for (const ax of ["xaxis", "yaxis"]) Object.assign(THEME[ax], { gridcolor: v("plot-grid"), zerolinecolor: v("plot-grid"), linecolor: v("plot-line") });
     Object.assign(THEME.hoverlabel, { bgcolor: v("hover-bg"), bordercolor: v("accent") });
-    Object.assign(THEME.hoverlabel.font, { color: v("fg"), size: fz(12) });
+    Object.assign(THEME.hoverlabel.font, { color: v("hover-fg") || v("fg"), size: fz(12) });
   }
   // the theme on the page: the attribute the stylesheet keys on, the colours
   // read back, and (after a change) every graph and the map drawn again
@@ -981,7 +981,8 @@
   // the span picks a starting detail (up to a week: a point a km; months:
   // 5 km; years: 20 km) that the slider then overrides; "all points" is a
   // choice, never the default
-  const detailFor = (hours) => hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
+  // the track detail a span asks for: every point up to half a day, then coarser as the span grows
+  const detailFor = (hours) => hours <= 12 ? 0 : hours <= 48 ? 0.5 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
   const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
   const currentWindow = () => M.windows.find((x) => x.label === state.win);
   // "all points" loads the window's fine variant when the build made one
@@ -1037,6 +1038,27 @@
     state.shipHeading = ship.heading;
     Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]] }, [idx]).catch(() => {});
   }
+  // The colour scale beside every Color by picker: the colour map's gradient
+  // with the limits at its ends. The map's track trace resolves a named
+  // colour map into its stops; the last stops seen for a map serve while the
+  // track layer is off.
+  const scaleStops = new Map();
+  function renderColourBar(v, lim) {
+    const el = $("#map");
+    const tr = el._fullData?.find((t) => t.name === "track");
+    const key = v?.cmap || "Viridis";
+    if (tr?.marker?.colorscale && !v?.rgb) scaleStops.set(JSON.stringify(key), tr.marker.colorscale);
+    const stops = Array.isArray(key) ? key : scaleStops.get(JSON.stringify(key));
+    for (const bar of document.querySelectorAll(".cbar")) {
+      const show = !!stops && !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
+      bar.hidden = !show;
+      if (!show) continue;
+      bar.querySelector(".grad").style.background = `linear-gradient(90deg, ${stops.map(([t, col]) => `${col} ${(t * 100).toFixed(1)}%`).join(", ")})`;
+      bar.querySelector(".lo").textContent = fmtVal(lim[0], "");
+      bar.querySelector(".hi").textContent = fmtVal(lim[1], v?.unit || "");
+      bar.title = `${state.colour}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span`;
+    }
+  }
   let mapDrawing = false, mapAgain = false;
   // the MapLibre map behind the plot; a restyle or resize while its style is
   // still loading (the style changes with the theme, a satellite picture or
@@ -1077,11 +1099,7 @@
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: !v?.rgb,
-                opacity: .95,
-                // the scale lies along the top of the map, under the Color by picker
-                colorbar: { orientation: "h", title: { text: state.colour, side: "top", font: { size: fz(12), color: C.fg } }, thickness: 10, len: .6, x: .5, xanchor: "center", y: 1, yanchor: "top", ypad: 6,
-                  tickfont: { size: fz(11), color: C.fg }, outlinewidth: 0, bgcolor: C.plotLegendBg, bordercolor: C.line, borderwidth: 1 } },
+      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1161,6 +1179,7 @@
     mapDrawing = true;
     Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(mapStyleLoaded).then(() => {
       state.fitPending = false;
+      try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
       try { aimShip(); } catch { /* the poll retries */ }
       if (!state.view) state.view = view;
       updateScale();

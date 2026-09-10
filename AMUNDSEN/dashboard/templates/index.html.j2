@@ -25,7 +25,7 @@
     <div class="sub" id="connection" role="status" hidden></div>
   </div>
   <div class="themepick">
-    <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light"><span class="lbl">Theme</span><select id="theme" aria-label="Theme"></select></label>
+    <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><span class="lbl">Theme</span><select id="theme" aria-label="Theme"></select></label>
     <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
   </div>
   <nav class="tabs" id="tabs" role="tablist">
@@ -70,11 +70,11 @@
 <main>
   <div class="plotctl" id="plotctl">
     <div class="group xmode" aria-label="X axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the graphs between time and distance along track">Time</button></div>
-    <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+    <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
-      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
       <!-- listed top layer first; each is an on/off toggle -->
       <div class="layers">
       <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
