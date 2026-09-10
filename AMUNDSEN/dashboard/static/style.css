@@ -199,15 +199,17 @@ a:hover { text-decoration: underline; }
 .brand .sub .srcpop td { padding: 3px 10px; }
 .brand .sub .srcpop td.mono { font-family: var(--mono); color: var(--fg); }
 #connection { color: var(--accent-2); }
-/* brand left, tabs right, controls on their own full-width row: the same
-   places on every tab, whatever each tab shows in the controls row */
-.top .tabs { order: 0; flex: 1 0 100%; margin-left: 0; display: flex; }   /* the tabs first, top left, above the title */
-.top .brand { order: 1; flex: 1 1 0; min-width: 160px; }
+/* the top line (the map cycler, the tabs, the theme picker at the right),
+   the title under it, then the controls on their own full-width row: the
+   same places on every tab, whatever each tab shows in the controls row */
+.top .tabrow { order: 0; flex: 1 0 100%; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.top .tabs { margin-left: 0; display: flex; }
+.top .brand { order: 1; flex: 1 1 auto; min-width: 160px; }
 .tabs button { white-space: nowrap; }
 .top .pickhint { color: var(--muted); font-size: 0.893rem; }
-/* the theme picker, right of the title on every tab */
-.top .themepick { order: 2; flex: 0 0 auto; align-self: center; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 0.929rem; }
-.top .themepick .group { gap: 6px; }
+.themepick { flex: 0 0 auto; margin-left: auto; align-self: center; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 0.929rem; }
+.themepick .group { gap: 6px; }
+footer .themepick { justify-content: flex-end; margin: 10px 0 0; }        /* a phone's place for it: the very foot of the page */
 .top .pickhint.phone { order: 3; flex: 1 0 100%; margin-bottom: -4px; }   /* the hint on its own line */
 .top .pickhint.inline { display: none; }
 .top .controls { order: 3; flex: 1 0 100%; }
@@ -431,9 +433,11 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
   .top { padding: 10px 12px 8px; gap: 8px 12px; }
   .brand h1 { font-size: 1.214rem; }
   .brand .sub { font-size: 0.857rem; }
-  /* one row each: the tabs; legs + span; time/distance + colour */
-  .top .tabs { flex: 1 0 100%; display: flex; margin-left: 0; }
+  /* one row each: the tabs, the map cycler flowing among them; legs + span; time/distance + colour */
+  .top .tabs { flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; margin-left: 0; }
   .top .tabs button { flex: 1 1 auto; min-width: 0; padding: 8px 6px; font-size: 0.893rem; }   /* the seven tabs take a second row rather than running into each other */
+  .top .tabs .maptoggle { flex: 1 1 auto; display: flex; }
+  .top .tabs .maptoggle .xcycle { flex: 1; min-height: 44px; }
   .castside .castfilter { flex-basis: 100%; }         /* the filter and clear on their own line */
   /* the status as a coloured dot; its word is the tooltip */
   table.sched .status { display: inline-block; width: 11px; height: 11px; padding: 0; border-radius: 50%; font-size: 0; vertical-align: middle; border: 0; }
@@ -847,7 +851,6 @@ table#sources { border-collapse: collapse; width: 100%; font-size: 0.893rem; }
 
 /* Keep phone layouts within the viewport without hiding inaccessible controls. */
 @media (max-width: 640px) {
-  .top .tabs { flex: 0 1 100%; min-width: 0; flex-wrap: wrap; }
   .tabs button, .pane-tools button, .month .mhead button,
   .livecfgform button, .maplayers button { min-height: 44px; }
   .maplayers button { min-width: 44px; }
@@ -969,7 +972,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 body.tab-history #maplayers button[data-layer="stations"], body.tab-history #maplayers button[data-layer="cameras"],
 body.tab-history #maplayers button[data-layer="events"], body.tab-history #maplayers button[data-layer="track"],
 body.tab-history #satpill, body.tab-history #satnav, body.tab-history .mapcolour, body.tab-history .maptrack,
-body.tab-history #legmenu, body.tab-history .group.span, body.tab-history .pickhint { display: none !important; }
+body.tab-history .top .controls, body.tab-history .pickhint { display: none !important; }
 body.tab-history #maplayers button[data-layer="history"] { display: inline-block; }
 /* the crew's model light: green when a model is loaded, grey when the crew are offline */
 .chat .mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--muted); box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 25%, transparent); }
@@ -1181,7 +1184,7 @@ html.bigtype .chat { width: 400px; }
 html.bigtype .chat.sidebar { width: 440px; }
 html[data-theme^="minimal"].chat-side main { padding-right: 460px; }
 @media (max-width: 640px) {
-  .top .themepick .lbl { display: none; }
+  .themepick .lbl { display: none; }
   html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
 }
 

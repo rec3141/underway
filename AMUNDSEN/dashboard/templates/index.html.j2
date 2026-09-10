@@ -19,16 +19,10 @@
 <body>
 
 <header class="top">
-  <div class="brand">
-    <h1>{{ site.title }}</h1>
-    <div class="sub" id="status">loading…</div>
-    <div class="sub" id="connection" role="status" hidden></div>
-  </div>
-  <div class="themepick">
-    <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><span class="lbl">Theme</span><select id="theme" aria-label="Theme"></select></label>
-    <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
-  </div>
-  <nav class="tabs" id="tabs" role="tablist">
+  <!-- the top line: the map cycler, the tabs, and (on a desktop) the theme picker at the right; a phone carries the picker at the foot of the page -->
+  <div class="tabrow">
+    <div class="group maptoggle"><button type="button" id="maptoggle" class="xcycle" title="how much of the page the map takes: half, all of it, or none">Half Map</button></div>
+    <nav class="tabs" id="tabs" role="tablist">
     <button data-tab="calendar" role="tab">Schedule</button>
     <button data-tab="stations" role="tab">Stations</button>
     <button data-tab="underway" class="on" role="tab">Underway</button>
@@ -37,10 +31,19 @@
     <button data-tab="history" role="tab" title="the region's history: voyages, people, places and artifacts on the map, with a library and Ada to ask">History</button>
     <button data-tab="nature" role="tab" title="the region's natural history: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal and Doc to ask">Nature</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
-  </nav>
+    </nav>
+    <div class="themepick">
+      <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><span class="lbl">Theme</span><select id="theme" aria-label="Theme"></select></label>
+      <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
+    </div>
+  </div>
+  <div class="brand">
+    <h1>{{ site.title }}</h1>
+    <div class="sub" id="status">loading…</div>
+    <div class="sub" id="connection" role="status" hidden></div>
+  </div>
   <div class="pickhint phone">Select leg and time span:</div>
   <div class="controls" id="controls-underway">
-    <div class="group maptoggle"><button type="button" id="maptoggle" class="xcycle" title="how much of the page the map takes: half, all of it, or none">Half Map</button></div>
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
       <div class="pop">
