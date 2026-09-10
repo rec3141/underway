@@ -9,6 +9,12 @@ variable, and a "surprise" panel that flags minutes that look unusual against
 the previous 48 hours. A span slider reaches from the last hour back across
 every leg on the share, and a leg list filters what is shown.
 
+A Theme picker in the header offers four looks: Claude dark (the default),
+Claude light, and Minimal dark and light, which set bigger type on flat
+surfaces for reading on a phone or across a lab. The choice is kept in the
+browser. Every colour is a token at the top of `static/style.css`, and the
+graphs and the map read those tokens, so a theme is one block of values.
+
 The “live” leg is the discovered leg with the latest date in its
 `ACSD_YYYYMMDD.csv` filenames, breaking ties by year and leg number. File
 copy/modification times do not affect that selection. This marks the latest

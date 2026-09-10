@@ -9,25 +9,27 @@
   "use strict";
   const UW = window.UW;
   const $ = (s) => document.querySelector(s);
-  const { store } = UW;
+  const { store, C, fz } = UW;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const cachedJSON = window.UWData.generationCache(UW.fetchJSON, () => UW.M.history?.stamp || "");
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
-  // artifact kinds: a colour each, for the map and the chips
+  // artifact kinds: a colour each, for the map and the chips — an index into
+  // the theme's palette, read when used so a theme change recolours them
+  const kind = (label, i) => ({ label, get colour() { return C.palette[i]; } });
   const TYPES = {
-    track: { label: "Tracks", colour: "#ffb454" },
-    event: { label: "Events", colour: "#ff7b72" },
-    place: { label: "Places", colour: "#7ee787" },
-    image: { label: "Images", colour: "#5cc8ff" },
-    map:   { label: "Maps", colour: "#79c0ff" },
-    quote: { label: "Quotes", colour: "#d2a8ff" },
-    text:  { label: "Texts", colour: "#a5d6ff" },
-    object: { label: "Objects", colour: "#f2cc60" },
+    track: kind("Tracks", 1),
+    event: kind("Events", 3),
+    place: kind("Places", 2),
+    image: kind("Images", 0),
+    map:   kind("Maps", 6),
+    quote: kind("Quotes", 4),
+    text:  kind("Texts", 10),
+    object: kind("Objects", 5),
   };
   // the pane's chips: one page per kind, People among them
-  const KINDS = { people: { label: "People", colour: "#ffa198" }, object: TYPES.object, quote: TYPES.quote, text: TYPES.text, place: TYPES.place, track: TYPES.track, map: TYPES.map, event: TYPES.event, image: TYPES.image,
-    animal: { label: "Animals", colour: "#e3b341" }, vessel: { label: "Vessels", colour: "#56d364" } };
+  const KINDS = { people: kind("People", 7), object: TYPES.object, quote: TYPES.quote, text: TYPES.text, place: TYPES.place, track: TYPES.track, map: TYPES.map, event: TYPES.event, image: TYPES.image,
+    animal: kind("Animals", 9), vessel: kind("Vessels", 8) };
   // the kinds in their hierarchy, wherever the chips appear: the animals and
   // what people made and said sit under People, the vessels and what lies on
   // the ground under Places
@@ -41,7 +43,7 @@
   const kindLabel = (k) => KIND_LABEL[k] || k;
   // a page's standing with the crew: marked while it is a draft, unmarked once checked
   const statusTag = (s) => s === "draft" ? `<span class="status draft" title="the crew are still at work on this page">draft</span>` : "";
-  const TOPIC_COLOURS = ["#ffb454", "#5cc8ff", "#7ee787", "#ff7b72", "#d2a8ff", "#f2cc60", "#79c0ff", "#ffa198", "#56d364", "#e3b341", "#a5d6ff", "#ff9bce"];
+  const TOPIC_ORDER = [1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];   // topics take the palette amber first
   const TIMELINE_FROM = 1400;                              // the Events chart opens zoomed to here; the table and the chart hold everything
   const VIG_N = 5;                                         // vignette lines shown before "see more"
 
@@ -205,7 +207,7 @@
     return yearLabel(y) + tail;
   }
   const topicOf = (slug) => hist.index?.topics.find((t) => t.slug === slug);
-  const topicColour = (slug) => TOPIC_COLOURS[Math.max(0, hist.index?.topics.findIndex((t) => t.slug === slug) || 0) % TOPIC_COLOURS.length];
+  const topicColour = (slug) => C.palette[TOPIC_ORDER[Math.max(0, hist.index?.topics.findIndex((t) => t.slug === slug) || 0) % TOPIC_ORDER.length]];
   const artifactById = (id) => hist.artifacts?.find((a) => a.id === id);
   const artifactByUrl = (url) => url ? hist.artifacts?.find((a) => a.url === url || a.thumb === url || a.original_url === url) : null;
   const eventById = (id) => hist.events?.find((e) => String(e.id) === String(id));
@@ -438,7 +440,7 @@
         }
         if (run.length > 1) runs.push(run.join(" "));
       }
-      coast = runs.map((r) => `<polyline points="${r}" fill="none" stroke="#3a4a5c" stroke-width="1"/>`).join("");
+      coast = runs.map((r) => `<polyline points="${r}" fill="none" stroke="${C.sketchCoast}" stroke-width="1"/>`).join("");
     }
     const pts = c.map((p, i) => `${X(xs[i])},${Y(ys[i])}`).join(" ");
     const col = topicColour(a.topic);
@@ -466,7 +468,7 @@
     else if (a.type === "image" || a.type === "map") media = `<span class="thumb none">${a.url ? esc(a.url.split(".").pop().toUpperCase()) + " · no picture yet" : "interactive resource · no picture yet"}</span>`;
     const quote = a.type === "quote" && a.description ? `<q>${esc(quoteOf(a.description))}</q>` : "";
     const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
-    return `<a class="artcard ${esc(a.type)}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${flagMark(a)}${media}<span class="dot" style="background:${t.colour || "#8b9bb0"}"></span>` +
+    return `<a class="artcard ${esc(a.type)}" href="#history/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${flagMark(a)}${media}<span class="dot" style="background:${t.colour || C.muted}"></span>` +
       `<span class="kind">${esc(a.type)}</span><b>${esc(a.title)}</b>${quote}<span class="when">${esc(fmtDate(a))}${plat != null ? " " + mapLink(plat, plon, a.title, a.type) : ""}</span>` +
       (opts.creator && a.creator ? `<span class="who">${esc(a.creator)}</span>` : "") + `</a>`;
   }
@@ -576,7 +578,7 @@
       const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
       const where = plat != null ? ` · ${a.type === "track" ? "" : coordLink(plat, plon, a.title) + " · "}${mapLink(plat, plon, a.title, a.type)}` : "";
       const track = a.type === "track" && a.waypoints?.length ? `<div class="hscroll"><table class="waypoints"><tr><th>date</th><th>position</th><th>note</th></tr>${a.waypoints.map((w) => `<tr><td>${esc(dateLabel(w.date || ""))}</td><td>${w.lat != null ? coordLink(w.lat, w.lon, w.note || a.title) : ""}</td><td>${esc(w.note || "")}</td></tr>`).join("")}</table></div>` : "";
-      head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || "#8b9bb0"}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}${flagMark(a)}</div>`;
+      head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || C.muted}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}${flagMark(a)}</div>`;
       head += peopleStrip(a.people);
       if (a.type === "track") media = `<figure class="routefig">${trackSketch(a, 480, 300, "sketch large")}</figure>` + media;
       media += track;
@@ -850,12 +852,12 @@
       marker: { color: bars.map(([d]) => rgba(topicColour(d.topic), .45)), line: { color: bars.map(([d]) => topicColour(d.topic)), width: 1 } }, width: .5 });
     if (pts.length) traces.push({ type: "scatter", mode: "markers", name: "dates", x: pts.map(([d]) => yearOf(d.date)), y: pts.map(([d]) => shortTopic(d.topic)),
       customdata: pts.map(([, i]) => i), text: pts.map(([d]) => label(d)), hovertemplate: "%{text}<extra></extra>",
-      marker: { size: 8, color: pts.map(([d]) => topicColour(d.topic)), line: { color: "#0b1620", width: .5 } } });
+      marker: { size: 8, color: pts.map(([d]) => topicColour(d.topic)), line: { color: C.markerLine, width: .5 } } });
     // the chart holds every date but opens on the centuries with most of them
     const pad = Math.max(2, (hi - lo) * .02), from = Math.max(lo - pad, Math.min(TIMELINE_FROM, hi - 10));
-    const layout = { ...UW.THEME, margin: { l: 150, r: 12, t: 8, b: 40 }, showlegend: false, dragmode: "pan", barmode: "overlay",
-      xaxis: { ...UW.THEME.xaxis, ...yearTicks(lo - pad, hi + pad), range: [from, hi + pad], zeroline: false, title: { text: "year", font: { size: 12 } }, tickfont: { size: 12 } },
-      yaxis: { ...UW.THEME.yaxis, type: "category", categoryorder: "array", categoryarray: cats.slice().reverse(), tickfont: { size: 11 }, fixedrange: true } };
+    const layout = { ...UW.THEME, margin: { l: fz(150), r: 12, t: fz(8), b: fz(40) }, showlegend: false, dragmode: "pan", barmode: "overlay",
+      xaxis: { ...UW.THEME.xaxis, ...yearTicks(lo - pad, hi + pad), range: [from, hi + pad], zeroline: false, title: { text: "year", font: { size: fz(12) } }, tickfont: { size: fz(12) } },
+      yaxis: { ...UW.THEME.yaxis, type: "category", categoryorder: "array", categoryarray: cats.slice().reverse(), tickfont: { size: fz(11) }, fixedrange: true } };
     layout.xaxis = { ...layout.xaxis, ...yearTicks(from, hi + pad) };
     Plotly.react(gd, traces, layout, UW.CFG).then((g) => {
       UW.axisZoom(g);
@@ -1163,7 +1165,7 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
     const pins = shown.filter((x) => x.type !== "track" && x.lat != null);
     if (pins.length) out.push({ type: "scattermap", mode: "markers", name: "history", showlegend: false, hoverinfo: "text",
       lat: pins.map((a) => a.lat), lon: pins.map((a) => a.lon), text: pins.map((a) => siteText(sites, a.lat, a.lon, hover(a))), customdata: pins.map((a) => `hist:${a.id}`),
-      marker: { size: pins.map((a) => a.type === "event" ? 11 : 9), color: pins.map((a) => TYPES[a.type]?.colour || "#8b9bb0"), opacity: .92 } });
+      marker: { size: pins.map((a) => a.type === "event" ? 11 : 9), color: pins.map((a) => TYPES[a.type]?.colour || C.muted), opacity: .92 } });
     if (hist.types.has("place")) {
       const t = curTopic(), pl = hist.places.filter((p) => p.lat != null && (!t || p.topic === t));
       if (pl.length) out.push({ type: "scattermap", mode: "markers", name: "history-places", showlegend: false, hoverinfo: "text",
@@ -1229,6 +1231,7 @@ The historian in the chat (Ask Ada) answers from these pages with a local model 
   UW.refreshExtraData = () => { prevRefresh?.(); const pill = document.querySelector('#maplayers button[data-layer="history"]'); if (pill) pill.hidden = !UW.M.history;
     if (!$("#pane-history").hidden || UW.state.history) ensure().then(() => { if (!$("#pane-history").hidden) render(); else { renderChips(); UW.renderMap(); } }).catch(() => {}); };
   wire();
+  document.addEventListener("uw:theme", () => { if (!$("#pane-history").hidden && hist.artifacts) render(); });   // the chips, dots and the timeline take the new colours
   if (location.hash.startsWith("#history/") && $("#pane-history").hidden) UW.showTab("history");
   else if (document.querySelector("#tabs button.on")?.dataset.tab === "history") UW.onTab("history");
   else if (UW.state.history && UW.M.history) ensure().then(() => { renderChips(); UW.renderMap(); }).catch(() => {});
