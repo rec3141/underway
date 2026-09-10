@@ -10,7 +10,9 @@ One SQLite log holds every message with a ``channel``:
 * ``dm:a|b``     a direct message between two names, either of which may be a
                  crew member (``@ada``, ``@doc``, ``@capn``, ``@polly``); a room
                  with a crew member is private and the member speaks unprompted
-                 while it is open
+                 while it is open. One with Doc alone is the Lab: he answers
+                 there as Ada does in the Library, at length from the wiki's
+                 natural half, with the pages cited
 
 Identity is a name plus a device token: the first device to use a name owns it
 until it releases it, and a direct message is delivered only to polls that
@@ -49,7 +51,7 @@ _online: dict[str, dict] = {}           # name -> {"t", "room", "emoji"}: who ha
 _last_post: dict[str, float] = {}       # address -> last post, a light rate limit
 _typing: dict[str, set] = {}            # channel -> handles composing there
 CREW = None                             # the model-driven crew, once the server is up (chatbot.Crew)
-ROOT: Path | None = None                # the web root, for Ada's wiki
+ROOT: Path | None = None                # the web root, for the wiki Ada and Doc read
 
 
 # ---------------------------------------------------------------- storage
@@ -399,10 +401,10 @@ def quote_of(description: str, limit: int = 240) -> str:
 
 
 def artifact_shelf(pages: list[dict], limit: int = 8) -> list[dict]:
-    """The pictures and the words behind the pages Ada is reading: the
-    artifacts those pages link — a picture with a thumbnail or a quote —
-    one from each page first, then seconds, numbered P1, P2, ... for her to
-    choose from. She sees the shelf; the chat shows what she picks."""
+    """The pictures and the words behind the pages a reader (Ada, Doc) has
+    open: the artifacts those pages link — a picture with a thumbnail or a
+    quote — one from each page first, then seconds, numbered P1, P2, ... to
+    choose from. The reader sees the shelf; the chat shows what they pick."""
     arts = artifacts_by_id()
     if not arts or not pages or not ROOT:
         return []
@@ -472,8 +474,8 @@ _PICK_RX = re.compile(r"paragraph\s*(\d{1,2})\s*[:\-–]\s*[\{\[\(]?\s*P\s?(\d{1
 
 
 def apply_picks(text: str, reply: str) -> str:
-    """Ada's picks, from a second look at her own answer — lines such as
-    'paragraph 2: P3' — set as tags on the paragraphs, for chosen_chips."""
+    """A reader's picks, from a second look at their own answer — lines such
+    as 'paragraph 2: P3' — set as tags on the paragraphs, for chosen_chips."""
     picks = {}
     for m in _PICK_RX.finditer(reply or ""):
         picks.setdefault(int(m.group(1)), int(m.group(2)))
@@ -491,7 +493,7 @@ def apply_picks(text: str, reply: str) -> str:
 
 
 def shelf_lines(shelf: list[dict]) -> str:
-    """The shelf as Ada reads it: a line per item, with the tag she sets."""
+    """The shelf as the reader sees it: a line per item, with the tag to set."""
     return "\n".join(f"{{P{c['n']}}} {c['type']}" + (f" · {c['year']}" if c["year"] else "") + f" · {c['title']}"
                      + (f": {c['quote']}" if c["quote"] else f": {c['description']}" if c["description"] else "") for c in shelf)
 
@@ -500,8 +502,8 @@ _TAG_RX = re.compile(r"\s*[\{\[\(]\s*P\s?(\d{1,2})\s*[\}\]\)]")
 
 
 def chosen_chips(text: str, shelf: list[dict]) -> tuple[str, list[dict]]:
-    """The chips Ada chose: each {P3} she set names an item on the shelf, and
-    the chip goes after the paragraph she set it in. The tags leave the text.
+    """The chips the reader chose: each {P3} they set names an item on the
+    shelf, and the chip goes after the paragraph it is set in. The tags leave the text.
     One chip per paragraph, the first tag winning; a tag that names nothing
     is dropped."""
     if not shelf or not text:

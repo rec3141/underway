@@ -2,9 +2,11 @@
 
 Each persona has an @handle and a beat, and sees only their own slice of the
 dashboard: the Cap'n has the schedule, the weather and the logistics; Doc has
-the water and the air; the Librarian has the History wiki, with what happened
-on this date and near the ship; Polly reports on the reporting, riffing on what
-the others just said. They answer when addressed (``@capn``, ``@doc``,
+the water and the air, and the wiki's natural half, the record of what has been
+seen in these waters; the Librarian has the wiki's human past, with what
+happened on this date and near the ship; Polly reports on the reporting,
+riffing on what the others just said. Doc and Ada both read the whole wiki,
+each favouring their own half, and their answers cite its pages. They answer when addressed (``@capn``, ``@doc``,
 ``@ada``, ``@polly``) and, every so often while someone has the page open, the
 one whose beat has news says something unprompted, sooner when a surprise
 episode or a schedule change has just appeared; now and then Polly, or another,
@@ -38,8 +40,9 @@ EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
 BANTER_P = 0.4                 # chance another crew member riffs on a crew remark (one hop only)
 MAX_TOKENS = 500
-ADA_TOKENS = 8000             # the Library: her thinking and a full answer, up to about 500 words; the thinking alone can run past 4000
-ADA_CHARS = 8000              # the most of an answer the chat keeps; the crew's quips stop at 2500
+ROOM_TOKENS = 8000            # a member's own room (the Library, the Lab): the thinking and a full answer, up to about 500 words; the thinking alone can run past 4000
+ROOM_CHARS = 8000             # the most of such an answer the chat keeps; the crew's quips stop at 2500
+READERS = ("ada", "doc")      # the two who read the wiki: their answers cite its pages and carry its pictures and words
 NUM_CTX = 32768               # the dashboard summary, five excerpts, the shelf and a long chat; fits the GPU beside the model
 TIMEOUT = 240
 
@@ -70,7 +73,15 @@ PERSONAS = {
                       "history of these waters, the living things, the ice, the water column, the weather, the sky and the magnetic "
                       "field, as the record has them. The NATURAL RECORD lines below are observations from the ship's Nature wiki, "
                       "each with its observer and date: draw on them when they bear on the question and say who recorded what and "
-                      "when, in the unit they wrote. A sighting a crew member tells you belongs in the ship's journal: repeat it back "
+                      "when, in the unit they wrote. The WIKI EXCERPTS below are pages from the ship's wiki, its natural half first, "
+                      "written by the research crew from journals, logs, reports, the science and Inuit knowledge; answer from them "
+                      "when they bear on the question, and cite by number in square brackets, [1] or [2], the numbers of the "
+                      "excerpts you draw on, after the sentence they support. Never write a page's title or a date in brackets: "
+                      "brackets hold excerpt numbers and nothing else, and names, species and dates go plainly in the prose. Never "
+                      "speak of 'the wiki', 'the excerpts' or 'the record' as if they were a person with opinions: point at the "
+                      "thing itself, as in 'Isachsen counted eleven', 'Greely's register has', 'the Inuktitut name for it is'. When "
+                      "nothing you have bears on a question, say so as yourself, 'I have nothing on that', and then give what you "
+                      "know, marked as your own. A sighting a crew member tells you belongs in the ship's journal: repeat it back "
                       "as one line (the subject, the time, the position, the count, who saw it) and ask them to enter it on the "
                       "Nature tab's Journal form. The schedule is the Cap'n's and the human past is the Librarian's: point people to "
                       "@capn or @ada for those.")},
@@ -316,13 +327,19 @@ def row_facts(root: Path) -> dict[str, str]:
 
 
 def wiki_pages(root: Path) -> list[dict]:
-    """Every published History page, held in memory until the build publishes anew."""
+    """Every published wiki page, both halves, held in memory until the build
+    publishes anew. Each carries its ``_domain``, history or nature, by the
+    domain of its topic (a subject or an observation is nature's)."""
     idx = root / "data" / "history" / "index.json"
     if not idx.is_file():
         return []
     stamp = idx.stat().st_mtime
     if _wiki_cache["stamp"] == stamp:
         return _wiki_cache["pages"]
+    try:
+        domain = {t.get("slug"): t.get("domain") or "history" for t in json.loads(idx.read_text(encoding="utf-8")).get("topics", [])}
+    except (OSError, ValueError):
+        domain = {}
     pages = []
     facts = row_facts(root)
     for f in sorted((root / "data" / "history" / "pages").glob("*.json")):
@@ -332,6 +349,15 @@ def wiki_pages(root: Path) -> list[dict]:
             continue
         text = re.sub(r"<[^>]+>", " ", d.get("html", ""))
         text = re.sub(r"\]\([^)]*\)", "]", text)              # link targets are noise for matching
+        # a subject page reads as the publish's excerpt of it (the note and
+        # its record, written for a small model), when there is one
+        ex = root / "data" / "history" / "excerpts" / (str(d.get("slug", "")).replace("/", "__") + ".txt")
+        if d.get("kind") == "subject" and ex.is_file():
+            try:
+                text = ex.read_text(encoding="utf-8")
+            except OSError:
+                pass
+        d["_domain"] = "nature" if d.get("kind") in ("subject", "observation") else domain.get(d.get("topic"), "history")
         # a generated page's body is its row's prose alone; the row's other
         # fields (the date, the position, the source, the people) are what
         # the historian needs to answer where and when, so they go back on
@@ -380,9 +406,10 @@ def expand_acronyms(text: str) -> tuple[str, list[str]]:
     return _ACRO_RX.sub(sub, text), used
 
 
-def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, budget: int = 28000) -> list[dict]:
+def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, budget: int = 28000, prefer: str = "") -> list[dict]:
     """The wiki pages that bear on a question, best first: matched on words,
     with the page being read and its neighbours favoured, narrative pages
+    and the reader's own half of the wiki (``prefer``: history or nature)
     weighted up. Each comes back with an ``excerpt`` sized to the budget."""
     pages = wiki_pages(root)
     if not pages:
@@ -416,6 +443,8 @@ def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, bud
             score += 2.0
         if p.get("kind") == "page":
             score *= 1.5                                    # the narrative pages carry the story
+        if prefer and p.get("_domain") == prefer:
+            score *= 1.5                                    # the reader's own half of the wiki comes first
         if score > 0:
             scored.append((score, p))
     scored.sort(key=lambda x: -x[0])
@@ -607,6 +636,7 @@ class Crew:
         self.post = post or (lambda name, emoji, text, channel, meta=None: chat.post("crew", name, text, emoji, channel, bot=True, meta=meta))
         self.read = read or chat.context    # (channel) -> the room's recent messages, oldest first
         self._pages: list[dict] = []        # the wiki pages the last context drew on
+        self._shelf: list[dict] = []        # the pictures and words behind them, for the chips
         self.lock = threading.Lock()        # one generation at a time
         self.last_bot = 0.0
         self.seen_update = None
@@ -624,9 +654,10 @@ class Crew:
 
     def context(self, beat: str = "all", task: str = "", slug: str = "") -> str:
         """The dashboard summary for one beat: the Cap'n sees the schedule and
-        the weather, Doc the water, the Librarian the past, Polly nothing but
-        the clock. ``all`` is everything, for tests and for a look."""
-        self._pages = []                    # only a history context fills this
+        the weather, Doc the water and the natural record, the Librarian the
+        past, Polly nothing but the clock. ``all`` is everything, for tests
+        and for a look."""
+        self._pages, self._shelf = [], []   # only a reader's context fills these
         try:
             m = json.loads((self.root / "data" / "manifest.json").read_text())
         except Exception:                   # noqa: BLE001
@@ -663,11 +694,15 @@ class Crew:
                 lines.append(f"(window data unavailable: {e})")
         if beat in ("all", "environment"):
             # the natural half of the history layer: the record near the ship and on
-            # this date, the ship's own journal, and the page open on the Nature tab
+            # this date, the ship's own journal, and the page open on the Nature tab;
+            # then the wiki pages that bear on the task, the natural half favoured
+            wiki = self._wiki(task, slug, "nature", " ".join(lines[-2:])) if beat == "environment" else []
             try:
-                lines += nature_lines(self.root, lat, lon, slug)
+                # the open page comes once: through the excerpts when they hold it
+                lines += nature_lines(self.root, lat, lon, "" if any(e["slug"] == slug for e in self._pages) else slug)
             except Exception:                   # noqa: BLE001
                 pass
+            lines += wiki
         if beat in ("all", "schedule"):
             try:
                 c = json.loads((self.root / "data" / "calendar.json").read_text())
@@ -689,27 +724,45 @@ class Crew:
                 lines += history_lines(self.root, lat, lon)
             except Exception:                   # noqa: BLE001
                 pass
-            self._pages = []
-            self._shelf = []
             if beat == "history":
-                _, used = expand_acronyms(task or "")
-                if used:
-                    lines.append("Acronyms in the question: " + "; ".join(f"{k.upper()} is the {v}" for k, v in ACRONYMS.items() if v in used) + ".")
-                try:
-                    ex = wiki_excerpts(self.root, task or " ".join(lines[-2:]), limit=5, budget=14000)
-                    if ex:
-                        lines.append("\nWIKI EXCERPTS\n\n" + excerpt_block(ex))
-                        self._pages = ex
-                        from . import chat
-                        self._shelf = chat.artifact_shelf(ex)
-                        if self._shelf:
-                            lines.append("\nPICTURES AND QUOTATIONS from those pages. When one shows what a paragraph of your answer "
-                                         "says, set its tag, such as {P2}, at the end of that paragraph: it appears beside your words. "
-                                         "At most one tag per paragraph, and only when it truly illustrates the paragraph; none is fine.\n"
-                                         + chat.shelf_lines(self._shelf))
-                except Exception:               # noqa: BLE001
-                    pass
+                lines += self._wiki(task, slug, "history", " ".join(lines[-2:]))
         return "\n".join(lines)
+
+    def _wiki(self, task: str, slug: str, prefer: str, fallback: str = "") -> list[str]:
+        """The wiki's part of a reader's context: a glossary of the acronyms in
+        the question, the excerpts that bear on it, numbered to be cited, with
+        the page open on the tab first, and the shelf of pictures and words
+        behind them. Keeps the pages and the shelf the answer is linked against."""
+        out = []
+        self._pages, self._shelf = [], []
+        _, used = expand_acronyms(task or "")
+        if used:
+            out.append("Acronyms in the question: " + "; ".join(f"{k.upper()} is the {v}" for k, v in ACRONYMS.items() if v in used) + ".")
+        try:
+            ex = wiki_excerpts(self.root, task or fallback, slug, limit=5, budget=14000, prefer=prefer)
+            if ex:
+                out.append("\nWIKI EXCERPTS\n\n" + excerpt_block(ex))
+                self._pages = ex
+                from . import chat
+                self._shelf = chat.artifact_shelf(ex)
+                if self._shelf:
+                    out.append("\nPICTURES AND QUOTATIONS from those pages. When one shows what a paragraph of your answer "
+                               "says, set its tag, such as {P2}, at the end of that paragraph: it appears beside your words. "
+                               "At most one tag per paragraph, and only when it truly illustrates the paragraph; none is fine.\n"
+                               + chat.shelf_lines(self._shelf))
+        except Exception:                       # noqa: BLE001
+            pass
+        return out
+
+    @staticmethod
+    def own_room(handle: str, channel: str) -> bool:
+        """Ada's Library, or Doc's Lab (a direct message with Doc alone): a
+        room where every message is a question to that one member, answered
+        at length with the pages cited."""
+        if handle == "ada":
+            return channel == "ada"
+        from . import chat
+        return handle == "doc" and channel.startswith("dm:") and chat.bots_in(channel) == ["doc"]
 
     # ------------------------------------------------------------ generation
     def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False, slug: str = "") -> tuple[str | None, list[dict]]:
@@ -719,10 +772,11 @@ class Crew:
         recent_rows = self.read(channel)
         recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in recent_rows)
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
+        own = self.own_room(handle, channel)
         room = {"ship": "the ship's public room, where you speak only when addressed",
-                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
-                "ada": "the Library, your own room, where every message is a question put to you and deserves a full "
-                       "answer, up to about 500 words, with the pages cited"}.get(channel,
+                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in"}.get(channel,
+               f"the {p['room']}, your own room, where every message is a question put to you and deserves a full "
+               f"answer, up to about 500 words, with the pages cited" if own else
                "a private room with one person; only the two of you see it, and you may speak first")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
@@ -740,13 +794,13 @@ class Crew:
                   f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
                   f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task, slug)}\n\nRECENT CHAT (oldest first)\n{recent}")
         pages = list(self._pages)
-        library = handle == "ada" and channel == "ada"           # her own room: she answers at length (thinking costs minutes and adds little)
-        text = complete(system, task, ADA_TOKENS if library else MAX_TOKENS * (2 if long else 1), 1.0 if channel != "ada" else 0.5)
+        # a member's own room: the answer runs long (thinking costs minutes and adds little)
+        text = complete(system, task, ROOM_TOKENS if own else MAX_TOKENS * (2 if long else 1), 0.5 if own else 1.0)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
-        return (text[:ADA_CHARS if library else 2500] or None), pages
+        return (text[:ROOM_CHARS if own else 2500] or None), pages
 
-    def _pick_chips(self, text: str, shelf: list[dict]) -> tuple[str, list[dict]]:
-        """Ada's second look: her answer paragraph by paragraph beside the
+    def _pick_chips(self, handle: str, text: str, shelf: list[dict]) -> tuple[str, list[dict]]:
+        """A reader's second look: the answer paragraph by paragraph beside the
         shelf, and which item, if any, shows what each paragraph says. A
         short call with no thinking, a couple of seconds; on any failure the
         answer stands without chips."""
@@ -760,9 +814,10 @@ class Crew:
                   "per paragraph and at most three matches; the picture or the words must genuinely illustrate that paragraph. "
                   "If nothing fits, write 'none'. Lines only, nothing else.")
         try:
-            reply = complete("You are Ada, the ship's librarian, choosing illustrations for an answer of your own.", user, 160, 0.0)
+            reply = complete(f"You are {PERSONAS[handle]['name']}, the ship's {'librarian' if handle == 'ada' else 'naturalist'}, "
+                             f"choosing illustrations for an answer of your own.", user, 160, 0.0)
         except Exception as e:                  # noqa: BLE001
-            log.info("Ada's second look failed (%s); no chips", e)
+            log.info("%s's second look failed (%s); no chips", PERSONAS[handle]["name"], e)
             return text, []
         return chat.chosen_chips(chat.apply_picks(text, reply), shelf)
 
@@ -782,16 +837,17 @@ class Crew:
                 if text:
                     meta = None
                     chips = []
-                    if handle == "ada":
-                        shelf = getattr(self, "_shelf", [])
-                        text, chips = chat.chosen_chips(text, shelf)   # the pictures and words she picked, before the brackets are read
+                    reader = handle in READERS
+                    if reader:
+                        shelf = self._shelf
+                        text, chips = chat.chosen_chips(text, shelf)   # the pictures and words they picked, before the brackets are read
                         if shelf and not chips:
-                            text, chips = self._pick_chips(text, shelf)   # she seldom tags as she writes: a second look at her own answer
+                            text, chips = self._pick_chips(handle, text, shelf)   # they seldom tag as they write: a second look at the answer
                     if pages:
                         text, refs = chat.link_citations(text, [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in pages])
                         meta = {"refs": refs} if refs else None
-                    if handle == "ada":
-                        text = chat.link_entities(text)     # every person and place she names, to its page
+                    if reader:
+                        text = chat.link_entities(text)     # every person and place they name, to its page
                         if chips:
                             meta = {**(meta or {}), "chips": chips}
                     self.post(p["name"], p["emoji"], text, channel, meta)
@@ -815,8 +871,9 @@ class Crew:
     def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "") -> None:
         """Called after a human message is stored. Who answers depends on the
         room: in the public room only a member @mentioned; in the crew's room
-        whoever is mentioned, else one of them; in Ada's room, Ada, at length;
-        in a private room, the member it is with."""
+        whoever is mentioned, else one of them; in Ada's room, Ada, at length,
+        and in Doc's Lab (a private room with him alone) Doc likewise; in any
+        other private room, the member it is with."""
         from . import chat
         if name in {p["name"] for p in PERSONAS.values()}:
             return
@@ -831,13 +888,14 @@ class Crew:
             speakers = handles
         elif channel == "crew":
             speakers = handles or ([random.choice(room_bots)] if room_bots else [])
-        elif channel == "ada":
-            speakers = ["ada"] if "ada" in room_bots else []
-            task = (f"{name} asks in the Library: \"{text}\". Answer fully from the pages you have, citing each you draw on by "
-                    f"its number in square brackets after the sentence it supports, never by title; speak of the sources by name, "
-                    f"never of 'the wiki' or 'the excerpts'; and where you have nothing, say so as yourself. Where a picture or "
-                    f"a quotation on the shelf shows what a paragraph of yours says, end that paragraph with its tag, {{P2}} say, "
-                    f"so it appears beside your words.")
+        elif channel == "ada" or (channel.startswith("dm:") and room_bots == ["doc"]):
+            h = "ada" if channel == "ada" else "doc"
+            speakers = [h] if h in room_bots else []
+            task = (f"{name} asks in the {PERSONAS[h]['room']}: \"{text}\". Answer fully from {'the record and ' if h == 'doc' else ''}the "
+                    f"pages you have, citing each you draw on by its number in square brackets after the sentence it supports, never "
+                    f"by title; speak of the sources by name, never of 'the wiki' or 'the excerpts'; and where you have nothing, say "
+                    f"so as yourself. Where a picture or a quotation on the shelf shows what a paragraph of yours says, end that "
+                    f"paragraph with its tag, {{P2}} say, so it appears beside your words.")
             long = True
         else:
             speakers = room_bots

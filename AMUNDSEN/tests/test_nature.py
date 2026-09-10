@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from dashboard import chatbot, nature
+from dashboard import chat, chatbot, nature
 from dashboard.serve import Handler, ThreadingHTTPServer
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==")
@@ -138,6 +138,41 @@ class DocTests(JournalDir):
         self.assertIn("THE OBSERVATION OPEN", one); self.assertIn("-58.5 F", one)
         only = chatbot.nature_lines(Path(self.tmp.name) / "nowhere", 78.5, -90.0, now=now)   # no publish yet: the journal alone reaches Doc
         self.assertEqual(len(only), 2); self.assertTrue(all("journal" in x for x in only))
+
+
+    def test_doc_reads_the_wiki_and_has_a_room_of_his_own(self):
+        root = Path(self.tmp.name) / "www"; h = root / "data" / "history"
+        (h / "pages").mkdir(parents=True); (h / "excerpts").mkdir()
+        (root / "data" / "manifest.json").write_text(json.dumps({"data_range": {"end": "2026-06-12T00:00:00"}, "latest": {"lat": 78.5, "lon": -90.0}, "legs": [], "windows": []}))
+        (h / "index.json").write_text(json.dumps({"pages": [], "topics": [{"slug": "muskox-and-caribou", "domain": "nature"}, {"slug": "sverdrup-fram", "domain": "history"}]}))
+        (h / "subjects.json").write_text(json.dumps({"subjects": [{"name": "Ovibos moschatus", "english": "muskox", "page": "subject/ovibos-moschatus", "note": "The bearded one."}]}))
+        (h / "observations.json").write_text(json.dumps({"observations": [
+            {"id": "1", "subject": "Ovibos moschatus", "date_start": "1900-10", "lat": 79.0, "lon": -91.0, "place": "De To Kratere", "count": "a herd of 11", "observer": "Gunnar Isachsen"}]}))
+        pad = lambda seed: " ".join(f"{seed}{i}" for i in range(300))          # pages of a modest length, each its own words
+        (h / "pages" / "subject__ovibos-moschatus.json").write_text(json.dumps({"slug": "subject/ovibos-moschatus", "kind": "subject", "title": "Ovibos moschatus", "topic": "muskox-and-caribou", "html": "<p>The muskox, in a word.</p>"}))
+        (h / "excerpts" / "subject__ovibos-moschatus.txt").write_text("Ovibos moschatus, the muskox, umingmak. Isachsen counted a herd of eleven muskox in October 1900; "
+                                                                       "Isachsen shot the herd for the dogs, the muskox meat lasting to October; Isachsen wrote of 1900 later. " + pad("ox"))
+        (h / "pages" / "sverdrup-the-sledge-journeys.json").write_text(json.dumps({"slug": "sverdrup-the-sledge-journeys", "kind": "page", "title": "The sledge journeys", "topic": "sverdrup-fram",
+                                                                                   "html": "<p>Isachsen and the muskox herd of eleven, shot for the dogs in October 1900. The herd fed the dogs; the muskox were gone by October, Isachsen says, and 1900 closed. " + pad("sledge") + "</p>"}))
+        for i in range(10):
+            (h / "pages" / f"filler-{i}.json").write_text(json.dumps({"slug": f"filler-{i}", "kind": "page", "title": f"Filler {i}", "topic": "sverdrup-fram", "html": "<p>" + pad(f"f{i}w") + "</p>"}))
+        chatbot._wiki_cache.update(stamp=None, pages=[])
+        pages = chatbot.wiki_pages(root)
+        self.assertEqual({p["slug"]: p["_domain"] for p in pages if not p["slug"].startswith("filler")}, {"subject/ovibos-moschatus": "nature", "sverdrup-the-sledge-journeys": "history"})
+        self.assertIn("herd of eleven", next(p["_text"] for p in pages if p["kind"] == "subject"))   # a subject page reads as the publish's excerpt of it
+        q = "Isachsen muskox herd October 1900"
+        self.assertEqual(chatbot.wiki_excerpts(root, q, prefer="nature")[0]["slug"], "subject/ovibos-moschatus")      # Doc's half first
+        self.assertEqual(chatbot.wiki_excerpts(root, q, prefer="history")[0]["slug"], "sverdrup-the-sledge-journeys")   # Ada's half first
+        crew = chatbot.Crew(root, lambda *a, **k: None, lambda *a, **k: [])
+        ctx = crew.context("environment", q, "subject/ovibos-moschatus")
+        self.assertIn("NATURAL RECORD near the ship", ctx)
+        self.assertIn("WIKI EXCERPTS", ctx); self.assertIn("### [1] Ovibos moschatus", ctx)     # the page open on the tab is excerpt 1
+        self.assertNotIn("THE PAGE OPEN ON THE NATURE TAB", ctx)                                # and is not repeated after it
+        self.assertEqual(crew._pages[0]["slug"], "subject/ovibos-moschatus")
+        self.assertNotIn("WIKI EXCERPTS", crew.context("schedule", q))                          # the Cap'n reads no pages
+        with patch.object(chat, "bots", lambda: chatbot.PERSONAS):
+            self.assertTrue(chatbot.Crew.own_room("doc", "dm:eric|@doc")); self.assertTrue(chatbot.Crew.own_room("ada", "ada"))
+            self.assertFalse(chatbot.Crew.own_room("doc", "crew")); self.assertFalse(chatbot.Crew.own_room("doc", "dm:eric|@ada")); self.assertFalse(chatbot.Crew.own_room("ada", "dm:eric|@ada"))
 
 
 class FixtureTests(unittest.TestCase):
