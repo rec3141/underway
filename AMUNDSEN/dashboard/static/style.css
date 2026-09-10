@@ -32,6 +32,7 @@
   /* the graphs (Plotly) */
   --plot-bg: #121920; --plot-fg: #c9d4e0; --plot-grid: #243040; --plot-line: #34435a; --hover-bg: #1b242e;
   --plot-legend-bg: rgba(15,20,25,.88);
+  --hover-fg: var(--fg);             /* the hover label's ink (Navigator's yellow label wants black) */
   --marker: #ffffff; --marker-line: #0b1620;     /* bottles and stations on a graph */
   --floor: rgba(43,52,65,.92); --floor-line: #3b4658;   /* the seafloor under a section */
   /* the basemap without the relief pyramid */
@@ -119,11 +120,39 @@ html[data-theme="navigator"] {
   --map-bathy: #d0e4f8 #c0daf4 #b0d0f0 #a0c4ec #90b8e8 #80ace4 #70a0e0 #6094d8 #5088d0 #407cc8 #3070c0 #2064b8;
   --palette: #000080 #a04000 #008000 #ff0000 #800080 #808000 #0000ff #ff8000 #008080 #804000 #4040ff #c000c0;
   --radius: 0;
+  /* the chrome: button faces, bevels, the pressed state, links, tooltips */
+  --face: #c0c0c0; --bevel: #e8e8e8; --bevel-hi: #f4f4f4; --bevel-lo: #606060; --pressed: #ffffff; --pressed-fg: #000080;
+  --link: #0000ee; --visited: #551a8b; --tip: #ffffe1; --hover-fg: #000000;
   --font: Arial, Helvetica, sans-serif;
   --font-head: "Times New Roman", Times, serif;
   --plot-font: "Times New Roman", Times, serif;
   --mono: "Courier New", Courier, monospace;
   color-scheme: light;
+}
+/* the same web of 1996 after dark: charcoal chrome, the chosen thing navy
+   with white on it, the bright half of the VGA palette for the data */
+html[data-theme="navigator-dark"] {
+  --bg: #3a3a3a; --bg-top: #000080; --card: #262626; --card-2: #4a4a4a; --line: #1e1e1e;
+  --fg: #f0f0f0; --fg-2: #d8d8d8; --muted: #b0b0b0;
+  --accent: #8ab4ff; --on-accent: #000000; --accent-2: #ffb000; --on-accent-2: #000000; --warn: #ff5050; --on-warn: #000000;
+  --ok: #40ff40; --ok-bg: #204020; --bad: #ff5050; --now: #ff4040;
+  --purple: #ff80ff; --pink: #ff80c0; --gold: #ffff40;
+  --tag: #4a4a4a; --tag-2: #565656; --tag-bad: #603030; --tag-amber: #604820; --tag-tm: #604820;
+  --pale: #d0d0d0; --on-pale: #000000; --media: #1a1a1a; --pop: #3a3a3a; --shadow: transparent;
+  --map-fg: #ffffff; --map-halo: #000000;
+  --plot-bg: #202020; --plot-fg: #f0f0f0; --plot-grid: #484848; --plot-line: #808080; --hover-bg: #ffffe1; --plot-legend-bg: #3a3a3a;
+  --marker: #ffffff; --marker-line: #000000; --floor: #505050; --floor-line: #909090;
+  --map-bg: #182838; --map-land: #3a3a3a; --map-coast: #d0d0d0; --map-ice: #e0e0e0; --sketch-coast: #808080;
+  --map-bathy: #2a4a6a #274462 #243e5a #213852 #1e324a #1b2c42 #18263a #152032 #121a2a #0f1422 #0c0e1a #090812;
+  --palette: #5c8cff #ffb000 #40ff40 #ff5050 #ff80ff #ffff40 #40ffff #ff8040 #40c0c0 #d0a000 #a0c0ff #ff80c0;
+  --face: #4a4a4a; --bevel: #707070; --bevel-hi: #9a9a9a; --bevel-lo: #202020; --pressed: #000080; --pressed-fg: #ffffff;
+  --link: #8ab4ff; --visited: #c8a8ff; --tip: #ffffe1; --hover-fg: #000000;
+  --radius: 0;
+  --font: Arial, Helvetica, sans-serif;
+  --font-head: "Times New Roman", Times, serif;
+  --plot-font: "Times New Roman", Times, serif;
+  --mono: "Courier New", Courier, monospace;
+  color-scheme: dark;
 }
 
 /* the type size apart from the palette: Minimal is large unless told
@@ -1154,70 +1183,70 @@ html[data-theme^="minimal"].chat-side main { padding-right: 460px; }
    title bar, headings and the History prose in Times, links blue and
    underlined, LIVE blinking, tooltips yellow, nothing rounded. The bevel
    rules carry !important because every component styles its own buttons. */
-html[data-theme="navigator"] .top { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 2px outset #e8e8e8; color: #fff; }
-html[data-theme="navigator"] .top :is(.brand h1, .brand .sub, .brand .sub b, .pickhint, .themepick, .themepick label.select, .brand .sub .refresh) { color: #fff; }
-html[data-theme="navigator"] .brand .sub .refresh { border-bottom-color: #a0c0ff; }
-html[data-theme="navigator"] .brand h1 { font-family: var(--font-head); font-size: 1.6rem; letter-spacing: 0; }
-html[data-theme="navigator"] .brand .sub .srcpop table { color: var(--fg); }
-html[data-theme="navigator"] .top .live { color: #40ff40; }
-html[data-theme="navigator"] .brand .live { animation: nav-blink 1s steps(1) infinite; }   /* the word, as <blink> would have it */
+html[data-theme^="navigator"] .top { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 2px outset var(--bevel); color: #fff; }
+html[data-theme^="navigator"] .top :is(.brand h1, .brand .sub, .brand .sub b, .pickhint, .themepick, .themepick label.select, .brand .sub .refresh) { color: #fff; }
+html[data-theme^="navigator"] .brand .sub .refresh { border-bottom-color: #a0c0ff; }
+html[data-theme^="navigator"] .brand h1 { font-family: var(--font-head); font-size: 1.6rem; letter-spacing: 0; }
+html[data-theme^="navigator"] .brand .sub .srcpop table { color: var(--fg); }
+html[data-theme^="navigator"] .top .live { color: #40ff40; }
+html[data-theme^="navigator"] .brand .live { animation: nav-blink 1s steps(1) infinite; }   /* the word, as <blink> would have it */
 @keyframes nav-blink { 50% { visibility: hidden; } }
-@media (prefers-reduced-motion: reduce) { html[data-theme="navigator"] .brand .live { animation: none; } }
+@media (prefers-reduced-motion: reduce) { html[data-theme^="navigator"] .brand .live { animation: none; } }
 /* headings and prose in Times */
-html[data-theme="navigator"] :is(h1, h2, h3, h4, .block h3, .panel .head h3, .mdetail h4, .vigcard h3, .peoplelist h3) { font-family: var(--font-head); }
-html[data-theme="navigator"] .histmain, html[data-theme="navigator"] .histanswer, html[data-theme="navigator"] .chatlog .msg .txt { font-family: var(--font-head); font-size: 1.07rem; }
+html[data-theme^="navigator"] :is(h1, h2, h3, h4, .block h3, .panel .head h3, .mdetail h4, .vigcard h3, .peoplelist h3) { font-family: var(--font-head); }
+html[data-theme^="navigator"] .histmain, html[data-theme^="navigator"] .histanswer, html[data-theme^="navigator"] .chatlog .msg .txt { font-family: var(--font-head); font-size: 1.07rem; }
 /* links: blue, underlined, purple once followed (chips and pills excepted) */
-html[data-theme="navigator"] a { color: #0000ee; }
-html[data-theme="navigator"] :is(.wiki, .meta, .notes, .prov, .map-foot, .campop .foot, .chat .msg, .histmain p, .histmain li, .mla, .mlaline, .spannote) a:not(.chip):not(.artcard):not(.artchip):not(.pglink):not(.topiccard) { text-decoration: underline; }
-html[data-theme="navigator"] :is(.wiki, .meta, .notes, .prov) a:visited { color: #551a8b; }
+html[data-theme^="navigator"] a { color: var(--link); }
+html[data-theme^="navigator"] :is(.wiki, .meta, .notes, .prov, .map-foot, .campop .foot, .chat .msg, .histmain p, .histmain li, .mla, .mlaline, .spannote) a:not(.chip):not(.artcard):not(.artchip):not(.pglink):not(.topiccard) { text-decoration: underline; }
+html[data-theme^="navigator"] :is(.wiki, .meta, .notes, .prov) a:visited { color: var(--visited); }
 /* boxes: bevelled out, never rounded, never shaded */
-html[data-theme="navigator"] :is(.card, .panel, .legmenu .pop, .toast, .campop, .mapinfo, .chat, .dockgroup, .evlog, .mdetail, .bellmenu, .vigcard, .topiccard, .artcard, .histanswer, .livecfgform, .pagelist .pglink, .artchip, .provenance .stat, .tablewrap, .scol, .mcell, .dbody, .histtimeline, .brand .sub .srcpop table) {
-  border: 2px outset #e8e8e8; border-radius: 0; box-shadow: none; }
-html[data-theme="navigator"] .panel.on { border: 2px solid var(--accent); box-shadow: none; }
-html[data-theme="navigator"] .panel.surprise { border-color: var(--accent-2); }
-html[data-theme="navigator"] .panel .plot, html[data-theme="navigator"] .castplot .plot { border: 2px inset #e8e8e8; background: var(--plot-bg); }
-html[data-theme="navigator"] .plot.table { border: 2px inset #e8e8e8; }
-html[data-theme="navigator"] .map { padding: 4px; }
-html[data-theme="navigator"] #map { border: 2px inset #e8e8e8; }
-html[data-theme="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .kgroup, .histmain .status) { border-radius: 0; }
+html[data-theme^="navigator"] :is(.card, .panel, .legmenu .pop, .toast, .campop, .mapinfo, .chat, .dockgroup, .evlog, .mdetail, .bellmenu, .vigcard, .topiccard, .artcard, .histanswer, .livecfgform, .pagelist .pglink, .artchip, .provenance .stat, .tablewrap, .scol, .mcell, .dbody, .histtimeline, .brand .sub .srcpop table) {
+  border: 2px outset var(--bevel); border-radius: 0; box-shadow: none; }
+html[data-theme^="navigator"] .panel.on { border: 2px solid var(--accent); box-shadow: none; }
+html[data-theme^="navigator"] .panel.surprise { border-color: var(--accent-2); }
+html[data-theme^="navigator"] .panel .plot, html[data-theme^="navigator"] .castplot .plot { border: 2px inset var(--bevel); background: var(--plot-bg); }
+html[data-theme^="navigator"] .plot.table { border: 2px inset var(--bevel); }
+html[data-theme^="navigator"] .map { padding: 4px; }
+html[data-theme^="navigator"] #map { border: 2px inset var(--bevel); }
+html[data-theme^="navigator"] :is(.status, .livestate, .kind, .badge, .mev, .dblock, .whiteboard, .flag, .kgroup, .histmain .status) { border-radius: 0; }
 /* buttons and chips: grey bevels; chosen ones press in, white, navy and bold */
-html[data-theme="navigator"] :where(button, .chip, select, summary, .schedlinks .bigcal, .ticker .smallcal, .bibexport a):where(:not(.bell, .flag, .tog, .nudge, .more, .chattoggle, .emojibtn, .refresh, .emojipick button, .chatrooms .tools button)) {
-  border: 2px outset #e8e8e8 !important; border-radius: 0 !important; background: #c0c0c0 !important; color: #000 !important; box-shadow: none !important; font-weight: normal; text-decoration: none; }
-html[data-theme="navigator"] :is(button, .chip, summary, a.chip).on:not(.chattoggle), html[data-theme="navigator"] button:active:not(.chattoggle), html[data-theme="navigator"] details[open] > summary:not(.refresh), html[data-theme="navigator"] .castside #castclear.has, html[data-theme="navigator"] #stnclear.has {
-  border-style: inset !important; background: #ffffff !important; color: #000080 !important; font-weight: bold; }
-html[data-theme="navigator"] :where(button, .chip, select, summary):where(:not(.on, :active, .refresh, .chattoggle, .bell, .flag)):hover { border-color: #f4f4f4 #606060 #606060 #f4f4f4 !important; }
-html[data-theme="navigator"] .tabs { background: transparent; border: 0; padding: 0; gap: 3px; }
-html[data-theme="navigator"] .tabs button { padding: 5px 14px; }
-html[data-theme="navigator"] .seg button, html[data-theme="navigator"] .seg button:first-child, html[data-theme="navigator"] .seg button:last-child { margin-left: 2px; }
-html[data-theme="navigator"] .maplayers button.sat.on { color: #000080 !important; }
-html[data-theme="navigator"] .schedlinks .bigcal, html[data-theme="navigator"] .ticker .smallcal { padding: 4px 12px; }
+html[data-theme^="navigator"] :where(button, .chip, select, summary, .schedlinks .bigcal, .ticker .smallcal, .bibexport a):where(:not(.bell, .flag, .tog, .nudge, .more, .chattoggle, .emojibtn, .refresh, .emojipick button, .chatrooms .tools button)) {
+  border: 2px outset var(--bevel) !important; border-radius: 0 !important; background: var(--face) !important; color: var(--fg) !important; box-shadow: none !important; font-weight: normal; text-decoration: none; }
+html[data-theme^="navigator"] :is(button, .chip, summary, a.chip).on:not(.chattoggle), html[data-theme^="navigator"] button:active:not(.chattoggle), html[data-theme^="navigator"] details[open] > summary:not(.refresh), html[data-theme^="navigator"] .castside #castclear.has, html[data-theme^="navigator"] #stnclear.has {
+  border-style: inset !important; background: var(--pressed) !important; color: var(--pressed-fg) !important; font-weight: bold; }
+html[data-theme^="navigator"] :where(button, .chip, select, summary):where(:not(.on, :active, .refresh, .chattoggle, .bell, .flag)):hover { border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi) !important; }
+html[data-theme^="navigator"] .tabs { background: transparent; border: 0; padding: 0; gap: 3px; }
+html[data-theme^="navigator"] .tabs button { padding: 5px 14px; }
+html[data-theme^="navigator"] .seg button, html[data-theme^="navigator"] .seg button:first-child, html[data-theme^="navigator"] .seg button:last-child { margin-left: 2px; }
+html[data-theme^="navigator"] .maplayers button.sat.on { color: #000080 !important; }
+html[data-theme^="navigator"] .schedlinks .bigcal, html[data-theme^="navigator"] .ticker .smallcal { padding: 4px 12px; }
 /* text boxes: white, bevelled in */
-html[data-theme="navigator"] :is(input:not([type=range]):not([type=checkbox]), textarea) { border: 2px inset #e8e8e8 !important; border-radius: 0 !important; background: #fff !important; color: #000 !important; }
-html[data-theme="navigator"] input[type=range] { accent-color: #000080; }
+html[data-theme^="navigator"] :is(input:not([type=range]):not([type=checkbox]), textarea) { border: 2px inset var(--bevel) !important; border-radius: 0 !important; background: var(--card) !important; color: var(--fg) !important; }
+html[data-theme^="navigator"] input[type=range] { accent-color: #000080; }
 /* tables: grey heads, ruled cells */
-html[data-theme="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) th { background: #c0c0c0; color: #000; border: 1px outset #e8e8e8; }
-html[data-theme="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) td { border-bottom: 1px solid #c0c0c0; }
-html[data-theme="navigator"] .tablewrap { background: #fff; }
+html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) th { background: var(--face); color: var(--fg); border: 1px outset var(--bevel); }
+html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) td { border-bottom: 1px solid var(--line); }
+html[data-theme^="navigator"] .tablewrap { background: var(--card); }
 /* the schedule band, the bars and the bottom bar as grey chrome; the in-app notes and the whiteboard yellow, like a tooltip */
-html[data-theme="navigator"] .alertbar, html[data-theme="navigator"] .alertbar.folded { background: #c0c0c0; border-bottom: 2px groove #e8e8e8; }
-html[data-theme="navigator"] .scol { background: #fff; border-left-width: 2px; }
-html[data-theme="navigator"] .scol.live { background: #e8ffe8; }
-html[data-theme="navigator"] .inapp, html[data-theme="navigator"] .whiteboard, html[data-theme="navigator"] tr.spannote td, html[data-theme="navigator"] li.spannote { background: #ffffe1; color: #000; border: 1px solid #000; }
-html[data-theme="navigator"] .pane-tools { border-bottom: 2px groove #e8e8e8; }
-html[data-theme="navigator"] .dock, html[data-theme="navigator"] #pane-calendar > .pane-tools, html[data-theme="navigator"] #pane-history > .pane-tools, html[data-theme="navigator"] main.tab-underway .plotctl { background: var(--bg); }
-html[data-theme="navigator"] .dockgroup { background: #c0c0c0; }
-html[data-theme="navigator"] .dockgroup .ghead { text-transform: none; }
+html[data-theme^="navigator"] .alertbar, html[data-theme^="navigator"] .alertbar.folded { background: var(--face); border-bottom: 2px groove var(--bevel); }
+html[data-theme^="navigator"] .scol { background: var(--card); border-left-width: 2px; }
+html[data-theme^="navigator"] .scol.live { background: var(--ok-bg); }
+html[data-theme^="navigator"] .inapp, html[data-theme^="navigator"] .whiteboard, html[data-theme^="navigator"] tr.spannote td, html[data-theme^="navigator"] li.spannote { background: var(--tip); color: #000; border: 1px solid #000; }
+html[data-theme^="navigator"] .pane-tools { border-bottom: 2px groove var(--bevel); }
+html[data-theme^="navigator"] .dock, html[data-theme^="navigator"] #pane-calendar > .pane-tools, html[data-theme^="navigator"] #pane-history > .pane-tools, html[data-theme^="navigator"] main.tab-underway .plotctl { background: var(--bg); }
+html[data-theme^="navigator"] .dockgroup { background: var(--face); }
+html[data-theme^="navigator"] .dockgroup .ghead { text-transform: none; }
 /* the chat as a window with a navy title bar */
-html[data-theme="navigator"] .chat .chathead { background: linear-gradient(90deg, #000080, #1084d0); border-radius: 0; }
-html[data-theme="navigator"] .chat .chattoggle { color: #fff; font-weight: bold; }
-html[data-theme="navigator"] .chat .chattoggle .muted, html[data-theme="navigator"] .chat .caret { color: #d0d0d0; }
-html[data-theme="navigator"] .chat .chatpicker, html[data-theme="navigator"] .emojipick { background: #c0c0c0; }
-html[data-theme="navigator"] .chatlog .msg .who { color: #000080; }
+html[data-theme^="navigator"] .chat .chathead { background: linear-gradient(90deg, #000080, #1084d0); border-radius: 0; }
+html[data-theme^="navigator"] .chat .chattoggle { color: #fff; font-weight: bold; }
+html[data-theme^="navigator"] .chat .chattoggle .muted, html[data-theme^="navigator"] .chat .caret { color: #d0d0d0; }
+html[data-theme^="navigator"] .chat .chatpicker, html[data-theme^="navigator"] .emojipick { background: var(--face); }
+html[data-theme^="navigator"] .chatlog .msg .who { color: var(--accent); }
 /* the pills that are words, and the map's floating boxes */
-html[data-theme="navigator"] .livestate { border: 1px solid #000; }
-html[data-theme="navigator"] .campop, html[data-theme="navigator"] .mapinfo { background: #c0c0c0; }
-html[data-theme="navigator"] .legmenu .pop, html[data-theme="navigator"] .bellmenu { background: #c0c0c0; }
-html[data-theme="navigator"] .legmenu li label:hover { background: #000080; color: #fff; }
-html[data-theme="navigator"] .legmenu li label:hover :is(.span, .n) { color: #d0d0d0; }
-html[data-theme="navigator"] .month .mlegend i { background: #fff; }
-html[data-theme="navigator"] :focus-visible { outline: 1px dotted #000; outline-offset: -4px; }   /* the marching-ants focus of the day */
+html[data-theme^="navigator"] .livestate { border: 1px solid var(--fg); }
+html[data-theme^="navigator"] .campop, html[data-theme^="navigator"] .mapinfo { background: var(--face); }
+html[data-theme^="navigator"] .legmenu .pop, html[data-theme^="navigator"] .bellmenu { background: var(--face); }
+html[data-theme^="navigator"] .legmenu li label:hover { background: #000080; color: #fff; }
+html[data-theme^="navigator"] .legmenu li label:hover :is(.span, .n) { color: #d0d0d0; }
+html[data-theme^="navigator"] .month .mlegend i { background: var(--card); }
+html[data-theme^="navigator"] :focus-visible { outline: 1px dotted var(--fg); outline-offset: -4px; }   /* the marching-ants focus of the day */

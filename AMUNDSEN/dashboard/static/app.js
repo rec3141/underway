@@ -76,7 +76,7 @@
   // the graphs and the map read them from the root's custom properties. The
   // objects are updated in place, so a module that took THEME or C at load
   // sees the new theme at its next draw.
-  const THEMES = { auto: "Auto (system)", "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light", navigator: "Navigator" };
+  const THEMES = { auto: "Auto (system)", "claude-dark": "Claude dark", "claude-light": "Claude light", "minimal-dark": "Minimal dark", "minimal-light": "Minimal light", navigator: "Navigator", "navigator-dark": "Navigator dark" };
   const SIZES = { auto: "Theme's size", normal: "Normal text", large: "Large text" };
   const themeName = () => { const t = store.get("theme", null); return THEMES[t] ? t : "auto"; };
   const sizeName = () => { const t = store.get("textsize", null); return SIZES[t] ? t : "auto"; };
@@ -105,7 +105,7 @@
     Object.assign(THEME.font, { color: v("plot-fg"), size: fz(12.5), family: v("plot-font") || THEME.font.family });
     for (const ax of ["xaxis", "yaxis"]) Object.assign(THEME[ax], { gridcolor: v("plot-grid"), zerolinecolor: v("plot-grid"), linecolor: v("plot-line") });
     Object.assign(THEME.hoverlabel, { bgcolor: v("hover-bg"), bordercolor: v("accent") });
-    Object.assign(THEME.hoverlabel.font, { color: v("fg"), size: fz(12) });
+    Object.assign(THEME.hoverlabel.font, { color: v("hover-fg") || v("fg"), size: fz(12) });
   }
   // the theme on the page: the attribute the stylesheet keys on, the colours
   // read back, and (after a change) every graph and the map drawn again
