@@ -345,7 +345,7 @@
   // topics': the page is a chip per part, narrative, images, events, maps
   // and glossary (the subjects), each opening its own page, over the record
   // of its observations.
-  const DOMAIN_PARTS = [["pages", "Narrative", "pages"], ["images", "Images", "images"], ["events", "Events", "events"], ["maps", "Maps", "maps"], ["glossary", "Glossary", "subjects"], ["observations", "Observations", "observations"]];
+  const DOMAIN_PARTS = [["pages", "Explore", "pages"], ["images", "Images", "images"], ["events", "Events", "events"], ["maps", "Maps", "maps"], ["glossary", "Glossary", "subjects"], ["observations", "Observations", "observations"]];
   function domainTopics(d) {
     const t = new Set();
     for (const x of nat.subjects) if (x.domain === d && x.topic) t.add(x.topic);
@@ -378,7 +378,10 @@
     if (!P) { el.innerHTML = crumb(dlink) + `<div class="empty">No such part of the domain.</div>`; return; }
     const [, label] = P, xs = sets[part];
     let body;
-    if (part === "pages") body = `<div class="pagelist">${xs.map((p) => H.pageLink(p)).join("")}</div>`;
+    if (part === "pages") {                                        // as the wiki's Explore: the domain's topics, then their pages
+      const topics = (H.data().index?.topics || []).filter((t) => sets.topics.has(t.slug));
+      body = `<div class="topicgrid">${topics.map((t) => H.topicCard(t, true)).join("")}</div><h3><span class="muted">${xs.length}</span> Pages</h3><div class="pagelist">${xs.map((p) => H.pageLink(p)).join("")}</div>`;
+    }
     else if (part === "images" || part === "maps") body = `<div class="artgrid pictures">${xs.sort(byYear).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>`;
     else if (part === "observations") body = recordHTML(xs, { title: D.label });
     else if (part === "events") body = `<div class="pagelist">${xs.sort(byYear).map((e) => H.pageLink({ slug: `event/${e.id}`, kind: "event", title: e.title, summary: [H.dateLabel(e.date_text || e.date_start || ""), e.place].filter(Boolean).join(" · ") })).join("")}</div>`;
@@ -386,7 +389,7 @@
       const kinds = [...new Set(xs.map((x) => x.kind))];
       body = kinds.map((k) => `<h3>${esc(SUBJECT_KINDS[k] || k)} <span class="muted">${xs.filter((x) => x.kind === k).length}</span></h3><div class="peoplelist subjlist">${xs.filter((x) => x.kind === k).sort((a, b) => a.name.localeCompare(b.name)).map(subjectRow).join("")}</div>`).join("");
     }
-    el.innerHTML = crumb(dlink, here(esc(label), `domain/${d}/${part}`)) + h2(xs.length, label) + (xs.length ? body : `<p class="muted">Nothing here yet.</p>`);
+    el.innerHTML = crumb(dlink, here(esc(label), `domain/${d}/${part}`)) + h2(part === "pages" ? null : xs.length, label) + (xs.length ? body : `<p class="muted">Nothing here yet.</p>`);
     if (part === "observations") drawRecord(xs);
   }
   // the taxa and the rock units as a tree: a root is a row with no parent in the list
@@ -487,11 +490,11 @@
       const lines = nat.journal.slice(0, 5);
       const list = lines.length ? lines.map(jentry).join("") + (nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
       return `<section class="journal card"><h3>/Share Photos <a class="chip small" href="#wiki/journal" data-slug="journal">open</a></h3>${list}` +
-        `<div class="jtools"><button type="button" class="chip" id="natimport">Submit a folder of photographs from the share</button> <button type="button" class="chip small" id="natnew">one observation by hand</button></div></section>`;
+        `<div class="jtools"><button type="button" class="chip" id="natimport">Submit a folder of photographs from the share</button></div></section>`;
     }
     const tab = share.tab === "submit" ? "submit" : "gallery";
     const tabs = `<div class="group seg jtabs" id="jtabs"><button type="button" data-t="gallery" class="${tab === "gallery" ? "on" : ""}">Gallery</button><button type="button" data-t="submit" class="${tab === "submit" ? "on" : ""}">Submit</button></div>`;
-    const body = tab === "submit" ? importHTML() + `<details class="byhand"><summary>Add one observation by hand</summary>${formHTML()}</details>` : galleryHTML();
+    const body = tab === "submit" ? importHTML() : galleryHTML();
     return `<section class="journal card"><h3>/Share Photos</h3>${tabs}${body}</section>`;
   }
   function galleryHTML() {
@@ -616,67 +619,10 @@
     if (live) setTimeout(() => { if (slug() === `import/${id}`) H.rerender(); }, 3000);
   }
   const hlinkJournal = () => `<a href="#wiki/journal" data-slug="journal">/Share Photos</a>`;
-  function formHTML() {
-    const pos = UW.M.latest || {}, name = store.get("chat.name", "");
-    const now = new Date().toISOString().slice(0, 16) + "Z";
-    const opts = nat.subjects.map((s) => `<option value="${esc(s.name)}">${esc([s.english !== s.name ? s.english : "", s.inuktitut, s.french].filter(Boolean).join(" · "))}${s.kind ? ` (${esc(s.kind)}${s.domain ? ", " + esc(s.domain) : ""})` : ""}</option>`).join("");
-    return `<form id="natform" autocomplete="off">
-      <label class="wide">Subject <span class="muted">any of its names: muskox, umingmak, Ovibos moschatus</span><input name="subject" list="natsubjects" required placeholder="what was seen, measured, sounded, collected"><datalist id="natsubjects">${opts}</datalist><span class="hint muted small" id="natsubhint"></span></label>
-      <label>When (UTC)<input name="date" value="${esc(now)}" required pattern="\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2})?Z?)?" title="2026-09-11T14:22Z"><button type="button" class="chip small" data-fill="now">now</button></label>
-      <label>Latitude<input name="lat" type="number" step="0.0001" min="-90" max="90" value="${pos.lat != null ? (+pos.lat).toFixed(4) : ""}" required></label>
-      <label>Longitude<input name="lon" type="number" step="0.0001" min="-180" max="180" value="${pos.lon != null ? (+pos.lon).toFixed(4) : ""}" required><button type="button" class="chip small" data-fill="ship" title="the ship's position now">ship</button></label>
-      <label>Count <span class="muted">for living things</span><input name="count" placeholder="about 200 · 2 · a herd · present"></label>
-      <label>Value<input name="value" type="number" step="any" placeholder="the number as read"></label>
-      <label>Unit <span class="muted">as written</span><input name="unit" placeholder="C · m · fathoms · hPa · deg"></label>
-      <label>Qualifier<input name="qualifier" placeholder="first of the season · estimated"></label>
-      <label>Method<select name="method">${METHODS.map((m) => `<option ${m === "sighting" ? "selected" : ""}>${m}</option>`).join("")}</select></label>
-      <label>Observer<input name="observer" value="${esc(name)}" placeholder="who saw it, or the watch" required></label>
-      <label>Vessel<input name="vessel" value="CCGS Amundsen"></label>
-      <label class="wide">Detail <span class="muted">the sentence that says what was seen, naming the observer</span><textarea name="detail" rows="2" required maxlength="2000"></textarea></label>
-      <label class="row"><input type="checkbox" name="sensitive"> sensitive site <span class="muted">a den, a nest, a haul-out, a calving ground: published coarsened</span></label>
-      <label>Photograph<input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
-      <label>Its licence<select name="licence"><option value="attribution">attribution, the photographer credited</option><option value="cc-by-4.0">CC BY 4.0</option></select></label>
-      <div class="wide"><button type="submit" class="go">Add to the journal</button> <span class="muted small" id="natformmsg"></span></div>
-    </form>`;
-  }
   function wireJournal(el) {
-    const add = el.querySelector("#natnew"); if (add) add.onclick = () => { share.tab = "submit"; store.set("nat.jtab", "submit"); H.open("journal"); setTimeout(() => { const d = $("#histmain details.byhand"); if (d) { d.open = true; d.scrollIntoView(); } }, 50); };
     const imp = el.querySelector("#natimport"); if (imp) imp.onclick = () => { share.tab = "submit"; store.set("nat.jtab", "submit"); H.open("journal"); };
     for (const b of el.querySelectorAll("#jtabs button")) b.onclick = () => { share.tab = b.dataset.t; store.set("nat.jtab", share.tab); H.rerender(); };
     wireImport(el);
-    const form = el.querySelector("#natform"); if (!form) return;
-    const msg = form.querySelector("#natformmsg"), hint = form.querySelector("#natsubhint");
-    const sub = form.elements.subject;
-    sub.oninput = () => { const s = subjectOf(sub.value); hint.textContent = s ? `${displayName(s)} · ${s.kind}${s.domain ? ", " + s.domain : ""}` : sub.value.trim() && nat.subjects.length ? "not in the published list: grid will ask before it is entered" : ""; };
-    for (const b of form.querySelectorAll("button[data-fill]")) b.onclick = () => {
-      if (b.dataset.fill === "now") form.elements.date.value = new Date().toISOString().slice(0, 16) + "Z";
-      else { const p = UW.M.latest || {}; if (p.lat != null) { form.elements.lat.value = (+p.lat).toFixed(4); form.elements.lon.value = (+p.lon).toFixed(4); } }
-    };
-    form.onsubmit = async (ev) => {
-      ev.preventDefault();
-      const f = form.elements, s = subjectOf(f.subject.value);
-      const entry = { kind: "observation", subject: s ? s.name : f.subject.value.trim(), date: f.date.value.trim(), lat: +f.lat.value, lon: +f.lon.value,
-        count: f.count.value.trim(), value: f.value.value === "" ? null : +f.value.value, unit: f.unit.value.trim(), qualifier: f.qualifier.value.trim(),
-        method: f.method.value, observer: f.observer.value.trim(), vessel: f.vessel.value.trim(), detail: f.detail.value.trim(), sensitive: f.sensitive.checked ? 1 : 0,
-        origin: "ship", token: store.get("chat.token", ""), name: store.get("chat.name", "") };
-      const file = f.image.files?.[0];
-      if (file) {
-        if (file.size > 10 * 1024 * 1024) { msg.textContent = "the photograph is over 10 MB"; return; }
-        entry.image = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
-        entry.licence = f.licence.value;
-      }
-      form.querySelector("button.go").disabled = true; msg.textContent = "writing…";
-      try {
-        const r = await fetch("/api/nature/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || r.status);
-        msg.textContent = `written as ${j.entry.id}`;
-        if (s) store.set("chat.name", entry.observer || store.get("chat.name", ""));
-        await loadJournal();
-        H.rerender(); if (UW.state.nature) UW.renderMap();
-        UW.toast?.(`Journalled: ${entry.subject}`);
-      } catch (e) { msg.textContent = `not written: ${e.message || e}`; form.querySelector("button.go").disabled = false; }
-    };
   }
 
   // ---------------------------------------------------------------- the menus

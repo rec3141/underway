@@ -1230,10 +1230,16 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     const row = (k) => ({ key: k, label: TYPES[k].label, colour: TYPES[k].colour });
     return GROUPS.flatMap((g) => { const under = g.under.filter((k) => TYPES[k]); return [...(TYPES[g.head] ? [row(g.head)] : under.length ? [{ label: KINDS[g.head].label }] : []), ...under.map(row)]; });
   }
-  // the kinds as a dropdown's groups, the one open selected
+  // the kinds as a dropdown's groups, the one open selected; the ship's own photographs sit
+  // with the images and the observations with the events, whatever the labels
+  const MENU_EXTRA = { image: [["journal", "/Share Photos"]], event: [["record", "Observations"]] };
   function kindOptions(cur) {
     const opt = (slug, label) => `<option value="${slug}" ${cur === slug ? "selected" : ""}>${esc(label)}</option>`;
-    return GROUPS.map((g) => g.under.length ? `<optgroup label="${esc(KINDS[g.head].label)}">${opt(`kind/${g.head}`, `All ${KINDS[g.head].label.toLowerCase()}`)}${g.under.map((k) => opt(`kind/${k}`, KINDS[k].label)).join("")}</optgroup>` : opt(`kind/${g.head}`, KINDS[g.head].label)).join("");
+    return GROUPS.map((g) => {
+      const extra = MENU_EXTRA[g.head] || [];
+      if (!g.under.length && !extra.length) return opt(`kind/${g.head}`, KINDS[g.head].label);
+      return `<optgroup label="${esc(KINDS[g.head].label)}">${opt(`kind/${g.head}`, g.under.length ? `All ${KINDS[g.head].label.toLowerCase()}` : KINDS[g.head].label)}${g.under.map((k) => opt(`kind/${k}`, KINDS[k].label)).join("")}${extra.map(([slug, label]) => opt(slug, label)).join("")}</optgroup>`;
+    }).join("");
   }
   function renderChips() {
     // the Browse dropdown for the whole wiki: its own pages, then the kinds,
@@ -1242,7 +1248,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     if (sel) {
       const opt = (slug, label) => `<option value="${slug}" ${hist.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
       const natv = domainOn("nature") ? UW.natureViews : null;
-      const pages = [opt("explore", "Explore"), opt("bib", "Bibliography"), opt("provenance", "Provenance"), ...(natv ? [opt("record", "Observations"), opt("journal", "/Share Photos")] : [])].join("");
+      const pages = [opt("explore", "Explore"), opt("bib", "Bibliography"), opt("provenance", "Provenance")].join("");
       sel.innerHTML = `<option value="" ${!hist.slug || !/^(kind\/|domain\/|subjects\/|explore$|bib$|provenance$|record$|journal$)/.test(hist.slug) ? "selected" : ""}>Browse…</option>` +
         `<optgroup label="Pages">${pages}</optgroup>` +
         kindOptions(hist.slug.split("/").slice(0, 2).join("/")) +
