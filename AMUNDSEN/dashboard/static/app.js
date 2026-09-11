@@ -133,12 +133,7 @@
     ssel.value = sizeName();
     ssel.onchange = () => { store.set("textsize", ssel.value); applyTheme(themeName(), true); };
     lightOS.addEventListener?.("change", () => { if (themeName() === "auto") applyTheme("auto", true); });
-    // the top line by width: on a desktop the tabs and the theme picker at the right; on a phone the
-    // picker goes to the very foot of the page
-    const pick = document.querySelector(".themepick"), row = document.querySelector(".tabrow"), foot = document.querySelector("main > footer");
-    const narrow = matchMedia("(max-width: 640px)");
-    const place = () => { if (!(pick && row && foot)) return; (narrow.matches ? foot : row).append(pick); };
-    place(); narrow.addEventListener?.("change", place);
+    // Appearance and feedback controls remain in the upper-right header.
   }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
 
@@ -1681,6 +1676,7 @@
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
   function showTab(name) {
+    if(name==='table')name='underway'; // old bookmarks and saved tab choices
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
     if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it

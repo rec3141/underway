@@ -1510,16 +1510,16 @@
   const activeTab = () => [...document.querySelectorAll("#tabs button.on")].find((b) => b.dataset.tab !== "chat")?.dataset.tab;
   async function refreshActiveTab(force = false) {
     const name = activeTab();
-    if (!["casts", "stations", "calendar", "table"].includes(name)) return;
+    if (!["casts", "stations", "calendar", "underway"].includes(name)) return;
     const stamp = UW.M.generated_utc;
-    const key = `${name}:${stamp}:${name === "table" ? tbl.rule : ""}`;
+    const key = `${name}:${stamp}:${name === "underway" ? tbl.rule : ""}`;
     if (!force && refreshedTab === key) return;
     const seq = ++tabSeq;
-    const scope = { casts: "Casts", stations: "Stations", calendar: "Schedule", table: "Table" }[name];
+    const scope = { casts: "Casts", stations: "Stations", calendar: "Schedule", underway: "Table" }[name];
     try {
       if (name === "casts") await ensureCastIndex();
       if (name === "calendar") await ensureCalendar();
-      if (name === "table") await ensureAgg();
+      if (name === "underway") await ensureAgg();
       if (seq !== tabSeq || name !== activeTab() || stamp !== UW.M.generated_utc) return;
       if (name === "casts") {
         renderCastList(); UW.renderMap();
@@ -1527,7 +1527,7 @@
       }
       if (name === "stations") renderStations();
       if (name === "calendar") renderCalendar();
-      if (name === "table") renderTable();
+      if (name === "underway") renderTable();
       if (seq !== tabSeq || stamp !== UW.M.generated_utc) return;
       refreshedTab = key; UW.setLoadError(scope, false);
     } catch {
@@ -1543,5 +1543,5 @@
   };
   wireCasts(); wireStations(); wireCalendar(); wireTable();
   const active = document.querySelector("#tabs button.on")?.dataset.tab;
-  if (active && active !== "underway") UW.onTab(active);
+  if (active) UW.onTab(active);
 })();

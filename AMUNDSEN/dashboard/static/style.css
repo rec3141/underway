@@ -333,8 +333,14 @@ main {
 /* the graph controls (x axis, colour) sit right above the map on every tab */
 .plotctl { grid-column: 2; grid-row: 1; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: var(--t-md); padding-right: 14px; }   /* the underway pickers: top of the right half */
 main:not(.tab-underway) .plotctl { display: none; }           /* the strip is the underway tab's: x axis and colour together; elsewhere the map holds the colour picker */
-.maplayers .mapcolour { flex: 1 1 0; min-width: 0; margin-bottom: 2px; white-space: nowrap; }   /* the colour picker leads the first row; the tools end it; the pills take the second */
-.maplayers .mapcolour select { flex: 1 1 auto; min-width: 7em; }
+.maplayers .mapcolour { flex: 1 1 16em; min-width: 0; margin-bottom: 2px; flex-wrap:wrap; }
+.maplayers .mapcolour select { flex: 1 1 7em; min-width: 0; max-width:100%; }
+.maplayers .mapcolour .cbar { flex:1 0 100%; margin:4px 0 0; min-width:0; }
+.maplayers .mapcolour .cbar .grad { flex:1; width:auto; min-width:20px; }
+.maplayers .tools { flex-shrink:0; align-self:flex-start; }
+#underway-table { margin-top:16px; padding:10px; min-width:0; }
+#pane-sources { padding:12px; }
+.themepick .feedback-link { padding:4px 0; }
 main > footer { grid-column: 2; grid-row: 3; }                  /* the provenance stays on the right half */
 .plotctl label.select { min-width: 0; }
 /* the colour scale beside the picker: the map's gradient with its limits at the ends */

@@ -21,7 +21,7 @@
 <body>
 
 <header class="top">
-  <!-- the top line: the tabs with the map cycler among them, and (on a desktop) the theme picker at the right; a phone carries the picker at the foot of the page -->
+  <!-- Tabs and map cycler, with feedback and appearance controls at the right. -->
   <div class="tabrow">
     <nav class="tabs" id="tabs" role="tablist">
     <button data-tab="map" id="maptoggle" class="mapbtn" title="how much of the page the map takes: half, all of it, or none"><span class="ico">◧</span> Map</button>
@@ -29,12 +29,13 @@
     <button data-tab="stations" role="tab">Stations</button>
     <button data-tab="underway" class="on" role="tab">Underway</button>
     <button data-tab="casts" role="tab">Casts</button>
-    <button data-tab="table" role="tab">Table</button>
+    <button data-tab="sources" role="tab">Sources</button>
     <button data-tab="wiki" role="tab" title="the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask">Wiki</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
     </nav>
     <div class="themepick">
-      <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><span class="lbl">Theme</span><select id="theme" aria-label="Theme"></select></label>
+      <button type="button" id="feedback-open" class="feedback-link">Feedback</button>
+      <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><select id="theme" aria-label="Theme"></select></label>
       <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
     </div>
   </div>
@@ -118,6 +119,17 @@
   <section class="side">
     <div class="pane" id="pane-underway">
       <div class="panels" id="panels"></div>
+      <section id="underway-table" class="card">
+        <h2>Table</h2>
+        <div class="pane-tools">
+          <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
+          <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
+          <input type="search" id="tblsearch" placeholder="filter rows" aria-label="Filter rows">
+          <button id="tblcsv" title="download the visible table as tab-separated text">TSV</button>
+          <span class="muted" id="tblmeta"></span>
+        </div>
+        <div class="tablewrap"><table id="aggtable"></table></div>
+      </section>
     </div>
 
     <div class="pane" id="pane-casts" hidden>
@@ -182,21 +194,8 @@
       <article class="histmain" id="histmain"><div class="empty">Loading the wiki…</div></article>
     </div>
 
-    <div class="pane" id="pane-table" hidden>
-      <div class="pane-tools">
-        <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
-        <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
-        <input type="search" id="tblsearch" placeholder="filter rows" aria-label="Filter rows">
-        <button id="tblcsv" title="download the visible table as tab-separated text">TSV</button>
-        <span class="muted" id="tblmeta"></span>
-      </div>
-      <div class="tablewrap"><table id="aggtable"></table></div>
-    </div>
-
-  </section>
-  <footer>
-    <details class="card">
-      <summary>Data sources &amp; provenance</summary>
+    <div class="pane card" id="pane-sources" hidden>
+      <h2>Sources</h2>
       <div class="prov">
         <div class="meta">
           <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
@@ -207,9 +206,8 @@
         <div class="hscroll"><table id="sources"></table></div>
         <div class="notes" id="notes"></div>
       </div>
-    </details>
-    <button type="button" id="feedback-open" class="feedback-link">Feedback about this page</button>
-  </footer>
+    </div>
+  </section>
   <dialog id="feedback-dialog" aria-labelledby="feedback-title">
     <form id="feedback-form">
       <h2 id="feedback-title">Feedback about this page</h2>

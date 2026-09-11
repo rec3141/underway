@@ -128,6 +128,17 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
     if(process.env.SUMMARY_UI){
+      assert.equal(await evaluate('!!document.querySelector("#tabs [data-tab=table]")'),false);
+      assert.equal(await evaluate('!!document.querySelector("#pane-underway #aggtable")'),true);
+      assert.equal(await evaluate('!!document.querySelector(".tabrow .themepick #feedback-open")'),true);
+      assert.equal(await evaluate('!!document.querySelector(".themepick .lbl")'),false);
+      await evaluate('UW.showTab("sources");document.documentElement.classList.add("bigtype")');
+      assert.equal(await evaluate('document.querySelector("#pane-sources").hidden'),false);
+      await until('document.querySelector(".mapcolour .cbar")?.getBoundingClientRect().width>0');
+      assert.equal(await evaluate(`(()=>{const a=document.querySelector('.mapcolour .cbar').getBoundingClientRect(),b=document.querySelector('.maplayers .tools').getBoundingClientRect();return a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top})()`),true);
+      await evaluate('document.documentElement.classList.remove("bigtype");UW.showTab("table")');
+      assert.equal(await evaluate('document.querySelector("#pane-underway").hidden'),false);
+      await until('document.querySelector("#aggtable tbody tr")');
       await evaluate('UW.showTab("underway")');
       assert.equal(await evaluate('document.querySelector("#g-Lab .chip").getAttribute("aria-pressed")'),'false');
       assert.equal(await evaluate('document.querySelector("#g-Lab .chart-state").textContent'),'▼');
