@@ -662,6 +662,7 @@ table.sched tr.fold td { padding: 2px 8px; }
 .bell.on { opacity: 1; filter: none; }
 .bell.kind { font-size: var(--t-xs); }
 .bell.changes { color: inherit; font: inherit; font-size: var(--t-sm); font-weight: 400; margin-left: 6px; }
+.bell.changes:not(.on):not(:hover) { opacity: .6; }
 table.sched td.alerts-cell { white-space: nowrap; padding-left: 4px; padding-right: 4px; }
 table.sched tr.dayhead td { color: var(--accent); font-weight: 650; background: var(--card-2); padding: 6px 8px; border-bottom: 1px solid var(--line); }
 table.sched tr.dayhead small { color: var(--muted); font-weight: 400; margin-left: 8px; }
