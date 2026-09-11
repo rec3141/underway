@@ -1,0 +1,13 @@
+[Unit]
+Description=Underway Gemma camera and shared chat model
+
+[Service]
+WorkingDirectory=/data/underway_server/app/AMUNDSEN
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+ExecStart=/opt/miniforge3/bin/python3 -m dashboard.ice_server /home/cryomics/.config/underway/ice.json
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target

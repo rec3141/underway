@@ -1102,7 +1102,7 @@
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
+      marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({

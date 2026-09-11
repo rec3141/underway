@@ -1,0 +1,16 @@
+[Unit]
+Description=Underway camera new arrivals (no archive backfill)
+Wants=underway-ice-model.service
+After=underway-ice-model.service
+
+[Service]
+WorkingDirectory=/data/underway_server/app/AMUNDSEN
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+ExecStart=/opt/miniforge3/bin/python3 -m dashboard.ice_worker --config /home/cryomics/.config/underway/ice.json
+Restart=on-failure
+RestartSec=60
+Nice=10
+
+[Install]
+WantedBy=default.target
