@@ -265,7 +265,27 @@ def due(info: dict, now: datetime, kinds=tuple(SENSORS), ship: tuple[float, floa
     return out
 
 
+def archive_lock():
+    """Serialize archive metadata writers (scheduled refresh and backfill)."""
+    from contextlib import contextmanager
+    import fcntl
+    @contextmanager
+    def locked():
+        sat_dir().mkdir(parents=True, exist_ok=True)
+        with (sat_dir() / '.writer.lock').open('a') as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            yield
+    return locked()
+
+
 def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSORS)) -> dict:
+    if credentials() is None:
+        return load_info()
+    with archive_lock():
+        return _refresh(force=force, now=now, kinds=kinds)
+
+
+def _refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSORS)) -> dict:
     """Render what is due and has a new scene (everything with ``force``);
     returns the info written."""
     now = now or datetime.now(timezone.utc)
