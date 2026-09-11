@@ -154,7 +154,8 @@
     return true;
   }
   function shownObs(forMap = false) {
-    const sc = scopeOf();
+    // Sidebar navigation must not change which map points are visible.
+    const sc = forMap ? {} : scopeOf();
     return allObs().filter((o) => inScope(o, sc) && (!forMap || nat.domains.has(domainOfObs(o) || "other") || (!domainOfObs(o) && nat.domains.size)));
   }
 
@@ -469,7 +470,6 @@
       (art ? `<h3>Evidence</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
       (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
       (s ? `<div class="backlinks"><span class="lbl">Observations</span><a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}">every observation of ${esc(shortName(s))}</a></div>` : "");
-    if (o.lat != null) focusPoint(o.lat, o.lon, o.subject);
   }
 
   // ---------------------------------------------------------------- the journal

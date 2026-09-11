@@ -13,6 +13,7 @@ const chrome = process.argv[2];
 if (!chrome) throw Error('Pass the Chromium executable path');
 const wait = ms => new Promise(r => setTimeout(r,ms));
 let generation=1;
+let rejectFeedback=true; const feedbackRows=[];
 let rejectLiveConfig=true;
 const liveCast=(pressure_col, pressure)=>({started:1,n:2,n_raw:2,max_p:pressure,depth_like:true,t:[1,2],columns:['scan',pressure_col,'temperature'],pressure_col,cols:{scan:[1,2],[pressure_col]:[pressure,pressure],temperature:[3,4]}});
 const liveData={port:5555,columns:['scan','depth','temperature'],pressure_col:'depth',current:liveCast('depth',25),last:liveCast('depth_m',10)};
@@ -34,6 +35,13 @@ function manifest() {
   };
 }
 function dataset(p) {
+  if(process.env.NATURE_UI && p.startsWith('/data/history/')) {
+    if(p.endsWith('/index.json')) return {topics:[],pages:[]};
+    if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
+    if(p.endsWith('/observations.json')) return {observations:[{id:'seal',subject:'Seal',date:'2020-01-01',lat:76,lon:-78},{id:'rock',subject:'Rock',date:'2020-01-01',lat:77,lon:-79}]};
+    return {};
+  }
+  if(p==='/api/nature/journal') return {observations:[]};
   if(p==='/data/manifest.json') return manifest();
   if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation]},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
   if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
@@ -51,6 +59,14 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname; requests.push(req.url);
+  if(p==='/api/feedback' && req.method==='POST') {
+    let body=''; req.on('data', chunk=>body+=chunk);
+    req.on('end',()=>{
+      res.setHeader('Content-Type','application/json');
+      if(rejectFeedback) { res.writeHead(503); res.end(JSON.stringify({error:'Temporary failure'})); }
+      else { const row=JSON.parse(body); feedbackRows.push(row); res.end(JSON.stringify({ok:true,id:row.id})); }
+    }); return;
+  }
   if(p==='/api/live' && req.method==='POST'){
     req.resume();res.setHeader('Content-Type','application/json');
     res.writeHead(rejectLiveConfig?400:200);
@@ -110,6 +126,47 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; document.querySelector("#map")._fullLayout?.map?._subplot?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if (process.env.NATURE_UI) {
+      await evaluate(`(async()=>{ UW.M.history={stamp:'test'}; UW.state.nature=true; UW.state.photos=false;
+        await UW.natureViews.ensure(); UW.renderMap(); })()`);
+      await until('document.querySelector("#map").data?.find(t=>t.name==="nature")?.lat.length===2');
+      const before=await evaluate('UW.extraMapTraces().find(t=>t.name==="nature").customdata');
+      await evaluate(`window.__focusCalls=0; const focus=UW.focusMap; UW.focusMap=(...a)=>{window.__focusCalls++; return focus(...a);};
+        UW.onNatureClick('seal',{lat:76,lon:-78,text:'Seal'});`);
+      await until('document.querySelector("#pane-wiki").textContent.includes("Seal") && location.hash.includes("observation/seal")');
+      await wait(300);
+      assert.deepEqual(await evaluate('UW.extraMapTraces().find(t=>t.name==="nature").customdata'),before);
+      assert.equal(await evaluate('window.__focusCalls'),0);
+      await evaluate(`const box=document.querySelector('#mapnatlayers input[data-k="geology"]'); box.checked=false; box.dispatchEvent(new Event('change'));`);
+      assert.deepEqual(await evaluate('UW.extraMapTraces().find(t=>t.name==="nature").customdata'),['nat:seal']);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS nature point opens sidebar without hiding other subjects or recentering; explicit domain filter still works');
+      return;
+    }
+    if (process.env.FEEDBACK_UI) {
+      await evaluate(`document.querySelector('#feedback-open').click();
+        document.querySelector('#feedback-message').value='Map points disappear when clicked';
+        document.querySelector('#feedback-form').requestSubmit();`);
+      await until('document.querySelector("#feedback-status").textContent.includes("retry")');
+      assert.equal(await evaluate('document.querySelector("#feedback-message").value'),'Map points disappear when clicked');
+      rejectFeedback=false;
+      await evaluate('document.querySelector("#feedback-form").requestSubmit()');
+      await until('document.querySelector("#feedback-status").textContent.includes("saved")');
+      assert.equal(feedbackRows.length,1);
+      assert.equal(feedbackRows[0].context.tab,'underway');
+      assert.equal(feedbackRows[0].context.viewport.width,390);
+      assert.equal(feedbackRows[0].message,'Map points disappear when clicked');
+      await evaluate('document.querySelector("#feedback-close").click(); document.querySelector("#feedback-open").click()');
+      assert.equal(await evaluate('document.querySelector("#feedback-message").value'),'');
+      assert.equal(await evaluate('document.activeElement.id'),'feedback-message');
+      if (process.env.UI_SCREENSHOT) {
+        const shot=await call('Page.captureScreenshot',{format:'png'});
+        fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));
+      }
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS feedback opens, preserves failed submissions, saves current context, and resets after success');
+      return;
+    }
     // Profile repeated refreshes with a phone-sized viewport and a full dock.
     // Count work as well as time: timings vary by host, DOM churn does not.
     if (process.env.PROFILE_UI) {
