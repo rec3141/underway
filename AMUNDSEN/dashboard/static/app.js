@@ -31,6 +31,7 @@
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
   if (store.get("prefs.v", 0) < 5) { store.set("prefs.v", 5); store.set("trackKm", null); }   // track detail follows the span (a point a km)
+  const newViewer = store.get('panel',null) === null;
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
     win: store.get("win", M.default_window),
@@ -58,6 +59,7 @@
   };
 
   const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)", "TSG line warming (°C)", "TSG flow (V)"]);
+  if(newViewer){for(const v of M.variables)state.panel[v.name]='min';store.set('panel',state.panel)}
   const extraPanels = new Map();
   const extraColours = new Map();
   // Surprise has one summary row per scale; extra charts start minimized.
@@ -66,7 +68,6 @@
     for (const v of M.variables) if (v.name.startsWith('Surprise ·')) state.panel[v.name]='min';
     store.set('panel',state.panel);store.set('summary-tables-v1',true);
   }
-  const groupReadings = new Map();
   let VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
 
   // ------------------------------------------------------------ theme
@@ -678,6 +679,25 @@
     state.focus = { lat: +lat, lon: +lon, label: label || "" };
     renderMap();
   }
+  function chartClickAnywhere(plot,d){
+    plot._chartData=d;
+    if(plot._chartClickBound)return;plot._chartClickBound=true;
+    let down=null;
+    plot.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
+    plot.addEventListener('pointerup',e=>{
+      if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5){down=null;return}down=null;
+      const axis=plot._fullLayout?.xaxis,data=plot._chartData;if(!axis||!data)return;
+      const box=plot.querySelector('.svg-container')?.getBoundingClientRect()||plot.getBoundingClientRect();
+      const px=e.clientX-box.left-axis._offset;if(px<0||px>axis._length)return;
+      let index=-1,delta=Infinity;
+      for(let i=0;i<data.t.length;i++){
+        if(data.lat[i]==null||data.lon[i]==null)continue;
+        const x=state.xmode==='time'?shipAxis(data.t[i]):data.dist_km[i];if(x==null)continue;
+        const distance=Math.abs(axis.d2p(x)-px);if(distance<delta){delta=distance;index=i}
+      }
+      if(index>=0)focusMap(data.lat[index],data.lon[index],fmtTs(data.t[index]),true);
+    });
+  }
   // The event log comes from data/calendar.json (the Agenda's file); fetched
   // once per build while the layer is on, then grouped by position so several
   // events at one spot share one marker and one hover. The legs before the
@@ -1210,7 +1230,7 @@
     const x = extraPanels.get(name); if (x) return x.group || "Other";
     const v = VAR[name]; if (!v) return "Other";
     if (name.startsWith("Surprise")) return "Surprise";
-    if (name.startsWith("Bottom depth")) return "Winches";
+    if (/^(Bottom depth|Rosette |Cable )/.test(name)) return "Winches";
     if (/^(Air temperature|Relative humidity|Atmospheric pressure|True wind direction|Relative wind speed|Short-wave radiation)/.test(name)) return "Met Station";
     if (v.tsg) return "Lab";
     if (/^(Sea state|Roll & pitch|Heading|Ship speed)/.test(name)) return "Bridge";
@@ -1277,7 +1297,10 @@
       const minned = members.filter((n) => state.panel[n] === "min"), allMin = minned.length === members.length;
       box.querySelector(".gname").textContent = g;
       const summary=members.map(n=>extraPanels.get(n)?.groupSummary).find(Boolean);
-      box.querySelector(".gn").textContent = summary ? summary() : `${members.length - minned.length}/${members.length}`;
+      const times=members.map(n=>extraPanels.get(n)?.updated?.() ?? (()=>{const y=state.data?.vars[n];if(!y)return null;for(let i=y.length-1;i>=0;i--)if(y[i]!=null)return state.data.t[i];return null})()).filter(t=>t!=null);
+      const updated=times.length?Math.max(...times):null;
+      box.querySelector(".gn").textContent = [summary?summary():null,updated?`${fmtTs(updated).slice(11)} ${tzAbbr()}`:'no data'].filter(Boolean).join(' · ');
+      box.querySelector('.gn').title=updated?`Latest displayed observation: ${fmtTs(updated)} ${tzAbbr()}`:'No observations';
       box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
       box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this group`;
       box.querySelector(".ghead").onclick = () => {
@@ -1287,7 +1310,6 @@
         if (allMin) for (const n of members) renderPanel(n);
       };
       const chips = box.querySelector(".chips");
-      chips.querySelectorAll('.reading').forEach(e=>e.remove());
       const voltage=state.data?.vars['TSG flow (V)']?.at(-1);
       const low=g==='Lab'&&voltage!=null&&voltage<(SITE.low_flow_v??0.5);
       box.classList.toggle('pump-alarm',low);
@@ -1305,15 +1327,10 @@
         chip.replaceChildren();
         const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||(name===SURPRISE?'Combined':name.replace(/^Surprise · /,''));
         if(preview?.image){const img=document.createElement('img');img.src=preview.image;img.alt='Latest ROI';img.className='chip-preview';label.prepend(img)}
-        const value=document.createElement('b');value.textContent=preview?.text??fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit);
-        const arrow=document.createElement('span');arrow.className='chart-state';arrow.textContent=open?'↑':'↓';arrow.setAttribute('aria-hidden','true');chip.append(arrow,label,value);
+        const latestValue=y?lastFinite(y):null;
+        const value=document.createElement('b');value.textContent=preview?.text??(/^(Rosette depth|Cable length)/.test(name)&&latestValue!=null?`${Math.round(latestValue)} m`:fmtVal(latestValue,VAR[name]?.unit));
+        const arrow=document.createElement('span');arrow.className='chart-state';arrow.textContent=open?'▲':'▼';arrow.setAttribute('aria-hidden','true');chip.append(arrow,label,value);
         chip.title = `${spec?.label||name}: ${open?'minimise':'restore'}`;
-      }
-      for(const [label,value] of (groupReadings.get(g)||[]).slice(0,Math.max(0,6-members.length))){
-        const row=document.createElement('div');row.className='chip reading';
-        const key=document.createElement('span');key.className='cname';key.textContent=label;
-        const val=document.createElement('b');val.textContent=value;
-        row.append(document.createElement('span'),key,val);chips.append(row);
       }
     }
     const saved = store.get("cards.order", []);
@@ -1384,7 +1401,8 @@
     if (!v.resolved) return empty("source column not found in any leg");
     if (!d || !y || !y.some((x) => x != null)) return empty("no data for the selected legs");
     if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
-    el.querySelector(".now").textContent = fmtVal(lastFinite(y), v.unit);
+    const wholeMetres=/^(Rosette depth|Cable length)/.test(name),last=lastFinite(y);
+    el.querySelector(".now").textContent = wholeMetres&&last!=null?`${Math.round(last)} m`:fmtVal(last,v.unit);
 
     const cv = VAR[state.colour] || extraColours.get(state.colour);
     const c = extraColours.get(state.colour)?.values(d) || d.vars[state.colour] || [];
@@ -1403,7 +1421,7 @@
       marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: UW.cmap(cv?.cmap), reversescale: !!cv?.reverse, cmin: lim?.[0], cmax: lim?.[1], showscale: false,
                 opacity: 1 },
       text: legText,
-      hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
+      hovertemplate: `%{y:${wholeMetres?'.0f':'.3~f'}} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
     const traces = [trace];
     if (gated) {
@@ -1429,7 +1447,7 @@
                type: state.xmode === "time" ? "date" : "linear",
                hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
                ticksuffix: state.xmode === "time" ? "" : " km",
-               ...(window.innerWidth < 640 ? { nticks: 4, tickangle: 0 } : {}) },   // a phone's plot: few, level ticks, clear of the title
+               nticks: Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))), tickangle: 0, automargin:true },
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
                type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
@@ -1448,6 +1466,7 @@
     // whose data and layout match the one on screen is skipped; the click
     // handler is rebound to this build's data either way.
     const onClick = () => {
+      chartClickAnywhere(plot,d);
       plot.removeAllListeners?.('plotly_click');
       plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p){const i=p.pointIndex??p.pointNumber;focusMap(d.lat[i],d.lon[i],fmtTs(d.t[i]),true);extraColours.get(state.colour)?.onPoint?.(d,i);}});
     };
@@ -1689,12 +1708,12 @@
       if (extraColours.has(state.colour)) render();
       else for (const name of extraPanels.keys()) renderPanel(name);
     },
-    setGroupReadings(group, rows) { groupReadings.set(group,rows);layoutPanels(); },
     clearFocus() { state.focus = null; },
     moveShip,
     registerPanel(name, spec) {
       extraPanels.set(name, spec);
-      if(spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){
+      if(newViewer&&!(name in state.panel)){state.panel[name]='min';store.set('panel',state.panel)}
+      if(!newViewer&&spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){
         const first=spec.after,order=panelNames().filter(n=>n!==name&&n!==first);
         state.order=[first,name,...order].filter(Boolean);store.set('order',state.order);
         delete state.panel[name];store.set('panel',state.panel);

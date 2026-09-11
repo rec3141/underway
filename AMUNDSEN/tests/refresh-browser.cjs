@@ -111,6 +111,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await call('Page.enable');
     await call('Page.addScriptToEvaluateOnNewDocument',{source:`
       window.__errors=[];
+      ${process.env.SUMMARY_UI?'':"localStorage.setItem('uw:panel','{}');"}
       addEventListener('error',e=>window.__errors.push(e.message));
       addEventListener('unhandledrejection',e=>window.__errors.push(String(e.reason)));
       const realInterval=window.setInterval;
@@ -128,6 +129,9 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     console.log('PASS initial load retries without reload');
     if(process.env.SUMMARY_UI){
       await evaluate('UW.showTab("underway")');
+      assert.equal(await evaluate('document.querySelector("#g-Lab .chip").getAttribute("aria-pressed")'),'false');
+      assert.equal(await evaluate('document.querySelector("#g-Lab .chart-state").textContent'),'▼');
+      await evaluate('document.querySelector("#g-Lab .chip").click()');
       await until('document.querySelector("#panels .plot")?.data');
       assert.equal(await evaluate('document.querySelectorAll("#g-Lab .chip").length'),1);
       assert.equal(await evaluate('document.querySelector("#g-Lab .chip").getAttribute("aria-pressed")'),'true');
@@ -144,6 +148,11 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate('UW.mapView.map.jumpTo({zoom:3});document.querySelector("#panels .plot").emit("plotly_click",{points:[{pointIndex:1}]})');
       assert.equal(await evaluate('UW.state.view.zoom'),3);
       assert.equal(await evaluate('UW.state.view.center.lat'),76.001);
+      await evaluate(`{const plot=document.querySelector('#panels .plot'),a=plot._fullLayout.xaxis,box=plot.querySelector('.svg-container').getBoundingClientRect();for(const type of ['pointerdown','pointerup'])plot.dispatchEvent(new PointerEvent(type,{bubbles:true,clientX:box.left+a._offset+1,clientY:box.top+50}))}`);
+      assert.equal(await evaluate('UW.state.view.center.lat'),76);
+      assert.equal(await evaluate('UW.state.view.zoom'),3);
+      assert.equal(await evaluate('document.querySelector("#panels .plot").layout.xaxis.tickangle'),0);
+      assert((await evaluate('document.querySelector("#g-Lab .gn").title')).includes('Latest displayed observation'));
       await evaluate(`UW.mapView.draw=async opts=>{window.satStyle=opts.style};
         const bounds=[[0,1],[1,1],[1,0],[0,0]],moved=[[1,1],[2,1],[2,0],[1,0]];
         UW.M.satellite={images:{s1:{url:'current.webp',scene:'2026-09-11T00:00:00Z',corners:bounds,label:'Radar'},s1near:{url:'current-near.webp',scene:'2026-09-11T00:00:00Z',corners:bounds}},archive:{s1:[{url:'wide-old.webp',scene:'2026-09-09T00:00:00Z',corners:bounds}],s1near:[{url:'near-one.webp',scene:'2026-09-10T00:00:00Z',corners:bounds},{url:'near-two.webp',scene:'2026-09-10T00:00:00Z',corners:moved}]}};

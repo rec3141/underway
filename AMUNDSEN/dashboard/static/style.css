@@ -525,18 +525,19 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 
 .chip { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: var(--t-md); cursor: pointer; }
 /* Table-style group summaries remain visible when their charts are open. */
-.dockgroup { min-width: 0; align-self: start; }
+.dockgroup { min-width: 0; align-self: stretch; display:flex; flex-direction:column; }
 .dockgroup .ghead { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; background: transparent; color: var(--fg); border: 0; padding: 0; font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer; text-align: left; }
 .dockgroup .ghead:hover { color: var(--accent); }
 .dockgroup .gname { flex: 1; }
 .dockgroup .gn { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: var(--t-xs); }
 .dockgroup .gtog { color: var(--muted); }
-.dockgroup .chips { padding: 8px 6px; display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.dockgroup .chips { padding: 8px 6px; display: flex; flex:1; min-height:190px; flex-direction: column; align-items: stretch; justify-content:space-evenly; gap: 0; }
+.dockgroup .gn { text-align:right; max-width:55%; }
 .dockgroup .chips:empty::after { content: "All charts in this group are open"; color: var(--muted); font-size: var(--t-sm); padding: 6px; }
 .dockgroup .chip { display: grid; flex-shrink: 0; grid-template-columns: 1em minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 7px 0; text-align: left; white-space: normal; border: 0; border-radius: 0; background: transparent; font-size: 1rem; }
 .dockgroup .chip .cname { font-size: 1rem; line-height: 1.25; color: var(--muted); margin: 0; overflow-wrap: anywhere; }
 .dockgroup .chip b, .dockgroup .chip span:last-child { margin-left: 0; text-align: right; }
-html.bigtype .dockgroup .chips { height: auto; }
+html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 .chip b { font-family: var(--mono); color: var(--accent-2); margin-left: 4px; }
 .chip span { color: var(--muted); margin-left: 6px; font-size: var(--t-xs); }
 .chip:hover { border-color: var(--accent); }

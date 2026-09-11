@@ -188,6 +188,14 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     for r in res:
         if r.key:
             out[r.variable.name] = df[r.key]
+    # Signed rates from consecutive depth/length observations; never span a
+    # logging gap. Both live and archive depths are in metres.
+    seconds = df.index.to_series().diff().dt.total_seconds()
+    for depth, rate in (("Rosette depth (m)", "Rosette rate (m/s)"),):
+        if depth in out:
+            out[rate] = out[depth].diff().div(seconds).where(seconds.gt(0) & seconds.le(120))
+    if "Cable rate (m/s)" in out:
+        out["Cable rate (m/s)"] /= 60  # ACSD cable speed is m/min.
 
     sal_t, hull_t = (_first_match(pats, list(df.columns)) for pats in LINE_WARMING)
     if sal_t and hull_t:

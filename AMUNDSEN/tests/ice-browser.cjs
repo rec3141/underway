@@ -67,4 +67,9 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
    assert.equal(await evaluate(`document.querySelector('.ice-slice img').getBoundingClientRect().width`),4);
  }
  console.log('PASS navigator slice images retain their full 4px width');
+ await evaluate(`UW.state.data.lat=[70,71];UW.state.data.lon=[-80,-81];UW.state.data.step_s=3600;UW.focusMap=(...args)=>window.focusArgs=args;document.querySelector('.ice-slice').click()`);
+ assert.equal(await evaluate('focusArgs[3]'),true);
+ assert.equal(await evaluate('focusArgs[0]'),70);
+ assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").layout.xaxis.tickangle'),0);
+ console.log('PASS slice selection recenters against coarsely binned navigation without changing zoom');
 }finally{ws?.close();child?.kill();server.closeAllConnections();server.close()}})().catch(e=>{console.error(e);process.exitCode=1});
