@@ -223,6 +223,20 @@ class RowFollowTests(unittest.TestCase):
         self.assertIn("• CardS-3 — CTD-Rosette (15 min ahead)", tg.sent[1][1])
 
 
+class SmtpConfigTests(unittest.TestCase):
+    def test_account_from_the_environment(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertIsNone(alerts.smtp_config())
+        with patch.dict("os.environ", {"SMTP_HOST": "smtp.example.org", "SMTP_USER": "keeper@example.org"}, clear=True):
+            c = alerts.smtp_config()
+            self.assertEqual((c["host"], c["user"], c["ssl"], c["from"]), ("smtp.example.org", "keeper@example.org", True, ""))
+            with patch.object(alerts, "OPS_EMAIL", ""):
+                self.assertEqual(alerts.ops_targets()[0], "keeper@example.org")
+        with patch.dict("os.environ", {"SMTP_HOST": "h", "SMTP_USER": "u", "SMTP_SSL": "0", "SMTP_PORT": "587"}, clear=True):
+            c = alerts.smtp_config()
+            self.assertEqual((c["ssl"], c["port"]), (False, "587"))
+
+
 class BotTests(unittest.TestCase):
     def test_timer_leaves_commands_to_a_live_bot(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(alerts, "DB_DIR", Path(tmp)), patch.object(alerts, "WEBROOT", Path(tmp)):

@@ -10,7 +10,6 @@ EnvironmentFile=@UNDERWAY_SITE@
 Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
 Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
 Environment=UNDERWAY_CAMERA_OUTPUT=@UNDERWAY_HOME@/camera360
-EnvironmentFile=@UNDERWAY_CONFIG@/camera.env
 ExecStart=/bin/bash tools/camera-job.sh build
 TimeoutStartSec=30min
 Nice=15

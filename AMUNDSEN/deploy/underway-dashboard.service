@@ -14,6 +14,8 @@ Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
 Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
 Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
 Environment=UNDERWAY_CAMERA_OUTPUT=@UNDERWAY_HOME@/camera360
+# credentials (the chat's operator alerts, the alerts page's channels); mode 600
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
 ExecStart=@UNDERWAY_PYTHON@ -m dashboard serve --root @UNDERWAY_HOME@/www --port @UNDERWAY_PORT@
 Restart=on-failure
 
