@@ -126,6 +126,28 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.SUMMARY_UI){
+      await evaluate('UW.showTab("underway")');
+      await until('document.querySelector("#panels .plot")?.data');
+      assert.equal(await evaluate('document.querySelectorAll("#g-Lab .chip").length'),1);
+      assert.equal(await evaluate('document.querySelector("#g-Lab .chip").getAttribute("aria-pressed")'),'true');
+      await evaluate('document.querySelector("#g-Lab .chip").click()');
+      assert.equal(await evaluate('document.querySelector("#g-Lab .chip").getAttribute("aria-pressed")'),'false');
+      await evaluate('document.querySelector("#g-Lab .chip").click()');
+      await until('document.querySelector("#panels .plot")?.data');
+      await evaluate('UW.state.data.vars["TSG flow (V)"]=[2,0.1];UW.refreshExtraData()');
+      assert.equal(await evaluate('!!document.querySelector(".dockgroup.pump-alarm")'),true);
+      await evaluate('UW.state.data.vars["TSG flow (V)"]=[0.1,2];UW.refreshExtraData()');
+      assert.equal(await evaluate('!!document.querySelector(".dockgroup.pump-alarm")'),false);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#g-Lab .chips")).overflowY'),'visible');
+      await until('!!UW.mapView?.map');
+      await evaluate('UW.mapView.map.jumpTo({zoom:3});document.querySelector("#panels .plot").emit("plotly_click",{points:[{pointIndex:1}]})');
+      assert.equal(await evaluate('UW.state.view.zoom'),3);
+      assert.equal(await evaluate('UW.state.view.center.lat'),76.001);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS summary table toggles, pump alarm, no internal scrolling, chart click preserves map zoom');
+      return;
+    }
     if (process.env.NATURE_UI) {
       await evaluate(`(async()=>{ UW.M.history={stamp:'test'}; UW.state.nature=true; UW.state.photos=false;
         await UW.natureViews.ensure(); UW.renderMap(); })()`);

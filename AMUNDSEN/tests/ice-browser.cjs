@@ -3,6 +3,7 @@ const fs=require('fs'),http=require('http'),os=require('os'),path=require('path'
 const root=path.resolve(__dirname,'../dashboard/static'),profile=fs.mkdtempSync(path.join(os.tmpdir(),'ice-browser-'));
 const html=`<!doctype html><link rel="stylesheet" href="/ice.css"><div id="panels" style="width:800px"></div><script src="/plotly.min.js"></script><script>
 window.errors=[];onerror=(m)=>errors.push(m);onunhandledrejection=e=>errors.push(String(e.reason));
+const interval=window.setInterval;window.setInterval=(fn,ms)=>{if(ms===60000)window.refreshIce=fn;return interval(fn,ms)};
 const t=Date.now(),specs=new Map();window.specs=specs;window.UW={state:{data:{t:[t-120000,t],leg:[0,0],dist_km:[0,1]},xmode:'time'},M:{legs:[{id:'test',index:0}]},THEME:{},CFG:{displayModeBar:false},shipAxis:t=>new Date(t),fmtTs:t=>new Date(t).toISOString(),spanFilter:()=>({start:t-3600000,end:t+60000}),inFilter:()=>true,axisZoom:()=>{},linkX:()=>{},selectColour:()=>{},registerColour:s=>window.colour=s,fetchJSON:async()=>({photos:[{id:'a'.repeat(20),time:t-120000,leg:'test',status:'filtered',ice:0,types:[0,0,0,0,0,0]},{id:'b'.repeat(20),time:t-60000,leg:'test',status:'gemma',ice:60,types:[0,0,0,20,40,0]},{id:'c'.repeat(20),time:t,leg:'test',status:'pending',ice:null,types:null}]}),registerPanel:(name,s)=>{let el=document.createElement('section');el.innerHTML='<h3></h3><span class="now"></span><div class="plot" style="height:220px"></div>';document.querySelector('#panels').append(el);specs.set(name,{s,el})},refreshExtraData:()=>{for(const {s,el} of specs.values())s.render(el,el.querySelector('.plot'))}};
 </script><script src="/ice.js"></script>`;
 const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://localhost').pathname;if(p==='/'){res.end(html);return}if(['/ice.js','/plotly.min.js','/ice.css'].includes(p)){res.setHeader('Content-Type',p.endsWith('.css')?'text/css':'text/javascript');res.end(fs.readFileSync(path.join(root,p)));return}res.writeHead(404);res.end()});
@@ -29,6 +30,10 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").textContent.includes("No camera products")'),false);
  assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").layout.xaxis.title.text'),'ship time (EDT)');
  assert.deepEqual(await evaluate('[...specs.values()][0].el.querySelector(".plot").data[0].y'),[0,60,null]);
+ assert.deepEqual(await evaluate('[...specs.values()][0].el.querySelector(".plot").data[1].y'),[30,30,null]);
+ assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").data[1].name'),'1 h centered mean');
+ assert.equal(await evaluate('[...specs.values()][1].el.querySelector(".plot").data[1].name'),'thin ice floe');
+ assert.deepEqual(await evaluate('[...specs.values()][1].el.querySelector(".plot").data[1].y'),[0,0,null]);
  await evaluate('document.querySelector(".ice-image-button").click()');assert.equal(await evaluate('document.querySelector("dialog").open'),true);
  await evaluate('document.querySelector("dialog button").click()');assert((await evaluate('document.querySelector("dialog p").textContent')).includes('filtered'));
  assert.deepEqual(await evaluate('colour.sizes(UW.state.data)'),[4,3]);
@@ -43,4 +48,15 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate(`document.querySelectorAll('.ice-time-pointer:not([hidden])').length>=4`),true);
  assert.equal(await evaluate(`(()=>{for(const plot of document.querySelectorAll('#panels .plot')){const line=plot.querySelector('.ice-time-pointer'),y=plot._fullLayout?.yaxis;if(!y||!line||line.hidden)continue;const svg=plot.querySelector('.svg-container').getBoundingClientRect(),rect=plot.getBoundingClientRect();if(Math.abs(parseFloat(line.style.top)-(svg.top-rect.top+y._offset))>1||Math.abs(parseFloat(line.style.height)-y._length)>1)return false}return true})()`),true);
  assert.deepEqual(await evaluate('errors'),[]);console.log('PASS shared cursor from a non-camera dataset reaches other charts and slices');
+ await evaluate(`(async()=>{UW.fetchJSON=async()=>({photos:[
+ {id:'d',leg:'test',time:t-3600000,ice:100,status:'gemma'},
+ {id:'e',leg:'test',time:t-1800000,ice:0,status:'filtered'},
+ {id:'f',leg:'test',time:t,ice:60,status:'gemma'},
+ {id:'g',leg:'other',time:t,ice:100,status:'gemma'},
+ {id:'h',leg:'test',time:t+1800000,ice:30,status:'gemma'},
+ {id:'i',leg:'test',time:t+1800001,ice:100,status:'gemma'},
+ {id:'j',leg:'test',time:t+2400000,ice:null,status:'pending'}]});await refreshIce()})()`);
+ assert.equal(await evaluate(`(()=>{const trace=[...specs.values()][0].el.querySelector('.plot').data[1];return trace.y[trace.customdata.findIndex(p=>p.id==='f')]})()`),30);
+ assert.equal(await evaluate(`(()=>{const trace=[...specs.values()][0].el.querySelector('.plot').data[1];return trace.y[trace.customdata.findIndex(p=>p.id==='g')]})()`),100);
+ console.log('PASS centered hour includes endpoints and zeros, excludes outside samples and separates legs');
 }finally{ws?.close();child?.kill();server.closeAllConnections();server.close()}})().catch(e=>{console.error(e);process.exitCode=1});

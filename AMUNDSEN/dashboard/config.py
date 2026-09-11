@@ -78,6 +78,8 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^multibeam — bottom depth", r"^ek60 — bottom depth", r"bottom depth"), log_ok=True, reverse=True),
     Variable("Air temperature (°C)", "°C",
              (r"^avos — air temperature", r"^ats_mettower — air temperature", r"air temperature")),
+    Variable("Relative humidity (%)", "%",
+             (r"^avos — air humidity", r"^avos — .*humidity", r"^ats_mettower — .*humidity", r"humidity")),
     Variable("Atmospheric pressure (hPa)", "hPa",
              (r"^avos — atmospheric pressure", r"^ats_mettower — atmospheric pressure", r"pressure \(hpa\)")),
     Variable("True wind direction (°)", "°",
@@ -172,8 +174,8 @@ SURPRISE_NAME = "Surprise (−log10 p)"
 def surprise_scale_name(label: str) -> str:
     return f"Surprise · {label}"
 
-# one variable per scale, after the combined score; the page shows a single
-# surprise panel and picks the scale that matches the span shown
+# One variable per scale, after the combined score; each has a summary row
+# and an independently expandable chart.
 VARIABLES = VARIABLES[:1] + tuple(Variable(surprise_scale_name(l), "", (), derived=True) for l, _ in SURPRISE_SCALES) + VARIABLES[1:]
 
 # ---------------------------------------------------------------- locations

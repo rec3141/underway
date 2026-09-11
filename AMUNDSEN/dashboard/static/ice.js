@@ -2,6 +2,27 @@
 (() => {
   const U=window.UW;if(!U?.registerPanel)return;
   const types=['grease ice','nilas','thin ice floe','icy bits','brash ice','thick ice floe'],palette=['#7ee787','#57c9bd','#78baff','#e3b341','#ff9e72','#d2a8ff'];
+  const typeOrder=[0,2,1,3,4,5]; // Display order only; preserve the API's class indices.
+  function centeredMeans(rows){
+    const groups=new Map(),means=new Map();
+    for(const p of rows){if(!groups.has(p.leg))groups.set(p.leg,[]);groups.get(p.leg).push(p)}
+    for(const group of groups.values()){
+      let left=0,right=0,sum=0,count=0;
+      for(const p of group){
+        while(right<group.length&&group[right].time<=p.time+1800000){const v=group[right++].ice;if(v!=null){sum+=v;count++}}
+        while(left<right&&group[left].time<p.time-1800000){const v=group[left++].ice;if(v!=null){sum-=v;count--}}
+        means.set(p.id,p.ice==null||!count?null:sum/count);
+      }
+    }
+    return means;
+  }
+  function recenterPhoto(p){
+    const d=U.state.data;if(!d?.lat)return;
+    const leg=U.M.legs.find(l=>l.id===p.leg)?.index;
+    let best=-1,delta=Infinity;
+    for(let i=0;i<d.t.length;i++)if(d.leg[i]===leg&&d.lat[i]!=null&&d.lon[i]!=null&&Math.abs(d.t[i]-p.time)<delta){best=i;delta=Math.abs(d.t[i]-p.time)}
+    if(best>=0&&delta<=120000)U.focusMap?.(d.lat[best],d.lon[best],U.fmtTs(p.time),true);
+  }
   const colour='Camera · ice type',names=['Camera · concentration','Camera · ice composition','Camera · ice fingerprints','Camera · ROI','Camera · slices'];
   let photos=[],chosen=null,lastKey='',busy=false,matchedData=null,matched=[],error='';
   const image=(p,kind)=>`/api/ice/image?id=${encodeURIComponent(p.id)}&kind=${kind}`;
@@ -36,13 +57,14 @@
     // Explicit nulls at long gaps: no interpolation over unavailable photos.
     const expanded=[];for(const r of points){const prev=expanded.at(-1);if(prev&&r.p.time-prev.p.time>600000)expanded.push({x:r.x,p:{time:r.p.time,ice:null,types:null,status:'gap'}});expanded.push(r)}
     const xx=expanded.map(r=>r.x),meta=expanded.map(r=>r.p),trace=(y,name,color)=>({type:'scatter',mode:'lines+markers',x:xx,y,name,connectgaps:false,customdata:meta,marker:{size:3,color},line:{color,width:2},hovertemplate:'%{y}%<br>%{customdata.status}<extra>'+name+'</extra>'});
-    let traces=mode===0?[trace(meta.map(p=>p.ice),'Total ice','#5cc8ff')]:mode===1?types.map((t,k)=>({...trace(meta.map(p=>p.types?.[k]??null),t,palette[k]),type:'bar',width:U.state.xmode==='time'?120000:undefined})):[{type:'heatmap',x:xx,y:types,z:types.map((t,k)=>meta.map(p=>p.types?.[k]??null)),zmin:0,zmax:100,colorscale:'Viridis',customdata:types.map(()=>meta),hoverongaps:false,showscale:false}];
+    let traces=mode===0?[trace(meta.map(p=>p.ice),'Total ice','#5cc8ff')]:mode===1?typeOrder.map(k=>({...trace(meta.map(p=>p.types?.[k]??null),types[k],palette[k]),type:'bar',width:U.state.xmode==='time'?120000:undefined})):[{type:'heatmap',x:xx,y:typeOrder.map(k=>types[k]),z:typeOrder.map(k=>meta.map(p=>p.types?.[k]??null)),zmin:0,zmax:100,colorscale:'Viridis',customdata:types.map(()=>meta),hoverongaps:false,showscale:false}];
+    if(mode===0){const means=centeredMeans(photos);traces.push({...trace(meta.map(p=>means.get(p.id)??null),'1 h centered mean','#ffb454'),mode:'lines',line:{color:'#ffb454',width:3}})}
     const span=U.spanFilter(),range=U.state.xmode==='time'?[U.shipAxis(span.start),U.shipAxis(span.end+60000)]:[points[0].x,points.at(-1).x];
-    if(mode===1&&!el.querySelector('.ice-type-legend')){const legend=document.createElement('div');legend.className='ice-type-legend';types.forEach((t,i)=>{const label=document.createElement('span');label.textContent=t;label.style.borderLeft='8px solid '+palette[i];legend.append(label)});plot.after(legend)}
+    if(mode===1&&!el.querySelector('.ice-type-legend')){const legend=document.createElement('div');legend.className='ice-type-legend';typeOrder.forEach(i=>{const label=document.createElement('span');label.textContent=types[i];label.style.borderLeft='8px solid '+palette[i];legend.append(label)});plot.after(legend)}
     const fz=U.fz||((n)=>n);
-    Plotly.react(plot,traces,{...U.THEME,margin:{l:fz(mode===2?105:52),r:8,t:fz(6),b:fz(34)},barmode:'stack',showlegend:false,hovermode:'closest',hoverdistance:14,xaxis:{...U.THEME.xaxis,type:U.state.xmode==='time'?'date':'linear',range,autorange:false,title:{text:U.state.xmode==='time'?`ship time (${U.tzAbbr?.()||'local'})`:'distance along track (km)',font:{size:fz(12)},standoff:4},tickfont:{size:fz(12)},hoverformat:U.state.xmode==='time'?'%Y-%m-%d %H:%M:%SZ':'.1f',ticksuffix:U.state.xmode==='time'?'':' km',...(window.innerWidth<640?{nticks:4,tickangle:0}:{})},yaxis:{...U.THEME.yaxis,range:mode===2?undefined:[0,100],title:{text:mode===2?'':'%',font:{size:fz(12)},standoff:2},tickfont:{size:fz(12)}}},U.CFG).then(()=>{U.axisZoom(plot);U.linkX(plot);plot.removeAllListeners?.('plotly_afterplot');plot.on('plotly_afterplot',()=>pointAt(cursor));selectedCursor();plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',e=>{const p=e.points?.[0]?.customdata;if(p?.id)choose(p)})});
+    Plotly.react(plot,traces,{...U.THEME,margin:{l:fz(mode===2?105:52),r:8,t:fz(6),b:fz(34)},barmode:'stack',showlegend:false,hovermode:'closest',hoverdistance:14,xaxis:{...U.THEME.xaxis,type:U.state.xmode==='time'?'date':'linear',range,autorange:false,title:{text:U.state.xmode==='time'?`ship time (${U.tzAbbr?.()||'local'})`:'distance along track (km)',font:{size:fz(12)},standoff:4},tickfont:{size:fz(12)},hoverformat:U.state.xmode==='time'?'%Y-%m-%d %H:%M:%SZ':'.1f',ticksuffix:U.state.xmode==='time'?'':' km',...(window.innerWidth<640?{nticks:4,tickangle:0}:{})},yaxis:{...U.THEME.yaxis,range:mode===2?undefined:[0,100],title:{text:mode===2?'':'%',font:{size:fz(12)},standoff:2},tickfont:{size:fz(12)}}},U.CFG).then(()=>{U.axisZoom(plot);U.linkX(plot);plot.removeAllListeners?.('plotly_afterplot');plot.on('plotly_afterplot',()=>pointAt(cursor));selectedCursor();plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',e=>{const p=e.points?.[0]?.customdata;if(p?.id){recenterPhoto(p);choose(p)}})});
   }
   names.forEach((name,i)=>U.registerPanel(name,{group:'Ice camera',label:labels[i],chip:()=>chip(i),groupSummary:()=>{const rows=visible();return `${rows.filter(p=>p.status==='pending').length}/${rows.length} pending`},unit:'%',resolved:true,log_ok:false,colours:[colour],after:i?names[i-1]:'Surprise (−log10 p)',description:'Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.',onTitle:()=>U.selectColour(colour),render:(el,plot)=>render(i,el,plot)}));
-  async function refresh(){if(busy||document.hidden||!document.querySelector('#panels')?.offsetParent)return;const f=U.spanFilter();if(!Number.isFinite(f?.start)||!Number.isFinite(f?.end))return;const key=`${f.start}:${f.end}`;busy=true;try{const collected=new Map();for(let start=f.start;start<=f.end;start+=31*86400000){const end=Math.min(f.end,start+31*86400000),payload=await U.fetchJSON(`/api/ice/track?start=${start/1000}&end=${end/1000}`);for(const p of payload.photos)collected.set(p.id,p);const current=U.spanFilter();if(`${current.start}:${current.end}`!==key)return}photos=[...collected.values()].sort((a,b)=>a.time-b.time);error='';lastKey=key;matchedData=null;U.refreshExtraData()}catch(e){error='Camera unavailable; keeping previous results';console.warn(error,e)}finally{busy=false}}
+  async function refresh(){if(busy||document.hidden||!document.querySelector('#panels')?.offsetParent)return;const f=U.spanFilter();if(!Number.isFinite(f?.start)||!Number.isFinite(f?.end))return;const key=`${f.start}:${f.end}`;busy=true;try{const collected=new Map();for(let start=f.start-1800000;start<=f.end+1800000;start+=31*86400000){const end=Math.min(f.end+1800000,start+31*86400000),payload=await U.fetchJSON(`/api/ice/track?start=${start/1000}&end=${end/1000}`);for(const p of payload.photos)collected.set(p.id,p);const current=U.spanFilter();if(`${current.start}:${current.end}`!==key)return}photos=[...collected.values()].sort((a,b)=>a.time-b.time);error='';lastKey=key;matchedData=null;U.refreshExtraData()}catch(e){error='Camera unavailable; keeping previous results';console.warn(error,e)}finally{busy=false}}
   setInterval(()=>{const f=U.spanFilter();if(`${f?.start}:${f?.end}`!==lastKey)refresh()},1500);setInterval(refresh,60000);refresh();
 })();

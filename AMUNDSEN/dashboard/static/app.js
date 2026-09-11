@@ -57,20 +57,16 @@
     view: null,                                       // user's pan/zoom
   };
 
-  const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)"]);
+  const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)", "TSG line warming (°C)", "TSG flow (V)"]);
   const extraPanels = new Map();
   const extraColours = new Map();
-  // the per-scale surprise series feed the one surprise panel, which shows
-  // the scale matching the span on display (holding at the longest scale)
+  // Surprise has one summary row per scale; extra charts start minimized.
   const SURPRISE = "Surprise (−log10 p)";
-  for (const v of M.variables) if (v.name.startsWith("Surprise ·")) NOT_PANELS.add(v.name);
-  function surpriseScale() {
-    const scales = M.surprise?.scales || [];
-    const hours = (M.windows.find((w) => w.label === state.win) || {}).hours || 1;
-    let pick = scales[0];
-    for (const sc of scales) if (sc[1] <= hours * 60) pick = sc;
-    return pick ? pick[0] : null;
+  if (!store.get('summary-tables-v1',false)) {
+    for (const v of M.variables) if (v.name.startsWith('Surprise ·')) state.panel[v.name]='min';
+    store.set('panel',state.panel);store.set('summary-tables-v1',true);
   }
+  const groupReadings = new Map();
   let VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
 
   // ------------------------------------------------------------ theme
@@ -666,9 +662,10 @@
   // reflow fires one on phones) must not put a stale view back before then.
   function requestFit() { state.view = null; state.fitPending = true; }
   // Centre the map on a point (a table row, an event) and mark it.
-  function focusMap(lat, lon, label) {
+  function focusMap(lat, lon, label, preserveZoom = false) {
     if (lat == null || lon == null) return;
-    const zoom = Math.max(state.view?.zoom ?? fitView(state.data?.lat || [lat], state.data?.lon || [lon]).zoom, 6);
+    const currentZoom = mapView?.getView()?.zoom ?? state.view?.zoom ?? fitView(state.data?.lat || [lat], state.data?.lon || [lon]).zoom;
+    const zoom = preserveZoom ? currentZoom : Math.max(currentZoom, 6);
     state.view = { center: { lat: +lat, lon: +lon }, zoom }; state.fitPending = false;
     state.focus = { lat: +lat, lon: +lon, label: label || "" };
     renderMap();
@@ -1199,12 +1196,14 @@
   // Group cards collect panels by where their data come from: an
   // extra panel names its group when it registers; a variable's follows its
   // source instrument
-  const GROUPS = ["Lab", "Met Station", "Bridge", "Other"];
+  const GROUPS = ["Surprise", "Lab", "Met Station", "Bridge", "Winches", "Other"];
   const GROUP_OF_INSTRUMENT = { TSG: "Lab", AVOS: "Met Station", ATS_Portside: "Met Station", ATS: "Met Station", POSMV: "Bridge", Multibeam: "Bridge" };
   function panelGroup(name) {
     const x = extraPanels.get(name); if (x) return x.group || "Other";
     const v = VAR[name]; if (!v) return "Other";
-    if (name.startsWith("Surprise")) return "Lab";
+    if (name.startsWith("Surprise")) return "Surprise";
+    if (name.startsWith("Bottom depth")) return "Winches";
+    if (/^(Air temperature|Relative humidity|Atmospheric pressure|True wind direction|Relative wind speed|Short-wave radiation)/.test(name)) return "Met Station";
     if (v.tsg) return "Lab";
     if (/^(Sea state|Roll & pitch|Heading|Ship speed)/.test(name)) return "Bridge";
     return GROUP_OF_INSTRUMENT[(v.source || "").split(" — ")[0].trim()] || "Other";
@@ -1257,14 +1256,13 @@
         cards.push(el);
       }
     }
-    // Fixed-size group cards hold minimized charts in a scrolling body.
-    // Their header still minimizes or restores the whole group.
+    // Table-style summaries keep all chart toggles visible, open or minimized.
     for (const [g, members] of byGroup) {
       if (!members.length) continue;
       let box = document.getElementById("g-" + cssId(g));
       if (!box) {
         box = document.createElement("section"); box.className = "panel card dockgroup"; box.id = "g-" + cssId(g);
-        box.innerHTML = `<div class="head"><span class="handle" title="drag to reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" tabindex="0" role="region" aria-label="${g} minimized charts"></div>`;
+        box.innerHTML = `<div class="head"><span class="handle" title="drag to reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" role="region" aria-label="${g} chart summaries"></div>`;
         wireCardDrag(box, "group:" + g);
       }
       cards.push(box);
@@ -1281,20 +1279,33 @@
         if (allMin) for (const n of members) renderPanel(n);
       };
       const chips = box.querySelector(".chips");
+      chips.querySelectorAll('.reading').forEach(e=>e.remove());
+      const voltage=state.data?.vars['TSG flow (V)']?.at(-1);
+      const low=g==='Lab'&&voltage!=null&&voltage<(SITE.low_flow_v??0.5);
+      box.classList.toggle('pump-alarm',low);
+      box.querySelector('.gname').textContent=g+(low?' · LOW FLOW':'');
+      box.title=low?`Intake pump voltage ${voltage.toFixed(2)} V: water measurements may be unreliable`:'';
       for (const name of members) {
         let chip = document.getElementById("c-" + cssId(name));
-        if (state.panel[name] !== "min") { chip?.remove(); continue; }
-        if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, null); }
+        if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, state.panel[name] === 'min' ? null : 'min'); }
+        const open = state.panel[name] !== 'min';
+        chip.classList.toggle('on',open);chip.setAttribute('aria-pressed',String(open));
         chips.appendChild(chip);
         const y = state.data?.vars[name];
         const spec=extraPanels.get(name),preview=spec?.chip?.();
         chip.classList.toggle('ice-summary-chip',!!preview);
         chip.replaceChildren();
-        const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||name;
+        const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||(name===SURPRISE?'Combined':name.replace(/^Surprise · /,''));
         if(preview?.image){const img=document.createElement('img');img.src=preview.image;img.alt='Latest ROI';img.className='chip-preview';label.prepend(img)}
         const value=document.createElement('b');value.textContent=preview?.text??fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit);
-        const arrow=document.createElement('span');arrow.textContent='▲';chip.append(label,value,arrow);
-        chip.title = `${spec?.label||name}: restore`;
+        const arrow=document.createElement('span');arrow.className='chart-state';arrow.textContent=open?'↑':'↓';arrow.setAttribute('aria-hidden','true');chip.append(arrow,label,value);
+        chip.title = `${spec?.label||name}: ${open?'minimise':'restore'}`;
+      }
+      for(const [label,value] of (groupReadings.get(g)||[]).slice(0,Math.max(0,6-members.length))){
+        const row=document.createElement('div');row.className='chip reading';
+        const key=document.createElement('span');key.className='cname';key.textContent=label;
+        const val=document.createElement('b');val.textContent=value;
+        row.append(document.createElement('span'),key,val);chips.append(row);
       }
     }
     const saved = store.get("cards.order", []);
@@ -1359,10 +1370,6 @@
     }
     let title = name;
     let y = d?.vars[name];
-    if (name === SURPRISE) {
-      const sc = surpriseScale();
-      if (sc && d?.vars[`Surprise · ${sc}`]) { y = d.vars[`Surprise · ${sc}`]; title = `Surprise · ${sc}`; }
-    }
     el.querySelector("h3").textContent = title;
     // the div keeps its "plot" class while empty, so a later render finds it again
     const empty = (msg) => { if (plot.data) Plotly.purge(plot); plot.className = "plot empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
@@ -1434,7 +1441,7 @@
     // handler is rebound to this build's data either way.
     const onClick = () => {
       plot.removeAllListeners?.('plotly_click');
-      plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
+      plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p){const i=p.pointIndex??p.pointNumber;focusMap(d.lat[i],d.lon[i],fmtTs(d.t[i]),true);extraColours.get(state.colour)?.onPoint?.(d,i);}});
     };
     const sig = drawSignature(traces, layout, on);
     if (plot.data && plot._uwSig === sig) { onClick(); return; }
@@ -1674,6 +1681,7 @@
       if (extraColours.has(state.colour)) render();
       else for (const name of extraPanels.keys()) renderPanel(name);
     },
+    setGroupReadings(group, rows) { groupReadings.set(group,rows);layoutPanels(); },
     clearFocus() { state.focus = null; },
     moveShip,
     registerPanel(name, spec) {
