@@ -6,7 +6,7 @@ window.errors=[];onerror=(m)=>errors.push(m);onunhandledrejection=e=>errors.push
 const interval=window.setInterval;window.setInterval=(fn,ms)=>{if(ms===60000)window.refreshIce=fn;return interval(fn,ms)};
 const t=Date.now(),specs=new Map();window.specs=specs;window.UW={state:{data:{t:[t-120000,t],leg:[0,0],dist_km:[0,1]},xmode:'time'},M:{legs:[{id:'test',index:0}]},THEME:{},CFG:{displayModeBar:false},shipAxis:t=>new Date(t),fmtTs:t=>new Date(t).toISOString(),spanFilter:()=>({start:t-3600000,end:t+60000}),inFilter:()=>true,axisZoom:()=>{},linkX:()=>{},selectColour:()=>{},registerColour:s=>window.colour=s,fetchJSON:async()=>({photos:[{id:'a'.repeat(20),time:t-120000,leg:'test',status:'filtered',ice:0,types:[0,0,0,0,0,0]},{id:'b'.repeat(20),time:t-60000,leg:'test',status:'gemma',ice:60,types:[0,0,0,20,40,0]},{id:'c'.repeat(20),time:t,leg:'test',status:'pending',ice:null,types:null}]}),registerPanel:(name,s)=>{let el=document.createElement('section');el.innerHTML='<h3></h3><span class="now"></span><div class="plot" style="height:220px"></div>';document.querySelector('#panels').append(el);specs.set(name,{s,el})},refreshExtraData:()=>{for(const {s,el} of specs.values())s.render(el,el.querySelector('.plot'))}};
 </script><script src="/ice.js"></script>`;
-const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://localhost').pathname;if(p==='/'){res.end(html);return}if(['/ice.js','/plotly.min.js','/ice.css'].includes(p)){res.setHeader('Content-Type',p.endsWith('.css')?'text/css':'text/javascript');res.end(fs.readFileSync(path.join(root,p)));return}res.writeHead(404);res.end()});
+const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://localhost').pathname;if(p==='/'){res.end(html);return}if(['/ice.js','/plotly.min.js','/ice.css','/style.css'].includes(p)){res.setHeader('Content-Type',p.endsWith('.css')?'text/css':'text/javascript');res.end(fs.readFileSync(path.join(root,p)));return}res.writeHead(404);res.end()});
 let child,ws;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{try{
@@ -59,4 +59,12 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate(`(()=>{const trace=[...specs.values()][0].el.querySelector('.plot').data[1];return trace.y[trace.customdata.findIndex(p=>p.id==='f')]})()`),30);
  assert.equal(await evaluate(`(()=>{const trace=[...specs.values()][0].el.querySelector('.plot').data[1];return trace.y[trace.customdata.findIndex(p=>p.id==='g')]})()`),100);
  console.log('PASS centered hour includes endpoints and zeros, excludes outside samples and separates legs');
+ await evaluate(`new Promise(resolve=>{const link=document.createElement('link');link.rel='stylesheet';link.href='/style.css';link.onload=resolve;document.head.append(link)})`);
+ for(const theme of ['navigator','navigator-dark']){
+   await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)};UW.spanFilter=()=>({start:t-3600000,end:t+3600000});UW.refreshExtraData()`);
+   await evaluate(`new Promise(resolve=>{const button=document.querySelector('.ice-slice');button.style.width='4px';const im=button.querySelector('img');im.onload=resolve;im.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="600"><rect width="4" height="600" fill="red"/></svg>')})`);
+   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.ice-slice')).borderLeftWidth`),'0px');
+   assert.equal(await evaluate(`document.querySelector('.ice-slice img').getBoundingClientRect().width`),4);
+ }
+ console.log('PASS navigator slice images retain their full 4px width');
 }finally{ws?.close();child?.kill();server.closeAllConnections();server.close()}})().catch(e=>{console.error(e);process.exitCode=1});

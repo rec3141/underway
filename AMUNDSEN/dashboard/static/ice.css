@@ -2,4 +2,7 @@
 .ice-type-legend{display:flex;flex-wrap:wrap;gap:4px 10px;padding:4px 8px 8px;font-size:11px;color:var(--muted)}.ice-type-legend span{padding-left:4px;white-space:nowrap}
 .panel .plot.ice-roi{display:flex;flex-direction:column;overflow:hidden}.ice-roi>div{flex:0 0 auto}.ice-roi .ice-image-button{flex:1 1 0;min-height:0;position:relative;overflow:hidden}.ice-image-button img{position:absolute;top:0;left:50%;transform:translateX(-50%);height:100%;width:auto;max-width:none;object-fit:initial}
 .ice-time-pointer{position:absolute;width:1px;background:var(--fg,#fff);box-shadow:0 0 0 1px rgba(0,0,0,.35);pointer-events:none;z-index:5}.ice-time-pointer[hidden]{display:none}
+/* A slice is only ~4px wide: navigator's 2px button bevel consumes its image. */
+html[data-theme^="navigator"] button.ice-slice{border:0!important;padding:0!important;min-width:0;box-shadow:none!important}
+.ice-slice img{display:block}
 .chip-preview{width:64px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px}.dockgroup .ice-summary-chip b{font-size:var(--t-sm);white-space:normal}
