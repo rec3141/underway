@@ -34,5 +34,13 @@ class IceTests(unittest.TestCase):
         p=json.loads((ice_worker.ASSETS/'prompt.json').read_text());self.assertEqual(len(p['segments']),3)
         self.assertTrue((ice_worker.ASSETS/'reference-key.png').is_file())
         model=json.loads((ice_worker.ASSETS/'seawater-v2.json').read_text());self.assertEqual(model['feature_size'],[600,300])
+    def test_metadata_import_does_not_require_images_or_queue_work(self):
+        from dashboard.ice_import import run
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'dev';source.mkdir();root=Path(tmp)/'production'
+            r=dict(id='a'*20,file='2026_LEG_03/20260911/000000/Camera360_20260911000000_cam_3.jpg',images=['missing-source.jpg','missing-roi.jpg'],response=json.dumps({'surface_percentages':{k:0 for k in ice_store.TYPES}}))
+            (source/'results.json').write_text(json.dumps([r]));run(source,root,0,metadata_only=True)
+            db=ice_store.connect(root);self.assertEqual(db.execute('SELECT status,ice FROM photos').fetchone()['status'],'gemma')
+            self.assertEqual(db.execute("SELECT count(*) FROM photos WHERE status='pending'").fetchone()[0],0)
 
 if __name__=='__main__':unittest.main()

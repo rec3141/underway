@@ -7,7 +7,7 @@ import re
 from PIL import Image
 from . import ice_store
 
-def run(source,root,since):
+def run(source,root,since,metadata_only=False,repair_images=False):
     db=ice_store.connect(root);(root/'images').mkdir(exist_ok=True);count=0
     records=json.loads((source/'results.json').read_text());full={r['file'] for r in records}
     skips=json.loads((source/'seawater-skips.json').read_text()) if (source/'seawater-skips.json').exists() else []
@@ -16,12 +16,16 @@ def run(source,root,since):
         if not m:continue
         stamp=datetime.strptime(m[1],'%Y%m%d%H%M%S').replace(tzinfo=timezone.utc).timestamp()
         if stamp<since:continue
-        if db.execute("SELECT 1 FROM photos WHERE id=? AND status!='pending'",(r['id'],)).fetchone():continue
+        existing=db.execute("SELECT 1 FROM photos WHERE id=? AND status!='pending'",(r['id'],)).fetchone()
+        if existing and (not repair_images or all(ice_store.photo_path(r['id'],k,root).exists() for k in ('source','roi','slice'))):continue
         try:
             if 'response' in r:
                 answer=json.loads(r['response'].strip().removeprefix('```json').removesuffix('```').strip());values=[answer['surface_percentages'][k] for k in ice_store.TYPES];status='gemma';paths=r['images']
             else:values=[0]*6;status='filtered';paths=[None,r['image']]
             if any(type(v) not in (int,float) or not 0<=v<=100 for v in values) or sum(values)>100:continue
+            if metadata_only:
+                db.execute('INSERT OR IGNORE INTO photos(id,file,t,leg) VALUES (?,?,?,?)',(r['id'],r['file'],stamp,r['file'].split('/')[0]))
+                ice_store.complete(db,r['id'],status,values,dict(imported=True,record=r));count+=1;continue
             with Image.open(source/paths[1]) as im:roi=im.convert('RGB').resize((1200,600))
             products=[('roi',roi),('slice',roi.crop((598,0,602,600)).resize((4,180)))]
             if paths[0]:
@@ -44,9 +48,10 @@ def run(source,root,since):
     print(f'Imported {count} completed products; no pending rows created')
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--source',type=Path,required=True);p.add_argument('--root',type=Path,default=ice_store.ROOT);p.add_argument('--since',required=True,help='ISO timestamp with UTC offset');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--source',type=Path,required=True);p.add_argument('--root',type=Path,default=ice_store.ROOT);p.add_argument('--since',required=True,help='ISO timestamp with UTC offset')
+    mode=p.add_mutually_exclusive_group();mode.add_argument('--metadata-only',action='store_true');mode.add_argument('--repair-images',action='store_true');a=p.parse_args()
     stamp=datetime.fromisoformat(a.since)
     if stamp.tzinfo is None:p.error('--since requires a UTC offset')
-    run(a.source,a.root,stamp.timestamp())
+    run(a.source,a.root,stamp.timestamp(),a.metadata_only,a.repair_images)
 
 if __name__=='__main__':main()
