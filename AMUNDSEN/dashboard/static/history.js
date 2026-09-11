@@ -1317,34 +1317,29 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     }
     if (!opts.quiet && $("#pane-wiki").hidden) UW.showTab("wiki");
     const done = render();
-    if (opts.fromMap) done.then(() => intoView($("#pane-wiki")));
+    if (opts.fromMap) done.then(() => holdAtTop($("#pane-wiki")));
     return done;
   }
-  // the pane or the map scrolled to, when it is not on the screen already
-  // (beside each other on a wide screen, neither moves)
-  function intoView(el) {
+  // the pane or the map brought to the top of the screen when it is not on it
+  // already (side by side on a wide screen, nothing moves), in one jump rather
+  // than a smooth scroll, and held there for a moment: the page above the map
+  // is still drawing (pictures, cards), and the browser's scroll anchoring
+  // would keep the old view or cut a smooth scroll short. A reader who
+  // scrolls first keeps their own view.
+  function holdAtTop(el) {
     if (!el || el.hidden || !el.offsetParent) return;
     const r = el.getBoundingClientRect();
-    if (r.top >= 0 && r.top < innerHeight * 0.6) return;
-    el.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
-  // back at the map: the page above it may still be growing (pictures,
-  // cards), so the map is held at the top for a moment, unless the reader
-  // scrolls first
-  function backToMap() {
-    const m = document.querySelector("section.map");
-    if (!m || UW.mapMode?.() === "none" || !m.offsetParent) return;
-    const r = m.getBoundingClientRect();
     if (r.top >= 0 && r.top < innerHeight * 0.6) return;
     let held = true;
     const release = () => { held = false; };
     const evs = ["wheel", "touchstart", "keydown"];
     for (const ev of evs) addEventListener(ev, release, { passive: true });
-    const pin = () => { if (held) m.scrollIntoView({ block: "start" }); };
+    const pin = () => { if (held) el.scrollIntoView({ block: "start" }); };
     pin();
-    for (const t of [250, 700, 1500]) setTimeout(pin, t);
+    for (const t of [100, 300, 700, 1500]) setTimeout(pin, t);
     setTimeout(() => { held = false; for (const ev of evs) removeEventListener(ev, release); }, 1600);
   }
+  const backToMap = () => { if (UW.mapMode?.() !== "none") holdAtTop(document.querySelector("section.map")); };
   window.addEventListener("popstate", (e) => {
     const left = nav.fromMap;                             // the view being left was opened from the map
     nav.fromMap = !!e.state?.fromMap;
