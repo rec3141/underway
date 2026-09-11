@@ -35,7 +35,12 @@ def run(source,root,since):
                 target=ice_store.photo_path(r['id'],kind,root);temp=target.with_suffix('.tmp');im.save(temp,'JPEG',quality=90);temp.replace(target)
             db.execute('INSERT OR IGNORE INTO photos(id,file,t,leg) VALUES (?,?,?,?)',(r['id'],r['file'],stamp,r['file'].split('/')[0]))
             ice_store.complete(db,r['id'],status,values,dict(imported=True,record=r));count+=1
-        except (OSError,ValueError,KeyError,TypeError) as e:print('Skipped invalid product:',r['file'],e)
+        except OSError as e:
+            # Valid estimates remain useful even if a crash damaged the JPEG.
+            db.execute('INSERT OR IGNORE INTO photos(id,file,t,leg) VALUES (?,?,?,?)',(r['id'],r['file'],stamp,r['file'].split('/')[0]))
+            ice_store.complete(db,r['id'],status,values,dict(imported=True,record=r,image_error=str(e)));count+=1
+            print('Imported estimate without image:',r['file'],flush=True)
+        except (ValueError,KeyError,TypeError) as e:print('Skipped invalid product:',r['file'],e)
     print(f'Imported {count} completed products; no pending rows created')
 
 def main():
