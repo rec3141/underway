@@ -13,11 +13,11 @@
 set -euo pipefail
 
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"    # the AMUNDSEN directory this script lives in
-PYTHON="/opt/miniforge3/bin/python3"                    # the interpreter with pandas/plotly
+PYTHON=${UNDERWAY_PYTHON:-python3}                      # the interpreter with pandas/plotly (site.env)
 
 if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
     MIRROR=${UNDERWAY_MIRROR:-/data/ship}
-    WEBROOT=${UNDERWAY_WEBROOT:-/data/underway/www}
+    WEBROOT=${UNDERWAY_WEBROOT:-${UNDERWAY_HOME:-/data/underway_server}/www}
     export UNDERWAY_DATA_ROOT="$MIRROR/Data" UNDERWAY_SHARE_ROOT="$MIRROR/Share"
 else
     WEBROOT=${UNDERWAY_WEBROOT:-/mnt/ship/Share/2026/2026_LEG_03/Collins/underway_dashboard}
@@ -29,7 +29,7 @@ exec 9>"$PROJECT/cache/.run.lock"
 flock -n 9 || { echo "Another run is in progress; exiting."; exit 0; }
 
 umask 002
-export TZ=America/Toronto
+export TZ=${TZ:-America/Toronto}
 
 if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
     # a failed mirror pass is not fatal: the build proceeds on what is mirrored.

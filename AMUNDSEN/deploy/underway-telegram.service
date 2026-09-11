@@ -5,14 +5,16 @@ After=network-online.target
 
 [Service]
 Type=simple
-User=cryomics
-Group=cryomics
-WorkingDirectory=/data/underway/app/AMUNDSEN
-Environment=UNDERWAY_DB_DIR=/data/underway/db
-Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
-Environment=TZ=America/Toronto
-EnvironmentFile=-/home/cryomics/.config/underway/underway.env
-ExecStart=/opt/miniforge3/bin/python3 -m dashboard telegram-bot
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
+Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
+Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard telegram-bot
 Restart=always
 RestartSec=10
 Nice=10
@@ -20,8 +22,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
-ReadWritePaths=/data/underway/app/AMUNDSEN
-ReadWritePaths=/data/underway/db /data/underway/cache
+ReadWritePaths=@UNDERWAY_HOME@
 StandardOutput=journal
 StandardError=journal
 

@@ -57,8 +57,8 @@ scheduler/               separate tool: event log -> Google Calendar sync (R)
 - Python ≥ 3.11 with `pandas`, `numpy`, `jinja2`, `scipy`, `xlrd` and `openpyxl` — `pip install -e .` from this
   directory installs them and an `underway` console command. `plotly` is not
   needed at run time; its `plotly.min.js` is committed under `static/`
-  (refresh it from a plotly install with the `assets` extra). On the ship
-  workstation the interpreter with the stack is `/opt/miniforge3/bin/python3`.
+  (refresh it from a plotly install with the `assets` extra). An installation
+  names its interpreter as `UNDERWAY_PYTHON` in its site file (see *Taking over*).
 - Optional integrations: `pip install -e '.[chat]'` installs the HTTP client
   for the local AI crew; `pip install -e '.[gcal]'` installs the Google Calendar
   HTTP/signing dependencies. Human chat uses only the standard library. Use
@@ -96,11 +96,12 @@ underway serve --root "$PWD/www" --port 8042
 
 Set `UNDERWAY_DATA_ROOT` and `UNDERWAY_SHARE_ROOT` to the mounted data before
 building. These environment variables work on Windows too; the deployment
-shell scripts and systemd units are specific to the ship's Linux workstation.
+shell scripts and systemd units are for Linux with systemd (see *Taking over*).
 Set `UNDERWAY_TILES_DIR` if using optional raster tiles on another machine.
 The default database directory is beside the source package, and the default
-chat database is `/data/underway/chat/chat.sqlite`, so explicitly set both
-state paths when installing into a shared or read-only Python environment.
+chat database is `$UNDERWAY_HOME/chat/chat.sqlite` (`UNDERWAY_HOME` defaults to
+`/data/underway_server`), so explicitly set both state paths when installing
+into a shared or read-only Python environment.
 
 ### Reaching the dashboard on the ship
 
@@ -165,13 +166,13 @@ against a local mirror removes all of that:
 
 ```sh
 tools/mirror-share.sh /data/ship          # rsync only what the dashboard reads
-UNDERWAY_LOCAL=1 update_underway_py.sh    # mirror, then build into /data/underway/www
+UNDERWAY_LOCAL=1 update_underway_py.sh    # mirror, then build into $UNDERWAY_HOME/www
 ```
 
 With `UNDERWAY_LOCAL=1` (set as `Environment=` in `underway.service`) the
 wrapper runs the mirror first and builds from it with `UNDERWAY_DATA_ROOT` and
 `UNDERWAY_SHARE_ROOT` pointing into `/data/ship`; the web root moves to local
-disk (`UNDERWAY_WEBROOT`, default `/data/underway/www`) and the server serves
+disk (`UNDERWAY_WEBROOT`, default `$UNDERWAY_HOME/www`) and the server serves
 that. The share is then read by one rsync pass per build and by nothing else,
 and `RequiresMountsFor` is no longer needed. The initial mirror is ~15 GB
 (mostly the per-cast plot HTML); afterwards a pass copies only new files.
@@ -182,25 +183,86 @@ Raster tiles are never written to the share: `make_gebco_tiles.sh` writes to
 
 ## Operation on the ship
 
-The services run from a deploy checkout, `/data/underway/app`, that only
-ever sits on master: `underway-deploy.timer` runs `tools/deploy-pull.sh`
-every five minutes, which fetches, fast-forwards to `origin/master`, and
-restarts the serving processes (`underway-dashboard`, `underway-telegram`)
-when a Python file under `dashboard/` changed; anything else is picked up by
-the next build. A merge to master is live on the ship within minutes, and no
-development checkout is ever what the ship serves. Unit files are the one
-thing the pull cannot install: when `deploy/` changes, copy them to
-`/etc/systemd/system/` and `daemon-reload` by hand (the pull's journal line
-says so). The units keep the ingest stores and build cache outside the
-checkout, in `/data/underway/db` and `/data/underway/cache`
-(`UNDERWAY_DB_DIR`, `UNDERWAY_CACHE_DIR`).
+An installation is one directory, `UNDERWAY_HOME` (`/data/underway_server` on
+the Amundsen's workstation):
 
-Two systemd units do the work (the files are in `/etc/systemd/system/`):
+```
+app/         a clone of this repository on master: what the services run
+db/ cache/   the ingest stores and build cache (UNDERWAY_DB_DIR, UNDERWAY_CACHE_DIR)
+www/         the built site the page server serves (UNDERWAY_WEBROOT)
+chat/        the chat database (UNDERWAY_CHAT_DB)
+camera360/   the daily camera timelapses (UNDERWAY_CAMERA_OUTPUT)
+```
 
-- `underway.timer` → `underway.service` runs `update_underway_py.sh` every
-  10 minutes (`OnCalendar=*:0/10`). The wrapper holds a lock so runs never
-  overlap, and writes straight into the web root.
-- `underway-dashboard.service` runs `python3 -m dashboard serve` on port 8042.
+Everything particular to the machine — that directory, the account the
+services run as, the Python interpreter, the mirror, the arctic-history clone,
+the port and the Wi-Fi interface — is in one file, `/etc/underway/site.env`
+(from `deploy/site.env.example`). The unit files in `deploy/` are templates
+filled in from it by `deploy/install.sh`; the units also read it into their
+environment, and the shell tools source it.
+
+`underway-deploy.timer` runs `tools/deploy-pull.sh` every five minutes, which
+fetches, fast-forwards `app/` to `origin/master`, and restarts the serving
+processes (`underway-dashboard`, `underway-telegram`) when a Python file under
+`dashboard/` changed; anything else is picked up by the next build. A merge to
+master is live on the ship within minutes, and no development checkout is ever
+what the ship serves. Unit files are the one thing the pull cannot install:
+when `deploy/` changes, run `sudo $UNDERWAY_HOME/app/AMUNDSEN/deploy/install.sh`
+(the pull's journal line says so; `deploy/install.sh --check` shows the
+difference first).
+
+The units:
+
+| unit | what it does |
+|---|---|
+| `underway.timer` → `underway.service` | mirror the shares and build the site, every minute (`update_underway_py.sh`; a lock keeps runs from overlapping) |
+| `underway-dashboard.service` | the page server, `python -m dashboard serve` on `UNDERWAY_PORT` (8042) |
+| `underway-deploy.timer` | the pull above |
+| `underway-alerts.timer`, `underway-telegram.service` | schedule alerts by Telegram and email; the Telegram bot |
+| `underway-gcal.timer` | queued Google Calendar items |
+| `underway-satellite.timer` | Sentinel imagery around the ship |
+| `underway-camera.timer`, `underway-camera-sync.timer` | the camera timelapses and their daily copy to the leg's photo folder |
+| `underway-mdns.service` | publishes `underway.local` on the Wi-Fi interface |
+| `ship-routes.timer` | keeps the ship's 10.0.0.x network off the UM VPN (only needed with that VPN) |
+
+The Wiki tab's data is pulled from grid by a line in the service account's
+crontab, clear of the round minutes when the build and the pull run:
+
+```
+3,23,43 * * * * /data/underway_server/app/AMUNDSEN/tools/history-pull.sh >> ~/.local/state/underway/history-pull.log 2>&1
+```
+
+(cron expands no variables: write the installation's own `UNDERWAY_HOME`; the
+script reads the rest from the site file.)
+
+### Taking over
+
+To run the dashboard on another account or another machine:
+
+1. Mount the ship's shares: `sudo tools/ship-smb-setup.sh` (asks for the
+   share password once; see *Mounting*).
+2. Clone the repository as the service account into `UNDERWAY_HOME/app`, and
+   install the packages into the interpreter the services will use:
+   `pip install -e 'app/AMUNDSEN[chat,gcal]'`.
+3. `sudo mkdir /etc/underway && sudo cp app/AMUNDSEN/deploy/site.env.example
+   /etc/underway/site.env`, and edit it: the directory, the account, the
+   interpreter, the Wi-Fi interface (`ip -br addr`).
+4. Put the credentials in the account's `~/.config/underway/` (or
+   `UNDERWAY_CONFIG`), none of them in git:
+   - `underway.env` (mode 600): `TELEGRAM_KEY`, `TELEGRAM_NAME`, `TELEGRAM_ID`
+     (the bot and the keeper's chat), `UNDERWAY_OPS_EMAIL`, `COPERNICUS_ID`
+     and `COPERNICUS_SECRET` (satellite), `GCAL_SERVICE_JSON`;
+   - `gcal-sa.json` (the Google service account), `smtp.json` (mail for
+     alerts), `admins.json` (chat names that may clear review flags);
+   - `camera.env`, from `deploy/camera.env.example`.
+   Each integration is off, and says so on the page, while its credentials are
+   missing.
+5. `sudo app/AMUNDSEN/deploy/install.sh --enable` installs the units and starts
+   the build, the page server and the deploy pull; enable the others as their
+   credentials go in (`sudo systemctl enable --now underway-alerts.timer
+   underway-telegram.service ...`).
+6. Caddy on port 80 (`deploy/Caddyfile`) and the mDNS name are what people on
+   the ship type; copy the Caddyfile to `/etc/caddy/Caddyfile` and reload Caddy.
 
 If neither data root is a directory, or they hold no `YYYY_LEG_NN` folders
 with ACSD files, `build` exits with status 2 without touching the web root:
@@ -223,8 +285,8 @@ with a package manager's User-Agent; HTTPS is fine.
 
 ### Mounting
 
-`~/bin/ship-smb-setup` writes the two CIFS entries to `/etc/fstab` and starts
-their automount units; `~/bin/ship-routes on` steers `10.0.0.0/24` to the
+`sudo tools/ship-smb-setup.sh` writes the two CIFS entries to `/etc/fstab` and
+starts their automount units; `sudo tools/ship-routes.sh on` steers `10.0.0.0/24` to the
 local gateway when the UM VPN is up (the VPN pushes `10.0.0.0/25`, which
 swallows the NAS). Do **not** add `x-systemd.idle-timeout` to the mounts: an
 idle unmount stops every unit with `RequiresMountsFor` on that path, and a

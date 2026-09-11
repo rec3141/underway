@@ -36,9 +36,11 @@ import threading
 import time
 from pathlib import Path
 
+from .config import INSTALL_DIR
+
 log = logging.getLogger(__name__)
 
-CHAT_DB = Path(os.environ.get("UNDERWAY_CHAT_DB", "/data/underway/chat/chat.sqlite"))
+CHAT_DB = Path(os.environ.get("UNDERWAY_CHAT_DB", INSTALL_DIR / "chat" / "chat.sqlite"))
 CHAT_KEEP = 4000            # messages kept, all rooms together
 CHAT_PAGE = 100             # messages sent to a fresh page of a room
 CONTEXT_BYTES = 5000        # what a crew member sees of the room it speaks in

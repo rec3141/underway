@@ -184,9 +184,14 @@ from pathlib import Path  # noqa: E402
 DATA_ROOT = Path(os.environ.get("UNDERWAY_DATA_ROOT", "/mnt/ship/Data"))    # FULL_CSV/<leg>/, Rosette/<leg>/Logs/
 DATA_SHARE_URL = os.environ.get("UNDERWAY_DATA_URL", "smb://10.0.0.10/Data")  # the same folders as a link people can open
 SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <year>/<leg>/ for archived seasons
-# per-leg SQLite stores; derived data, safe to delete
+# the installation's own directory: app/ (the deploy checkout), db/, cache/, www/, chat/, camera360/.
+# Set once in /etc/underway/site.env (deploy/site.env.example); the paths below default into it
+INSTALL_DIR = Path(os.environ.get("UNDERWAY_HOME", "/data/underway_server"))
+# per-leg SQLite stores; derived data, safe to delete. Beside the package unless set, so a
+# development checkout never writes the installation's stores
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))
-CAMERA_OUTPUT = Path(os.environ.get("UNDERWAY_CAMERA_OUTPUT", "/data/underway/camera360"))   # daily timelapses (dashboard.cameras), served at /camera/
+WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", INSTALL_DIR / "www"))          # the built site the server serves
+CAMERA_OUTPUT = Path(os.environ.get("UNDERWAY_CAMERA_OUTPUT", INSTALL_DIR / "camera360"))   # daily timelapses (dashboard.cameras), served at /camera/
 
 # ---------------------------------------------------------------- ship intranet
 # pages on the ship's own web server, linked from the dashboard (LAN only)

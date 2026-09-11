@@ -5,23 +5,24 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-User=cryomics
-Group=cryomics
-WorkingDirectory=/data/underway/app/AMUNDSEN
-Environment=UNDERWAY_DB_DIR=/data/underway/db
-Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
+Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
+Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
 # numpy's BLAS starts a thread per core at import (32 here) and that alone costs 8 s CPU a run
 Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
-Environment=TZ=America/Toronto
-EnvironmentFile=-/home/cryomics/.config/underway/underway.env
-ExecStart=/opt/miniforge3/bin/python3 -m dashboard alerts
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard alerts
 TimeoutStartSec=4min
 Nice=10
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
-ReadWritePaths=/data/underway/app/AMUNDSEN
-ReadWritePaths=/data/underway/db /data/underway/cache
+ReadWritePaths=@UNDERWAY_HOME@
 StandardOutput=journal
 StandardError=journal

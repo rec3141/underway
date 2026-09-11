@@ -4,7 +4,7 @@ After=avahi-daemon.service network-online.target
 Wants=network-online.target avahi-daemon.service
 
 [Service]
-ExecStart=/data/underway/app/AMUNDSEN/tools/publish-mdns.sh underway.local wlo1
+ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/tools/publish-mdns.sh @UNDERWAY_MDNS_NAME@ @UNDERWAY_IFACE@
 Restart=always
 RestartSec=10
 

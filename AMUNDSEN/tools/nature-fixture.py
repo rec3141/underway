@@ -2,7 +2,7 @@
 """A stand-in for the natural half of the history layer, to see the Nature
 tab before grid publishes the real thing.
 
-    tools/nature-fixture.py --live /data/underway/www/data/history --out /some/scratch/data/history
+    tools/nature-fixture.py --live /data/underway_server/www/data/history --out /some/scratch/data/history
 
 The out directory gets every file of the live publish (symlinked, so nothing
 is copied), plus what the design (db/history/NATURE-DESIGN.md, section 6)
