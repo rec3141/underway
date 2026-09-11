@@ -133,6 +133,20 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path.startswith('/api/ice/'):
+            from . import ice_store
+            q=parse_qs(u.query)
+            try:
+                if u.path=='/api/ice/track':
+                    start=float(q.get('start',[time.time()-86400])[0]);end=float(q.get('end',[time.time()])[0])
+                    if not (0<=start<=end and end-start<=32*86400):raise ValueError('Choose a range of at most 32 days')
+                    return self._json(200,ice_store.track(start,end))
+                identifier=q.get('id',[''])[0]
+                if u.path=='/api/ice/detail':return self._json(200,ice_store.detail(identifier) or {})
+                if u.path=='/api/ice/image':return self._bytes(200,'image/jpeg',ice_store.photo_path(identifier,q.get('kind',['roi'])[0]).read_bytes())
+                return self._json(404,{'error':'Unknown camera endpoint'})
+            except ValueError as e:return self._json(400,{'error':str(e)})
+            except (OSError,sqlite3.Error):return self._json(404,{'error':'Camera product unavailable'})
         if u.path == "/api/alerts/following":
             from .alerts import following
             q = parse_qs(u.query)
