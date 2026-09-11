@@ -18,7 +18,9 @@ moved ``NEAR_MOVE_KM`` from its centre.
 ``db/sat/`` (the pictures and ``sat.json`` with corners, scene times and
 cost) and the build copies them under ``data/sat/``. A render whose newest
 scene is new goes to ``db/sat/archive/`` as well, dated by that scene, so
-the map can step back through the pictures (``ARCHIVE_MAX`` per sensor).
+the map can step back through the pictures (``ARCHIVE_MAX`` regional images
+per sensor). High-resolution near boxes retain their own bounds indefinitely,
+including separate moved boxes rendered from the same newest scene.
 
 Credentials: an OAuth client of the user's Copernicus account, as
 ``COPERNICUS_ID`` and ``COPERNICUS_SECRET`` in the environment (the
@@ -267,6 +269,7 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
     """Render what is due and has a new scene (everything with ``force``);
     returns the info written."""
     now = now or datetime.now(timezone.utc)
+    preserve_near_cache()
     creds = credentials()
     if creds is None:
         log.info("satellite: no COPERNICUS_ID/COPERNICUS_SECRET; nothing rendered")
@@ -306,6 +309,13 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
                     log.info("satellite: %s unchanged (newest scene %s); not rendered", k, scene)
                     continue
             data, cost, size = render(tok, k, bbox, now, m_per_px)
+            # Preserve the currently displayed near box before replacing it,
+            # including caches created before near-image archiving existed.
+            previous = info.get("images", {}).get(k)
+            previous_path = sat_dir() / f"{k}.webp"
+            if sp.get("near") and previous and previous_path.is_file():
+                archive(info, k, previous_path.read_bytes(), previous.get("scene"),
+                        datetime.fromisoformat(previous["fetched"]), metadata=previous)
             changed = True
             tmp = sat_dir() / f"{k}.webp.tmp"
             tmp.write_bytes(data)
@@ -314,8 +324,7 @@ def refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSOR
                                  "centre": list(ship) if sp.get("near") else None, "size": list(size), "fetched": now.isoformat(timespec="seconds"), "scene": scene,
                                  "days": sp["days"], "bytes": len(data), "cost_pu": cost}
             info["cost_pu_total"] = round(float(info.get("cost_pu_total") or 0) + cost, 2)
-            if not sp.get("near"):
-                archive(info, k, data, scene, now)
+            archive(info, k, data, scene, now, metadata=info["images"][k])
             log.info("satellite: %s rendered (%dx%d, %d kB, newest scene %s, %.1f PU)", k, size[0], size[1], len(data) // 1024, scene, cost)
         except Exception as e:                  # noqa: BLE001 — one sensor failing must not stop the other
             log.warning("satellite: %s failed: %s", k, e)
@@ -394,26 +403,58 @@ def backfill(since: datetime, within_km: float = 500.0, kinds=("s1", "s2"), now:
     return info
 
 
-def archive(info: dict, kind: str, data: bytes, scene: str | None, now: datetime) -> None:
+def archive(info: dict, kind: str, data: bytes, scene: str | None, now: datetime, metadata: dict | None = None) -> None:
     """Keep the picture under ``archive/<kind>_<stamp>.webp`` when its newest
     scene is one the archive has not seen (a render that only repeats the
     last mosaic is not worth the disk); the oldest go once past ARCHIVE_MAX."""
     entries = info.setdefault("archive", {}).setdefault(kind, [])
     when = scene or now.isoformat(timespec="seconds")
-    if entries and entries[-1].get("scene") == when:
+    near = SENSORS.get(kind, {}).get("near", False)
+    metadata = metadata or {}
+    if any(e.get("scene") == when and (not near or e.get("corners") == metadata.get("corners")) for e in entries):
         return
     stamp = "".join(ch for ch in when if ch.isdigit())[:14]
     d = sat_dir() / "archive"
     d.mkdir(parents=True, exist_ok=True)
     name = f"{kind}_{stamp}.webp"
-    (d / name).write_bytes(data)
-    entries.append({"file": name, "scene": when, "fetched": now.isoformat(timespec="seconds"), "bytes": len(data)})
-    while len(entries) > ARCHIVE_MAX:
+    if near:
+        import hashlib
+        box = hashlib.sha256(json.dumps(metadata.get("corners"), sort_keys=True).encode()).hexdigest()[:12]
+        name = f"{kind}_{stamp}_{box}.webp"
+    tmp = d / (name + ".tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, d / name)
+    entries.append({**{k: metadata[k] for k in ("corners", "centre", "size", "label", "days") if k in metadata},
+                    "file": name, "scene": when, "fetched": now.isoformat(timespec="seconds"), "bytes": len(data)})
+    # Near boxes are retained indefinitely: their geographic coverage moves.
+    while not near and len(entries) > ARCHIVE_MAX:
         old = entries.pop(0)
         try:
             (d / old["file"]).unlink()
         except OSError:
             pass
+
+
+def preserve_near_cache() -> int:
+    """Archive existing near images without a network request (also migration)."""
+    info = load_info()
+    saved = 0
+    for kind, im in info.get("images", {}).items():
+        if not SENSORS.get(kind, {}).get("near"):
+            continue
+        entries = info.get("archive", {}).get(kind, [])
+        when = im.get("scene") or im["fetched"]
+        if any(e.get("scene") == when and e.get("corners") == im.get("corners") for e in entries):
+            continue
+        path = sat_dir() / im["file"]
+        if path.is_file():
+            archive(info, kind, path.read_bytes(), im.get("scene"), datetime.fromisoformat(im["fetched"]), metadata=im)
+            saved += 1
+    if saved:
+        tmp = sat_dir() / "sat.json.tmp"
+        tmp.write_text(json.dumps(info, indent=1))
+        os.replace(tmp, sat_dir() / "sat.json")
+    return saved
 
 
 def publish(root: Path) -> dict | None:

@@ -144,8 +144,20 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate('UW.mapView.map.jumpTo({zoom:3});document.querySelector("#panels .plot").emit("plotly_click",{points:[{pointIndex:1}]})');
       assert.equal(await evaluate('UW.state.view.zoom'),3);
       assert.equal(await evaluate('UW.state.view.center.lat'),76.001);
+      await evaluate(`UW.mapView.draw=async opts=>{window.satStyle=opts.style};
+        const bounds=[[0,1],[1,1],[1,0],[0,0]],moved=[[1,1],[2,1],[2,0],[1,0]];
+        UW.M.satellite={images:{s1:{url:'current.webp',scene:'2026-09-11T00:00:00Z',corners:bounds,label:'Radar'},s1near:{url:'current-near.webp',scene:'2026-09-11T00:00:00Z',corners:bounds}},archive:{s1:[{url:'wide-old.webp',scene:'2026-09-09T00:00:00Z',corners:bounds}],s1near:[{url:'near-one.webp',scene:'2026-09-10T00:00:00Z',corners:bounds},{url:'near-two.webp',scene:'2026-09-10T00:00:00Z',corners:moved}]}};
+        UW.state.sat='';UW.selectColour('SST (°C)');document.querySelector('#satpill').click();document.querySelector('#satprev').click()`);
+      assert.equal(await evaluate('UW.state.satAt'),'near-two.webp');
+      assert.deepEqual(await evaluate('satStyle.sources.satnear.coordinates'),[[1,1],[2,1],[2,0],[1,0]]);
+      await evaluate('document.querySelector("#satprev").click()');
+      assert.equal(await evaluate('UW.state.satAt'),'near-one.webp');
+      assert.deepEqual(await evaluate('satStyle.sources.satnear.coordinates'),[[0,1],[1,1],[1,0],[0,0]]);
+      await evaluate('document.querySelector("#satprev").click()');
+      assert.equal(await evaluate('!!satStyle.sources.satnear'),false);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS summary table toggles, pump alarm, no internal scrolling, chart click preserves map zoom');
+      console.log('PASS satellite history selects separate moved near boxes with original bounds; older wide scenes do not borrow current detail');
       return;
     }
     if (process.env.NATURE_UI) {

@@ -509,12 +509,20 @@
     const arch = (M?.satellite?.archive || {})[state.sat] || [];
     const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: e.corners || im.corners, label: im.label }));
     if (!rows.length || rows[rows.length - 1].scene !== (im.scene || im.fetched)) rows.push({ url: im.url, scene: im.scene || im.fetched, corners: im.corners, label: im.label });
-    return rows;
+    const near = (M?.satellite?.archive || {})[state.sat+'near'] || [];
+    const detailed = near.filter(e=>e.corners).map(e=>{
+      const background=rows.filter(r=>Date.parse(r.scene)<=Date.parse(e.scene)).at(-1);
+      return {...(background||e),scene:e.scene,key:e.url,near:e,label:e.label||'50 m near-ship image'};
+    });
+    // Each moved high-resolution box is independently browsable, even when
+    // its newest satellite scene is unchanged. Never borrow today's bounds.
+    const current={...rows.at(-1),key:'latest',near:satImages()[state.sat+'near']||null};
+    return [...rows.slice(0,-1),...detailed].sort((a,b)=>Date.parse(a.scene)-Date.parse(b.scene)).concat(current);
   }
   // the picture on the map: the one stepped back to, else the newest
   function satPicture() {
     const rows = satSeries(); if (!rows.length) return null;
-    const i = state.satAt ? rows.findIndex((r) => r.scene === state.satAt) : -1;
+    const i = state.satAt ? rows.findIndex((r) => (r.key||r.url) === state.satAt) : -1;
     return { ...(i >= 0 ? rows[i] : rows[rows.length - 1]), index: i >= 0 ? i : rows.length - 1, n: rows.length };
   }
   function renderSatPill() {
@@ -536,7 +544,7 @@
     $("#satwhen").title = pic.index === pic.n - 1 ? "the newest picture" : "an earlier picture; › steps forward";
     $("#satprev").disabled = pic.index === 0;
     $("#satnext").disabled = pic.index === pic.n - 1;
-    const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : rows[j].scene; renderSatPill(); renderMap(); };
+    const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : (rows[j].key||rows[j].url); renderSatPill(); renderMap(); };
     $("#satprev").onclick = () => step(-1);
     $("#satnext").onclick = () => step(1);
   }
@@ -1103,7 +1111,7 @@
     // the satellite picture under the track, and the same sensor at 50 m in
     // a box round the ship over it: both go into the style with the basemap
     const sat = (state.sat && satPicture()) || null;
-    const near = (state.sat && !state.satAt && satImages()[state.sat + "near"]) || null;
+    const near = sat?.near || null;
     mapData = d;
     if (!mapView) {
       mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: mapEmptyClick, onZoom: onMapZoom,
@@ -1133,7 +1141,7 @@
       `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
-      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat && !state.satAt && satImages()[state.sat + "near"] ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages()[state.sat + "near"].scene || satImages()[state.sat + "near"].fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(near.scene || near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
       plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }

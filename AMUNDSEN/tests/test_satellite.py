@@ -11,6 +11,35 @@ from dashboard import satellite as sat
 
 
 class SatelliteTests(unittest.TestCase):
+    def test_near_archive_retains_moved_boxes_and_original_bounds(self):
+        now = datetime(2026, 9, 11, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)), patch.object(sat, "ARCHIVE_MAX", 1):
+            info = {"images": {}}
+            first = {"corners": [[0, 1], [1, 1], [1, 0], [0, 0]], "centre": [0.5, 0.5], "size": [4800, 3200]}
+            second = {**first, "corners": [[1, 1], [2, 1], [2, 0], [1, 0]]}
+            sat.archive(info, "s1near", b"first", now.isoformat(), now, first)
+            sat.archive(info, "s1near", b"duplicate", now.isoformat(), now, first)
+            sat.archive(info, "s1near", b"moved", now.isoformat(), now, second)
+            entries = info["archive"]["s1near"]
+            self.assertEqual(len(entries), 2)
+            self.assertNotEqual(entries[0]["file"], entries[1]["file"])
+            self.assertEqual(entries[0]["corners"], first["corners"])
+            self.assertEqual((sat.sat_dir()/"archive"/entries[0]["file"]).read_bytes(), b"first")
+
+    def test_migrate_current_near_cache_without_download(self):
+        with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)):
+            sat.sat_dir().mkdir()
+            im = dict(file="s1near.webp", fetched="2026-09-11T12:00:00+00:00", scene="2026-09-11T10:00:00Z",
+                      corners=[[0, 1], [1, 1], [1, 0], [0, 0]], label="Radar 50 m")
+            (sat.sat_dir()/im["file"]).write_bytes(b"near")
+            (sat.sat_dir()/"sat.json").write_text(json.dumps({"images": {"s1near": im}}))
+            self.assertEqual(sat.preserve_near_cache(), 1)
+            self.assertEqual(sat.preserve_near_cache(), 0)
+            out = sat.publish(Path(d)/"www")
+            entry = out["archive"]["s1near"][0]
+            self.assertEqual(entry["corners"], im["corners"])
+            self.assertTrue((Path(d)/"www"/entry["url"]).is_file())
+
     def test_region_tiles_cover_the_picture_exactly(self):
         bbox = sat.region_bbox()
         size = sat.region_size(bbox)
