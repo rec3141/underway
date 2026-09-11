@@ -45,7 +45,8 @@ dashboard/           the Python package
   serve.py           static server (no-store headers for data files)
   cli.py             `python -m dashboard {legs,build,serve}`
   templates/         index.html.j2
-  static/            app.js, style.css, plotly.min.js, geo/*.geojson
+  static/            app.js, map.js (the map), style.css, plotly.min.js (the charts),
+                     maplibre-gl.js/.css (the map's library), geo/*.geojson
 update_underway_py.sh    systemd-facing wrapper: build into the web root
 pyproject.toml           package metadata; `pip install -e .` gives an `underway` command
 deprecated/              the previous R implementation and its wrappers, kept for reference
@@ -56,7 +57,9 @@ deprecated/              the previous R implementation and its wrappers, kept fo
 - Python ≥ 3.11 with `pandas`, `numpy`, `jinja2`, `scipy`, `xlrd` and `openpyxl` — `pip install -e .` from this
   directory installs them and an `underway` console command. `plotly` is not
   needed at run time; its `plotly.min.js` is committed under `static/`
-  (refresh it from a plotly install with the `assets` extra). An installation
+  (refresh it from a plotly install with the `assets` extra). The map is drawn
+  by MapLibre GL JS, likewise committed (`static/maplibre-gl.js` and `.css`, the
+  UMD build of the 5.x line, BSD-3-Clause, `maplibre-gl.LICENSE.txt`). An installation
   names its interpreter as `UNDERWAY_PYTHON` in its site file (see *Taking over*).
 - Optional integrations: `pip install -e '.[chat]'` installs the HTTP client
   for the local AI crew; `pip install -e '.[gcal]'` installs the Google Calendar
@@ -407,6 +410,12 @@ Natural Earth.
 
 - Plotly's toolbar is off. Drag pans, the wheel zooms, double-click resets, ⟲
   resets; `log` toggles a log axis on spiky variables.
+- The map (`static/map.js`) is MapLibre, drawn from the trace-shaped layers the
+  page's modules describe (`UW.extraMapTraces` and the layer builders in
+  `app.js`): every trace becomes features of four layers (lines, circles,
+  sprite icons, labels), so a redraw is a `setData` on each and the ship's
+  position one on a one-point source. The basemap style is reloaded only when
+  its id changes (theme, satellite picture, geography).
 - The chosen *Colour by* variable colours the map track and every panel's
   points on one shared scale (5–95 % of what is shown).
 - Panels can be dragged to reorder, expanded (⤢) or minimised (—) to the
@@ -424,7 +433,9 @@ again. Casts, Stations, Schedule, and Table refresh while open; failed tab downl
 retried even if the build timestamp has not changed.
 
 - *Page loads but map is blank*: check `static/geo/*.geojson` served (200) and
-  that the browser has WebGL. The map is Plotly `scattermap` (MapLibre).
+  that the browser has WebGL. The map is MapLibre (`static/map.js`,
+  `static/maplibre-gl.js`); `window.UW.mapView.map` is the MapLibre map in the
+  browser console.
 - *"nothing to show"*: all legs unticked, or the span holds no data.
 - *Timer runs but nothing changes*: `journalctl -u underway.service`; a lock
   held by a stuck run is `AMUNDSEN/cache/.run.lock`.

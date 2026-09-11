@@ -499,7 +499,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")            # rebuilt every few minutes
         elif p == "/" or p.endswith(".html"):
             self.send_header("Cache-Control", "no-cache")            # revalidate; carries the asset versions
-        elif p.startswith(("/static/geo/", "/static/tiles/")) or p.endswith("plotly.min.js"):
+        elif p.startswith(("/static/geo/", "/static/tiles/")) or p.endswith(("plotly.min.js", "maplibre-gl.js", "maplibre-gl.css")):
             self.send_header("Cache-Control", "public, max-age=604800")   # big, rarely change, versioned URL
         else:
             self.send_header("Cache-Control", "no-cache")
