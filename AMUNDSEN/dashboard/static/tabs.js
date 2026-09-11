@@ -864,7 +864,7 @@
       return dayHead(d) + (nDone ? `<tr class="fold"><td colspan="7"><button type="button" class="dayfold-done" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nDone} finished</button></td></tr>` : "") +
         rs.map((r) => schedRow(r, rowKey(r), false).replace("<tr ", isFinished(r) && !open ? "<tr hidden " : "<tr ")).join("");
     }).join("");
-    let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
+    let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}${changesBell()}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
       (sched ? `<div class="hscroll"><table class="sched">${SCHED_HEAD(false)}${sched}</table></div>` : '<p class="muted">no scheduled operations listed</p>') +
       `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
@@ -979,7 +979,16 @@
   const followed = (key) => bells.rows.has(key) || bells.web.has(key);
   const encodeRow = (key) => btoa(unescape(encodeURIComponent(key))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "").slice(0, 64);
   // two bells: this operation, and every operation of this kind (any station)
-  const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : `follow ${kind}: 15 min heads-up and every change`;
+  const CHANGES_NAME = "changes to the schedule";
+  const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : kind === CHANGES_NAME ? `follow ${kind}: an operation added, taken off, moved or canceled; no reminders` : `follow ${kind}: 15 min heads-up and every change`;
+  const bellKind = (b) => b.dataset.key === "changes" || b.classList.contains("kind") ? b.dataset.name : "this operation";
+  // the bell in the schedule's heading: only when the schedule itself changes
+  function changesBell() {
+    const a = UW.M.alerts || {};
+    if (!a.email && !a.telegram_bot && !a.web) return "";
+    const on = followed("changes");
+    return ` <button type="button" class="bell changes ${on ? "on" : ""}" data-key="changes" data-name="${CHANGES_NAME}" title="${esc(bellTitle(CHANGES_NAME, on))}">🔔 changes</button>`;
+  }
   function bellHtml(r) {
     const a = UW.M.alerts || {};
     if (!a.email && !a.telegram_bot) return "";
@@ -1032,7 +1041,7 @@
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
     if (channel === "web") { bells.web = new Set(j.rows || []); bells.webFor = to; askNotify(); } else { bells.rows = new Set(j.rows || []); bells.for = to; }
-    for (const b of host.querySelectorAll(".bell")) { const on = followed(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(b.classList.contains("kind") ? b.dataset.name : "this operation", on); }
+    for (const b of host.querySelectorAll(".bell")) { const on = followed(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(bellKind(b), on); }
   }
   const followByEmail = (host, key, name, remove) => followVia(host, "email", key, name, remove);
   // a browser that shows alerts in its header bar may as well notify too
@@ -1045,7 +1054,7 @@
       (a.web ? `<button type="button" class="bm-web">${webOn ? "🖥 stop showing" : "🖥 show"} in this browser's header bar</button>` : "") +
       (a.email ? (to ? `<button type="button" class="bm-email">${on ? "✉ stop emailing" : "✉ email"} ${esc(to)}</button>` : `<button type="button" class="bm-email">✉ email me… (enter an address below)</button>`) : "") +
       (a.telegram_bot ? `<a class="bm-tg" href="https://t.me/${esc(a.telegram_bot)}?start=${encodeRow(key)}" target="_blank" rel="noopener">✈ Telegram @${esc(a.telegram_bot)}</a>` : "") +
-      `<div class="bm-note">15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}</div>`;
+      `<div class="bm-note">${key === "changes" ? "a message whenever an operation is added, taken off, moved or canceled; no reminders" : `15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}`}</div>`;
     const rect = b.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     m.style.left = `${Math.max(0, rect.left - hostRect.left)}px`; m.style.top = `${rect.bottom - hostRect.top + host.scrollTop + 4}px`;
     host.style.position = host.style.position || "relative";
@@ -1077,7 +1086,7 @@
         <label>warn <select name="lead_min"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 h</option><option value="120">2 h</option></select> ahead</label>
         <span class="evs"><label><input type="checkbox" name="events" value="upcoming" checked> starting soon</label><label><input type="checkbox" name="events" value="started" checked> started</label><label><input type="checkbox" name="events" value="finished"> finished</label><label><input type="checkbox" name="events" value="moved" checked> time changed</label></span>
         <button type="submit">subscribe</button><span class="muted" id="alertmsg"></span></form>` : ""}
-      ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it.</p>` : ""}
+      ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.</p>` : ""}
       <p class="muted small">Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.</p></details>`;
   }
   function wireAlerts(host) {
