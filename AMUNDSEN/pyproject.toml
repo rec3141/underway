@@ -35,4 +35,4 @@ underway = "dashboard.cli:main"
 packages = ["dashboard"]
 
 [tool.setuptools.package-data]
-dashboard = ["templates/*.j2", "static/*", "static/geo/*"]
+dashboard = ["templates/*.j2", "static/*", "static/geo/*", "ice_assets/*"]
