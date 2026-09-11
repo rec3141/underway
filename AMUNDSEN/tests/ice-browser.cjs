@@ -17,6 +17,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  await call('Page.navigate',{url:'http://127.0.0.1:'+server.address().port});
  for(let i=0;i<100;i++){if(await evaluate('Boolean(window.specs&&[...specs.values()][0]?.el.querySelector(".plot").data)'))break;await wait(100)}
  assert.equal(await evaluate('specs.size'),5);assert.deepEqual(await evaluate('errors'),[]);
+ assert.deepEqual(await evaluate('[...specs.values()].map(p=>p.s.group)'),Array(5).fill('Ice camera'));
  assert.deepEqual(await evaluate('[...specs.values()][0].el.querySelector(".plot").data[0].y'),[0,60,null]);
  await evaluate('document.querySelector(".ice-image-button").click()');assert.equal(await evaluate('document.querySelector("dialog").open'),true);
  await evaluate('document.querySelector("dialog button").click()');assert((await evaluate('document.querySelector("dialog p").textContent')).includes('filtered'));
