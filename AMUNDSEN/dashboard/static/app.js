@@ -1292,12 +1292,12 @@
   // Group cards collect panels by where their data come from: an
   // extra panel names its group when it registers; a variable's follows its
   // source instrument
-  const GROUPS = ["Lab", "Met Station", "Bridge", "Deck", "Surprise", "Other"];
+  const GROUPS = ["Lab", "Met Station", "Bridge", "Other"];
   const GROUP_OF_INSTRUMENT = { TSG: "Lab", AVOS: "Met Station", ATS_Portside: "Met Station", ATS: "Met Station", POSMV: "Bridge", Multibeam: "Bridge" };
   function panelGroup(name) {
     const x = extraPanels.get(name); if (x) return x.group || "Other";
     const v = VAR[name]; if (!v) return "Other";
-    if (name.startsWith("Surprise")) return "Surprise";
+    if (name.startsWith("Surprise")) return "Lab";
     if (v.tsg) return "Lab";
     if (/^(Sea state|Roll & pitch|Heading|Ship speed)/.test(name)) return "Bridge";
     return GROUP_OF_INSTRUMENT[(v.source || "").split(" — ")[0].trim()] || "Other";

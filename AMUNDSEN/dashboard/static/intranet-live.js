@@ -10,7 +10,7 @@
     ["Live · Navigation", /navigation/i, "position, speed, heading, track and bottom depth from the intranet's live page", "Bridge"],
     ["Live · Atmosphere", /atmospheric/i, "the met tower at 21.6 m: wind, pressure, air temperature, humidity", "Met Station"],
     ["Live · Sea water surface", /sea water/i, "the thermosalinograph intake at 7 m", "Lab"],
-    ["Live · Winches", /rosette|500hp/i, "rosette depth and rate; 500HP cable length and rate", "Deck"],
+    ["Live · Winches", /rosette|500hp/i, "rosette depth and rate; 500HP cable length and rate", "Bridge"],
   ];
   const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let latest = null;
