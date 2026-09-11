@@ -60,6 +60,9 @@
     el.classList.toggle("noai", st.noai && st.room === "ship");
     el.dataset.room = st.room;
     $("#chattitle").textContent = roomTitle(st.room);
+    $('#chatprivacy').textContent = isDM(st.room)
+      ? 'Direct messages — participant identities only. Stored on the ship server; operators can access them. Not end-to-end encrypted.'
+      : 'Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.';
     textIn.placeholder = placeholder(st.room);
     renderRooms();
     el.classList.toggle("collapsed", !st.open);

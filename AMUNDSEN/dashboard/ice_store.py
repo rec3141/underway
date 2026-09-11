@@ -19,14 +19,26 @@ def connect(root=ROOT,create=True):
         CREATE TABLE IF NOT EXISTS photos(id TEXT PRIMARY KEY,file TEXT UNIQUE,t REAL,leg TEXT,status TEXT DEFAULT 'pending',ice REAL,types TEXT,detail TEXT,attempts INTEGER DEFAULT 0,retry_after REAL DEFAULT 0);
         CREATE INDEX IF NOT EXISTS photos_time ON photos(t);
         CREATE TABLE IF NOT EXISTS audits(id TEXT PRIMARY KEY,detail TEXT);
+        CREATE TABLE IF NOT EXISTS photo_rgb(id TEXT PRIMARY KEY,r INTEGER,g INTEGER,b INTEGER);
         CREATE TABLE IF NOT EXISTS telemetry(t REAL,cpu REAL,gpu REAL,average REAL);''')
     return db
 
 def track(start,end,root=ROOT):
     if not (Path(root)/'ice.sqlite').exists():return dict(photos=[],types=TYPES,status='not configured')
     with connect(root,False) as db:
-        rows=db.execute('SELECT id,t,leg,status,ice,types FROM photos WHERE t>=? AND t<=? ORDER BY t',(start,end)).fetchall()
-    return dict(types=TYPES,photos=[dict(id=r['id'],time=r['t']*1000,leg=r['leg'],status=r['status'],ice=r['ice'],types=json.loads(r['types']) if r['types'] else None) for r in rows])
+        rgb = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='photo_rgb'").fetchone()
+        fields, join = ('r,g,b', 'LEFT JOIN photo_rgb USING(id)') if rgb else ('NULL AS r,NULL AS g,NULL AS b', '')
+        rows=db.execute(f'SELECT id,t,leg,status,ice,types,{fields} FROM photos {join} WHERE t>=? AND t<=? ORDER BY t',(start,end)).fetchall()
+    return dict(types=TYPES,photos=[dict(id=r['id'],time=r['t']*1000,leg=r['leg'],status=r['status'],ice=r['ice'],types=json.loads(r['types']) if r['types'] else None,
+                                       rgb=[r['r'],r['g'],r['b']] if r['r'] is not None else None) for r in rows])
+
+def cache_slice_rgb(db, identifier, root=ROOT):
+    """Mean of the actual cached slice, computed once outside HTTP requests."""
+    from PIL import Image, ImageStat
+    with Image.open(photo_path(identifier,'slice',root)) as image:
+        rgb=[round(v) for v in ImageStat.Stat(image.convert('RGB')).mean]
+    db.execute('INSERT OR REPLACE INTO photo_rgb VALUES (?,?,?,?)',(identifier,*rgb))
+    return rgb
 
 def detail(identifier,root=ROOT):
     with connect(root,False) as db:

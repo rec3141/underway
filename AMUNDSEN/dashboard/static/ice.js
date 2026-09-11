@@ -2,7 +2,7 @@
 (() => {
   const U=window.UW;if(!U?.registerPanel)return;
   const types=['grease ice','nilas','thin ice floe','icy bits','brash ice','thick ice floe'],palette=['#7ee787','#57c9bd','#78baff','#e3b341','#ff9e72','#d2a8ff'];
-  const typeOrder=[0,2,1,3,4,5]; // Display order only; preserve the API's class indices.
+  const typeOrder=[0,1,3,4,2,5]; // Display order only; preserve the API's class indices.
   function centeredMeans(rows){
     const groups=new Map(),means=new Map();
     for(const p of rows){if(!groups.has(p.leg))groups.set(p.leg,[]);groups.get(p.leg).push(p)}
@@ -24,6 +24,8 @@
     if(best>=0&&delta<=Math.max(120000,(d.step_s||60)*1000))U.focusMap?.(d.lat[best],d.lon[best],U.fmtTs(p.time),true);
   }
   const colour='Camera · ice type',names=['Camera · concentration','Camera · ice composition','Camera · ice fingerprints','Camera · ROI','Camera · slices'];
+  const concentrationColour='Camera · ice concentration',sliceColour='Camera · slice mean RGB';
+  const panelColour=i=>i===0?concentrationColour:i>=3?sliceColour:colour;
   let photos=[],chosen=null,lastKey='',busy=false,matchedData=null,matched=[],error='';
   const image=(p,kind)=>`/api/ice/image?id=${encodeURIComponent(p.id)}&kind=${kind}`;
   const visible=()=>photos.filter(p=>U.inFilter(p.leg,p.time,U.spanFilter()));
@@ -46,6 +48,8 @@
   popup.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>step(Number(b.dataset.step)));
   document.addEventListener('keydown',e=>{if(!chosen||(!popup.open&&!document.querySelector('.ice-roi:focus-within'))||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();step(e.key==='ArrowLeft'?-1:1)}});
   U.registerColour({name:colour,resolved:true,unit:'ice type',rgb:true,sizes:d=>matches(d).map(p=>p?.ice==null?3:4+8*p.ice/100),onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>!p||p.ice==null?'#000000':p.ice===0?'#8b9bb0':palette[dominant(p)])});
+  U.registerColour({name:concentrationColour,resolved:true,unit:'%',cmap:'Viridis',onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>p?.ice??null)});
+  U.registerColour({name:sliceColour,resolved:true,unit:'RGB',rgb:true,onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>p?.rgb?'rgb('+p.rgb.join(',')+')':'#000000')});
   function xpoints(rows){const d=U.state.data;if(U.state.xmode==='time')return rows.map(p=>({p,x:U.shipAxis(p.time)}));const legs=new Map();for(let i=0;i<(d?.t.length||0);i++){if(d.dist_km[i]==null)continue;const leg=U.M.legs.find(l=>l.index===d.leg[i])?.id;if(!legs.has(leg))legs.set(leg,[]);legs.get(leg).push({time:d.t[i],x:d.dist_km[i]})}return rows.map(p=>{const n=nearest(legs.get(p.leg)||[],p.time);return {p,x:n&&Math.abs(n.time-p.time)<=120000?n.x:null}}).filter(r=>r.x!=null)}
   function render(mode,el,plot){
     const rows=visible();el.querySelector('h3').textContent=labels[mode];el.querySelector('.now').textContent=latest()?`${latest().ice}%`:'';
@@ -64,7 +68,7 @@
     const fz=U.fz||((n)=>n);
     Plotly.react(plot,traces,{...U.THEME,margin:{l:fz(mode===2?105:52),r:8,t:fz(6),b:fz(34)},barmode:'stack',showlegend:false,hovermode:'closest',hoverdistance:14,xaxis:{...U.THEME.xaxis,type:U.state.xmode==='time'?'date':'linear',range,autorange:false,title:{text:U.state.xmode==='time'?`ship time (${U.tzAbbr?.()||'local'})`:'distance along track (km)',font:{size:fz(12)},standoff:4},tickfont:{size:fz(12)},hoverformat:U.state.xmode==='time'?'%Y-%m-%d %H:%M:%SZ':'.1f',ticksuffix:U.state.xmode==='time'?'':' km',nticks:Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))),tickangle:0,automargin:true},yaxis:{...U.THEME.yaxis,range:mode===2?undefined:[0,100],title:{text:mode===2?'':'%',font:{size:fz(12)},standoff:2},tickfont:{size:fz(12)}}},U.CFG).then(()=>{U.axisZoom(plot);U.linkX(plot);plot.removeAllListeners?.('plotly_afterplot');plot.on('plotly_afterplot',()=>pointAt(cursor));selectedCursor();plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',e=>{const p=e.points?.[0]?.customdata;if(p?.id){choose(p)}})});
   }
-  names.forEach((name,i)=>U.registerPanel(name,{group:'Ice camera',updated:()=>visible().at(-1)?.time,label:labels[i],chip:()=>chip(i),groupSummary:()=>{const rows=visible();return `${rows.filter(p=>p.status==='pending').length}/${rows.length} pending`},unit:'%',resolved:true,log_ok:false,colours:[colour],after:i?names[i-1]:'Surprise (−log10 p)',description:'Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.',onTitle:()=>U.selectColour(colour),render:(el,plot)=>render(i,el,plot)}));
+  names.forEach((name,i)=>U.registerPanel(name,{group:'Ice camera',updated:()=>visible().at(-1)?.time,label:labels[i],chip:()=>chip(i),groupSummary:()=>{const rows=visible();return `${rows.filter(p=>p.status==='pending').length}/${rows.length} pending`},unit:'%',resolved:true,log_ok:false,colours:[panelColour(i)],after:i?names[i-1]:'Surprise (−log10 p)',description:'Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.',onTitle:()=>U.selectColour(panelColour(i)),render:(el,plot)=>render(i,el,plot)}));
   async function refresh(){if(busy||document.hidden||!document.querySelector('#panels')?.offsetParent)return;const f=U.spanFilter();if(!Number.isFinite(f?.start)||!Number.isFinite(f?.end))return;const key=`${f.start}:${f.end}`;busy=true;try{const collected=new Map();for(let start=f.start-1800000;start<=f.end+1800000;start+=31*86400000){const end=Math.min(f.end+1800000,start+31*86400000),payload=await U.fetchJSON(`/api/ice/track?start=${start/1000}&end=${end/1000}`);for(const p of payload.photos)collected.set(p.id,p);const current=U.spanFilter();if(`${current.start}:${current.end}`!==key)return}photos=[...collected.values()].sort((a,b)=>a.time-b.time);error='';lastKey=key;matchedData=null;U.refreshExtraData()}catch(e){error='Camera unavailable; keeping previous results';console.warn(error,e)}finally{busy=false}}
   setInterval(()=>{const f=U.spanFilter();if(`${f?.start}:${f?.end}`!==lastKey)refresh()},1500);setInterval(refresh,60000);refresh();
 })();

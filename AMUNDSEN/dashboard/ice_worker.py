@@ -113,6 +113,7 @@ def process(db,config,root,client=None):
     for row in rows:
         try:
             pictures[row['file']]=images(row,Path(config['source']),root);roi=pictures[row['file']][1]
+            ice_store.cache_slice_rgb(db,row['id'],root);db.commit()
             decision=filter_.decide(row['file'],roi);decision['stage']='local';decisions[row['file']]=decision
             if decision['route']=='gemma':cases.append(dict(file=row['file'],crop=roi))
         except Exception as e:

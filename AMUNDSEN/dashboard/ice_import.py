@@ -38,6 +38,7 @@ def run(source,root,since,metadata_only=False,repair_images=False):
             for kind,im in products:
                 target=ice_store.photo_path(r['id'],kind,root);temp=target.with_suffix('.tmp');im.save(temp,'JPEG',quality=90);temp.replace(target)
             db.execute('INSERT OR IGNORE INTO photos(id,file,t,leg) VALUES (?,?,?,?)',(r['id'],r['file'],stamp,r['file'].split('/')[0]))
+            ice_store.cache_slice_rgb(db,r['id'],root)
             ice_store.complete(db,r['id'],status,values,dict(imported=True,record=r));count+=1
         except OSError as e:
             # Valid estimates remain useful even if a crash damaged the JPEG.
