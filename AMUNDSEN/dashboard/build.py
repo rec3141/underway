@@ -684,7 +684,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
+    for name in ("data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
     # too many files for the share or the repository — and the server maps
@@ -697,7 +697,8 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "vector": vector, "low_flow_v": LOW_FLOW_V,
             "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
-            "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}
+            "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size),
+            "maplibre_version": str((PKG / "static" / "maplibre-gl.js").stat().st_size)}
     env = Environment(loader=FileSystemLoader(str(PKG / "templates")), autoescape=True)
     atomic_write(root / "index.html", env.get_template("index.html.j2").render(site=site, m=manifest))
 
