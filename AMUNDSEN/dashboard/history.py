@@ -5,8 +5,9 @@ the fetched files with that project's ``tools/history-sync.sh pull``. This
 module only finds the package and hands its names on, so the build calls
 ``history.publish(root)`` and the server reads requests and pages as before.
 
-The project is looked for at ``$ARCTIC_HISTORY_ROOT``, then
-``~/Desktop/arctic-history``. Without it the History tab is simply absent:
+The project is looked for at ``$ARCTIC_HISTORY_ROOT`` (set in the installation's
+``/etc/underway/site.env``), then ``/data/dev/arctic-history``, where grid keeps it
+too. Without it the History tab is simply absent:
 ``publish`` returns None and the page hides the tab's map layer.
 """
 
@@ -19,7 +20,7 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-ROOT = Path(os.environ.get("ARCTIC_HISTORY_ROOT", Path.home() / "Desktop" / "arctic-history")).expanduser()
+ROOT = Path(os.environ.get("ARCTIC_HISTORY_ROOT", "/data/dev/arctic-history")).expanduser()
 if ROOT.is_dir() and str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

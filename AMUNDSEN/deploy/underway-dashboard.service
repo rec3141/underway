@@ -4,16 +4,18 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Environment=UNDERWAY_TILES_DIR=/data/gis/tiles
-Environment=TZ=America/Toronto
 Type=simple
-WorkingDirectory=/data/underway/app/AMUNDSEN
-Environment=UNDERWAY_DB_DIR=/data/underway/db
-Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
-ExecStart=/opt/miniforge3/bin/python3 -m dashboard serve --root /data/underway/www --port 8042
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
+Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
+Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
+Environment=UNDERWAY_CAMERA_OUTPUT=@UNDERWAY_HOME@/camera360
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard serve --root @UNDERWAY_HOME@/www --port @UNDERWAY_PORT@
 Restart=on-failure
-User=cryomics
-Group=cryomics
 
 [Install]
 WantedBy=multi-user.target

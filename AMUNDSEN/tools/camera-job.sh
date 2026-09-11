@@ -8,7 +8,7 @@ flock -n 9 || exit 0
 case "${1:-build}" in
   build)
     : "${UNDERWAY_CAMERA_SOURCE:?Set the camera leg directory}"
-    "${UNDERWAY_CAMERA_PYTHON:-python3}" -m dashboard.cameras \
+    "${UNDERWAY_CAMERA_PYTHON:-${UNDERWAY_PYTHON:-python3}}" -m dashboard.cameras \
       --source "$UNDERWAY_CAMERA_SOURCE" --output "$UNDERWAY_CAMERA_OUTPUT" \
       --interval "${UNDERWAY_CAMERA_INTERVAL:-120}" --layout "${UNDERWAY_CAMERA_LAYOUT:-mosaic}" \
       ${UNDERWAY_CAMERA_WIDTH:+--width "$UNDERWAY_CAMERA_WIDTH"}

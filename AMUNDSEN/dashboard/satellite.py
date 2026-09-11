@@ -35,14 +35,13 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .config import DB_DIR
+from .config import DB_DIR, WEBROOT
 
 log = logging.getLogger(__name__)
 
 TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 PROCESS_URL = "https://sh.dataspace.copernicus.eu/api/v1/process"
 CATALOG_URL = "https://sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0/search"
-WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", "/data/underway/www"))
 REGION = (-130.0, 74.0, -60.0, 83.5)   # lon west, lat south, lon east, lat north
 MERC_M_PER_PX = 1950.0             # mercator metres a pixel: 540 m on the ground at 74 °N, 240 m at 83 °N
 TILES = (2, 2)                     # requests across and down (each stays under the 2500 px cap)

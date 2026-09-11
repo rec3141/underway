@@ -7,7 +7,7 @@ is sent to external inference services.
 ## Timelapse
 
 ```
-python -m dashboard.cameras --source /mnt/ship/Data/Camera_360/2026_LEG_03 --output /data/underway/camera360
+python -m dashboard.cameras --source /mnt/ship/Data/Camera_360/2026_LEG_03 --output /data/underway_server/camera360
 ```
 
 One product per UTC calendar day (`days/YYYYMMDD/latest.mp4` and `.json`),

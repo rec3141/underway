@@ -5,6 +5,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/data/underway/app/AMUNDSEN/tools/deploy-pull.sh
+Environment=UNDERWAY_APP=@UNDERWAY_HOME@/app
+ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/tools/deploy-pull.sh
 StandardOutput=journal
 StandardError=journal

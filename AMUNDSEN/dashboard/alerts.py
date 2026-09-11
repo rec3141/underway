@@ -58,7 +58,7 @@ from email.message import EmailMessage
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .config import DB_DIR, LOCAL_TZ
+from .config import DB_DIR, LOCAL_TZ, WEBROOT
 
 log = logging.getLogger(__name__)
 CONF_DIR = Path("~/.config/underway").expanduser()
@@ -74,7 +74,6 @@ STATUS_FINISHED = ("completed", "canceled", "cancelled")
 TZ = ZoneInfo(LOCAL_TZ)
 TIMEOUT = 15
 STALE_MIN = 30                  # the FULL_CSV normally grows every ten minutes
-WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", "/data/underway/www"))
 OPS_EMAIL = os.environ.get("UNDERWAY_OPS_EMAIL", "")
 OPS_TELEGRAM = os.environ.get("TELEGRAM_ID", "")
 FLAGS_PER_HOUR = 10             # review flags one device may raise in an hour …

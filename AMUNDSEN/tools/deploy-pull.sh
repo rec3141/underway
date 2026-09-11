@@ -9,9 +9,9 @@
 # What the pull brings in takes effect by itself except for two things: a
 # change under dashboard/*.py needs the serving processes restarted (the
 # build subprocess picks code up on its own), and a change under deploy/
-# needs the unit files installed by hand — this script only says so.
+# needs the units installed with deploy/install.sh — this script only says so.
 set -euo pipefail
-APP=${UNDERWAY_APP:-/data/underway/app}
+APP=${UNDERWAY_APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}    # the checkout this script lives in
 OWNER=$(stat -c %U "$APP")
 OWNER_HOME=$(getent passwd "$OWNER" | cut -d: -f6)
 # every git call as the owner (git refuses a tree owned by someone else), with
@@ -32,5 +32,5 @@ if grep -q '^AMUNDSEN/dashboard/.*\.py$' <<<"$changed"; then
   systemctl restart underway-dashboard underway-telegram
 fi
 if grep -q '^AMUNDSEN/deploy/' <<<"$changed"; then
-  echo "deploy: unit files changed; install them: sudo cp $APP/AMUNDSEN/deploy/*.service $APP/AMUNDSEN/deploy/*.timer /etc/systemd/system/ && sudo systemctl daemon-reload"
+  echo "deploy: unit files changed; install them: sudo $APP/AMUNDSEN/deploy/install.sh"
 fi

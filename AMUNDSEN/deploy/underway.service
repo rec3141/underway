@@ -2,52 +2,45 @@
 Description=Amundsen Underway Dashboard generator
 Wants=network-online.target
 After=network-online.target
-# Ensure the share is mounted before running:
-# Replace the path with your real mount path
-# RequiresMountsFor removed: the build reads the local mirror
+# No RequiresMountsFor: the build reads the local mirror, not the share
 
 [Service]
+Type=oneshot
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+# the installation's settings (UNDERWAY_MIRROR, UNDERWAY_TILES_DIR, ARCTIC_HISTORY_ROOT, TZ, ...)
+EnvironmentFile=@UNDERWAY_SITE@
 # numpy's BLAS starts a thread per core at import (32 here) and that alone costs 8 s CPU a run
 Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 Environment=UNDERWAY_LOCAL=1
-Environment=UNDERWAY_MIRROR=/data/ship
-Environment=UNDERWAY_WEBROOT=/data/underway/www
-Environment=UNDERWAY_TILES_DIR=/data/gis/tiles
-Type=oneshot
-User=cryomics
-Group=cryomics
-WorkingDirectory=/data/underway/app/AMUNDSEN
-Environment=UNDERWAY_DB_DIR=/data/underway/db
-Environment=UNDERWAY_CACHE_DIR=/data/underway/cache
-Environment=TZ=America/Toronto
-# Optional env file for secrets like GOOGLE creds; create it root:root 600
-EnvironmentFile=-/home/cryomics/.config/underway/underway.env
-
-ExecStart=/data/underway/app/AMUNDSEN/update_underway_py.sh
-
+Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
+Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
+# credentials; create it mode 600
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/update_underway_py.sh
 # Nice I/O to be friendly on shared storage
 Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
-
-# Hardening (adjust if R needs more capabilities)
+# Hardening
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
-ReadWritePaths=/data/underway/app/AMUNDSEN
-ReadWritePaths=/data/underway/db /data/underway/cache
-ReadWritePaths=/data
-# the History tab reads the arctic-history database, and SQLite writes its journal beside it
-ReadWritePaths=/home/cryomics/Desktop/arctic-history/db
-# If you keep the service-account JSON in this dir, include it in ReadWritePaths or make it read-only there.
+ReadWritePaths=@UNDERWAY_HOME@
+# the mirror and the history clone may sit under /home, which is otherwise
+# read-only here; SQLite writes its journal beside the history database.
+# '-': a path that does not exist is skipped, not a failure to start
+ReadWritePaths=-@UNDERWAY_MIRROR@ -@ARCTIC_HISTORY_ROOT@/db
 # Restrict networking surface (still allows HTTP/HTTPS)
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 LockPersonality=true
 ProtectControlGroups=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
-
 # Logging
 StandardOutput=journal
 StandardError=journal
