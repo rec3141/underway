@@ -1274,6 +1274,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     $("#histhome").classList.toggle("on", !hist.slug && !hist.search);
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
     $("#histback").disabled = !hist.slug && nav.n === 0;
+    $("#histback").title = nav.fromMap ? "back to the map" : "back to the view before";
     for (const b of document.querySelectorAll("#wikidomains .dom")) { const on = domainOn(b.dataset.domain); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
     const ask = $("#histask"), t = askTarget(); ask.textContent = t.label; ask.title = t.title;
   }
@@ -1298,7 +1299,10 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   // the same; past the first view it goes home rather than off the site. The
   // prefixes of the two tabs of before (#history/, #nature/) still open the
   // wiki: the crew's citations and old links carry them.
-  const nav = { n: 0 };                                   // how many views this visit has pushed
+  // A page opened by a tap on the map remembers it (fromMap): where the pane
+  // and the map do not share the screen (a phone, the pane above the map),
+  // the page comes into view, and going back from it returns to the map.
+  const nav = { n: 0, fromMap: false };                   // views this visit has pushed; whether the one shown came from the map
   const ALIAS = { timeline: "kind/event", people: "kind/people" };
   const HASH_RX = /^#(wiki|history|nature)\/(.*)$/;
   const hashSlug = () => { const m = HASH_RX.exec(location.hash); return m ? decodeURIComponent(m[2]) : null; };
@@ -1307,19 +1311,55 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     hist.slug = slug; store.set("wiki.slug", slug);
     hist.more = { today: false, here: false };
     if (hist.search) { hist.search = ""; const q = $("#histsearch"); if (q) q.value = ""; }
-    if (!opts.pop) { nav.n++; try { history.pushState({ hist: slug, n: nav.n }, "", `#wiki/${slug}`); } catch {} }
+    if (!opts.pop) {
+      nav.n++; nav.fromMap = !!opts.fromMap;
+      try { history.pushState({ hist: slug, n: nav.n, ...(opts.fromMap ? { fromMap: true } : {}) }, "", `#wiki/${slug}`); } catch {}
+    }
     if (!opts.quiet && $("#pane-wiki").hidden) UW.showTab("wiki");
-    render();
+    const done = render();
+    if (opts.fromMap) done.then(() => intoView($("#pane-wiki")));
+    return done;
+  }
+  // the pane or the map scrolled to, when it is not on the screen already
+  // (beside each other on a wide screen, neither moves)
+  function intoView(el) {
+    if (!el || el.hidden || !el.offsetParent) return;
+    const r = el.getBoundingClientRect();
+    if (r.top >= 0 && r.top < innerHeight * 0.6) return;
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  // back at the map: the page above it may still be growing (pictures,
+  // cards), so the map is held at the top for a moment, unless the reader
+  // scrolls first
+  function backToMap() {
+    const m = document.querySelector("section.map");
+    if (!m || UW.mapMode?.() === "none" || !m.offsetParent) return;
+    const r = m.getBoundingClientRect();
+    if (r.top >= 0 && r.top < innerHeight * 0.6) return;
+    let held = true;
+    const release = () => { held = false; };
+    const evs = ["wheel", "touchstart", "keydown"];
+    for (const ev of evs) addEventListener(ev, release, { passive: true });
+    const pin = () => { if (held) m.scrollIntoView({ block: "start" }); };
+    pin();
+    for (const t of [250, 700, 1500]) setTimeout(pin, t);
+    setTimeout(() => { held = false; for (const ev of evs) removeEventListener(ev, release); }, 1600);
   }
   window.addEventListener("popstate", (e) => {
+    const left = nav.fromMap;                             // the view being left was opened from the map
+    nav.fromMap = !!e.state?.fromMap;
     const s = e.state?.hist ?? hashSlug();
-    if (s == null) { nav.n = 0; if (!$("#pane-wiki").hidden) { hist.slug = ""; store.set("wiki.slug", ""); render(); } return; }
+    if (s == null) {
+      nav.n = 0;
+      if (!$("#pane-wiki").hidden) { hist.slug = ""; store.set("wiki.slug", ""); render().then(() => { if (left) backToMap(); }); }
+      return;
+    }
     nav.n = e.state?.n ?? 0;
-    open(s, { pop: true });
+    open(s, { pop: true }).then(() => { if (left) backToMap(); });
   });
   function goBack() {
     if (nav.n > 0 && history.state?.hist != null) history.back();
-    else open("");
+    else { const left = nav.fromMap; nav.fromMap = false; open("").then(() => { if (left) backToMap(); }); }
   }
   function focusPoint(lat, lon, label, type = "", layer = "history") {
     if (lat == null) return;
@@ -1359,19 +1399,20 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   });
   // a click on a spot where several things sit opens the chooser instead
   const crowded = (lat, lon) => lat != null && (hist.sites?.get(siteKey(lat, lon))?.length || 0) > 1;
+  const FROM_MAP = { fromMap: true };
   UW.onHistoryClick = (id, pt) => {
     // the mark moves to what was clicked; the map keeps its view; the page
     // opens even if it is the one the reader has since left
     if (pt && pt.lat != null) UW.state.focus = { lat: +pt.lat, lon: +pt.lon, label: String(pt.text || "").replace(/<br>.*$/s, "").replace(/<[^>]+>/g, "") };
-    if (pt && crowded(pt.lat, pt.lon)) { open(`at/${siteKey(pt.lat, pt.lon)}`); return; }
-    if (id.startsWith("place:")) { open(id.slice(6)); return; }
-    const a = artifactById(id.split("|")[0]); if (a) open(a.page);
+    if (pt && crowded(pt.lat, pt.lon)) { open(`at/${siteKey(pt.lat, pt.lon)}`, FROM_MAP); return; }
+    if (id.startsWith("place:")) { open(id.slice(6), FROM_MAP); return; }
+    const a = artifactById(id.split("|")[0]); if (a) open(a.page, FROM_MAP);
   };
   // the mark sits over the point it marks and takes the click: find what
   // lies under it and open that
   UW.onFocusClick = (pt) => {
     if (!(UW.state.history || UW.state.nature) || !hist.artifacts || pt?.lat == null) return false;
-    if (crowded(pt.lat, pt.lon)) { open(`at/${siteKey(pt.lat, pt.lon)}`); return true; }
+    if (crowded(pt.lat, pt.lon)) { open(`at/${siteKey(pt.lat, pt.lon)}`, FROM_MAP); return true; }
     const near = (la, lo) => la != null && Math.abs(la - pt.lat) < 1e-6 && Math.abs(lo - pt.lon) < 1e-6;
     let hit = null;
     eachLayer(() => {
@@ -1382,7 +1423,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
       }
       if (hist.types.has("place")) { const p = hist.places.find((p) => inDomain(p) && (!t || p.topic === t) && near(p.lat, p.lon)); if (p) hit = p.page; }
     });
-    if (hit) { open(hit); return true; }
+    if (hit) { open(hit, FROM_MAP); return true; }
     return false;
   };
 

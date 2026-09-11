@@ -643,7 +643,7 @@
   const focusPoint = (lat, lon, label) => H.focusPoint(lat, lon, label, "", "nature");
   UW.onNatureClick = (id, pt) => {
     if (pt && pt.lat != null) UW.state.focus = { lat: +pt.lat, lon: +pt.lon, label: String(pt.text || "").replace(/<br>.*$/s, "").replace(/<[^>]+>/g, "") };
-    H.open(`observation/${id}`);
+    H.open(`observation/${id}`, { fromMap: true });
   };
 
   // ---------------------------------------------------------------- the map layer
