@@ -987,7 +987,7 @@
     const a = UW.M.alerts || {};
     if (!a.email && !a.telegram_bot && !a.web) return "";
     const on = followed("changes");
-    return ` <button type="button" class="bell changes ${on ? "on" : ""}" data-key="changes" data-name="${CHANGES_NAME}" title="${esc(bellTitle(CHANGES_NAME, on))}">🔔 changes</button>`;
+    return ` <button type="button" class="bell changes ${on ? "on" : ""}" data-key="changes" data-name="${CHANGES_NAME}" title="${esc(bellTitle(CHANGES_NAME, on))}">🔔</button>`;
   }
   function bellHtml(r) {
     const a = UW.M.alerts || {};

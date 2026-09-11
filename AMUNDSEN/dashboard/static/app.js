@@ -808,23 +808,28 @@
   }
   // Labels follow the zoom: Plotly only reports user zooms as relayout events
   // (not programmatic ones), so a light poll of the map's zoom covers both.
-  // the ship glyph is drawn bow-right (east); turn it to the heading on the
-  // MapLibre layer (Plotly's map symbols carry no angle), whenever it drifts —
-  // the first draw's layer may not exist yet when react() resolves
+  // the ship glyph is drawn bow-right (east); marker.angle turns it (degrees
+  // clockwise from north, aligned to the map)
   const shipRotate = () => Math.round(((state.shipHeading - 90) % 360 + 360) % 360);
-  // Plotly drops and re-adds its layers on every react, which would show the
-  // glyph pointing east for a frame: the rotation is written into the layer
-  // definition on its way into MapLibre (the trace carries a fixed uid, so
-  // the layer id is known)
-  function hookShipLayer(map) {
-    if (map._shipHooked) return;
-    map._shipHooked = true;
-    const add = map.addLayer.bind(map);
-    map.addLayer = (layer, before) => {
-      if (layer?.id === "plotly-trace-layer-latest-symbol" && state.shipHeading != null) {
-        layer.layout = { ...(layer.layout || {}), "icon-rotate": shipRotate(), "icon-rotation-alignment": "map" };
+  // Plotly removes and re-adds every trace's MapLibre layers on every update
+  // (a restyle of the ship's one point included) whenever traces share a
+  // "below" (by default they all share ""), to keep them stacked in data
+  // order; each re-add serialises the whole style, so with the History layer
+  // on (370 traces, 1480 layers) one update blocked the page for seconds.
+  // When the traces are the ones of the last update, in the same order and
+  // visibility, the stack is already right: they keep their layers and only
+  // their data and styles are updated. Any other change is re-stacked as before.
+  function hookStacking(sp) {
+    if (sp._stackingHooked) return;
+    sp._stackingHooked = true;
+    const fill = sp.fillBelowLookup;
+    sp.fillBelowLookup = function (calcData, fullLayout) {
+      const sig = calcData.map((cd) => cd[0].trace.uid + (cd[0].trace.visible === true ? "" : "~")).join(",");
+      fill.call(this, calcData, fullLayout);
+      if (sig === this._stackSig) {
+        for (const cd of calcData) { const o = this.traceHash[cd[0].trace.uid]; if (o) o.below = this.belowLookup["trace-" + cd[0].trace.uid]; }
       }
-      return add(layer, before);
+      this._stackSig = sig;
     };
   }
   // a click on open water or land, where there is no point, takes the mark
@@ -835,20 +840,11 @@
     map._emptyClickHooked = true;
     map.on("click", () => { const el = $("#map"); if (state.focus && !el?._hoverdata?.length) { state.focus = null; renderMap(); } });
   }
-  function aimShip() {
+  function hookMap() {
     const el = $("#map"); const sp = el?._fullLayout?.map?._subplot;
     if (!sp?.map) return;
-    hookShipLayer(sp.map);
+    hookStacking(sp);
     hookEmptyClick(sp.map);
-    if (state.shipHeading == null) return;
-    const lt = el._fullData?.find((t) => t.name === "latest");
-    const layer = lt && sp.traceHash?.[lt.uid]?.layerIds?.symbol;
-    if (!layer || !sp.map.getLayer(layer)) return;
-    const want = shipRotate();
-    if (sp.map.getLayoutProperty(layer, "icon-rotate") !== want) {
-      sp.map.setLayoutProperty(layer, "icon-rotate", want);
-      sp.map.setLayoutProperty(layer, "icon-rotation-alignment", "map");
-    }
   }
   // Station labels: one per station name (the latest visit), thinned to one
   // per map cell so they never pile up; far out only the stations without a
@@ -957,7 +953,6 @@
   }
   let lastLabelZoom = null, lastStationZoom = null;
   setInterval(() => {
-    try { aimShip(); } catch { /* next tick */ }
     const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
     if (z == null || !el.data || mapBusy()) return;
     const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
@@ -1043,7 +1038,7 @@
     const had = el.data[idx].marker?.symbol === "ship";
     if ((ship.heading != null) !== had) { renderMap(); return; }        // the glyph itself changes: a full draw
     state.shipHeading = ship.heading;
-    Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]] }, [idx]).catch(() => {});
+    Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]], ...(ship.heading != null ? { "marker.angle": shipRotate() } : {}) }, [idx]).catch(() => {});
   }
   // The colour scale beside every Color by picker: the colour map's gradient
   // with the limits at its ends. The map's track trace resolves a named
@@ -1135,7 +1130,7 @@
     if (ship.lat != null) traces.push({
       type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
       lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
-      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
+      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true, angle: shipRotate() }
                                    : { size: 12, color: "#d52b1e", opacity: 1 },
     });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
@@ -1188,7 +1183,7 @@
     Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(mapStyleLoaded).then(() => {
       state.fitPending = false;
       try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
-      try { aimShip(); } catch { /* the poll retries */ }
+      try { hookMap(); } catch { /* the map draws as Plotly has it */ }
       if (!state.view) state.view = view;
       updateScale();
       el.removeAllListeners?.("plotly_relayout");
