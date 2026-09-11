@@ -1182,6 +1182,7 @@
           <button class="min" title="minimise to its group">—</button>
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
+    el.querySelector("h3").textContent = v?.label || name;
     el.querySelector("h3").onclick = () => selectPanel(name);
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
@@ -1269,7 +1270,8 @@
       cards.push(box);
       const minned = members.filter((n) => state.panel[n] === "min"), allMin = minned.length === members.length;
       box.querySelector(".gname").textContent = g;
-      box.querySelector(".gn").textContent = `${members.length - minned.length}/${members.length}`;
+      const summary=members.map(n=>extraPanels.get(n)?.groupSummary).find(Boolean);
+      box.querySelector(".gn").textContent = summary ? summary() : `${members.length - minned.length}/${members.length}`;
       box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
       box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this group`;
       box.querySelector(".ghead").onclick = () => {
@@ -1285,8 +1287,14 @@
         if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, null); }
         chips.appendChild(chip);
         const y = state.data?.vars[name];
-        chip.innerHTML = `<span class="cname">${name}</span><b>${fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit)}</b><span>▲</span>`;
-        chip.title = `${name}: restore`;
+        const spec=extraPanels.get(name),preview=spec?.chip?.();
+        chip.classList.toggle('ice-summary-chip',!!preview);
+        chip.replaceChildren();
+        const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||name;
+        if(preview?.image){const img=document.createElement('img');img.src=preview.image;img.alt='Latest ROI';img.className='chip-preview';label.prepend(img)}
+        const value=document.createElement('b');value.textContent=preview?.text??fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit);
+        const arrow=document.createElement('span');arrow.textContent='▲';chip.append(label,value,arrow);
+        chip.title = `${spec?.label||name}: restore`;
       }
     }
     const saved = store.get("cards.order", []);
@@ -1662,6 +1670,7 @@
     fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
+      layoutPanels();
       if (extraColours.has(state.colour)) render();
       else for (const name of extraPanels.keys()) renderPanel(name);
     },
