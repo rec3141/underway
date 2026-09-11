@@ -49,7 +49,6 @@ dashboard/           the Python package
 update_underway_py.sh    systemd-facing wrapper: build into the web root
 pyproject.toml           package metadata; `pip install -e .` gives an `underway` command
 deprecated/              the previous R implementation and its wrappers, kept for reference
-scheduler/               separate tool: event log -> Google Calendar sync (R)
 ```
 
 ## Requirements
@@ -246,17 +245,16 @@ To run the dashboard on another account or another machine:
    `pip install -e 'app/AMUNDSEN[chat,gcal]'`.
 3. `sudo mkdir /etc/underway && sudo cp app/AMUNDSEN/deploy/site.env.example
    /etc/underway/site.env`, and edit it: the directory, the account, the
-   interpreter, the Wi-Fi interface (`ip -br addr`).
-4. Put the credentials in the account's `~/.config/underway/` (or
-   `UNDERWAY_CONFIG`), none of them in git:
-   - `underway.env` (mode 600): `TELEGRAM_KEY`, `TELEGRAM_NAME`, `TELEGRAM_ID`
-     (the bot and the keeper's chat), `UNDERWAY_OPS_EMAIL`, `COPERNICUS_ID`
-     and `COPERNICUS_SECRET` (satellite), `GCAL_SERVICE_JSON`;
-   - `gcal-sa.json` (the Google service account), `smtp.json` (mail for
-     alerts), `admins.json` (chat names that may clear review flags);
-   - `camera.env`, from `deploy/camera.env.example`.
-   Each integration is off, and says so on the page, while its credentials are
-   missing.
+   interpreter, the Wi-Fi interface (`ip -br addr`), and the camera settings
+   for the current leg.
+4. Put the secrets in the account's `~/.config/underway/` (or
+   `UNDERWAY_CONFIG`), neither of them in git:
+   - `underway.env`, from `deploy/underway.env.example`, mode 600: Telegram,
+     the SMTP account for alerts, the operations address, Copernicus;
+   - `gcal-sa.json`, the Google service account's key.
+   `admins.json` there (a JSON list of chat names that may clear review flags)
+   is optional. Each integration is off, and says so on the page, while its
+   values are missing.
 5. `sudo app/AMUNDSEN/deploy/install.sh --enable` installs the units and starts
    the build, the page server and the deploy pull; enable the others as their
    credentials go in (`sudo systemctl enable --now underway-alerts.timer

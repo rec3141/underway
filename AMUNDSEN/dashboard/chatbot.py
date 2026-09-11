@@ -29,12 +29,14 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .config import CONFIG_DIR
+
 log = logging.getLogger(__name__)
 
 LLM_URL = os.environ.get("UNDERWAY_LLM_URL", "http://127.0.0.1:11434")
 LLM_MODEL = os.environ.get("UNDERWAY_LLM_MODEL", "gemma4-local")
 LLM_API = os.environ.get("UNDERWAY_LLM_API", "ollama")
-LLM_CONFIG = Path.home() / '.config/underway/chat-model.json'
+LLM_CONFIG = CONFIG_DIR / 'chat-model.json'
 CHIME_MIN_S = 45 * 60          # unprompted remarks at most this often …
 EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
@@ -185,26 +187,9 @@ def model_status(fresh: bool = False) -> dict:
 
 
 def _ops_telegram() -> tuple[str, str]:
-    """The bot token and the operator's chat id: from the environment, else
-    from ~/.config/underway/underway.env, which the server unit does not load."""
-    token = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
-    chat_id = os.environ.get("TELEGRAM_ID", "")
-    env = Path.home() / '.config/underway/underway.env'
-    if (not token or not chat_id) and env.is_file():
-        for line in env.read_text().splitlines():
-            k, _, v = line.partition("=")
-            k, v = k.strip(), v.strip().strip('"').strip("'")
-            if k == "TELEGRAM_KEY" and not token:
-                token = v
-            if k == "TELEGRAM_ID" and not chat_id:
-                chat_id = v
-    if not token:
-        try:
-            from .alerts import telegram_token
-            token = telegram_token()
-        except Exception:                   # noqa: BLE001
-            pass
-    return token, chat_id
+    """The bot token and the operator's chat id, from the environment (underway.env)."""
+    from .alerts import telegram_token
+    return telegram_token(), os.environ.get("TELEGRAM_ID", "")
 
 
 def alert_offline(status: dict, what: str = "the chat crew") -> None:
@@ -642,7 +627,7 @@ class Crew:
         self.last_bot = 0.0
         self.seen_update = None
         self.seen_surprise = None
-        self.pause_file = Path.home() / '.config/underway/chat-paused'
+        self.pause_file = CONFIG_DIR / 'chat-paused'
         self.enabled = os.environ.get("UNDERWAY_LLM", "1") == "1" and not self.pause_file.exists()
 
     # ------------------------------------------------------------ context

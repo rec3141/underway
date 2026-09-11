@@ -28,8 +28,8 @@ Resized frames are cached locally by source path/size/mtime/width, so hourly
 runs need not reread unchanged originals. Generated cache files older than
 eight days are pruned after successful builds; they can be regenerated.
 
-Review `deploy/camera.env.example` and copy it to
-`~/.config/underway/camera.env`. The confirmed destination for 2026 Leg 3 is
+The camera settings are the `UNDERWAY_CAMERA_*` lines in `/etc/underway/site.env`
+(`deploy/site.env.example`). The confirmed destination for 2026 Leg 3 is
 `/mnt/ship/Share/2026/2026_LEG_03/Pictures/Timelapse`. The daily
 sync deliberately refuses to create a missing destination directory. It
 copies the dated daily MP4/JSON files and full-leg MP4/JSON into the dedicated

@@ -24,8 +24,7 @@ when that service is down, so an update is never consumed twice. Writers
 of the subscription file take ``db/alerts.lock``.
 
 An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
-else the address in the R scheduler's ``gmail_creds``, which may also carry
-the mail for it; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
+else the SMTP account's own address; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
 FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
 with a note when it recovers. The History artifacts flagged for review from
 their cards (``db/history_flags.json``) go to the same keeper on the next
@@ -33,15 +32,15 @@ run, all in one message; a flag withdrawn before then is dropped unsent.
 Whoever raised a flag can withdraw it while theirs is the only one; once
 several people have flagged the same artifact only an admin can, an admin
 being a chat name listed in ``UNDERWAY_ADMINS`` (comma-separated) or in
-``~/.config/underway/admins.json``, on the device that owns that name in
+``admins.json`` in the config directory, on the device that owns that name in
 the chat.
 
-Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` (or
-``TELEGRAM_KEY``, as in ``~/.config/underway/underway.env``) or in
-``~/.config/underway/telegram.json`` (``{"token": ...}``). Email needs an SMTP
-account in ``~/.config/underway/smtp.json`` (host, port, user, password,
-from, ssl, and reply_to for the address replies should go to). Without one
-the corresponding channel is off and said so on the page.
+Both channels take their account from the environment, which the units load
+from ``underway.env`` (deploy/underway.env.example): Telegram the bot token in
+``TELEGRAM_KEY`` (or ``UNDERWAY_TELEGRAM_TOKEN``), email an SMTP account in
+``SMTP_HOST``, ``SMTP_PORT``, ``SMTP_USER``, ``SMTP_PASSWORD``, ``SMTP_FROM``,
+``SMTP_SSL`` and ``SMTP_REPLY_TO`` (the address replies should go to). Without
+one the corresponding channel is off and said so on the page.
 """
 
 from __future__ import annotations
@@ -58,10 +57,10 @@ from email.message import EmailMessage
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .config import DB_DIR, LOCAL_TZ, WEBROOT
+from .config import CONFIG_DIR, DB_DIR, LOCAL_TZ, WEBROOT
 
 log = logging.getLogger(__name__)
-CONF_DIR = Path("~/.config/underway").expanduser()
+CONF_DIR = CONFIG_DIR
 TELEGRAM_TOKEN = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
 EVENTS = ("upcoming", "started", "finished", "moved")
 DEFAULT_EVENTS = ("upcoming", "started", "moved")
@@ -180,7 +179,7 @@ def _owner(token: str) -> str:
 
 def admins() -> list[str]:
     """The chat names that may clear anyone's flag: ``UNDERWAY_ADMINS``
-    (comma-separated), else the list in ``~/.config/underway/admins.json``;
+    (comma-separated), else the list in ``admins.json`` in ``CONFIG_DIR``;
     read on every check, so an edit takes effect at once."""
     env = os.environ.get("UNDERWAY_ADMINS", "")
     if env:
@@ -614,47 +613,24 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
 # ---------------------------------------------------------------- channels
 
 def telegram_token() -> str:
-    if TELEGRAM_TOKEN:
-        return TELEGRAM_TOKEN
-    p = CONF_DIR / "telegram.json"
-    try:
-        return json.loads(p.read_text()).get("token", "") if p.is_file() else ""
-    except (OSError, ValueError):
-        return ""
+    return TELEGRAM_TOKEN
 
 
 def smtp_config() -> dict | None:
-    """host, port, user, password, from, ssl — from ~/.config/underway/smtp.json."""
-    p = CONF_DIR / "smtp.json"
-    if not p.is_file():
+    """The mail account for alerts, from the ``SMTP_*`` variables; None without
+    a host and a user. ``SMTP_SSL=0`` means STARTTLS on port 587."""
+    e = os.environ
+    if not (e.get("SMTP_HOST") and e.get("SMTP_USER")):
         return None
-    try:
-        c = json.loads(p.read_text())
-        return c if c.get("host") and c.get("user") else None
-    except (OSError, ValueError):
-        return None
-
-
-def gmail_creds() -> dict | None:
-    """The R scheduler's Gmail settings (an R list serialised by jsonlite):
-    the keeper's own account, used only to write to the keeper."""
-    p = CONF_DIR / "gmail_creds"
-    if not p.is_file():
-        return None
-    try:
-        d = json.loads(p.read_text())
-        names = d["attributes"]["names"]["value"]
-        vals = [(v["value"][0] if isinstance(v.get("value"), list) and v["value"] else v.get("value")) for v in d["value"]]
-        c = dict(zip(names, vals))
-        return {"host": c["host"], "port": int(c.get("port") or 465), "user": c["user"], "password": c["password"],
-                "from": c["user"], "ssl": bool(c.get("use_ssl", True))}
-    except (OSError, ValueError, KeyError, TypeError, IndexError):
-        return None
+    return {"host": e["SMTP_HOST"], "port": e.get("SMTP_PORT", ""), "user": e["SMTP_USER"],
+            "password": e.get("SMTP_PASSWORD", ""), "from": e.get("SMTP_FROM", ""),
+            "ssl": e.get("SMTP_SSL", "1").strip().lower() not in ("0", "false", "no"),
+            "reply_to": e.get("SMTP_REPLY_TO", "")}
 
 
 def ops_targets() -> tuple[str, dict | None, str]:
     """(email address, its SMTP settings, Telegram chat) for operations alerts."""
-    cfg = smtp_config() or gmail_creds()
+    cfg = smtp_config()
     to = OPS_EMAIL or (cfg or {}).get("user", "") if not OPS_EMAIL else OPS_EMAIL
     return to, cfg, OPS_TELEGRAM
 

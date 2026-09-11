@@ -187,6 +187,9 @@ SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <
 # the installation's own directory: app/ (the deploy checkout), db/, cache/, www/, chat/, camera360/.
 # Set once in /etc/underway/site.env (deploy/site.env.example); the paths below default into it
 INSTALL_DIR = Path(os.environ.get("UNDERWAY_HOME", "/data/underway_server"))
+# the service account's own settings: underway.env (every secret; the units load it), gcal-sa.json (the Google
+# key), admins.json, chat-model.json, chat-paused. UNDERWAY_CONFIG in site.env moves it
+CONFIG_DIR = Path(os.environ.get("UNDERWAY_CONFIG", "~/.config/underway")).expanduser()
 # per-leg SQLite stores; derived data, safe to delete. Beside the package unless set, so a
 # development checkout never writes the installation's stores
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))
@@ -206,9 +209,9 @@ GCAL = {
     "surprise": {"id": "7ae4b788832de21af8d8aea44eb379098a4f5e1fb2f7dc9262af18c380b62abb@group.calendar.google.com",
                  "label": "Underway Updates", "colour": "#ffb454"},
 }
-GCAL_CREDS = Path(os.environ.get("UNDERWAY_GCAL_CREDS", "~/.config/underway/gcal-sa.json")).expanduser()  # service account key; never in the repo
+GCAL_CREDS = Path(os.environ.get("UNDERWAY_GCAL_CREDS", CONFIG_DIR / "gcal-sa.json")).expanduser()  # service account key; never in the repo
 GCAL_SYNC_MINUTES = 10        # the feed cache is refreshed at most this often
-GCAL_SINCE = "2026-01-01"     # event-log operations before this were pushed by the R scheduler
+GCAL_SINCE = "2026-01-01"     # event-log operations before this are already in the calendar, and are left alone
 GCAL_MAX_CALLS = 200          # API requests per push run: a day's worth of edits and deletes clears in one run, and the run stays well inside the service timeout
 SURPRISE_ALERT_SCALE = "3 h"  # the scale watched for calendar alerts …
 SURPRISE_ALERT = 2.0          # … and the level above which an episode starts

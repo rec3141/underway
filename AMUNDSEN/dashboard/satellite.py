@@ -22,7 +22,7 @@ the map can step back through the pictures (``ARCHIVE_MAX`` per sensor).
 
 Credentials: an OAuth client of the user's Copernicus account, as
 ``COPERNICUS_ID`` and ``COPERNICUS_SECRET`` in the environment (the
-timer reads ``~/.config/underway/underway.env``). Without them nothing is
+timer loads them from ``underway.env``). Without them nothing is
 rendered and the map has no satellite layer.
 """
 
