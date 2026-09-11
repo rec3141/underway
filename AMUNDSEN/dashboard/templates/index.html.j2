@@ -208,7 +208,21 @@
         <div class="notes" id="notes"></div>
       </div>
     </details>
+    <button type="button" id="feedback-open" class="feedback-link">Feedback about this page</button>
   </footer>
+  <dialog id="feedback-dialog" aria-labelledby="feedback-title">
+    <form id="feedback-form">
+      <h2 id="feedback-title">Feedback about this page</h2>
+      <p>Report a problem or suggest an improvement. The current page and view settings are included.</p>
+      <p id="feedback-page" class="muted"></p>
+      <label for="feedback-message">Your feedback</label>
+      <textarea id="feedback-message" rows="6" maxlength="5000" required></textarea>
+      <label for="feedback-name">Name (optional)</label>
+      <input id="feedback-name" maxlength="100" autocomplete="name">
+      <p id="feedback-status" role="status" aria-live="polite"></p>
+      <div class="feedback-actions"><button type="button" id="feedback-close">Cancel</button><button type="submit" id="feedback-send">Submit feedback</button></div>
+    </form>
+  </dialog>
 </main>
 
 <script>
@@ -240,10 +254,13 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/data.js?v={{ site.asset_version }}"></script>
 <script src="static/map.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>
+<link rel="stylesheet" href="static/ice.css?v={{ site.asset_version }}">
+<script src="static/ice.js?v={{ site.asset_version }}"></script>
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
 <script src="static/history.js?v={{ site.asset_version }}"></script>
 <script src="static/nature.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
+<script src="static/feedback.js?v={{ site.asset_version }}"></script>
 </body>
 </html>

@@ -151,7 +151,7 @@
   }
   const flagText = (f) => "⚑" + (f && f.raisers.length > 1 ? f.raisers.length : "");
   function flagTitle(f) {
-    if (!f) return "Flag for review";
+    if (!f) return "Flag this item for content review. For interface problems, use Feedback at the bottom of the page.";
     const by = f.raisers.map((r) => (r.who || "someone") + (r.note ? ": " + r.note : "")).join("; ");
     const can = hist.admin || (f.mine && f.raisers.length === 1);
     return `Flagged for review by ${by} · ${can ? "click to withdraw" : f.mine ? "only an admin can withdraw it now" : "click to add your own flag"}`;

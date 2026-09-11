@@ -684,7 +684,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "map.js", "app.js", "tabs.js", "chat.js", "camera-track.js", "history.js", "nature.js", "style.css"):
+    for name in ("data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
     # too many files for the share or the repository — and the server maps
