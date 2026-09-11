@@ -1257,8 +1257,11 @@
     }
     if (due) for (const el of $("#panels").children) if (el.dataset.stale && inView.has(el.dataset.name)) renderPanel(el.dataset.name);
   }, { rootMargin: "200px 0px" }) : null;
+  // Keep detached, minimized panels too: restoring them reuses their chart
+  // and observer instead of creating another observed DOM tree.
+  const panelElements = new Map();
   function panelEl(name) {
-    let el = document.getElementById("p-" + cssId(name));
+    let el = panelElements.get(name);
     if (el) return el;
     const v = VAR[name] || extraPanels.get(name);
     el = document.createElement("section");
@@ -1270,7 +1273,7 @@
         <div class="tools"><span class="now"></span>
           ${v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
           <button class="reset" title="reset zoom">⟲</button>
-          <button class="min" title="minimise to the bottom bar">—</button>
+          <button class="min" title="minimise to its group">—</button>
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
     el.querySelector("h3").onclick = () => selectPanel(name);
@@ -1280,28 +1283,13 @@
     el.querySelector(".reset").onclick = () => { const r = state.data && spanRange(state.data); Plotly.relayout(el.querySelector(".plot"), { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); };
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
     el.querySelector(".min").onclick = () => setPanelState(name, "min");
-    el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", name); el.classList.add("dragging"); });
-    el.addEventListener("dragend", () => el.classList.remove("dragging"));
-    el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
-    el.addEventListener("dragleave", () => el.classList.remove("over"));
-    el.addEventListener("drop", (e) => {
-      e.preventDefault(); el.classList.remove("over");
-      const from = e.dataTransfer.getData("text/plain");
-      if (!from || from === name) return;
-      // the dragged panel and the one it lands on trade places: the result does
-      // not depend on where in the card it was dropped
-      const order = panelNames();
-      const i = order.indexOf(from), j = order.indexOf(name);
-      if (i < 0 || j < 0) return;
-      [order[i], order[j]] = [order[j], order[i]];
-      state.order = order; store.set("order", order);
-      layoutPanels();
-    });
+    wireCardDrag(el, name);
+    panelElements.set(name, el);
     panelWatch?.observe(el);
     return el;
   }
 
-  // the bottom bar groups the panels by where their data come from: an
+  // Group cards collect panels by where their data come from: an
   // extra panel names its group when it registers; a variable's follows its
   // source instrument
   const GROUPS = ["Lab", "Met Station", "Bridge", "Deck", "Surprise", "Other"];
@@ -1321,32 +1309,63 @@
     renderPanel(name);
   }
 
+  // Group cards and charts share one persistent order in the same grid.
+  function wireCardDrag(el, key) {
+    el.dataset.card = key;
+    el.draggable = true;
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", key); el.classList.add("dragging");
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault(); el.classList.remove("over");
+      const names = panelNames();
+      const keys = [...names, ...new Set(names.map(n => "group:" + panelGroup(n)))];
+      const saved = store.get("cards.order", []).filter(k => keys.includes(k));
+      const order = [...saved, ...keys.filter(k => !saved.includes(k))];
+      const i = order.indexOf(e.dataTransfer.getData("text/plain")), j = order.indexOf(key);
+      if (i < 0 || j < 0 || i === j) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      store.set("cards.order", order);
+      layoutPanels();
+    });
+  }
+
   function layoutPanels() {
-    const grid = $("#panels"), dock = $("#dock");
+    const grid = $("#panels");
     const names = panelNames();
+    let changed = false;
+    const cards = [];
     const byGroup = new Map(GROUPS.map((g) => [g, []]));
     for (const name of names) {
       const g = panelGroup(name); if (!byGroup.has(g)) byGroup.set(g, []); byGroup.get(g).push(name);
       const el = panelEl(name);
-      el.classList.toggle("wide", state.panel[name] === "wide");
-      if (state.panel[name] === "min") { if (el.parentElement) el.remove(); } else grid.appendChild(el);
+      const wide = state.panel[name] === "wide";
+      if (el.classList.contains("wide") !== wide) { el.classList.toggle("wide", wide); changed = true; }
+      if (state.panel[name] === "min") {
+        if (el.parentElement) { el.remove(); changed = true; }
+      } else {
+        cards.push(el);
+      }
     }
-    // the bottom bar: a box per source, there whether or not anything is
-    // minimised, holding the chips of its minimised panels; its head
-    // minimises every panel of the source, or, once all are down, restores them
+    // Fixed-size group cards hold minimized charts in a scrolling body.
+    // Their header still minimizes or restores the whole group.
     for (const [g, members] of byGroup) {
       if (!members.length) continue;
       let box = document.getElementById("g-" + cssId(g));
       if (!box) {
-        box = document.createElement("div"); box.className = "dockgroup"; box.id = "g-" + cssId(g);
-        box.innerHTML = `<button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button><div class="chips"></div>`;
+        box = document.createElement("section"); box.className = "panel card dockgroup"; box.id = "g-" + cssId(g);
+        box.innerHTML = `<div class="head"><span class="handle" title="drag to reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" tabindex="0" role="region" aria-label="${g} minimized charts"></div>`;
+        wireCardDrag(box, "group:" + g);
       }
-      dock.appendChild(box);
+      cards.push(box);
       const minned = members.filter((n) => state.panel[n] === "min"), allMin = minned.length === members.length;
       box.querySelector(".gname").textContent = g;
       box.querySelector(".gn").textContent = `${members.length - minned.length}/${members.length}`;
       box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
-      box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this bar`;
+      box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this group`;
       box.querySelector(".ghead").onclick = () => {
         for (const n of members) { if (allMin) delete state.panel[n]; else state.panel[n] = "min"; }
         store.set("panel", state.panel);
@@ -1364,8 +1383,14 @@
         chip.title = `${name}: restore`;
       }
     }
-    dock.hidden = !names.length;
-    for (const el of grid.children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); }
+    const saved = store.get("cards.order", []);
+    const rank = new Map(saved.map((key, i) => [key, i]));
+    cards.sort((a, b) => (rank.get(a.dataset.card) ?? saved.length) - (rank.get(b.dataset.card) ?? saved.length));
+    cards.forEach((el, i) => {
+      const next = grid.children[i];
+      if (next !== el) { grid.insertBefore(el, next || null); changed = true; }
+    });
+    if (changed) for (const el of grid.children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); }
   }
 
   // The underway panels share one x-axis: a zoom, pan or reset on any of
@@ -1381,7 +1406,7 @@
       else if (ev["xaxis.range"]) { upd["xaxis.range"] = ev["xaxis.range"].slice(); upd["xaxis.autorange"] = false; }
       else if (ev["xaxis.range[0]"] != null) { upd["xaxis.range"] = [ev["xaxis.range[0]"], ev["xaxis.range[1]"]]; upd["xaxis.autorange"] = false; }
       else return;
-      const others = [...document.querySelectorAll("#panels .plot, #dock .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
+      const others = [...document.querySelectorAll("#panels .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
       xSyncing = true;
       Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { xSyncing = false; });
     });
@@ -1402,7 +1427,7 @@
   }
 
   function renderPanel(name) {
-    if (state.panel[name] === "min") { layoutPanels(); return; }
+    if (state.panel[name] === "min") return;
     const d = state.data, v = VAR[name] || extraPanels.get(name), el = panelEl(name);
     const plot = el.querySelector(".plot");
     const on = panelOn(name);

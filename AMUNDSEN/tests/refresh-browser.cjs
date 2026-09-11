@@ -1,5 +1,6 @@
 /* Integration check with real templates/scripts and an isolated synthetic HTTP
  * source. Usage: PYTHON=python3 node tests/refresh-browser.cjs /path/to/chromium
+ * PROFILE_UI=check runs the isolated mobile refresh profile and regression assertions.
  * Needs Node 22+, Chromium and Jinja2; never contacts the deployed dashboard. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -79,7 +80,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     const endpoint=stderr.match(/DevTools listening on (ws:\/\/\S+)/)?.[1];
     if(!endpoint) throw Error(stderr);
     const pages=await(await fetch(`http://${new URL(endpoint).host}/json/list`)).json();
-    ws=new WebSocket(pages[0].webSocketDebuggerUrl);
+    ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);
     await new Promise(r=>ws.addEventListener('open',r,{once:true}));
     let id=0; const pending=new Map();
     ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}});
@@ -89,7 +90,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       if(r.result?.exceptionDetails) throw Error(r.result.exceptionDetails.exception?.description||expression);
       return r.result?.result?.value;
     };
-    const until=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression))return;await wait(100);}throw Error(`Timed out: ${expression}`);};
+    const until=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression))return;await wait(100);}throw Error(`Timed out: ${expression}; ${JSON.stringify(await evaluate("({errors:window.__errors,url:location.href})"))}`);};
     const poll=async()=>{await evaluate('window.__poll()');await wait(250);};
     await call('Page.enable');
     await call('Page.addScriptToEvaluateOnNewDocument',{source:`
@@ -99,7 +100,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       const realInterval=window.setInterval;
       window.setInterval=(fn,ms,...args)=>{if(ms===30000)window.__poll=fn;return realInterval(fn,ms,...args);};
     `});
-    await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+    await call('Emulation.setDeviceMetricsOverride',{width:Number(process.env.UI_WIDTH)||390,height:844,deviceScaleFactor:1,mobile:!process.env.UI_WIDTH});
     await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
     await until('window.UW && document.querySelector("#connection").textContent.includes("Underway")');
     assert.equal(await evaluate('!!window.UW.state.raw'),false);
@@ -109,6 +110,68 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; document.querySelector("#map")._fullLayout?.map?._subplot?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    // Profile repeated refreshes with a phone-sized viewport and a full dock.
+    // Count work as well as time: timings vary by host, DOM churn does not.
+    if (process.env.PROFILE_UI) {
+      await evaluate('[...document.querySelectorAll(".panel")].find(e=>e.dataset.name==="SST (°C)").scrollIntoView()');
+      await until('!![...document.querySelectorAll(".panel")].find(e=>e.dataset.name==="SST (°C)").querySelector(".plot").data');
+      await wait(250);
+      const metrics = await evaluate(`(() => {
+        for (let i=0;i<24;i++) UW.registerPanel('Profile '+i, {resolved:true,group:'Other',render() {}});
+        const group=document.querySelector('#g-Other');
+        const size=()=>[group.offsetWidth,group.offsetHeight];
+        const expandedSize=size();
+        const original=[...document.querySelectorAll('#panels .panel')].find(e=>e.dataset.name==='Profile 0');
+        document.querySelector('#g-Other .ghead').click();
+        const minimizedSize=size();
+        const observer = new MutationObserver(() => {});
+        observer.observe(document.querySelector('#panels'), {childList:true});
+        let resizes=0; const resize=Plotly.Plots.resize;
+        Plotly.Plots.resize=(...args)=>{resizes++; return resize(...args);};
+        const start=performance.now();
+        for(let i=0;i<10;i++) UW.selectColour(UW.state.colour);
+        const elapsed=performance.now()-start, mutations=observer.takeRecords().length;
+        observer.disconnect(); Plotly.Plots.resize=resize;
+        document.querySelector('#g-Other .ghead').click();
+        return {expandedSize,minimizedSize,restoredSize:size(),groupDraggable:group.draggable,groupInGrid:group.parentElement.id==='panels',refreshes:10,minimized:24,elapsed_ms:Math.round(elapsed),panel_mutations:mutations,resizes,
+          reused: original === [...document.querySelectorAll('#panels .panel')].find(e=>e.dataset.name==='Profile 0'),
+          restored: [...document.querySelectorAll('#panels .panel')].filter(e=>e.dataset.name?.startsWith('Profile ')).length};
+      })()`);
+      console.log('UI PROFILE', JSON.stringify(metrics));
+      assert.equal(metrics.restored,24);
+      if (process.env.PROFILE_UI === 'check') {
+        assert.equal(metrics.groupDraggable,true);
+        assert.equal(metrics.groupInGrid,true);
+        assert.deepEqual(metrics.expandedSize,metrics.minimizedSize);
+        assert.deepEqual(metrics.expandedSize,metrics.restoredSize);
+        assert.equal(metrics.reused,true);
+        assert.equal(metrics.panel_mutations,0);
+        assert.equal(metrics.resizes,0);
+      }
+      const reordered = await evaluate(`(() => {
+        const group=document.querySelector('#g-Other'), target=document.querySelector('[data-name="SST (°C)"]');
+        const before=[...group.parentElement.children].indexOf(target), dt=new DataTransfer();
+        group.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:dt}));
+        target.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:dt}));
+        group.dispatchEvent(new DragEvent('dragend',{bubbles:true,dataTransfer:dt}));
+        const moved=[...group.parentElement.children].indexOf(group)===before;
+        group.querySelector('.ghead').click();
+        const size=group.offsetHeight;
+        group.querySelector('.chip').click();
+        const restoredOne=UW.state.panel['Profile 0'] !== 'min';
+        group.scrollIntoView();
+        return {moved,restoredOne,stable:size===group.offsetHeight,scrolls:group.querySelector('.chips').scrollHeight>group.querySelector('.chips').clientHeight};
+      })()`);
+      assert.deepEqual(reordered,{moved:true,restoredOne:true,stable:true,scrolls:true});
+      if (process.env.UI_SCREENSHOT) {
+        await wait(300);
+        const shot=await call('Page.captureScreenshot',{format:'png'});
+        fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));
+      }
+      await wait(500);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      return;
+    }
 
     await evaluate('window.UW.showTab("calendar")');
     await until('document.querySelector("#calendar").textContent.includes("event-1")');
