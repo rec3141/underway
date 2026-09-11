@@ -108,7 +108,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     assert.equal(await evaluate('!!window.UW.state.raw'),false);
     failures.clear(); await evaluate('window.dispatchEvent(new Event("online"))');
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
-    await evaluate('window.__mapErrors=[]; document.querySelector("#map")._fullLayout?.map?._subplot?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
+    await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
     // Profile repeated refreshes with a phone-sized viewport and a full dock.
     // Count work as well as time: timings vary by host, DOM churn does not.
@@ -270,7 +270,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     assert.equal(await evaluate('document.querySelector(".panel .plot").data[1].y[1]'),null);
     assert.equal(await evaluate('document.querySelector(".panel .plot").data[2].marker.color'),'#7d8895');
     assert.equal(await evaluate('document.querySelector(".panel .plot").data[2].y[1]'),6);
-    await until('document.querySelector("#map").data?.some(t=>t.name==="pump off")');
+    await until('window.UW.mapView?.traces.base.some(t=>t.name==="pump off")');
     await evaluate('window.UW.showTab("calendar")');
     await until('document.querySelector("#calendar").textContent.includes("Pump off / low intake flow")');
     await evaluate('document.querySelector("#calview [data-v=month]").click()');

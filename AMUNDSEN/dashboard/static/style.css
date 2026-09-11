@@ -394,6 +394,9 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 .maplayers .short { display: none; }
 /* the attribution sits under the map, not on it */
 #map .maplibregl-ctrl-attrib, #map .maplibregl-ctrl-bottom-right { display: none; }
+/* the map's hover box (static/map.js): the point's text beside the pointer */
+#map { position: relative; }
+.maptip { position: absolute; z-index: 5; pointer-events: none; max-width: min(360px, 80%); padding: 5px 8px; border-radius: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px var(--shadow); font-size: var(--t-sm); line-height: 1.35; }
 .map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: var(--t-xs); padding: 3px 8px 0; opacity: .8; }
 .maplayers { order: 0; } #map { order: 1; } .maptrack { order: 2; } .map-foot { order: 4; }   /* the column's order: bars, map, slider, attribution, notes */
 /* the scale bar, over the map's bottom-left corner; placed by the script, which knows the map's box */

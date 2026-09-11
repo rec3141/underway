@@ -1,6 +1,7 @@
 /* Amundsen underway dashboard — renders the JSON produced by the Python build.
- * Self-contained: Plotly is bundled, and the basemap is Natural Earth GeoJSON
- * served from static/geo/ and drawn by Plotly's MapLibre map with no tiles.
+ * Self-contained: Plotly (the charts) and MapLibre (the map, static/map.js) are
+ * served from static/, and the basemap comes from static/geo/ and the local
+ * tile sets.
  *
  * One record spans every leg. A window is a span back from the latest data;
  * each point carries its leg, and the leg list filters what is shown. */
@@ -484,7 +485,7 @@
       if (first) return;                                              // the first draw fits on its own
       setTimeout(() => {
         for (const p of document.querySelectorAll(".plot")) if (p.data) Plotly.Plots.resize(p);
-        if (m !== "none" && $("#map").data) { Plotly.Plots.resize($("#map")); requestFit(); renderMap(); }
+        if (m !== "none" && mapView) { mapView.resize(); requestFit(); renderMap(); }
       }, 0);
     };
     const setMapMode = (m) => { store.set("mapmode", m); applyMapMode(); };
@@ -547,12 +548,10 @@
   // ------------------------------------------------------------ basemap
   const DEPTHS = [0, 200, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];   // the bathymetry contours, coloured by C.bathy in order
 
-  // The basemap lives in the MapLibre style, not in Plotly's layer list.
-  // Plotly drops and re-adds its layout layers on every react, which made
-  // MapLibre re-tile five megabytes of coastline on each redraw; a style is
-  // loaded once and only re-diffed when its id changes. With a GEBCO raster
-  // the shaded relief carries bathymetry and land, so those files are neither
-  // fetched nor drawn.
+  // The basemap lives in the MapLibre style: loaded once and re-diffed only
+  // when its id changes, so a redraw never re-tiles five megabytes of
+  // coastline. With a GEBCO raster the shaded relief carries bathymetry and
+  // land, so those files are neither fetched nor drawn.
   async function loadGeo() {
     if (state.geoComplete) return;
     if (!SITE.geo_layers?.length) { state.geoComplete = true; return; }
@@ -578,18 +577,15 @@
   }
 
   // The GEBCO pyramid goes into the style as a proper source so MapLibre knows
-  // its maxzoom and scales the deepest tiles at closer zooms; a Plotly layer
-  // shorthand cannot say that, and the raster simply vanished past zoom 9.
-  // The satellite pictures go in too, under the coastline, so the shore stays
-  // legible over them. The style's id names everything in it: Plotly reloads
-  // the style only when the id changes, and MapLibre applies that as a diff.
+  // its maxzoom and scales the deepest tiles at closer zooms. The satellite
+  // pictures go in too, under the coastline, so the shore stays legible over
+  // them. The style's id names everything in it: the map takes a new style
+  // only when the id changes, and MapLibre applies that as a diff.
   function mapStyle(sat, near) {
-    // Plotly can drop an empty `sources` object on a subsequent react(),
-    // which MapLibre rejects on installations without raster tiles.
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const relief = !!SITE.raster;
     const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}`,
-                    sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
+                    sources: {},
                     sprite: base0 + (SITE.sprite || "static/geo/sprite"),   // squares, triangles, the ship (tools/make_sprite.py); versioned by the build
                     // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
                     // Open Sans Regular PBFs are served locally so it works offline
@@ -780,9 +776,8 @@
 
   // Settlements: a labelled marker each; labels thin out with zoom so the
   // scientific layers stay readable (population 2000+ far out, all close in).
-  // Sprite symbols take one icon size per trace (Plotly ignores per-point
-  // sizes for them), so places and events are split into size buckets. Icon
-  // scale is marker.size / 10 of a 12 px sprite.
+  // Places and events come in size buckets, a trace each; an icon's scale is
+  // marker.size / 10 of its sprite image.
   const PLACE_BUCKETS = [[0, 6], [1, 8], [200, 10], [1000, 13], [5000, 16]];       // [min population, size]
   const placeBucket = (pop) => { let b = PLACE_BUCKETS[0]; for (const x of PLACE_BUCKETS) if ((pop || 0) >= x[0]) b = x; return b[1]; };
   const EVENT_BUCKETS = [[1, 8.3], [2, 10], [4, 12]];                               // [min events at the spot, size]: 8.3 → a 10 px triangle
@@ -806,46 +801,9 @@
       marker: { symbol: "square", size: sz, opacity: .9 },
     }));
   }
-  // Labels follow the zoom: Plotly only reports user zooms as relayout events
-  // (not programmatic ones), so a light poll of the map's zoom covers both.
   // the ship glyph is drawn bow-right (east); marker.angle turns it (degrees
   // clockwise from north, aligned to the map)
   const shipRotate = () => Math.round(((state.shipHeading - 90) % 360 + 360) % 360);
-  // Plotly removes and re-adds every trace's MapLibre layers on every update
-  // (a restyle of the ship's one point included) whenever traces share a
-  // "below" (by default they all share ""), to keep them stacked in data
-  // order; each re-add serialises the whole style, so with the History layer
-  // on (370 traces, 1480 layers) one update blocked the page for seconds.
-  // When the traces are the ones of the last update, in the same order and
-  // visibility, the stack is already right: they keep their layers and only
-  // their data and styles are updated. Any other change is re-stacked as before.
-  function hookStacking(sp) {
-    if (sp._stackingHooked) return;
-    sp._stackingHooked = true;
-    const fill = sp.fillBelowLookup;
-    sp.fillBelowLookup = function (calcData, fullLayout) {
-      const sig = calcData.map((cd) => cd[0].trace.uid + (cd[0].trace.visible === true ? "" : "~")).join(",");
-      fill.call(this, calcData, fullLayout);
-      if (sig === this._stackSig) {
-        for (const cd of calcData) { const o = this.traceHash[cd[0].trace.uid]; if (o) o.below = this.belowLookup["trace-" + cd[0].trace.uid]; }
-      }
-      this._stackSig = sig;
-    };
-  }
-  // a click on open water or land, where there is no point, takes the mark
-  // away and leaves the pane as it is; Plotly's own click, which fires first
-  // on the same event, has set _hoverdata when a point was hit
-  function hookEmptyClick(map) {
-    if (map._emptyClickHooked) return;
-    map._emptyClickHooked = true;
-    map.on("click", () => { const el = $("#map"); if (state.focus && !el?._hoverdata?.length) { state.focus = null; renderMap(); } });
-  }
-  function hookMap() {
-    const el = $("#map"); const sp = el?._fullLayout?.map?._subplot;
-    if (!sp?.map) return;
-    hookStacking(sp);
-    hookEmptyClick(sp.map);
-  }
   // Station labels: one per station name (the latest visit), thinned to one
   // per map cell so they never pile up; far out only the stations without a
   // cast and the most recent casts survive, close in every name shows.
@@ -951,28 +909,18 @@
     }
     return out;
   }
-  let lastLabelZoom = null, lastStationZoom = null;
-  setInterval(() => {
-    const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
-    if (z == null || !el.data || mapBusy()) return;
-    const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
-    if (state.communities && bucket !== lastLabelZoom) {
-      lastLabelZoom = bucket;
-      const fresh = placeTraces(z);
-      const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
-      if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
-    }
-    const sz = Math.round(z * 2) / 2;
-    if (state.stationList?.length && sz !== lastStationZoom) {
-      lastStationZoom = sz;
-      const idx = el.data.findIndex((t) => t.name === "stations");
-      if (idx >= 0 && el.data[idx].lat.length === state.stationList.length) Plotly.restyle(el, { text: [stationLabels(state.stationList, z)] }, [idx]);
-      for (const pl of plansShown()) {
-        const pi = el.data.findIndex((t) => t.name === `${pl.key}-stations`);
-        if (pi >= 0 && el.data[pi].lat.length === pl.stations.length) Plotly.restyle(el, { text: [planLabels(pl.stations, z)] }, [pi]);
-      }
-    }
-  }, 1500);
+  // Labels follow the zoom: the places' by population bucket, the stations'
+  // and the plans' by half a zoom level. A zoom that ends in another bucket
+  // redraws the map with the labels for it.
+  const labelBuckets = (z) => [z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3, Math.round(z * 2) / 2];
+  let labelsAt = [null, null];
+  function onMapZoom() {
+    const v = mapView?.getView(); if (!v) return;
+    const [b, h] = labelBuckets(v.zoom);
+    const places = state.communities && b !== labelsAt[0], stations = (state.stationList?.length || plansShown().length) && h !== labelsAt[1];
+    if (!places && !stations) return;
+    state.view = v; renderMap();
+  }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   // Track detail: the window's points thinned to one per so many km along
@@ -1027,33 +975,40 @@
     return { lat: d.lat[li], lon: d.lon[li], heading, t: recT,
       text: `CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}` };
   }
+  // the ship at her latest position, and the focus mark: the map's live layers,
+  // which the poller moves without touching the rest
+  function liveTraces(ship) {
+    const out = [];
+    // the sprite's red-and-white Amundsen glyph turned to the heading the build
+    // averaged over the last ten minutes (a window's last bin swings with the
+    // bin width); with no heading to turn it to, a plain red dot stands in
+    if (ship?.lat != null) out.push({
+      type: "scattermap", mode: "markers", name: "latest", lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
+      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, angle: shipRotate() } : { size: 12, color: "#d52b1e", opacity: 1 },
+    });
+    if (state.focus) out.push({
+      type: "scattermap", mode: "markers", name: "focus", hoverinfo: "text", text: [state.focus.label, state.focus.label],
+      lat: [state.focus.lat, state.focus.lat], lon: [state.focus.lon, state.focus.lon],
+      marker: { size: [22, 12], color: [C.accent, C.bg], opacity: [.9, 1] },
+    });
+    return out;
+  }
+  const lastFix = (d) => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; };
   // called by the live poller: move the marker without redrawing the map
   function moveShip() {
-    const el = $("#map"); const d = state.data;
-    if (!el?.data || !d || mapBusy()) return;                          // the next poll moves it
-    const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
-    const ship = shipNow(d, li);
-    const idx = el.data.findIndex((t) => t.name === "latest");
-    if (idx < 0 || ship.lat == null) return;
-    const had = el.data[idx].marker?.symbol === "ship";
-    if ((ship.heading != null) !== had) { renderMap(); return; }        // the glyph itself changes: a full draw
+    const d = state.data;
+    if (!mapView || !d) return;
+    const ship = shipNow(d, lastFix(d));
+    if (ship.lat == null) return;
     state.shipHeading = ship.heading;
-    Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]], ...(ship.heading != null ? { "marker.angle": shipRotate() } : {}) }, [idx]).catch(() => {});
+    mapView.setTraces("live", liveTraces(ship));
   }
   // The colour scale beside every Color by picker: the colour map's gradient
-  // with the limits at its ends. The map's track trace resolves a named
-  // colour map into its stops; the last stops seen for a map serve while the
-  // track layer is off.
-  const scaleStops = new Map();
+  // with the limits at its ends, from the stops the map and the charts share.
   function renderColourBar(v, lim) {
-    const el = $("#map");
-    const tr = el._fullData?.find((t) => t.name === "track");
-    const key = v?.cmap || "Viridis";
-    if (tr?.marker?.colorscale && !v?.rgb) scaleStops.set(JSON.stringify(key), tr.marker.colorscale);
-    let stops = Array.isArray(key) ? key : scaleStops.get(JSON.stringify(key));
-    if (stops && v?.reverse) stops = stops.map(([t, col]) => [1 - t, col]).reverse();   // a map read the other way (depth: deep is dark)
+    const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
     for (const bar of document.querySelectorAll(".cbar")) {
-      const show = !!stops && !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
+      const show = !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
       bar.hidden = !show;
       if (!show) continue;
       bar.querySelector(".grad").style.background = `linear-gradient(90deg, ${stops.map(([t, col]) => `${col} ${(t * 100).toFixed(1)}%`).join(", ")})`;
@@ -1062,24 +1017,25 @@
       bar.title = `${state.colour}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span`;
     }
   }
-  let mapDrawing = false, mapAgain = false;
-  // the MapLibre map behind the plot; a restyle or resize while its style is
-  // still loading (the style changes with the theme, a satellite picture or
-  // new geography) throws inside MapLibre, so callers wait for mapBusy()
-  // (the stylesheet's own flag: isStyleLoaded() also waits for every tile)
-  const mapLibre = () => $("#map")._fullLayout?.map?._subplot?.map;
-  const styleLoading = (ml) => !!ml?.style && ml.style._loaded === false;
-  const mapBusy = () => mapDrawing || styleLoading(mapLibre());
-  const mapStyleLoaded = () => new Promise((res) => {
-    const ml = mapLibre(); if (!styleLoading(ml)) return res();
-    const t = setTimeout(done, 8000); function done() { clearTimeout(t); ml.off("style.load", done); res(); }
-    ml.on("style.load", done);
-  });
+  // the map (static/map.js): made on the first draw, kept for the page's life
+  let mapView = null, mapData = null;
+  // a click on a point: the handlers of what it belongs to; a click where
+  // there is no point takes the focus mark away
+  function mapClick(p) {
+    const d = mapData;
+    if (p?.data?.name === "track" && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d, p.pointIndex ?? p.pointNumber);
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5), p);
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("nat:")) return window.UW?.onNatureClick?.(p.customdata.slice(4), p);
+    if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
+    if (p?.lat != null && p.data?.name !== "focus") { state.focus = { lat: +p.lat, lon: +p.lon, label: String(p.text || p.hovertext || "").replace(/<[^>]+>/g, "") }; renderMap(); }   // the mark moves to what was clicked
+    if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
+  }
+  function mapEmptyClick() { if (state.focus) { state.focus = null; renderMap(); } }
   function renderMap() {
-    if (mapDrawing) { mapAgain = true; return; }
     const d = thinTrack(state.span, state.trackKm);
     const el = $("#map");
-    if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
+    if (!d || !(d.shown ?? d.n)) { mapView?.clear(); mapMessage(d ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1095,8 +1051,10 @@
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
     const f0 = spanFilter();
-    const traces = [...planTraces((state.view || fitView(d.lat, d.lon)).zoom), ...(window.UW?.extraMapTraces?.() || [])];
-    const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
+    const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
+    labelsAt = labelBuckets(view.zoom);
+    const traces = [...planTraces(view.zoom), ...(window.UW?.extraMapTraces?.() || [])];
+    const placeTr = placeTraces(view.zoom);
     const evTraces = eventTraces(f0);
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
@@ -1117,22 +1075,10 @@
       text: hover.map((h, i) => (lowMap[i] ? h + "<br><i>intake pump off</i>" : "")), hoverinfo: "text",
       marker: { size: 6, color: "#7d8895", opacity: .8 },
     });
-    const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
-    // the ship herself at the latest position: the sprite's red-and-white
-    // Amundsen glyph turned to the heading the build averaged over the last
-    // ten minutes (a window's last bin swings with the bin width). With no
-    // heading to turn it to, a plain red dot stands in. allowoverlap keeps
-    // the glyph from losing the collision pass to labels when zoomed out.
-    // The intranet's live page, polled every few seconds, is fresher than
-    // any file: while it is, the ship stands where it says.
-    const ship = shipNow(d, li);
+    // the intranet's live page, polled every few seconds, is fresher than any
+    // file: while it is, the ship stands where it says
+    const ship = shipNow(d, lastFix(d));
     state.shipHeading = ship.heading;
-    if (ship.lat != null) traces.push({
-      type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
-      lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
-      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true, angle: shipRotate() }
-                                   : { size: 12, color: "#d52b1e", opacity: 1 },
-    });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
     const f = spanFilter();
@@ -1151,69 +1097,34 @@
     if (st.length) traces.push({
       type: "scattermap", mode: "markers+text", name: "stations", showlegend: false,
       lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
-      customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, (state.view || fitView(d.lat, d.lon)).zoom),
+      customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, view.zoom),
       textposition: "top right", textfont: { size: fz(11), color: "#e8f4ff", family: "Open Sans Regular" },
       marker: { size: st.map((s) => selected.has(stKey(s)) ? 14 : 9),
                 color: st.map((s) => selected.has(stKey(s)) ? C.accent2 : s.kind === "event" ? C.ok : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
-    // an all-but-invisible oversized copy on top gives each station a generous
-    // click target without changing how it looks
-    if (st.length) traces.push({
-      type: "scattermap", mode: "markers", name: "station hit targets", showlegend: false, hoverinfo: "skip",
-      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon),
-      customdata: st.map(stKey),
-      marker: { size: 26, color: "rgba(255,255,255,0.02)" },
-    });
-
-    if (state.focus) traces.push({
-      type: "scattermap", mode: "markers", name: "focus", showlegend: false, hoverinfo: "text", text: [state.focus.label],
-      lat: [state.focus.lat, state.focus.lat], lon: [state.focus.lon, state.focus.lon],
-      marker: { size: [22, 12], color: [C.accent, C.bg], opacity: [.9, 1] },
-    });
-
-    const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
     // the satellite picture under the track, and the same sensor at 50 m in
     // a box round the ship over it: both go into the style with the basemap
     const sat = (state.sat && satPicture()) || null;
     const near = (state.sat && !state.satAt && satImages()[state.sat + "near"]) || null;
-    const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
-                     map: { style: mapStyle(sat, near), center: view.center, zoom: view.zoom, layers: [] } };
-    mapDrawing = true;
-    Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(mapStyleLoaded).then(() => {
-      state.fitPending = false;
-      try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
-      try { hookMap(); } catch { /* the map draws as Plotly has it */ }
-      if (!state.view) state.view = view;
-      updateScale();
-      el.removeAllListeners?.("plotly_relayout");
-      el.on("plotly_relayout", (ev) => {
-        if (state.fitPending) return;
-        const c2 = ev["map.center"], z = ev["map.zoom"];
-        if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
+    mapData = d;
+    if (!mapView) {
+      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: mapEmptyClick, onZoom: onMapZoom,
+        onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); } });
+      window.UW.mapView = mapView;
+    }
+    try {
+      mapView.draw({ style: mapStyle(sat, near), view, base: traces, live: liveTraces(ship) }).then(() => {
+        state.fitPending = false;
+        if (!state.view) state.view = view;
         updateScale();
       });
-      el.removeAllListeners?.("plotly_click");
-      el.on("plotly_click", (ev) => {
-        const p = ev.points?.[0];
-        if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
-        if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
-        if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5), p);
-        if (typeof p?.customdata === "string" && p.customdata.startsWith("nat:")) return window.UW?.onNatureClick?.(p.customdata.slice(4), p);
-        if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
-        if (p?.lat != null && p.data?.name !== "focus") { state.focus = { lat: +p.lat, lon: +p.lon, label: String(p.text || p.hovertext || "").replace(/<[^>]+>/g, "") }; renderMap(); }   // the mark moves to what was clicked
-        if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
-      });
       mapMessage("");
-    }).catch((e) => {
-      // a draw that failed outright leaves no plot; a hiccup after a good
-      // draw (a layer, a listener) is logged and the map stays as it is
+    } catch (e) {
       console.warn("map draw:", e);
-      if (!el._fullLayout?.map?._subplot?.map) mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
-    }).finally(() => {
-      mapDrawing = false;
-      if (mapAgain) { mapAgain = false; renderMap(); }
-    });
+      mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
+    }
+    try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
 
     // distance travelled: the along-track extent of each selected leg's
     // points in the span (dist_km runs on through the whole record)
@@ -1466,7 +1377,7 @@
     const trace = {
       x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
-      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", reversescale: !!cv?.reverse, cmin: lim?.[0], cmax: lim?.[1], showscale: false,
+      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: UW.cmap(cv?.cmap), reversescale: !!cv?.reverse, cmin: lim?.[0], cmax: lim?.[1], showscale: false,
                 opacity: 1 },
       text: legText,
       hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
@@ -1799,10 +1710,8 @@
     window.addEventListener("online", checkForUpdate);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
-    // the map box changes with the window and as the bars round it fill; a
-    // resize during a style reload waits for it
-    let resizeTimer = null;
-    const resizeMap = () => { clearTimeout(resizeTimer); if (!$("#map").data) return; if (mapBusy()) { resizeTimer = setTimeout(resizeMap, 300); return; } Plotly.Plots.resize($("#map")); };
+    // the map box changes with the window and as the bars round it fill
+    const resizeMap = () => mapView?.resize();
     window.addEventListener("resize", resizeMap);
     new ResizeObserver(resizeMap).observe($("#map"));
     wirePlanDrop(); renderPlanPills();

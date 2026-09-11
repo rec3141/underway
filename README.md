@@ -9,7 +9,7 @@ updated every few minutes, with no dependence on the satellite link.
 | directory | ship | acquisition system | stack | years |
 |---|---|---|---|---|
 | [`HEALY/`](HEALY/) | USCGC *Healy* | MetAcq (UDP multicast) | R, ggplot, ffmpeg | 2016 |
-| [`AMUNDSEN/`](AMUNDSEN/) | CCGS *Amundsen* | ACSD daily CSV files | Python, SQLite, Plotly.js | 2025– |
+| [`AMUNDSEN/`](AMUNDSEN/) | CCGS *Amundsen* | ACSD daily CSV files | Python, SQLite, Plotly.js, MapLibre GL | 2025– |
 
 ## HEALY
 
@@ -33,5 +33,5 @@ copes with instrument columns that change from leg to leg.
   names, credentials handling — lives inside it.
 - Data, caches, databases and credentials are never committed; see
   [`.gitignore`](.gitignore). Each pipeline documents where it expects them.
-- Large static assets needed offline (a bundled Plotly, basemap GeoJSON) *are*
+- Large static assets needed offline (bundled Plotly and MapLibre, basemap GeoJSON) *are*
   committed, because the ships cannot fetch them on demand.

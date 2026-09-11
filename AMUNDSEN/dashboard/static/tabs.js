@@ -102,10 +102,6 @@
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
         text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)} · click to select the tow`),
         marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? C.accent2 : C.ok), symbol: "circle" } });
-      // generous click target for tow starts (drawn beneath the station targets)
-      out.push({ type: "scattermap", mode: "markers", name: "tow hit targets", showlegend: false, hoverinfo: "skip",
-        lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
-        marker: { size: 22, color: "rgba(126,231,135,0.02)" } });
     }
     const sel = orderedSelection().filter((c) => c.lat != null);
     if (casts.mode === "section" && sel.length > 1) out.push({
