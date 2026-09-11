@@ -24,8 +24,7 @@ when that service is down, so an update is never consumed twice. Writers
 of the subscription file take ``db/alerts.lock``.
 
 An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
-else the address in the R scheduler's ``gmail_creds``, which may also carry
-the mail for it; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
+else the SMTP account's own address; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
 FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
 with a note when it recovers. The History artifacts flagged for review from
 their cards (``db/history_flags.json``) go to the same keeper on the next
@@ -635,26 +634,9 @@ def smtp_config() -> dict | None:
         return None
 
 
-def gmail_creds() -> dict | None:
-    """The R scheduler's Gmail settings (an R list serialised by jsonlite):
-    the keeper's own account, used only to write to the keeper."""
-    p = CONF_DIR / "gmail_creds"
-    if not p.is_file():
-        return None
-    try:
-        d = json.loads(p.read_text())
-        names = d["attributes"]["names"]["value"]
-        vals = [(v["value"][0] if isinstance(v.get("value"), list) and v["value"] else v.get("value")) for v in d["value"]]
-        c = dict(zip(names, vals))
-        return {"host": c["host"], "port": int(c.get("port") or 465), "user": c["user"], "password": c["password"],
-                "from": c["user"], "ssl": bool(c.get("use_ssl", True))}
-    except (OSError, ValueError, KeyError, TypeError, IndexError):
-        return None
-
-
 def ops_targets() -> tuple[str, dict | None, str]:
     """(email address, its SMTP settings, Telegram chat) for operations alerts."""
-    cfg = smtp_config() or gmail_creds()
+    cfg = smtp_config()
     to = OPS_EMAIL or (cfg or {}).get("user", "") if not OPS_EMAIL else OPS_EMAIL
     return to, cfg, OPS_TELEGRAM
 

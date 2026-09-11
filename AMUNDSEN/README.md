@@ -49,7 +49,6 @@ dashboard/           the Python package
 update_underway_py.sh    systemd-facing wrapper: build into the web root
 pyproject.toml           package metadata; `pip install -e .` gives an `underway` command
 deprecated/              the previous R implementation and its wrappers, kept for reference
-scheduler/               separate tool: event log -> Google Calendar sync (R)
 ```
 
 ## Requirements
@@ -251,7 +250,7 @@ To run the dashboard on another account or another machine:
    `UNDERWAY_CONFIG`), none of them in git:
    - `underway.env` (mode 600): `TELEGRAM_KEY`, `TELEGRAM_NAME`, `TELEGRAM_ID`
      (the bot and the keeper's chat), `UNDERWAY_OPS_EMAIL`, `COPERNICUS_ID`
-     and `COPERNICUS_SECRET` (satellite), `GCAL_SERVICE_JSON`;
+     and `COPERNICUS_SECRET` (satellite);
    - `gcal-sa.json` (the Google service account), `smtp.json` (mail for
      alerts), `admins.json` (chat names that may clear review flags);
    - `camera.env`, from `deploy/camera.env.example`.
