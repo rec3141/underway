@@ -170,8 +170,11 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
     if(process.env.HEADER_UI) {
+      assert.match(rendered.stdout, /id="histask"[^>]*>Ask a Q<\/button>/);
+      await evaluate(`document.querySelector('#schedlinks').innerHTML='<a class="bigcal" href="#">GCal</a><a class="bigcal" href="#">ICS</a>';document.querySelector('#schedcols').innerHTML='<div class="scol">Previous</div><div class="scol">Now</div><div class="scol">Next</div>';document.querySelector('#schedrow').hidden=false;`);
       assert.equal(await evaluate('document.querySelector("#alert").parentElement.classList.contains("top")'),true);
       await evaluate('document.querySelector("#alert").hidden=false');
+      assert.equal(await evaluate('(()=>{const cols=document.querySelector("#schedcols").getBoundingClientRect(),links=[...document.querySelectorAll("#schedlinks a")].map(a=>a.getBoundingClientRect());return links[0].left>=cols.right&&links[1].top>=links[0].bottom&&links[0].top<cols.bottom&&links[1].bottom<=cols.bottom+1})()'),true);
       assert.equal(await evaluate('(()=>{const b=document.querySelector(".brand").getBoundingClientRect(),s=document.querySelector("#alert").getBoundingClientRect();return s.left>=b.right&&s.width>b.width})()'),true);
       assert.equal(await evaluate('(()=>{const a=document.querySelector(".mapcolour").getBoundingClientRect(),b=document.querySelector(".map-toolbar .tools").getBoundingClientRect();return a.top<b.bottom&&b.top<a.bottom&&a.right<=b.left})()'),true);
       const ids=await evaluate('[...document.querySelectorAll("#tabs > button")].map(b=>b.id||b.dataset.tab)');

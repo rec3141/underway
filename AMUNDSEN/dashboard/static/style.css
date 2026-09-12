@@ -1463,9 +1463,9 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 @media (min-width:1000px) {
   .top .brand { flex:0 1 28%; }
   .top > #alert { order:1; flex:1 1 60%; min-width:0; padding:6px 8px; border:1px solid var(--line); border-radius:8px; }
-  .top > #alert .schedrow { flex-wrap:wrap; gap:6px; }
-  .top > #alert .schedcols { flex:1 0 100%; }
-  .top > #alert .schedlinks { margin-left:auto; }
+  .top > #alert .schedrow { flex-wrap:nowrap; gap:6px; }
+  .top > #alert .schedcols { flex:1 1 0; }
+  .top > #alert .schedlinks { flex:0 0 auto; flex-direction:column; justify-content:center; margin-left:auto; }
 }
 @media (max-width:640px) {
   .top #tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; background:transparent; border:0; padding:0; }
