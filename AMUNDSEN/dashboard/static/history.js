@@ -1254,6 +1254,10 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
         kindOptions(hist.slug.split("/").slice(0, 2).join("/")) +
         (natv?.domainOptions ? `<optgroup label="Domains">${natv.domainOptions(hist.slug)}</optgroup>` : "");
       sel.onchange = () => open(sel.value);
+      // Native selects otherwise size to the longest option, starving Search.
+      const style=getComputedStyle(sel),measure=document.createElement('canvas').getContext('2d');
+      measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      sel.style.width=`${Math.ceil(measure.measureText(sel.selectedOptions[0]?.textContent||'Browse…').width+parseFloat(style.paddingLeft)+parseFloat(style.paddingRight)+26)}px`;
     }
     // the map's menus, each after its layer's pill: the kinds after History, the domains after Nature
     const bar = $("#maphistlayers");

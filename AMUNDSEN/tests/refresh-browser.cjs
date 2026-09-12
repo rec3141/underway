@@ -410,6 +410,14 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelectorAll("#wikidomains .on").length'),0);
       assert.equal(await evaluate('UW.histShared.domainOn("history")&&UW.histShared.domainOn("nature")'),true);
       assert.equal(await evaluate('(()=>{const search=document.querySelector(".wiki-search-row").getBoundingClientRect(),domains=document.querySelector("#wikidomains").getBoundingClientRect();return search.top>=domains.bottom})()'),true);
+      for(const width of [1400,900,640,390,320]){
+        await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<=640});
+        await evaluate('UW.histShared.refresh()');await wait(100);
+        const boxes=await evaluate('(()=>{const s=document.querySelector("#histsearch").getBoundingClientRect(),b=document.querySelector("#histkindsel").getBoundingClientRect(),r=document.querySelector(".wiki-search-row").getBoundingClientRect();return {search:s.width,browse:b.width,row:r.width,overlap:s.left<b.right&&b.left<s.right&&s.top<b.bottom&&b.top<s.bottom}})()');
+        assert(boxes.search>=Math.min(160,boxes.row)-1,JSON.stringify({width,...boxes}));
+        assert(boxes.browse<150,JSON.stringify({width,...boxes}));
+        assert.equal(boxes.overlap,false);
+      }
       await evaluate('document.querySelector(\'[data-domain="history"]\').click()');
       await until('document.querySelector("#histask").textContent==="Ask Ada"');
       assert.equal(await evaluate('UW.histShared.domainOn("nature")'),false);

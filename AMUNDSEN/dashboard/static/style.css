@@ -1093,9 +1093,9 @@ ol.mla { padding-left: 22px; font-size: var(--t-md); line-height: 1.5; } ol.mla 
 #satpill { min-width: 7.2em; text-align: center; }
 
 /* the wiki's tools: Back, Home, Explore, the two labels, Ask, the search, and Browse (the kinds, the domains, the wiki's own pages) */
-.histtools .histsel { flex: 0 1 auto; min-width: 0; max-width: 14em; }
-.wiki-search-row { flex:1 0 100%; display:flex; align-items:center; gap:8px; min-width:0; }
-.wiki-search-row .histsearch { flex:1; min-width:0; }
+.histtools .histsel { flex:0 0 auto; min-width:0; max-width:100%; }
+.wiki-search-row { flex:1 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.wiki-search-row .histsearch { flex:1 1 14em; min-width:min(14em,100%); max-width:100%; box-sizing:border-box; }
 .histtools .domset { display: inline-flex; gap: 0; }
 .histtools .domset .chip.dom { border-radius: 0; margin-left: -1px; opacity: .7; }
 .histtools .domset .chip.dom:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
@@ -1118,9 +1118,7 @@ ol.mla { padding-left: 22px; font-size: var(--t-md); line-height: 1.5; } ol.mla 
 .histmain .backlinks .bgroup .ghead .muted { text-transform: none; letter-spacing: 0; margin-left: 4px; }
 .histmain .backlinks .bgroup .ghead .dot { width: 8px; height: 8px; }
 @media (max-width: 640px) {
-  .histtools .histsel { flex: 1 1 100%; max-width: none; }
   .histtools .histexplore { display: none; }                            /* Explore is in Browse */
-  .histtools .histsearch { flex: 1 1 100%; min-width: 0; }
 }
 .histtools .histback:disabled { opacity: .45; cursor: default; }
 .histtools .histback:disabled:hover { border-color: var(--line); }
