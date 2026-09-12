@@ -16,6 +16,7 @@ let generation=1;
 let rejectFeedback=true; const feedbackRows=[];
 let rejectLiveConfig=true;
 const uploadBatches=[], uploadFiles=[]; let rejectUpload=true;
+let importRequests=0, importJob=null, finishImport=false;
 const liveCast=(pressure_col, pressure)=>({started:1,n:2,n_raw:2,max_p:pressure,depth_like:true,t:[1,2],columns:['scan',pressure_col,'temperature'],pressure_col,cols:{scan:[1,2],[pressure_col]:[pressure,pressure],temperature:[3,4]}});
 const liveData={port:5555,columns:['scan','depth','temperature'],pressure_col:'depth',current:liveCast('depth',25),last:liveCast('depth_m',10)};
 const failures=new Set(['/data/manifest.json','/data/w-1h.json']), requests=[];
@@ -27,6 +28,7 @@ const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc
 function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
+    ...(process.env.UPLOAD_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -75,7 +77,15 @@ const server=http.createServer((req,res)=>{
     res.setHeader('Content-Type','application/json');
     const q=new URL(req.url,'http://localhost').searchParams;
     if(p==='/api/nature/share') {const folder=q.get('path')??'Pictures';res.end(JSON.stringify({path:folder,folders:folder==='Pictures'?[{name:'Destination'}]:[],files:folder.endsWith('/batch')?[{name:'001-a.jpg'},{name:'002-b.jpg'}]:[]}));return;}
-    if(p==='/api/nature/import') {res.end(JSON.stringify({jobs:[],watches:[],licences:{attribution:'Attribution'}}));return;}
+    if(p==='/api/nature/import') {
+      if(req.method==='POST') {
+        req.resume();importRequests++;
+        importJob={id:'20260912-120000-abcdef',status:'running',stage:'Captioning photos',progress:40,total:3,imported:0,skipped:0,failed:0,items:[]};
+        res.end(JSON.stringify({job:importJob}));return;
+      }
+      if(q.get('job')) {res.end(JSON.stringify(finishImport?{...importJob,status:'done',progress:100,imported:1,skipped:1,failed:1,failed_images:1,reasons:['No time','Truncated image']}:importJob));return;}
+      res.end(JSON.stringify({jobs:[{id:'20260912-100000-abcdef',status:'done',form:{name:'Test'},imported:0,total:1,failed:1}],watches:[{path:'Pictures/watched',form:{name:'Test'},imported:0,paused:true}],licences:{attribution:'Reusable with attribution'}}));return;
+    }
     if(p==='/api/nature/upload'||p==='/api/nature/upload/file') {
       const chunks=[];req.on('data',c=>chunks.push(c));req.on('end',()=>{
         assert.equal(req.headers['x-photo-upload'],'1');
@@ -437,6 +447,11 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
         assert(boxes.search>=Math.min(160,boxes.row)-1,JSON.stringify({width,...boxes}));
         assert(boxes.browse<150,JSON.stringify({width,...boxes}));
         assert.equal(boxes.overlap,false);
+        assert.equal(await evaluate('(()=>{const x=document.querySelector("#wikiclose").getBoundingClientRect(),h=document.querySelector(".histtools").getBoundingClientRect();return Math.abs(x.top-h.top)<2&&Math.abs(x.right-h.right)<2})()'),true);
+        if(width<=640) {
+          const rows=await evaluate('(()=>{const rows={};for(const b of document.querySelectorAll("#tabs button")){const r=b.getBoundingClientRect();if(r.width)rows[r.top]=(rows[r.top]||0)+1}return Object.values(rows)})()');
+          assert(Math.max(...rows)-Math.min(...rows)<=1,JSON.stringify({width,rows}));
+        }
       }
       await evaluate('document.querySelector(\'[data-domain="history"]\').click()');
       await until('document.querySelector("#histask").textContent==="Ask Ada"');
@@ -449,9 +464,15 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       console.log('PASS Wiki search row, unselected all-domain home and toggle-off reset');return;
     }
     if (process.env.UPLOAD_UI) {
-      await evaluate(`(async()=>{UW.M.history={stamp:'test'};await UW.natureViews.ensure();UW.showTab('wiki');location.hash='#wiki/journal';})()`);
+      await evaluate(`(async()=>{UW.M.history={stamp:'test'};await UW.natureViews.ensure();document.querySelector('#tabs [data-tab=photos]').click();})()`);
       await until('document.querySelector("#jtabs")');
+      assert.equal(await evaluate('document.querySelector("#tabs [data-tab=photos]").classList.contains("on")'),true);
+      assert.equal(await evaluate('document.querySelector("#tabs [data-tab=sources]").textContent'),'?');
+      assert.equal(await evaluate('document.querySelector("#tabs [data-tab=sources]").getAttribute("aria-label")'),'Sources');
       await evaluate('document.querySelector("#jtabs [data-t=submit]").click()');
+      await until('document.querySelector("[data-import-source=device]")');
+      assert.equal(await evaluate('document.querySelector("#phone-files")'),null);
+      await evaluate('document.querySelector("[data-import-source=device]").click()');
       await until('document.querySelector("a[data-share=\\"Pictures/Destination\\"]")');
       await evaluate('document.querySelector("a[data-share=\\"Pictures/Destination\\"]").click()');
       await until('document.querySelector(".crumbs")?.textContent.includes("Destination") && document.querySelector("#phone-files")');
@@ -463,7 +484,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(uploadBatches.length,1);assert.equal(uploadBatches[0].parent,'Pictures/Destination');
       await evaluate('document.querySelector("#phone-upload").click()');
       await until('document.querySelector("#phone-saved")?.textContent.includes("2 photos saved")');
-      assert.equal(await evaluate('document.querySelector("#phone-message").textContent'),'Upload complete. Not yet added to the journal.');
+      assert.equal(await evaluate('document.querySelector("#phone-message").textContent'),'Not yet in the journal.');
       assert.equal(await evaluate('document.querySelector("#phone-files")'),null);
       await evaluate('document.querySelector("#phone-next").click()');
       await until('document.activeElement===document.querySelector("#natimportform [name=name]")');
@@ -476,6 +497,26 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate(`document.querySelector('#phone-clear').click();const single=new DataTransfer();single.items.add(new File(['photo'],'single.jpg',{type:'image/jpeg'}));const input=document.querySelector('#phone-files');input.files=single.files;input.dispatchEvent(new Event('change'));document.querySelector('#phone-upload').click();`);
       await until('document.querySelector("#phone-saved")?.textContent.includes("1 photo saved")');
       assert.equal(await evaluate('document.querySelector(".upload-complete").textContent.includes("1 photos")'),false);
+      assert.equal(await evaluate('document.querySelector(".import-history summary").textContent'),'Imports Status');
+      assert.equal(await evaluate('document.querySelector(".import-history").open'),false);
+      assert.equal(await evaluate('document.querySelector(".watches .watch").getBoundingClientRect().top >= document.querySelector(".watches .lbl").getBoundingClientRect().bottom'),true);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#natimportform label .muted")).whiteSpace'),'normal');
+      await evaluate('document.querySelector("#natimportform").requestSubmit();document.querySelector("#natimportform").requestSubmit()');
+      await until('document.querySelector("#import-status progress")?.value===40');
+      assert.equal(importRequests,1);
+      assert.equal(await evaluate('document.querySelector("#natimportgo").disabled'),true);
+      finishImport=true;
+      await until('document.querySelector("#import-status")?.textContent.includes("1/3 added · 1 skipped · 1 failed")');
+      assert.equal(await evaluate('document.querySelector("#import-status").textContent.includes("Truncated image")'),true);
+      assert.equal(await evaluate('document.querySelector("#import-status").textContent.includes("until their contents change")'),true);
+      console.log('PASS progress, conclusion, collapsed status list, and duplicate-submit guard');
+      await evaluate('window.__reloadMarker=true');
+      await call('Page.reload');
+      await wait(300);
+      await until('window.UW && !window.__reloadMarker && window.UW.state.raw');
+      console.log('PASS refreshed document loaded');
+      await until('document.querySelector("#import-status")?.textContent.includes("1/3 added · 1 skipped · 1 failed")');
+      assert.equal(importRequests,1);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS phone picker, selected destination, retry only remaining files, credit retention, and import handoff');return;
     }

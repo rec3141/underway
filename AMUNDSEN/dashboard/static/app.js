@@ -1736,9 +1736,9 @@
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
     if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
-    if(name!=='wiki')store.set('lastNonWikiTab',name);
+    if(name!=='wiki' && name!=='photos')store.set('lastNonWikiTab',name);
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat" && b.dataset.tab !== "map") b.classList.toggle("on", b.dataset.tab === name);
-    for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
+    for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + (name==='photos'?'wiki':name);
     if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
     const mn = document.querySelector("main"); mn.className = "tab-" + name + (mn.classList.contains("mapmin") ? " mapmin" : mn.classList.contains("mapfull") ? " mapfull" : "");   // No Map survives a tab change
     // the header row (legs, span) filters every tab; the other switches live

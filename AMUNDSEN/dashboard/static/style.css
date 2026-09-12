@@ -1095,7 +1095,7 @@ ol.mla { padding-left: 22px; font-size: var(--t-md); line-height: 1.5; } ol.mla 
 /* the wiki's tools: Back, Home, Explore, the two labels, Ask, the search, and Browse (the kinds, the domains, the wiki's own pages) */
 .histtools .histsel { flex:0 0 auto; min-width:0; max-width:100%; }
 .wiki-search-row { flex:1 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
-.wiki-search-row .histsearch { flex:1 1 14em; min-width:min(14em,100%); max-width:100%; box-sizing:border-box; }
+.wiki-search-row .histsearch { flex:1 1 max(14em,160px); min-width:min(max(14em,160px),100%); max-width:100%; box-sizing:border-box; }
 .histtools .domset { display: inline-flex; gap: 0; }
 .histtools .domset .chip.dom { border-radius: 0; margin-left: -1px; opacity: .7; }
 .histtools .domset .chip.dom:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
@@ -1281,8 +1281,8 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
 .shfile figcaption { font-size: var(--t-xs); color: var(--muted); padding: 2px 6px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #natimportform label.row { flex-direction: row; align-items: flex-start; gap: 8px; color: var(--fg-2); font-size: var(--t-md); }
 #natimportform label.row input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); flex: none; }
-.watches { margin-top: 8px; font-size: var(--t-sm); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; } .watches .lbl { color: var(--muted); }
-.watches .watch { display: inline-flex; align-items: center; gap: 6px; } .watches .watch a { color: var(--fg); }
+.watches { margin-top: 8px; font-size: var(--t-sm); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; } .watches .lbl { color: var(--muted); flex-basis:100%; }
+.watches .watch { display: inline-flex; flex-wrap:wrap; align-items: center; gap: 6px; overflow-wrap:anywhere; } .watches .watch a { color: var(--fg); }
 /* the /Share Photos page: Gallery (the journal's pictures) | Submit (the import) */
 .jtabs { margin: 2px 0 10px; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 6px 0 10px; }
@@ -1293,13 +1293,19 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
 .gcard .who { padding: 0 8px 6px; font-size: var(--t-xs, 0.75rem); color: var(--muted); }
 .journal h4 { margin: 10px 0 4px; font-size: var(--t-sm); font-weight: 600; }
 .sharebar .chip.on { border-color: var(--accent); color: var(--accent); }
-#natimportform { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 12px; margin-top: 10px; align-items: end; }
+#natimportform { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px,100%), 1fr)); gap: 8px 12px; margin-top: 10px; align-items: end; }
 #natimportform label { display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; font-size: var(--t-sm); color: var(--muted); }
-#natimportform label .muted { font-weight: 400; font-size: var(--t-xs, 0.75rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* the hint on one line, never three */
+#natimportform label, #natimportform label .muted { white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; }
+#natimportform label .muted { font-weight:400; font-size:var(--t-xs); }
 #natimportform input, #natimportform select { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: var(--t-md); min-width: 0; }
 #natimportform button.go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 7px; padding: 6px 14px; font: inherit; font-weight: 650; cursor: pointer; }
 #natimportform button.go:disabled { opacity: .5; cursor: default; }
 .imports { margin-top: 8px; font-size: var(--t-sm); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .imports .lbl { color: var(--muted); }
+.import-history { margin-top:12px; }
+.import-progress { margin-block:12px; padding:12px; background:var(--card-2); border:1px solid var(--accent); border-radius:8px; overflow-wrap:anywhere; }
+.import-progress h4 { margin:0 0 8px; }
+.import-progress progress { width:100%; accent-color:var(--accent); }
+.import-progress p { margin-block:6px; }
 .implist { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
 .impitem { display: grid; grid-template-columns: 120px 1fr; gap: 10px; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: var(--t-md); min-width: 0; }
 .impitem img { width: 120px; height: 90px; object-fit: cover; border-radius: 5px; background: var(--media); }
@@ -1391,7 +1397,18 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 .feedback-link { border: 0; background: none; color: var(--accent); font: inherit; padding: 12px 0; text-decoration: underline; cursor: pointer; }
 .chat-privacy { margin:0; padding:6px 10px; font-size:var(--t-sm); color:var(--fg); background:var(--card-2); border-bottom:1px solid var(--line); }
 .maplayers .mapcolour select, .plotctl .colourpick { flex:0 1 auto; width:auto; max-width:100%; }
-#wikiclose { margin-left:auto; }
+.histtools { position:relative; padding-right:40px; }
+#wikiclose { position:absolute; top:0; right:0; margin:0; min-width:32px; }
+.import-source { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-block:8px; }
+#natimportform[hidden] { display:none; }
+#natimportform label.row small { display:block; color:var(--muted); }
+@media (max-width:640px) {
+  .histtools { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; align-items:center; }
+  .histtools .domset { display:contents; }
+  .histtools .wiki-search-row { grid-column:1/-1; margin-right:-40px; }
+  .histtools > .chip, .histtools .domset .chip { margin:0; padding-inline:5px; }
+  .top #tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; }
+}
 .single-layout { display:grid; grid-column:1 / -1; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:10px; width:100%; align-items:start; }
 .single-parameters { display:flex; flex-direction:column; gap:6px; }
 .single-parameters .parameter { display:flex; gap:3px; align-items:center; }

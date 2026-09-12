@@ -481,7 +481,7 @@
   // form writes one line by hand, in the CLI's vocabulary, with the position
   // from the ship's GPS and the time from the clock. Lines reach grid on the
   // next push; grid's writer validates them.
-  const share = { path: null, list: null, jobs: [], licences: {}, watches: [], watch: null, tab: store.get("nat.jtab", "gallery") };
+  const share = { path: null, list: null, jobs: [], licences: {}, watches: [], watch: null, tab: store.get("nat.jtab", "gallery"), source:store.get('nat.import.source','share') };
   // Files stay in memory while navigating the wiki. Only explicit selection
   // and Upload send bytes; journal import remains a separate consent step.
   let phoneUpload = null;
@@ -490,21 +490,22 @@
     if (u?.batch && u.files.length && u.done === u.files.length && !u.busy) {
       return `<section class="phone-upload upload-complete" aria-labelledby="phone-saved">
         <h4 id="phone-saved">✓ ${u.done} photo${u.done === 1 ? '' : 's'} saved to the share</h4>
-        <p id="phone-message" role="status">${u.journalJob ? 'Journal import started.' : 'Upload complete. Not yet added to the journal.'}</p>
+        <p id="phone-message" role="status">${u.journalJob ? 'Import status below.' : 'Not yet in the journal.'}</p>
         ${u.journalJob ? `<a class="chip" href="#wiki/import/${esc(u.journalJob)}" data-slug="import/${esc(u.journalJob)}">Follow journal import</a>` :
-          '<p>Next, enter your name and choose a licence in the form below, then select <b>Add to journal</b>.</p><button type="button" class="go" id="phone-next">Next: add to journal ↓</button>'}
+          '<p>Add your credit and licence below.</p><button type="button" class="go" id="phone-next">Next: add to journal ↓</button>'}
         <details><summary>Saved folder</summary><p class="small">/Share/${esc(u.batch.path)}</p></details>
         <button type="button" class="chip small" id="phone-clear">Upload more photos</button></section>`;
     }
-    return `<section class="phone-upload"><h4>Upload from phone or computer</h4>
-      <p class="muted small">Open a destination folder above. Uploads always create a new subfolder there; existing files and phone originals are left alone. JPEG, PNG or WebP · up to 300 photos, 64 MiB each, 2 GiB per batch. Keep this page open and your phone awake until finished.</p>
+    return `<section class="phone-upload"><h4>Upload photos</h4>
+      <p class="muted small">New subfolder for each upload. Originals stay unchanged. Keep this page open and your phone awake.</p>
+      <details><summary>File limits</summary><p>JPEG, PNG or WebP · 300 photos · 64 MiB each · 2 GiB total.</p></details>
       <p class="small">Destination: <b>${esc(u?.parent != null ? '/Share/' + u.parent : l ? '/Share/' + l.path : 'Choose a folder above')}</b> → new subfolder</p>
-      <label>Subfolder label <input id="phone-label" maxlength="60" value="${esc(u?.label || 'Phone photos')}" ${u?.batch || u?.busy ? 'disabled' : ''}></label>
-      <label>Select photos <input id="phone-files" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple ${u?.batch || u?.busy ? 'disabled' : ''}></label>
+      <label>Folder name <input id="phone-label" maxlength="60" value="${esc(u?.label || 'Phone photos')}" ${u?.batch || u?.busy ? 'disabled' : ''}></label>
+      <label>Photos <input id="phone-files" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple ${u?.batch || u?.busy ? 'disabled' : ''}></label>
       <div class="jtools"><button type="button" id="phone-upload" ${!u?.files.length || u.busy || u.done === u.files.length || !l || l.error ? 'disabled' : ''}>${u?.batch ? 'Retry remaining photos' : 'Upload into new subfolder'}</button>
       ${u && !u.busy ? '<button type="button" id="phone-clear">New selection</button>' : ''}</div>
       <progress id="phone-progress" max="100" value="${u?.percent || 0}" ${u ? '' : 'hidden'} aria-label="Photo upload progress"></progress>
-      <p id="phone-message" class="small" role="status" aria-live="polite">${esc(u?.message || 'No photos selected. Uploading does not publish photos to the journal.')}</p></section>`;
+      <p id="phone-message" class="small" role="status" aria-live="polite">${esc(u?.message || 'No photos selected.')}</p></section>`;
   }
   function paintUpload() {
     const u = phoneUpload, msg = $('#phone-message'), bar = $('#phone-progress');
@@ -582,7 +583,7 @@
       const lines = nat.journal.slice(0, 5);
       const list = lines.length ? lines.map(jentry).join("") + (nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
       return `<section class="journal card"><h3>/Share Photos <a class="chip small" href="#wiki/journal" data-slug="journal">open</a></h3>${list}` +
-        `<div class="jtools"><button type="button" class="chip" id="natimport">Submit a folder of photographs from the share</button></div></section>`;
+        `<div class="jtools"><button type="button" class="chip" id="natimport">Add photos</button></div></section>`;
     }
     const tab = share.tab === "submit" ? "submit" : "gallery";
     const tabs = `<div class="group seg jtabs" id="jtabs"><button type="button" data-t="gallery" class="${tab === "gallery" ? "on" : ""}">Gallery</button><button type="button" data-t="submit" class="${tab === "submit" ? "on" : ""}">Submit</button></div>`;
@@ -593,12 +594,13 @@
     const pics = nat.journal.filter((o) => o.artifact_file), rest = nat.journal.filter((o) => !o.artifact_file);
     const cap = (o) => (o.detail || "").split(/(?<=\.)\s+/)[0] || o.subject || "";
     const cards = pics.map((o) => `<a class="gcard" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" title="${esc(o.subject || "")}"><img src="${esc(journalPic(o))}" alt="" loading="lazy"><div class="cap">${esc(cap(o))}</div><div class="who">${esc(o.observer || "")}${o.date ? " · " + esc(o.date.slice(0, 10)) : ""}</div></a>`).join("");
-    return (pics.length ? `<div class="gallery">${cards}</div>` : `<p class="muted small">No photographs yet: Submit a folder from the share.</p>`) +
+    return (pics.length ? `<div class="gallery">${cards}</div>` : `<p class="muted small">No photos yet. Choose Submit to add some.</p>`) +
       (rest.length ? `<h4>Observations without a picture</h4>` + rest.map(jentry).join("") : "");
   }
   // the import panel: the browser over the share (the folder open is the one imported), the form with the
   // permission to keep importing from it, the folders being watched, the imports so far
-  const CLOCKS = [["exif", "as the camera wrote it, else ship time"], ["ship", "ship time (Eastern)"], ["utc", "UTC"], ["+01:00", "+01:00 (CET, BST)"], ["+02:00", "+02:00 (central European summer time)"], ["-05:00", "-05:00 (central daylight time)"], ["-06:00", "-06:00 (mountain daylight time)"], ["-07:00", "-07:00 (Pacific daylight time)"]];
+  const CLOCKS = [["exif", "Camera / ship"], ["ship", "Ship (Eastern)"], ["utc", "UTC"], ["+01:00", "UTC+01"], ["+02:00", "UTC+02"], ["-05:00", "UTC−05"], ["-06:00", "UTC−06"], ["-07:00", "UTC−07"]];
+  const LICENCE_LABELS = {'attribution':'With credit', 'cc-by-4.0':'CC BY 4.0', 'cc-by-sa-4.0':'CC BY-SA 4.0', 'cc-by-nc-4.0':'CC BY-NC 4.0', 'cc0':'CC0', 'open-access':'Open access', 'rights-reserved':'Rights reserved'};
   const folderCount = (l) => l ? l.files.length + l.folders.reduce((n, d) => n + (d.images || 0), 0) : 0;
   function importHTML() {
     const name = store.get("chat.name", ""), f = store.get("nat.import.form", {}) || {};
@@ -606,35 +608,50 @@
     const crumbs = l ? ["Share", ...l.path.split("/").filter(Boolean)].map((seg, i, a) => i === a.length - 1 ? `<b>${esc(seg)}</b>` : `<a href="#" data-share="${esc(a.slice(1, i + 1).join("/"))}">${esc(seg)}</a>`).join(" › ") : "…";
     const folders = l ? l.folders.map((d) => `<a class="shfolder" href="#" data-share="${esc(at(d.name))}" title="open this folder">📁 ${esc(d.name)}${d.images ? ` <span class="muted">${d.images}</span>` : ""}</a>`).join("") : "";
     const files = l ? l.files.map((x) => `<figure class="shfile"><img src="api/nature/share/thumb?path=${encodeURIComponent(at(x.name))}" alt="" loading="lazy"><figcaption title="${esc(x.name)}">${esc(x.name)}</figcaption></figure>`).join("") : "";
-    const lic = Object.entries(share.licences).map(([k, v]) => `<option value="${esc(k)}" ${(f.licence || "attribution") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
+    const lic = Object.entries(share.licences).map(([k, v]) => `<option value="${esc(k)}" title="${esc(v)}" ${(f.licence || "attribution") === k ? "selected" : ""}>${esc(LICENCE_LABELS[k] || v)}</option>`).join("");
     const clocks = CLOCKS.map(([k, v]) => `<option value="${k}" ${(f.clock || "exif") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
     const n = folderCount(l), here = l && l.path ? l.path.split("/").pop() : "";
     const watched = l && share.watches.find((w) => w.path === l.path);
     const w = share.watch;
     return `<section class="import card">
-      <h3>Import a folder of photographs from the share</h3>
-      <p class="muted small">Open a folder anywhere under /Share to import existing photographs or upload photos into a new subfolder. Journal import reads each photograph's time and position (the camera's, or the ship's track at that moment), generates captions and tags, and copies it into the journal. Photos already in the journal are skipped. Importing leaves share originals unchanged; only the explicit Upload action writes to the share.</p>
+      <h3>Add photos</h3>
+      <div class="import-source"><span>Import from:</span><div class="group seg" role="group" aria-label="Import from"><button type="button" data-import-source="share" class="${share.source==='share'?'on':''}" aria-pressed="${share.source==='share'}">/Share folder</button><button type="button" data-import-source="device" class="${share.source==='device'?'on':''}" aria-pressed="${share.source==='device'}">This device</button></div></div>
+      <p class="muted small">${share.source==='device'?'Choose a /Share destination below.':'Choose a /Share folder to import.'}</p>
       <div class="sharebar"><span class="crumbs">${crumbs}</span>${l ? `<span class="muted small">${l.files.length} photograph${l.files.length === 1 ? "" : "s"} · ${l.folders.length} folder${l.folders.length === 1 ? "" : "s"}${l.error ? ` · <span class="warn">${esc(l.error)}</span>` : ""}</span>` : ""}${watched ? `<span class="chip small on" title="new photographs here are imported every ten minutes">watched · ${esc(watched.form?.name || "")}</span>` : ""}</div>
       <div class="sharelist" id="sharelist">${l ? (folders + files || `<p class="muted small">Nothing here.</p>`) : `<p class="muted small">Reading the share…</p>`}</div>
-      ${uploadHTML(l)}
-      <form id="natimportform" autocomplete="off">
+      ${share.source==='device' ? uploadHTML(l) : ''}
+      <div id="import-status">${w ? importStatus(w) : ''}</div>
+      <form id="natimportform" autocomplete="off" ${share.source==='device' && (!phoneUpload?.files.length || phoneUpload.done!==phoneUpload.files.length)?'hidden':''}>
         <h4 class="wide">Add to the journal</h4>
-        <label>Your name <span class="muted">as the photographs are credited</span><input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
-        <label>Organisation<input name="org" value="${esc(f.org || "")}" maxlength="120" placeholder="university, agency, the ship's company"></label>
-        <label>Email <span class="muted">kept on the ship, for questions about the pictures</span><input name="email" type="email" value="${esc(f.email || "")}" maxlength="120"></label>
-        <label>Licence <span class="muted">how the pictures may be used</span><select name="licence">${lic}</select></label>
-        <label>Camera clock <span class="muted">when a photograph does not say its zone</span><select name="clock">${clocks}</select></label>
-        <label class="row wide"><input type="checkbox" name="watch" ${watched ? "checked" : ""}><span>Keep importing from this folder: I allow the ship to import photographs added to it later, under this name and licence, until I stop it here.</span></label>
-        <div class="wide"><button type="submit" class="go" id="natimportgo" ${n && here ? "" : "disabled"}>${here ? `Add to journal · ${n} photo${n === 1 ? "" : "s"}` : "Open a folder to import it"}</button> <span class="muted small" id="natimportmsg">${w ? watchLine(w) : ""}</span></div>
+        <label>Name<input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
+        <label>Organisation<input name="org" value="${esc(f.org || "")}" maxlength="120"></label>
+        <label>Email <span class="muted">Private to the ship</span><input name="email" type="email" value="${esc(f.email || "")}" maxlength="120"></label>
+        <label>Licence<select name="licence">${lic}</select></label>
+        <label>Time zone<select name="clock">${clocks}</select></label>
+        <details class="wide"><summary>Licence & time zone</summary><p id="import-licence-help">${esc(share.licences[f.licence || 'attribution'] || '')}</p><p>Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.</p></details>
+        <label class="row wide"><input type="checkbox" name="watch" ${watched ? "checked" : ""}><span>Keep importing from this /Share folder <small>Using this credit and licence.</small></span></label>
+        <div class="wide"><button type="submit" class="go" id="natimportgo" ${n && here && !share.starting && !importActive(w) ? "" : "disabled"}>${here ? `Add to journal · ${n} photo${n === 1 ? "" : "s"}` : "Choose a folder"}</button> <span class="muted small" id="natimportmsg"></span></div>
       </form>
-      ${share.watches.length ? `<div class="watches"><span class="lbl">Watched folders</span>${share.watches.map((x) => `<span class="watch"><a href="#" data-share="${esc(x.path)}">📁 ${esc(x.path.split("/").slice(-2).join("/"))}</a> · ${esc(x.form?.name || "")} · ${x.imported || 0} imported${x.checked ? ` · looked at ${esc(x.checked.slice(11, 16))} UTC` : ""} <button type="button" class="chip small" data-unwatch="${esc(x.path)}" title="stop importing from this folder">stop</button></span>`).join("")}</div>` : ""}
-      ${share.jobs.length ? `<div class="imports"><span class="lbl">Imports so far</span>${share.jobs.slice(0, 8).map((j) => `<a class="chip small" href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${esc(j.form?.name || "")} · ${j.imported}/${j.total}${j.status !== "done" ? " · " + esc(j.status) : ""}${j.from_watch ? " · watched" : ""}</a>`).join(" ")}</div>` : ""}
+      ${share.watches.length ? `<div class="watches"><span class="lbl">Watched folders</span>${share.watches.map((x) => `<span class="watch"><a href="#" data-share="${esc(x.path)}">📁 ${esc(x.path.split("/").slice(-2).join("/"))}</a> · ${esc(x.form?.name || "")} · ${x.imported || 0} added${x.unchanged_failed ? ` · ${x.unchanged_failed} unchanged failures skipped` : ''} <button type="button" class="chip small" data-unwatch="${esc(x.path)}">Stop</button></span>`).join("")}</div>` : ""}
+      ${share.jobs.length ? `<details class="import-history"><summary>Imports Status</summary><div class="imports">${share.jobs.slice(0, 8).map((j) => `<a class="chip small" href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${esc(j.form?.name || "")} · ${j.imported}/${j.total}${j.failed ? ` · ${j.failed} failed` : j.status !== "done" ? " · " + esc(j.status) : ""}${j.from_watch ? " · auto" : ""}</a>`).join(" ")}</div></details>` : ""}
     </section>`;
   }
-  // the line under the form for the import being followed, and after it: how far it is, or what came of it
-  const watchLine = (j) => j.status === "done" || j.status === "failed"
-    ? `${j.status === "done" ? `${j.done} of ${j.total} photograph${j.total === 1 ? "" : "s"} imported` : `failed: ${esc(j.error || "")}`} · <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">see them</a>`
-    : `${esc(j.stage || j.status)}${j.total ? ` · ${j.done}/${j.total}` : ""} · <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">follow</a>`;
+  const importActive = j => j && ['queued','running'].includes(j.status);
+  function importStatus(j) {
+    const active = importActive(j), items = j.items || [];
+    const added = j.imported ?? items.filter(it=>it.id).length;
+    const skipped = j.skipped ?? items.filter(it=>it.status==='skipped').length;
+    const failed = j.failed ?? items.filter(it=>it.status==='failed').length;
+    const title = active ? 'Importing…' : j.status==='failed'||(failed && !added) ? 'Import failed' : 'Import finished';
+    const reasons = [...new Set([j.error, ...(j.reasons || items.map(it=>it.error))].filter(Boolean))];
+    return `<section class="import-progress" aria-label="Your import"><h4>${title}</h4>
+      <progress max="100" ${!active || j.progress != null ? `value="${active ? Math.max(0,Math.min(100,j.progress)) : 100}"` : ''} aria-label="Import progress"></progress>
+      <p role="status">${active ? esc(j.stage || 'Queued') : `${added}/${j.total} added · ${skipped} skipped · ${failed} failed`}</p>
+      ${!active && j.failed_images ? '<p class="warn">Failed images are skipped until their contents change.</p>' : ''}
+      ${j.unchanged_failed ? `<p>${j.unchanged_failed} unchanged failed images skipped.</p>` : ''}
+      ${reasons.length ? `<details><summary>${active ? 'Warnings' : 'Why?'}</summary>${reasons.slice(0,3).map(r=>`<p>${esc(r)}</p>`).join('')}</details>` : ''}
+      <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${active ? 'Details' : 'View results'}</a></section>`;
+  }
   async function loadShare(path) {
     try {
       const r = await fetch(`api/nature/share${path == null ? "" : "?path=" + encodeURIComponent(path)}`, { cache: "no-store" });
@@ -648,6 +665,8 @@
   function wireImport(el) {
     const box = el.querySelector(".import"); if (!box) return;
     wireUpload(box);
+    for (const b of box.querySelectorAll('[data-import-source]')) b.onclick=()=>{share.source=b.dataset.importSource;store.set('nat.import.source',share.source);H.rerender();};
+    if (!share.watch && store.get('nat.import.current','')) watchJob(store.get('nat.import.current',''));
     if (!share.list) Promise.all([loadShare(share.path), loadImports()]).then(() => { if (slug() === "journal") H.rerender(); });
     for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); if (phoneUpload?.busy) return; share.list = null; share.path = a.dataset.share; if (phoneUpload && !phoneUpload.batch) phoneUpload.parent = a.dataset.share; H.rerender(); };
     for (const b of box.querySelectorAll("button[data-unwatch]")) b.onclick = async () => {
@@ -656,40 +675,50 @@
       await loadImports(); H.rerender();
     };
     const go = box.querySelector("#natimportgo"), form = box.querySelector("#natimportform"), msg = box.querySelector("#natimportmsg");
-    form.oninput = () => { const f = form.elements; store.set('nat.import.form', {name:f.name.value, org:f.org.value, email:f.email.value, licence:f.licence.value, clock:f.clock.value}); };
+    form.oninput = () => { const f = form.elements; store.set('nat.import.form', {name:f.name.value, org:f.org.value, email:f.email.value, licence:f.licence.value, clock:f.clock.value}); box.querySelector('#import-licence-help').textContent=share.licences[f.licence.value] || ''; };
     form.onsubmit = async (ev) => {
       ev.preventDefault();
+      if (share.starting || importActive(share.watch)) return;
       const f = form.elements, l = share.list; if (!l || !l.path) return;
       const body = { folder: l.path, name: f.name.value.trim(), org: f.org.value.trim(), email: f.email.value.trim(), licence: f.licence.value, clock: f.clock.value, watch: f.watch.checked, token: store.get("chat.token", "") };
       store.set("nat.import.form", { name: body.name, org: body.org, email: body.email, licence: body.licence, clock: body.clock });
       if (body.name) store.set("chat.name", body.name);
-      go.disabled = true; msg.textContent = "starting…";
+      share.starting = true; go.disabled = true; msg.textContent = "Starting…";
       try {
         const r = await fetch("api/nature/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
         share.watch = j.job;
+        store.set('nat.import.current', j.job.id);
         if (phoneUpload?.batch?.path === body.folder) phoneUpload.journalJob = j.job.id;
         UW.toast?.(`Importing ${j.job.total} photograph${j.job.total === 1 ? "" : "s"}${j.job.known ? ` (${j.job.known} already in the journal)` : ""}${body.watch ? "; the folder is watched" : ""}`);
         watchJob(j.job.id);
-        await loadImports(); H.rerender();
-      } catch (e) { msg.textContent = `not started: ${e.message || e}`; go.disabled = false; }
+        await loadImports(); share.starting = false; H.rerender();
+      } catch (e) { msg.textContent = `Not started: ${e.message || e}`; go.disabled = false; }
+      finally { share.starting = false; }
     };
   }
   // the job followed from the page: the message under the form while it runs; the journal and the map when it is done
+  const importPolls = new Set();
   async function watchJob(id) {
-    for (;;) {
-      await new Promise((r) => setTimeout(r, 2500));
-      let j; try { const r = await fetch(`api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); j = await r.json(); if (!r.ok) throw new Error(); } catch { continue; }
+    if (importPolls.has(id)) return;
+    importPolls.add(id);
+    try { for (;;) {
+      let j; try { const r = await fetch(`api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" });
+        if (r.status===404) { store.set('nat.import.current',''); return; }
+        j = await r.json(); if (!r.ok) throw new Error();
+      } catch { await new Promise(r=>setTimeout(r,5000)); continue; }
       share.watch = j;
-      const msg = $("#natimportmsg"); if (msg) msg.innerHTML = watchLine(j);
+      const status = $('#import-status'); if (status) status.innerHTML = importStatus(j);
+      if (importActive(j) && $('#natimportgo')) $('#natimportgo').disabled = true;
       if (j.status === "done" || j.status === "failed") {
         await Promise.all([loadJournal(), loadImports()]);
         if (slug() === "journal" || slug() === `import/${id}` || !slug()) H.rerender();
         if (UW.state.nature) UW.renderMap();
-        UW.toast?.(j.status === "done" ? `Imported ${j.done} of ${j.total} photographs: see the journal` : `The import failed: ${j.error}`);
+        UW.toast?.(`${j.imported ?? j.done}/${j.total} added${j.skipped ? ` · ${j.skipped} skipped` : ''}${j.failed ? ` · ${j.failed} failed` : ''}`);
         return;
       }
-    }
+      await new Promise(r=>setTimeout(r,2500));
+    } } finally { importPolls.delete(id); }
   }
   // an import's page: what became of each photograph, live while it runs
   async function renderImport(el, id) {
@@ -707,11 +736,10 @@
         ${it.tags?.length ? `<div class="tags">${it.tags.map((t) => `<span>${esc(t)}</span>`).join("")}</div>` : ""}
         <div class="st">${esc(it.status)}${it.error ? `: ${esc(it.error)}` : ""}${it.id ? ` · ${esc(it.id)}` : ""} · <span class="muted">${esc(it.file)}</span></div></div></article>`;
     };
-    const n = j.items.filter((it) => it.id).length, bad = j.items.filter((it) => it.status === "skipped" || it.status === "failed").length;
     el.innerHTML = crumb(hlinkJournal(), here("Import", slug())) +
       `<h2>${esc(j.form?.name || "")}'s photographs${j.form?.org ? ` <span class="muted">${esc(j.form.org)}</span>` : ""}</h2>` +
       (j.folder ? `<p class="muted small">📁 ${esc(j.folder)}${j.from_watch ? " · imported by the watch on this folder" : ""}${j.known ? ` · ${j.known} already in the journal, passed over` : ""}</p>` : "") +
-      `<p class="lead">${live ? `${esc(j.stage)}… ${j.done}/${j.total}` : `${n} of ${j.total} photograph${j.total === 1 ? "" : "s"} in the journal${bad ? `, ${bad} left out` : ""}`}${j.error ? ` <span class="warn">${esc(j.error)}</span>` : ""} · ${esc(share.licences[j.form?.licence] || j.form?.licence || "")} · started ${esc((j.started || "").replace("T", " ").slice(0, 16))} UTC</p>` +
+      importStatus(j) +
       `<div class="implist">${j.items.map(item).join("")}</div>`;
     if (live) setTimeout(() => { if (slug() === `import/${id}`) H.rerender(); }, 3000);
   }

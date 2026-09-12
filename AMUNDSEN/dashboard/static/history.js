@@ -1544,13 +1544,15 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     renderChips();
   }
   const prevTab = UW.onTab;
+  let previousMainTab = null;
   UW.onTab = (name) => {
     prevTab?.(name);
-    const on = name === "wiki", was = !!stashed;
+    const fromPhotos = previousMainTab === 'photos'; previousMainTab = name;
+    const on = name === "wiki" || name === 'photos', was = !!stashed;
     historyMap(on);
     if (on !== was) UW.renderMap();
     if (!on) return;
-    ensureAll().then((ok) => { if (ok) render(); else renderMain(); }).catch(() => { UW.setLoadError("Wiki", true); });
+    ensureAll().then((ok) => { if (ok) { if(name==='photos') open('journal'); else if(fromPhotos) open(''); else render(); } else renderMain(); }).catch(() => { UW.setLoadError("Wiki", true); });
   };
   const prevRefresh = UW.refreshExtraData;
   UW.refreshExtraData = () => { prevRefresh?.(); for (const l of LAYERS) { const p = document.querySelector(`#maplayers button[data-layer="${l}"]`); if (p) p.hidden = !UW.M.history; }
@@ -1563,6 +1565,6 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   wire();
   document.addEventListener("uw:theme", () => { if (!$("#pane-wiki").hidden && hist.artifacts) render(); });   // the chips, dots and the timeline take the new colours
   if (hashSlug() != null && $("#pane-wiki").hidden) UW.showTab("wiki");
-  else if (document.querySelector("#tabs button.on")?.dataset.tab === "wiki") UW.onTab("wiki");
+  else if (['wiki','photos'].includes(document.querySelector("#tabs button.on")?.dataset.tab)) UW.onTab(document.querySelector("#tabs button.on").dataset.tab);
   else if ((UW.state.history || UW.state.nature) && UW.M.history) ensureAll().then(() => { renderChips(); UW.renderMap(); }).catch(() => {});
 })();

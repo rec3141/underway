@@ -1,6 +1,6 @@
 # Phone photo uploads
 
-In Wiki → /Share Photos → Submit, browse to the destination folder on the
+In Photos → Submit → Import from: This device, browse to the destination folder on the
 ship's share, select photos, optionally name the batch, and choose **Upload
 into new subfolder**. Each batch creates a fresh subfolder with a UTC timestamp
 and random suffix; files get numeric prefixes so duplicate camera filenames
@@ -30,3 +30,15 @@ temporary files on the share. Upload endpoints reject cross-site browser request
 and require a per-batch random capability for file writes. As with the existing
 ship dashboard, this feature is intended for the trusted ship LAN, not public
 internet exposure or untrusted guest networks.
+
+For existing photos, choose **Import from: /Share folder**. The optional
+**Keep importing from this /Share folder** switch applies the selected credit
+and licence to future arrivals.
+
+Your current import shows a progress bar and final added/skipped/failed counts;
+the result persists across page refreshes. **Imports Status** is collapsed by
+default. Decode failures are recorded with SHA-256 hashes in
+`DB_DIR/photos/failed-images.json`. Manual imports and watched folders skip those
+files while their contents are unchanged; changed files are eligible again.
+Other images continue importing. Service-wide failures do not blacklist photos.
+Older failures without a saved hash may be attempted once to establish it.

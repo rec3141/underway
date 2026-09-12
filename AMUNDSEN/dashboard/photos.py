@@ -553,13 +553,47 @@ def jobs(limit: int = 20) -> list[dict]:
             j = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        out.append({k: v for k, v in j.items() if k != "items"} | {"imported": sum(1 for x in j.get("items", []) if x.get("id")), "email": ""})
+        out.append({k: v for k, v in public(j).items() if k != "items"})
     return out
 
 
 def public(j: dict) -> dict:
     """A job as the page sees it: the email stays with the ship."""
-    return {**j, "form": {k: v for k, v in j.get("form", {}).items() if k != "email"}}
+    items = j.get('items', [])
+    imported_n = sum(bool(it.get('id')) for it in items)
+    skipped = sum(it.get('status') == 'skipped' for it in items)
+    failed = sum(it.get('status') == 'failed' for it in items)
+    if j.get('status') == 'failed':
+        failed = max(failed, j.get('total', len(items)) - imported_n - skipped)
+    reasons = list(dict.fromkeys(it['error'] for it in items if it.get('error')))
+    return {**j, 'imported': imported_n, 'skipped': skipped, 'failed': failed,
+            'failed_images': sum(bool(it.get('image_failure')) for it in items), 'reasons': reasons,
+            "form": {k: v for k, v in j.get("form", {}).items() if k != "email"}}
+
+
+def image_hash(rel: str) -> str | None:
+    try:
+        with _safe(rel).open('rb') as f:
+            return hashlib.file_digest(f, 'sha256').hexdigest()
+    except (OSError, ValueError):
+        return None
+
+
+def _remember_failure(it: dict) -> None:
+    digest = it.get('sha256')
+    if not digest:
+        return
+    with _reg_lock:
+        path = IMPORTED.with_name('failed-images.json')
+        rows = _read_json(path, {})
+        rows[it['file']] = {'sha256':digest, 'error':it.get('error','')}
+        _write_json(path, rows)
+
+
+def unchanged_failures(files: list[str]) -> set[str]:
+    with _reg_lock:
+        rows = _read_json(IMPORTED.with_name('failed-images.json'), {})
+    return {f for f in files if f in rows and rows[f].get('sha256') == image_hash(f)}
 
 
 def folder_files(rel: str, settled: bool = False) -> list[str]:
@@ -709,11 +743,13 @@ def watch_scan(root: Path) -> dict | None:
         path = w.get("path", "")
         try:
             new = [f for f in folder_files(path, settled=True) if f not in known]
+            unchanged = unchanged_failures(new)
+            new = [f for f in new if f not in unchanged]
         except ValueError as e:
             log.info("watched folder %s: %s", path, e)
             _watch_update(path, checked=now, error=str(e))
             continue
-        _watch_update(path, checked=now, error="")
+        _watch_update(path, checked=now, error="", unchanged_failed=len(unchanged))
         if not new:
             continue
         try:
@@ -761,9 +797,13 @@ def start(root: Path, spec: dict, who: str = "") -> dict:
         raise ValueError("no photographs in that folder")
     known = imported()
     fresh = [f for f in files if f not in known]
+    unchanged = unchanged_failures(fresh)
+    fresh = [f for f in fresh if f not in unchanged]
     if spec.get("from_watch") and isinstance(spec.get("only"), list):
         fresh = [f for f in fresh if f in set(spec["only"])]         # the watcher's pick: what has settled since its last look
     if not fresh:
+        if unchanged:
+            raise ValueError(f'No new photos. {len(unchanged)} unchanged failed image(s) skipped; replace or fix them to retry.')
         raise ValueError(f"every photograph in that folder is in the journal already ({len(files)} of them)")
     with _lock:
         if any(j["status"] in ("queued", "running") for j in _JOBS.values()):
@@ -773,6 +813,7 @@ def start(root: Path, spec: dict, who: str = "") -> dict:
              "form": {"name": name, "org": str(spec.get("org") or "").strip()[:120], "email": str(spec.get("email") or "").strip()[:120],
                       "licence": licence, "clock": clock},
              "who": who[:60], "total": len(fresh), "done": 0, "stage": "queued", "error": "", "known": len(files) - len(fresh),
+             "unchanged_failed": len(unchanged),
              "folder": (spec.get("folders") or [spec.get("folder")])[0], "watch": bool(spec.get("watch")), "from_watch": bool(spec.get("from_watch")),
              "items": [{"file": f, "status": "queued"} for f in fresh]}
         _JOBS[job_id] = j
@@ -790,13 +831,14 @@ def run(j: dict, root: Path) -> None:
     from . import nature
     form = j["form"]
     try:
-        j["status"], j["stage"] = "running", "reading the photographs"
+        j["status"], j["stage"], j['progress'] = "running", "Reading metadata", 0
         _save(j)
         whens: dict[int, datetime] = {}                 # item index -> the moment, kept off the record (it is not JSON)
         paths: dict[int, Path] = {}
         for idx, it in enumerate(j["items"]):
             try:
                 paths[idx] = _safe(it["file"])
+                it['sha256'] = image_hash(it['file'])
             except ValueError as e:
                 it["status"], it["error"] = "skipped", str(e)
         exif = exif_many(list(paths.values()))
@@ -817,7 +859,7 @@ def run(j: dict, root: Path) -> None:
                     it["lat"], it["lon"], it["position"] = round(ex["lat"], 5), round(ex["lon"], 5), "the camera's GPS"
             except Exception as e:                  # noqa: BLE001
                 it["status"], it["error"] = "skipped", f"unreadable: {e}"
-        j["stage"] = "placing them on the ship's track"
+        j["stage"], j['progress'] = "Finding positions", 15
         _save(j)
         need = [(idx, it) for idx, it in enumerate(j["items"]) if idx in whens and it.get("lat") is None]
         if need:
@@ -829,7 +871,7 @@ def run(j: dict, root: Path) -> None:
                 else:
                     it["status"], it["error"] = "skipped", "no position: no GPS in the photograph and no fix of the ship's within 15 minutes of it"
         todo = [it for it in j["items"] if it.get("lat") is not None]
-        j["stage"] = f"reading {len(todo)} photographs with the model"
+        j["stage"], j['progress'] = f"Captioning {len(todo)} photos", 25
         _save(j)
         for k in range(0, len(todo), SHEET_N):
             batch = todo[k:k + SHEET_N]
@@ -842,11 +884,13 @@ def run(j: dict, root: Path) -> None:
             for it, t in zip(batch, tags):
                 it.update({k2: t.get(k2) for k2 in ("caption", "tags", "subject", "kind") if t.get(k2)})
             j["done"] = min(len(todo), k + len(batch))
-            j["stage"] = f"read {j['done']} of {len(todo)} with the model"
+            j["stage"] = f"Captioned {j['done']}/{len(todo)}"
+            j['progress'] = 25 + 40 * j['done'] / max(1, len(todo))
             _save(j)
-        j["stage"] = "writing the journal"
+        j["stage"], j['progress'] = "Saving to journal", 65
+        _save(j)
         names = subject_names(root)
-        for it in todo:
+        for i, it in enumerate(todo):
             try:
                 it["subject_page"] = match_subject(it.get("subject", ""), it.get("tags") or [], names)
                 subject = it["subject_page"] or it.get("subject") or "photograph"
@@ -854,14 +898,22 @@ def run(j: dict, root: Path) -> None:
                 credit = form["name"] + (f" ({form['org']})" if form.get("org") else "")
                 detail = " ".join(x for x in [it.get("caption", ""), f"Photograph by {credit}, {p.name}" + (f", {it['camera']}" if it.get("camera") else "") + ".",
                                               ("Tags: " + ", ".join(it["tags"]) + ".") if it.get("tags") else ""] if x)
+                try:
+                    encoded = journal_jpeg(p)
+                except (OSError, ValueError) as e:
+                    it.update(image_failure=True, error=str(e)[:300])
+                    _remember_failure(it)
+                    raise
                 entry = {"kind": "observation", "subject": subject, "date": it["date"], "lat": it["lat"], "lon": it["lon"], "method": "camera",
                          "observer": form["name"], "vessel": "CCGS Amundsen", "detail": detail[:2000], "licence": form["licence"], "origin": "ship",
-                         "image": journal_jpeg(p)}
+                         "image": encoded}
                 row = nature.append(entry, form["name"])
                 it["id"], it["artifact_file"], it["status"] = row["id"], row.get("artifact_file", ""), "imported"
                 _register(it["file"], row["id"])
             except Exception as e:                  # noqa: BLE001
                 it["status"], it["error"] = "failed", str(e)[:300]
+            j['progress'] = 65 + 35 * (i + 1) / max(1, len(todo))
+            _save(j)
         for it in j["items"]:
             if it["status"] == "skipped":
                 _register(it["file"], "skipped: " + it.get("error", ""))
@@ -872,6 +924,7 @@ def run(j: dict, root: Path) -> None:
     finally:
         j["finished"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         j["done"] = sum(1 for it in j["items"] if it.get("id"))
+        j['progress'] = 100
         _save(j)
         if j.get("folder") and any(w.get("path") == j["folder"] for w in watches()):
             _watch_update(j["folder"], imported=sum(1 for f, v in imported().items() if f.startswith(j["folder"] + "/") and not v.startswith("skipped")), last_job=j["id"])

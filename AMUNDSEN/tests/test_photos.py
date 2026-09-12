@@ -223,6 +223,74 @@ class ImportTests(ShareDir):
 
 
 class WatchTests(ShareDir):
+    def test_failed_image_hash_skips_unchanged_but_not_other_or_changed_images(self):
+        path = '2026/2026_LEG_03/Pictures/Eric'
+        broken = self.pics / 'Eric' / 'broken.jpg'
+        jpeg(broken)
+        form = dict(name='Eric', org='', email='', licence='attribution', clock='ship')
+        photos.watch_add(path, form)
+        photos._remember_failure(dict(file=path+'/broken.jpg', sha256=photos.image_hash(path+'/broken.jpg'), error='Truncated image'))
+        import os, time
+        os.utime(broken, (time.time()-3600, time.time()-3600))
+        with patch.object(photos, 'start') as start:
+            for _ in range(3):
+                self.assertIsNone(photos.watch_scan(Path(self.tmp.name)))
+            start.assert_not_called()
+        self.assertEqual(photos.watches()[0]['unchanged_failed'], 1)
+        with self.assertRaisesRegex(ValueError, 'unchanged failed'):
+            photos.start(Path(self.tmp.name), dict(folder=path, **form))
+        jpeg(self.pics / 'Eric' / 'new.jpg')
+        with patch.object(photos, 'run', lambda j, root: None):
+            retry = photos.start(Path(self.tmp.name), dict(folder=path, watch=True, **form))
+        self.assertEqual(retry['total'], 1)
+        self.assertTrue(retry['items'][0]['file'].endswith('/new.jpg'))
+        self.assertEqual(retry['unchanged_failed'], 1)
+        jpeg(broken, colour=(0,0,200))
+        self.assertEqual(photos.unchanged_failures([path+'/broken.jpg']), set())
+        photos._JOBS.clear()
+        with patch.object(photos, 'run', lambda j, root: None):
+            retry = photos.start(Path(self.tmp.name), dict(folder=path, **form))
+        self.assertEqual(retry['total'], 2)
+
+    def test_fatal_import_does_not_blacklist_images_and_reports_failed_count(self):
+        path = '2026/2026_LEG_03/Pictures/Eric'
+        form = dict(name='Eric', org='', email='', licence='attribution', clock='ship')
+        photos.watch_add(path, form)
+        j = dict(id='20260912-120001-abcdef', status='queued', total=1, done=0, form=form, folder=path,
+                 items=[dict(file=path+'/broken.jpg', status='queued')])
+        with patch.object(photos, 'exif_many', side_effect=RuntimeError('Metadata unavailable')):
+            photos.run(j, Path(self.tmp.name))
+        self.assertFalse(photos.watches()[0].get('paused'))
+        self.assertEqual(photos.unchanged_failures([path+'/broken.jpg']), set())
+        self.assertEqual(photos.public(j)['failed'], 1)
+        self.assertEqual(photos.public(j)['imported'], 0)
+
+    def test_per_image_failure_records_hash(self):
+        path = '2026/2026_LEG_03/Pictures/Eric/one.jpg'
+        jpeg(photos._safe(path))
+        form = dict(name='Eric', org='', email='', licence='attribution', clock='ship')
+        j = dict(id='20260912-120003-abcdef', status='queued', total=1, done=0, form=form,
+                 items=[dict(file=path, status='queued')])
+        ex = dict(taken='2026-09-03T06:00:00', offset=None, lat=76, lon=-92, model='')
+        with patch.object(photos, 'exif_many', lambda ps: {p:ex for p in ps}), \
+             patch.object(photos, 'TAGGER', lambda url,n:[{}]*n), \
+             patch.object(photos, 'journal_jpeg', side_effect=OSError('Truncated image')):
+            photos.run(j, Path(self.tmp.name))
+        self.assertEqual(j['items'][0]['status'], 'failed')
+        self.assertEqual(photos.unchanged_failures([path]), {path})
+        self.assertEqual(j['progress'],100)
+
+    def test_result_counts_and_reasons_are_not_caption_progress(self):
+        j = dict(id='20260912-120002-abcdef', status='done', total=3, done=3, form={'email':'private'},
+                 items=[{'id':'one','status':'imported'}, {'status':'skipped','error':'No time'}, {'status':'failed','error':'Truncated image'}])
+        p = photos.public(j)
+        self.assertEqual((p['imported'], p['skipped'], p['failed']), (1,1,1))
+        self.assertEqual(p['reasons'], ['No time','Truncated image'])
+        self.assertNotIn('email', p['form'])
+        photos._save(j)
+        self.assertEqual(photos.jobs()[0]['failed'], 1)
+        self.assertNotIn('email', photos.jobs()[0]['form'])
+
     def test_a_watched_folder_is_imported_for_what_is_new_and_settled(self):
         root = Path(self.tmp.name) / "www"; (root / "data").mkdir(parents=True)
         d = self.pics / "Eric"; jpeg(d / "old.jpg"); jpeg(d / "fresh.jpg")
