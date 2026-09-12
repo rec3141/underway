@@ -309,6 +309,12 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelector("#castlist").scrollHeight > document.querySelector("#castlist").clientHeight'),true);
       await evaluate(`document.querySelector('#casttable tr[data-id="${leg}:CTD_001"]').click(); document.querySelector('#casttable tr[data-id="${leg}:CTD_002"]').click(); document.querySelector('#castmode [data-m=section]').click()`);
       await until('document.querySelector("#cs-plot")?.data && !document.querySelector("#savetransect").disabled');
+      assert.equal(await evaluate('document.querySelector("#cs-plot")._fullData[0].colorbar.tickangle'),180);
+      assert.equal(await evaluate('document.querySelector("#cs-plot").layout.yaxis.title.text'),'depth (m)');
+      await evaluate('document.querySelector(".sectionwrap .dscale").click()');
+      await until('document.querySelector("#cs-plot")?.layout.yaxis.ticktext');
+      assert.equal(await evaluate('document.querySelector("#cs-plot").layout.yaxis.title.text'),'depth (m)');
+      console.log('PASS section colorbar rotation and plain depth title in both depth modes');
       await evaluate('document.querySelector(".castlegend .reorder .nudge[data-d=\\"1\\"]").click()');
       await evaluate('window.prompt=()=>"Shelf <transect>"; document.querySelector("#savetransect").click()');
       await until('document.querySelector("#casttable tr.sel")?.textContent.includes("Shelf <transect>")');

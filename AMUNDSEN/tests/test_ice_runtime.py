@@ -6,6 +6,14 @@ import unittest
 from dashboard import ice_store,ice_worker
 
 class IceTests(unittest.TestCase):
+    def test_surface_types_from_live_and_imported_results(self):
+        surface={'nilas':20,'whitecap':5,'small waves':25,'calm water':50}
+        answer={'surface_percentages':surface}
+        for record in ({'answer':answer},{'imported':True,'record':{'response':json.dumps(answer)}},answer):
+            self.assertEqual(ice_store.surface_values(json.dumps(record),'gemma'),surface)
+        self.assertEqual(ice_store.surface_values('{}','filtered'),{'water (unspecified)':100})
+        self.assertIsNone(ice_store.surface_values('{}','pending'))
+        self.assertEqual(ice_store.surface_values('invalid','gemma'),{})
     def test_new_arrivals_only_and_resume(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);db=ice_store.connect(root/'out');source=root/'share';source.mkdir()
@@ -19,6 +27,7 @@ class IceTests(unittest.TestCase):
             product=ice_store.track(cutoff,cutoff+600,root/'out')['photos'][0];self.assertIsNone(product['ice'])
             ice_store.complete(db,row['id'],'filtered',[0]*6,{'triage':'water'})
             self.assertEqual(ice_store.track(cutoff,cutoff+600,root/'out')['photos'][0]['ice'],0)
+            self.assertEqual(ice_store.track(cutoff,cutoff+600,root/'out')['photos'][0]['surface'],{'water (unspecified)':100})
     def test_paths(self):
         for identifier in ('../secret','/etc/passwd','a'*21):
             with self.assertRaises(ValueError):ice_store.photo_path(identifier,'roi')

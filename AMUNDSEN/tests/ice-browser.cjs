@@ -19,7 +19,11 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  for(let i=0;i<100;i++){if(await evaluate('Boolean(window.specs&&[...specs.values()][0]?.el.querySelector(".plot").data)'))break;await wait(100)}
  assert.equal(await evaluate('specs.size'),5);assert.deepEqual(await evaluate('errors'),[]);
  assert.deepEqual(await evaluate('[...specs.values()].map(p=>p.s.group)'),Array(5).fill('Ice camera'));
- assert.deepEqual(await evaluate('[...specs.values()].map(p=>p.s.label)'),['Concentration','Ice composition','Ice types','ROI','Slices']);
+ assert.deepEqual(await evaluate('[...specs.values()].map(p=>p.s.label)'),['Concentration','Ice composition','Surface types','ROI','Slices']);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].y.slice(-5)'),['whitecap','small waves','calm water','unknown','water (unspecified)']);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z.at(-1)'),[100,0,null]);
+ await evaluate(`(async()=>{const original=UW.fetchJSON;UW.fetchJSON=async()=>{const data=await original();data.photos[1].surface={'whitecap':5,'small waves':10,'calm water':25};return data};await refreshIce()})()`);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z.slice(-5,-2).map(row=>row[1])'),[5,10,25]);
  assert.equal(await evaluate('[...specs.values()][0].s.chip().text'),'60%');
  assert.equal(await evaluate('[...specs.values()][0].s.groupSummary()'),'1/3 pending');
  assert((await evaluate('[...specs.values()][3].s.chip().image')).includes('kind=roi'));

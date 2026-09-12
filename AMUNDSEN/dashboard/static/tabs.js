@@ -507,7 +507,7 @@
   const yT = (d) => d == null ? null : casts.dscale === "sqrt" ? Math.sqrt(Math.max(0, d)) : d;
   const DEPTH_TICKS = [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
   function depthAxis(maxD, extra = {}) {
-    const ax = { ...THEME.yaxis, title: { text: casts.dscale === "sqrt" ? "depth (m, compressed)" : "depth (m)", font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
+    const ax = { ...THEME.yaxis, title: { text: "depth (m)", font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
       autorange: false, range: [yT(maxD), 0], ...extra };
     if (casts.dscale === "sqrt") { const t = DEPTH_TICKS.filter((d) => d <= maxD); ax.tickvals = t.map(yT); ax.ticktext = t.map(String); }
     return ax;
@@ -795,7 +795,7 @@
     if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = "Time"; renderCastPlots(); };
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
-        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: fz(12) }, outlinewidth: 0 },
+        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickangle: 180, tickfont: { size: fz(12) }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
       { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
         textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },

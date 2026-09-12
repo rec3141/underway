@@ -7,6 +7,21 @@ import time
 
 ROOT=Path(os.environ.get('UNDERWAY_ICE_ROOT','/data/underway_server/ice'))
 TYPES=['grease ice','nilas','thin ice floe','icy bits','brash ice','thick ice floe']
+SURFACE_TYPES=TYPES+['whitecap','small waves','calm water','unknown','water (unspecified)']
+
+def surface_values(detail, status):
+    """Read both live and imported classifications without inventing water subtypes."""
+    if status == 'pending':return None
+    if status == 'filtered':return {'water (unspecified)':100}
+    try:
+        record=json.loads(detail or '{}')
+        answer=record.get('answer',record)
+        if record.get('imported'):
+            response=record.get('record',{}).get('response','{}')
+            answer=json.loads(response.strip().removeprefix('```json').removesuffix('```').strip())
+        surface=answer.get('surface_percentages',{})
+        return {k:v for k,v in surface.items() if k in SURFACE_TYPES and type(v) in (int,float) and 0<=v<=100}
+    except (ValueError,TypeError,AttributeError):return {}
 
 def connect(root=ROOT,create=True):
     root=Path(root)
@@ -28,8 +43,9 @@ def track(start,end,root=ROOT):
     with connect(root,False) as db:
         rgb = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='photo_rgb'").fetchone()
         fields, join = ('r,g,b', 'LEFT JOIN photo_rgb USING(id)') if rgb else ('NULL AS r,NULL AS g,NULL AS b', '')
-        rows=db.execute(f'SELECT id,t,leg,status,ice,types,{fields} FROM photos {join} WHERE t>=? AND t<=? ORDER BY t',(start,end)).fetchall()
+        rows=db.execute(f'SELECT id,t,leg,status,ice,types,detail,{fields} FROM photos {join} WHERE t>=? AND t<=? ORDER BY t',(start,end)).fetchall()
     return dict(types=TYPES,photos=[dict(id=r['id'],time=r['t']*1000,leg=r['leg'],status=r['status'],ice=r['ice'],types=json.loads(r['types']) if r['types'] else None,
+                                       surface=surface_values(r['detail'],r['status']),
                                        rgb=[r['r'],r['g'],r['b']] if r['r'] is not None else None) for r in rows])
 
 def cache_slice_rgb(db, identifier, root=ROOT):
