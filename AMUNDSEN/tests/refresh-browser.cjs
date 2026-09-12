@@ -146,6 +146,15 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
     if(process.env.DEPTH_UI) {
+      assert.equal(await evaluate('document.querySelector("#trackstep").closest("#controls-underway")!==null'),true);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#trackstepsel")).display!=="none"'),!process.env.UI_WIDTH);
+      await evaluate('const select=document.querySelector("#trackstepsel");select.value="2";select.dispatchEvent(new Event("change"))');
+      assert.equal(await evaluate('document.querySelector("#trackstep").value'), '2');
+      assert.equal(await evaluate('document.querySelector("#mapdetails").open'),false);
+      await evaluate('document.querySelector("#mapdetailsopen").click()');
+      assert.equal(await evaluate('document.querySelector("#mapdetails").open'),true);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#mapfoot")).fontSize===getComputedStyle(document.querySelector("#mapattrib")).fontSize'),true);
+      await evaluate('document.querySelector("#mapdetailsclose").click()');
       for(const name of ['Bottom depth (m)','Rosette depth (m)']) {
         await evaluate(`UW.showTab('underway');UW.selectColour(${JSON.stringify(name)});document.querySelector('[data-name="${name}"]').scrollIntoView();`);
         await until(`!!document.querySelector('[data-name="${name}"] .plot')?._fullLayout`);
@@ -181,14 +190,21 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       const original=await evaluate('({center:UW.mapView.map.getCenter(),zoom:UW.mapView.map.getZoom(),width:UW.mapView.map.getCanvas().width})');
       await evaluate('document.querySelector("#mapexport").click()');
       await until('!!document.querySelector(".export-canvas canvas") && !document.querySelector("[data-format=png]").disabled');
+      assert.match(await evaluate('document.querySelector(".export-canvas .map-legend").getAttribute("aria-label")'),/Rosette depth/);
       await evaluate('for(const [name,value] of Object.entries({width:500,height:600})){const input=document.querySelector(`.plot-export-dialog [name=${name}]`);input.value=value;input.dispatchEvent(new Event("change"))}');
       await wait(200);
+      assert.equal(await evaluate('document.querySelector(".export-canvas .map-legend").dataset.edge'),'top');
+      await evaluate('window.__legendText=[];const fill=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__legendText.push(text);return fill.call(this,text,...args)}');
       await evaluate('document.querySelector("[data-format=png]").click()');
       await until('window.__download.length===3');
+      assert.match((await evaluate('window.__legendText')).join(' '),/Rosette depth/);
       assert.deepEqual(await evaluate('new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>{const c=document.createElement("canvas");c.width=im.width;c.height=im.height;const ctx=c.getContext("2d");ctx.drawImage(im,0,0);resolve([im.width,im.height,...ctx.getImageData(1,1,1,1).data])};im.onerror=reject;im.src=window.__download[2].url})'),[1500,1800,18,52,86,255]);
       await evaluate('document.querySelector("[data-format=svg]").click()');
       await until('window.__download.length===4');
       assert.match(await evaluate('decodeURIComponent(window.__download[3].url)'),/<image/);
+      await evaluate('for(const [name,value] of Object.entries({width:700,height:400})){const input=document.querySelector(`.plot-export-dialog [name=${name}]`);input.value=value;input.dispatchEvent(new Event("change"))}');
+      await wait(200);
+      assert.equal(await evaluate('document.querySelector(".export-canvas .map-legend").dataset.edge'),'left');
       await evaluate('document.querySelector(".export-close").click()');
       assert.deepEqual(await evaluate('({center:UW.mapView.map.getCenter(),zoom:UW.mapView.map.getZoom(),width:UW.mapView.map.getCanvas().width})'),original);
       assert.deepEqual(await evaluate('window.__errors'),[]);

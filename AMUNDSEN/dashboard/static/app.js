@@ -460,17 +460,22 @@
     renderSatPill();
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
     {
-      const r = $("#trackstep"), out = $("#tracksteplabel");
+      const r = $("#trackstep"), out = $("#tracksteplabel"), sel = $('#trackstepsel');
+      sel.innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}">${detailLabel(km)}</option>`).join('');
       if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
       let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
       r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);
+      sel.value=idx;
       r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
       r.onchange = () => {
         const before = windowFile(currentWindow());
         setTrackDetail(TRACK_STEPS[r.value]);
         if (windowFile(currentWindow()) !== before) loadWindow(); else renderMap();   // "all points" may mean the fine file
       };
+      sel.onchange=()=>{r.value=sel.value;r.onchange();};
     }
+    $('#mapdetailsopen').onclick=()=>$('#mapdetails').showModal();
+    $('#mapdetailsclose').onclick=()=>$('#mapdetails').close();
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
     // how much of the page the map takes: half (the left column), full (the
     // whole page, no pane) or none (the pane takes the whole width). The
@@ -977,6 +982,7 @@
     state.trackKm = km; store.set("trackKm", km);
     const r = $("#trackstep"), out = $("#tracksteplabel");
     if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? TRACK_STEPS.length - 1 : i; out.textContent = detailLabel(km); r.setAttribute("aria-valuetext", detailLabel(km)); }
+    if($('#trackstepsel'))$('#trackstepsel').value=r.value;
   }
   let thinCache = { src: null, km: null, out: null };
   function thinTrack(d, km) {
@@ -1043,6 +1049,8 @@
   // with the limits at its ends, from the stops the map and the charts share.
   function renderColourBar(v, lim) {
     const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
+    UW.mapLegend={name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low:lim?fmtVal(lim[0],''):'',high:lim?fmtVal(lim[1],v?.unit||''):''};
+    renderMapLegend();
     for (const bar of document.querySelectorAll(".cbar")) {
       const show = !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
       bar.hidden = !show;
@@ -1052,6 +1060,12 @@
       bar.querySelector(".hi").textContent = fmtVal(lim[1], v?.unit || "");
       bar.title = `${state.colour}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span`;
     }
+  }
+  function renderMapLegend() {
+    const el=$('#map');if(!mapView?.map)return;
+    let canvas=el.querySelector('.map-legend');
+    if(!canvas){canvas=document.createElement('canvas');canvas.className='map-legend';canvas.setAttribute('role','img');el.append(canvas);}
+    UWMapLegend.render(canvas,el.clientWidth,el.clientHeight,UW.mapLegend);
   }
   // the map (static/map.js): made on the first draw, kept for the page's life
   let mapView = null, mapData = null;
@@ -1793,7 +1807,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
     // the map box changes with the window and as the bars round it fill
-    const resizeMap = () => mapView?.resize();
+    const resizeMap = () => {mapView?.resize();renderMapLegend();};
     window.addEventListener("resize", resizeMap);
     new ResizeObserver(resizeMap).observe($("#map"));
     wirePlanDrop(); renderPlanPills();

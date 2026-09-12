@@ -1,7 +1,8 @@
 /* A separate, resizable copy of a graph; exporting never changes the live plot. */
 (() => {
   'use strict';
-  let dialog, preview, observer, frame, version = 0, filename, ready = false, mapPreview = null, dialogSize = '';
+  let dialog, preview, observer, frame, version = 0, filename, ready = false, mapPreview = null, dialogSize = '', legend = null, legendCanvas = null, credit = '';
+  function previewLegend(){if(legendCanvas){const {width,height}=dimensions();UWMapLegend.render(legendCanvas,width,height,legend);}}
   const scaleInput = () => dialog.querySelector('input[type=range]');
   const dimensions = () => ({width:Math.max(1,preview.clientWidth),height:Math.max(1,preview.clientHeight)});
   function resolution() {
@@ -37,7 +38,7 @@
       if(dialogSize && size!==dialogSize){preview.style.width='';preview.style.height='';}
       dialogSize=size;
       cancelAnimationFrame(frame);
-      frame=requestAnimationFrame(()=>{if(!dialog.open)return;resolution();if(ready){if(mapPreview)mapPreview.resize();else Plotly.relayout(preview,dimensions());}});
+      frame=requestAnimationFrame(()=>{if(!dialog.open)return;resolution();if(ready){if(mapPreview){mapPreview.resize();previewLegend();}else Plotly.relayout(preview,dimensions());}});
     });
     for(const button of dialog.querySelectorAll('[data-format]'))button.onclick=async()=>{
       if(!ready)return;
@@ -68,7 +69,7 @@
       if(source.width!==Math.round(requested.width*scale)||source.height!==Math.round(requested.height*scale))throw Error('Requested size exceeds the map renderer limit.');
       canvas.width=source.width;canvas.height=source.height;
       const ctx=canvas.getContext('2d');ctx.drawImage(source,0,0);
-      const credit=document.querySelector('#mapattrib')?.textContent?.trim();
+      ctx.save();ctx.scale(scale,scale);UWMapLegend.draw(ctx,requested.width,requested.height,legend);ctx.restore();
       if(credit){ctx.font=`${11*scale}px sans-serif`;const lines=credit.match(/.{1,90}(?:\s|$)|.{1,90}/g)||[credit];ctx.fillStyle='#fff';ctx.fillRect(0,canvas.height-(lines.length*15+8)*scale,canvas.width,(lines.length*15+8)*scale);ctx.fillStyle='#222';lines.forEach((line,i)=>ctx.fillText(line,6*scale,canvas.height-(lines.length-1-i)*15*scale-6*scale,canvas.width-12*scale));}
       const png=canvas.toDataURL('image/png');
       if(format==='png')return png;
@@ -77,6 +78,8 @@
   }
   async function open(plot, sourceMap = null) {
     setup();const current=++version;ready=false;
+    legend=sourceMap?structuredClone(window.UW.mapLegend):null;legendCanvas=null;
+    credit=document.querySelector('#mapattrib')?.textContent?.trim()||'';
     const title=sourceMap?'Map':plot.closest('.panel')?.querySelector('h3')?.textContent||'Graph';
     filename=title.replace(/[^\p{L}\p{N}._-]+/gu,'-').replace(/^-|-$/g,'')||'graph';
     dialog.querySelector('h3').textContent=`Export · ${title}`;
@@ -88,6 +91,7 @@
     try {
       if(sourceMap){
         mapPreview=new maplibregl.Map({container:preview,style:structuredClone(sourceMap.getStyle()),center:sourceMap.getCenter(),zoom:sourceMap.getZoom(),bearing:sourceMap.getBearing(),pitch:sourceMap.getPitch(),interactive:false,attributionControl:false,pixelRatio:1,canvasContextAttributes:{preserveDrawingBuffer:true},fadeDuration:0});
+        legendCanvas=document.createElement('canvas');legendCanvas.className='map-legend';legendCanvas.setAttribute('role','img');preview.append(legendCanvas);previewLegend();
         await mapIdle(mapPreview);
       }else{
       const layout=structuredClone(plot.layout),data=structuredClone(plot.data);

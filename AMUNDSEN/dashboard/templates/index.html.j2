@@ -61,6 +61,12 @@
       <datalist id="spanticks"></datalist>
       <select id="spansel" title="span" aria-label="Time span"></select>
     </div>
+    <div class="group maptrack" title="Track points drawn per kilometre">
+      <span class="lbl">Track detail</span>
+      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
+      <output id="tracksteplabel" for="trackstep">all points</output>
+      <select id="trackstepsel" aria-label="Track detail"></select>
+    </div>
   </div>
 </header>
 <div class="inapp" id="inapp" hidden></div>
@@ -79,8 +85,8 @@
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
-      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
-      <div class="tools"><button id="mapexport" title="Preview and export the map">Export</button><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
+      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+      <div class="tools"><button id="mapdetailsopen">Details</button><button id="mapexport" title="Preview and export the map">Export</button><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
       <span class="pillset" title="the ship's own layers">
@@ -107,13 +113,11 @@
     </div>
     <div id="mapmsg" class="mapmsg" hidden></div>
     <div id="mapscale" class="mapscale" title="the scale at the centre of the map" hidden><span class="bar"></span><span class="lbl"></span></div>
-    <div class="maptrack" title="how many track points to draw: every point of the span, or one per so many km along the track">
-      <span class="lbl">Track detail</span>
-      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
-      <output id="tracksteplabel" for="trackstep">all points</output>
-    </div>
+    <dialog id="mapdetails" aria-labelledby="mapdetailstitle">
+    <div class="mapdetailshead"><h3 id="mapdetailstitle">Map details</h3><button id="mapdetailsclose" aria-label="Close map details">×</button></div>
     <div class="map-foot" id="mapfoot"></div>
     <div class="map-attrib" id="mapattrib"></div>
+    </dialog>
   </section>
 
   <section class="side">
@@ -253,6 +257,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 </aside>
 
 <script src="static/data.js?v={{ site.asset_version }}"></script>
+<script src="static/map-legend.js?v={{ site.asset_version }}"></script>
 <script src="static/plot-export.js?v={{ site.asset_version }}"></script>
 <script src="static/map.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>

@@ -246,10 +246,11 @@ select {
 .group.xmode { gap: 8px; }
 .group.xmode .lbl { color: var(--muted); font-size: var(--t-md); }
 .group.xmode .xcycle { min-width: 5.5em; }
-/* the track-detail slider under the map */
-.maptrack { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 4px 8px 0; font-size: var(--t-sm); color: var(--muted); }
-.maptrack output { font-family: var(--mono); font-size: var(--t-sm); min-width: 5.5em; color: var(--accent); font-weight: 600; }
-.maptrack input[type=range] { flex: 1; max-width: 260px; accent-color: var(--accent); cursor: pointer; }
+/* Track detail beside the time span; both use dropdowns on phones. */
+.maptrack { display:flex; align-items:center; gap:8px; font-size:var(--t-md); color:var(--muted); }
+.maptrack output { font-size:inherit; min-width:5.5em; color:var(--accent); font-weight:600; }
+.maptrack input[type=range] { width:150px; accent-color:var(--accent); cursor:pointer; }
+#trackstepsel { display:none; }
 
 /* leg menu */
 .legmenu { position: relative; }
@@ -405,6 +406,14 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 #map { position: relative; }
 .maptip { position: absolute; z-index: 5; pointer-events: none; max-width: min(360px, 80%); padding: 5px 8px; border-radius: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px var(--shadow); font-size: var(--t-sm); line-height: 1.35; }
 .map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: var(--t-xs); padding: 3px 8px 0; opacity: .8; }
+.map-legend { position:absolute; top:0; left:0; z-index:3; pointer-events:none; }
+#mapdetails { width:min(600px,calc(100vw - 32px)); max-height:80dvh; overflow:auto; padding:16px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius); }
+#mapdetails::backdrop { background:rgba(0,0,0,.55); }
+.mapdetailshead { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.mapdetailshead h3 { flex:1; margin:0; }
+#mapdetails .map-foot { display:flex; flex-direction:column; gap:10px; padding:0; }
+#mapdetails .map-foot, #mapdetails .map-foot .mono, #mapdetails .map-attrib, #mapdetails .hint { font:var(--t-md)/1.5 var(--font); opacity:1; margin-left:0; overflow-wrap:anywhere; }
+#mapdetails .map-attrib { margin-top:14px; padding:12px 0 0; border-top:1px solid var(--line); }
 .maplayers { order: 0; } #map { order: 1; } .maptrack { order: 2; } .map-foot { order: 4; }   /* the column's order: bars, map, slider, attribution, notes */
 /* the scale bar, over the map's bottom-left corner; placed by the script, which knows the map's box */
 .mapscale { position: absolute; z-index: 5; display: flex; align-items: center; gap: 6px; pointer-events: none;
@@ -469,6 +478,9 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
   #spansel { width: 100%; min-width: 0; }
   .group.span .lbl, .group.span output, .group.span input[type=range] { display: none; }
   #spansel { display: inline-block; }
+  .controls .maptrack { flex:1 1 auto; min-width:0; padding:0; border:0; background:transparent; }
+  .maptrack .lbl, .maptrack output, .maptrack input[type=range] { display:none; }
+  #trackstepsel { display:block; width:100%; min-width:0; }
   .plotctl { flex-wrap: nowrap; gap: 6px; }
   .plotctl .group.xmode { flex: 0 0 auto; }
   .plotctl label.select { flex: 1 1 auto; min-width: 0; }
