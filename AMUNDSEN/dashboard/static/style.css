@@ -368,6 +368,7 @@ main.mapfull .plotctl, main.mapfull .side, main.mapfull > footer { display: none
 .maplayers .pillset button { border-radius: 0; margin-left: -1px; }
 .maplayers .pillset button:first-child { border-radius: 999px 0 0 999px; margin-left: 0; }
 .maplayers .pillset button:last-child { border-radius: 0 999px 999px 0; }
+.maplayers .pillset button[data-layer="plan"]:not(:has(~ button:not([hidden]))) { border-radius:999px; }
 .maplayers .pillset button.on { position: relative; z-index: 1; }
 .maplayers button.sat.on { background: var(--pale); color: var(--on-pale); border-color: var(--pale); }   /* a picture under the track: a pale pill, unlike the blue data layers */
 .maplayers button.userplan .x { margin-left: 6px; opacity: .6; }                 /* a plan this browser loaded: ✕ forgets it */
@@ -583,7 +584,7 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 .castside, .castmain { min-width: 0; }
 /* the list sits above the figures, so it keeps its own bounded scroll (inside
    the card, away from the pane's bar at the right edge) */
-.castlist { margin: 0 18px 0 0; max-height: 25vh; }                          /* the casts table: the tablewrap look, its own scroll */
+.tablewrap.castlist { margin: 0 18px 0 0; max-height: calc(100vh / 3); max-height: calc(100dvh / 3); } /* its own scroll, capped at a third of the viewport */
 #casttable tbody tr { cursor: pointer; }
 #casttable tbody tr.sel td { background: color-mix(in srgb, var(--accent-2) 8%, transparent); }
 #casttable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }
@@ -1379,6 +1380,14 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 /* A small footer entry opens a keyboard-accessible feedback dialog. */
 .feedback-link { border: 0; background: none; color: var(--accent); font: inherit; padding: 12px 0; text-decoration: underline; cursor: pointer; }
 .chat-privacy { margin:0; padding:6px 10px; font-size:var(--t-sm); color:var(--fg); background:var(--card-2); border-bottom:1px solid var(--line); }
+.maplayers .mapcolour select, .plotctl .colourpick { flex:0 1 auto; width:auto; max-width:100%; }
+#wikiclose { margin-left:auto; }
+.single-layout { display:grid; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:10px; width:100%; }
+.single-parameters { display:flex; flex-direction:column; gap:6px; }
+.single-parameters .parameter { display:flex; gap:3px; align-items:center; }
+.single-parameters .singlevar { flex:1; min-width:0; white-space:normal; text-align:left; }
+.single-layout #singlebody { min-width:0; }
+@media(max-width:480px){.single-layout{grid-template-columns:minmax(100px,32%) minmax(0,1fr)}}
 #feedback-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; background: var(--card); color: var(--fg); }
 #feedback-dialog::backdrop { background: rgba(0, 0, 0, .5); }
 #feedback-dialog label { display: block; margin: 12px 0 6px; }

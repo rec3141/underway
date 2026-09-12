@@ -18,6 +18,7 @@ let rejectLiveConfig=true;
 const liveCast=(pressure_col, pressure)=>({started:1,n:2,n_raw:2,max_p:pressure,depth_like:true,t:[1,2],columns:['scan',pressure_col,'temperature'],pressure_col,cols:{scan:[1,2],[pressure_col]:[pressure,pressure],temperature:[3,4]}});
 const liveData={port:5555,columns:['scan','depth','temperature'],pressure_col:'depth',current:liveCast('depth',25),last:liveCast('depth_m',10)};
 const failures=new Set(['/data/manifest.json','/data/w-1h.json']), requests=[];
+const chatMessages=Array.from({length:45},(_,i)=>({id:i+1,t:1700000000+i,name:'Sailor',text:`Message ${i+1}: reading a long conversation.`,emoji:''}));
 const hold=new Set(), held=[];
 const leg='2026_LEG_03', t=Date.parse('2026-09-04T12:00:00Z');
 const stamp = () => `2026-09-04T12:00:0${generation}Z`;
@@ -47,6 +48,11 @@ function dataset(p) {
   if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
   if(p.startsWith('/data/agg-')) return {variables:['SST (°C)'],rows:[{t,leg:0,lat:76,lon:-78,'SST (°C)':[generation,generation,generation,2]}]};
   const cast={id:`${leg}:CTD_001`,leg,kind:'CTD',cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78,p:[1,2],units:{Temperature:'°C'},vars:{Temperature:[generation,generation]}};
+  if(process.env.TRANSECT_UI) {
+    const casts=Array.from({length:30},(_,i)=>({...cast,id:`${leg}:CTD_${String(i+1).padStart(3,'0')}`,cast:String(i+1),station:`Station ${i+1}`,lat:76+i/100,lon:-78-i/100,file:`data/casts/cast-${i}.json`}));
+    if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:casts.map(c=>({...c,vars:['Temperature']}))};
+    const match=p.match(/^\/data\/casts\/cast-(\d+)\.json$/); if(match) return casts[+match[1]];
+  }
   if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:[{...cast,vars:['Temperature'],file:'data/casts/cast.json'}]};
   if(p==='/data/casts/cast.json') return cast;
   if(p==='/api/chat') return {messages:[],online:[],crew:[],typing:[]};
@@ -59,6 +65,10 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname; requests.push(req.url);
+  if(p==='/api/chat' && process.env.TRANSECT_UI) {
+    const since=Number(new URL(req.url,'http://localhost').searchParams.get('since')||0);
+    res.setHeader('Content-Type','application/json');res.end(JSON.stringify({messages:chatMessages.filter(m=>m.id>since),online:[],crew:[],typing:[]}));return;
+  }
   if(p==='/api/feedback' && req.method==='POST') {
     let body=''; req.on('data', chunk=>body+=chunk);
     req.on('end',()=>{
@@ -116,6 +126,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       addEventListener('unhandledrejection',e=>window.__errors.push(String(e.reason)));
       const realInterval=window.setInterval;
       window.setInterval=(fn,ms,...args)=>{if(ms===30000)window.__poll=fn;return realInterval(fn,ms,...args);};
+      const realTimeout=window.setTimeout;
+      window.setTimeout=(fn,ms,...args)=>{if(ms===4000||ms===20000)window.__chatPoll=fn;return realTimeout(fn,ms,...args);};
     `});
     await call('Emulation.setDeviceMetricsOverride',{width:Number(process.env.UI_WIDTH)||390,height:844,deviceScaleFactor:1,mobile:!process.env.UI_WIDTH});
     await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
@@ -127,6 +139,56 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.TRANSECT_UI) {
+      await evaluate('UW.showTab("casts")');
+      await until('document.querySelectorAll("#casttable tr[data-id]").length===30');
+      assert.deepEqual(await evaluate('[...document.querySelectorAll("#castkind button")].map(b=>b.textContent)'),['All','Live','Rosette','TM','MVP','TRS']);
+      assert.equal(await evaluate('document.querySelector("#castlist").getBoundingClientRect().height <= innerHeight/3+1'),true);
+      assert.equal(await evaluate('document.querySelector("#castlist").scrollHeight > document.querySelector("#castlist").clientHeight'),true);
+      await evaluate(`document.querySelector('#casttable tr[data-id="${leg}:CTD_001"]').click(); document.querySelector('#casttable tr[data-id="${leg}:CTD_002"]').click(); document.querySelector('#castmode [data-m=section]').click()`);
+      await until('document.querySelector("#cs-plot")?.data && !document.querySelector("#savetransect").disabled');
+      await evaluate('document.querySelector(".castlegend .reorder .nudge[data-d=\\"1\\"]").click()');
+      await evaluate('window.prompt=()=>"Shelf <transect>"; document.querySelector("#savetransect").click()');
+      await until('document.querySelector("#casttable tr.sel")?.textContent.includes("Shelf <transect>")');
+      const saved=await evaluate('JSON.parse(localStorage.getItem("uw:casts.transects"))[0]');
+      assert.deepEqual(saved.members,[`${leg}:CTD_002`,`${leg}:CTD_001`]);
+      assert.deepEqual(await evaluate('UW.extraMapTraces().find(t=>t.name==="Shelf <transect>").lat'),[76.01,76]);
+      assert.equal(await evaluate('UW.selectedCastKeys().size'),2);
+      await evaluate('document.querySelector("#castclear").click()');
+      assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="Shelf <transect>")'),false);
+      await evaluate('document.querySelector("#casttable tr[data-id]").click()');
+      await until('document.querySelector("#cs-plot")?.data');
+      await call('Page.reload');
+      await until('window.UW && window.UW.state.raw');
+      await evaluate('UW.showTab("casts")');
+      await until('document.querySelector("#casttable tr.sel") && document.querySelector("#cs-plot")?.data');
+      assert.equal(await evaluate('document.querySelectorAll(".castlegend .lbl").length'),2);
+      assert.deepEqual(await evaluate('UW.extraMapTraces().find(t=>t.name==="Shelf <transect>").lon'),[-78.01,-78]);
+      await evaluate('window.confirm=()=>true;document.querySelector("[data-delete-transect]").click()');
+      assert.deepEqual(await evaluate('JSON.parse(localStorage.getItem("uw:casts.transects"))'),[]);
+      assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="Shelf <transect>")'),false);
+      await evaluate('UW.showTab("stations");UW.showTab("wiki");document.querySelector("#wikiclose").click()');
+      assert.equal(await evaluate('document.querySelector("#pane-stations").hidden'),false);
+      assert.equal(await evaluate('document.querySelector("#stationtable th").dataset.k'),'station');
+      assert.equal(await evaluate('document.querySelector("#stationtable").textContent.includes("(ship)")'),false);
+      await evaluate('UW.chatToggle(true)');
+      await until('document.querySelectorAll("#chatlog .msg").length===45');
+      await evaluate('document.querySelector("#chatlog").scrollTop=80');
+      chatMessages.push({id:46,t:1700000046,name:'Sailor',text:'A new message',emoji:''});
+      await evaluate('window.__chatPoll()');
+      await until('document.querySelectorAll("#chatlog .msg").length===46');
+      await wait(200);
+      assert.equal(await evaluate('Math.abs(document.querySelector("#chatlog").scrollTop-80)<2'),true);
+      await evaluate('document.querySelector("#chatlog").scrollTop=document.querySelector("#chatlog").scrollHeight');
+      chatMessages.push({id:47,t:1700000047,name:'Sailor',text:'Follow this message',emoji:''});
+      await evaluate('window.__chatPoll()');
+      await until('document.querySelectorAll("#chatlog .msg").length===47');
+      assert.equal(await evaluate('(()=>{const e=document.querySelector("#chatlog");return e.scrollHeight-e.scrollTop-e.clientHeight<2})()'),true);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS transect save, ordered map line, deselection, reload, deletion and table height');
+      console.log('PASS Wiki close, station column/timezone and chat scroll preservation/following');
+      return;
+    }
     if(process.env.SUMMARY_UI){
       assert.equal(await evaluate('!!document.querySelector("#tabs [data-tab=table]")'),false);
       assert.equal(await evaluate('!!document.querySelector("#pane-underway #aggtable")'),true);
@@ -303,7 +365,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
 
     await evaluate('window.UW.showTab("table")');
     failures.add('/data/agg-1h.json');
-    await evaluate('document.querySelector("#aggrule [data-r=\\"1h\\"]").click()');
+    await evaluate(`document.querySelector('#aggrule [data-r="1h"]').click()`);
     await until('document.querySelector("#connection").textContent.includes("Table")');
     failures.clear();await poll();
     await until('document.querySelector("#aggtable").textContent.includes("3.00")');
@@ -312,8 +374,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     console.log('PASS failed aggregate is retried; open Table updates');
 
     await evaluate('window.UW.showTab("casts")');
-    await until('document.querySelector("#castlist input")');
-    await evaluate('document.querySelector("#castlist input").click()');
+    await until('document.querySelector("#casttable tr[data-id]")');
+    await evaluate('document.querySelector("#casttable tr[data-id]").click()');
     await until('document.querySelector("#castplots .js-plotly-plot")?.data?.[0]?.x?.[0]===4');
     generation=5;await poll();
     await until('document.querySelector("#castplots .js-plotly-plot")?.data?.[0]?.x?.[0]===5');

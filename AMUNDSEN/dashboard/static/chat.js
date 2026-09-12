@@ -61,7 +61,7 @@
     el.dataset.room = st.room;
     $("#chattitle").textContent = roomTitle(st.room);
     $('#chatprivacy').textContent = isDM(st.room)
-      ? 'Direct messages — participant identities only. Stored on the ship server; operators can access them. Not end-to-end encrypted.'
+      ? 'Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.'
       : 'Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.';
     textIn.placeholder = placeholder(st.room);
     renderRooms();
@@ -72,7 +72,6 @@
     $("#chatsidebtn").textContent = st.side ? "⇥" : "⇤";
     $("#chatsidebtn").title = st.side ? "back to the corner" : "open as a side bar";
     setTimeout(() => {
-      if (st.open) log.scrollTop = log.scrollHeight;
       for (const p of document.querySelectorAll(".plot, #map")) if (p.data && p.offsetParent) window.Plotly?.Plots.resize(p);
     }, 80);
   }
@@ -147,6 +146,7 @@
   function append(msgs, room) {
     if (!msgs.length) return;
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    const anchor=[...log.children].find(e=>e.getBoundingClientRect().bottom>log.getBoundingClientRect().top),anchorTop=anchor?.getBoundingClientRect().top;
     const hideUpTo = st.hidden[room] || 0;
     for (const m of msgs) {
       st.lastId[room] = Math.max(st.lastId[room] || 0, m.id);
@@ -158,13 +158,14 @@
       log.appendChild(d);
     }
     while (log.children.length > 300) log.firstChild.remove();
-    if (atBottom || st.open) log.scrollTop = log.scrollHeight;
+    if (atBottom) log.scrollTop = log.scrollHeight;
+    else if(anchor?.isConnected)log.scrollTop+=anchor.getBoundingClientRect().top-anchorTop;
     markSeen(room);
   }
   function markSeen(room) {
     if (st.open && room === st.room) { st.seen[room] = Math.max(st.seen[room] || 0, st.lastId[room] || 0, st.latest[room] || 0); store.set("chat.seenRooms", st.seen); }
     st.unread = 0;
-    for (const r of Object.keys(st.latest)) if (!(st.open && r === st.room)) st.unread += Math.max(0, (st.latest[r] || 0) - (st.seen[r] || 0));
+    for (const r of Object.keys(st.latest)) if (!(st.open && r === st.room)) st.unread += isDM(r) ? Number((st.latest[r]||0)>(st.seen[r]||0)) : Math.max(0, (st.latest[r] || 0) - (st.seen[r] || 0));
     unread.hidden = !st.unread; unread.textContent = st.unread;
   }
 
@@ -172,10 +173,15 @@
     try {
       const present = st.open && !document.hidden;
       const room = st.room;
-      const r = await fetch(`api/chat?channel=${encodeURIComponent(room)}&since=${st.lastId[room] || 0}&name=${encodeURIComponent(st.myName)}&token=${encodeURIComponent(token)}&leave=${present ? 0 : 1}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
+      const since = st.lastId[room] || 0;
+      const r = await fetch(`api/chat?channel=${encodeURIComponent(room)}&since=${since}&name=${encodeURIComponent(st.myName)}&token=${encodeURIComponent(token)}&leave=${present ? 0 : 1}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
       if (!r.ok) throw new Error(r.status);
       const j = await r.json();
       if (room !== st.room) return;                            // the room changed while this was in flight
+      if (j.temporary && st.dmStart !== j.history_start) {
+        log.replaceChildren(); st.lastId[room] = 0; st.dmStart = j.history_start;
+        if (since && j.history_start) { clearTimeout(st.timer); st.timer = setTimeout(poll, 0); return; }
+      }
       dot.className = "dot on";
       st.crew = j.crew || []; st.online = j.online || []; st.roomBots = j.room_bots || []; st.modelOn = !!j.model_online; st.error = j.error || "";
       st.rooms = j.rooms || [];
@@ -221,15 +227,13 @@
     if (!st.open) { st.open = true; store.set("chat.open", true); }
     layout(); textIn.focus(); poll();
   }
-  // close a direct message: its history is erased (on the server when the
-  // other member is a crew member, who then forgets it; on this device when
-  // it is a person, who keeps their copy) and the room leaves the row until
+  // close a direct message: its history is erased for both participants,
+  // and the room leaves the row until
   // something newer arrives. A shared room is only cleared on this device.
   async function clearRoom() {
     const room = st.room, dm = isDM(room);
     const warn = dm
-      ? (st.roomBots.length ? `Close this conversation with ${roomTitle(room)}? Its history will be erased, and ${roomTitle(room)} will not remember it.`
-                            : `Close this conversation with ${roomTitle(room)}? Its history will be erased on this device; ${roomTitle(room)} keeps theirs.`)
+      ? `Close this conversation with ${roomTitle(room)}? Its temporary history will be cleared for both participants.`
       : `Clear ${roomTitle(room)} on this device? Others keep their copy.`;
     if (!confirm(warn)) return;
     try {

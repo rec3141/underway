@@ -58,7 +58,7 @@
     view: null,                                       // user's pan/zoom
   };
 
-  const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)", "TSG line warming (°C)", "TSG flow (V)"]);
+  const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)", "TSG line warming (°C)"]);
   if(newViewer){for(const v of M.variables)state.panel[v.name]='min';store.set('panel',state.panel)}
   const extraPanels = new Map();
   const extraColours = new Map();
@@ -1680,6 +1680,7 @@
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
     if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
+    if(name!=='wiki')store.set('lastNonWikiTab',name);
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat" && b.dataset.tab !== "map") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
     if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
@@ -1693,6 +1694,7 @@
     if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);
   }
   for (const b of $("#tabs").querySelectorAll("button")) b.onclick = () => showTab(b.dataset.tab);
+  $('#wikiclose').onclick=()=>showTab(store.get('lastNonWikiTab','underway'));
 
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {

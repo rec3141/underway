@@ -1,6 +1,6 @@
 """The ship chat: rooms, direct messages, presence, and the AI crew's part in it.
 
-One SQLite log holds every message with a ``channel``:
+Shared messages live in SQLite; direct messages live only in memory. Each has a ``channel``:
 
 * ``ship``       the public room: people, and a crew member only when @mentioned
 * ``crew``       the AI crew's room: any message there is answered, and the crew
@@ -19,9 +19,8 @@ until it releases it, and a direct message is delivered only to polls that
 present the owner's token. No passwords; enough for a ship's company.
 
 The crew see the last five kilobytes of the room they are speaking in, never
-another room. Clearing a room with only a crew member in it deletes it on the
-server, which is the crew member's memory of it; clearing a shared room hides
-it on the device alone.
+another room. Closing a direct conversation clears it for both participants;
+clearing a shared room hides it on the device alone.
 """
 
 from __future__ import annotations
@@ -52,6 +51,15 @@ _lock = threading.Lock()
 _online: dict[str, dict] = {}           # name -> {"t", "room", "emoji"}: who has which room open
 _last_post: dict[str, float] = {}       # address -> last post, a light rate limit
 _typing: dict[str, set] = {}            # channel -> handles composing there
+_dms: dict[str, list] = {}
+_dm_starts: dict[str, int] = {}
+DM_TTL = 30 * 60  # expire after 30 minutes without a new message
+
+def expire_dms():
+    for channel, rows in list(_dms.items()):
+        if not rows or time.time()-rows[-1][1]>DM_TTL:
+            del _dms[channel]
+            _dm_starts.pop(channel, None)
 CREW = None                             # the model-driven crew, once the server is up (chatbot.Crew)
 ROOT: Path | None = None                # the web root, for the wiki Ada and Doc read
 
@@ -75,6 +83,10 @@ def conn() -> sqlite3.Connection:
         c.execute("UPDATE messages SET channel='ship' WHERE channel='crew'")
         c.execute("UPDATE messages SET channel='ada' WHERE channel='historian'")
         c.execute("INSERT INTO schema (version) VALUES (2)")
+    # DMs are transient. Migration removes previously persisted DM messages.
+    if not v or v[0] < 3:
+        c.execute("DELETE FROM messages WHERE channel LIKE 'dm:%'")
+        c.execute("UPDATE schema SET version=3")
     c.commit()
     return c
 
@@ -174,6 +186,11 @@ def claim(c: sqlite3.Connection, name: str, token: str) -> str:
 def release(c: sqlite3.Connection, name: str, token: str) -> bool:
     cur = c.execute("DELETE FROM names WHERE name = ? AND token = ?", (name, token))
     c.commit()
+    if cur.rowcount:
+        for channel in list(_dms):
+            if name.lower() in participants(channel):
+                del _dms[channel]
+                _dm_starts.pop(channel, None)
     return cur.rowcount > 0
 
 
@@ -191,6 +208,7 @@ def _row(i, t, n, x, e, meta) -> dict:
 def read(since: int, name: str, token: str, emoji: str = "", leave: bool = False, channel: str = "ship") -> dict:
     name = clean_name(name)
     now = time.time()
+    history_start = None
     with _lock:
         c = conn()
         try:
@@ -205,13 +223,18 @@ def read(since: int, name: str, token: str, emoji: str = "", leave: bool = False
             if error or not valid_channel(channel, name):
                 rows, latest_rows = [], []
             else:
-                if since > 0:
+                expire_dms()
+                if channel.startswith('dm:'):
+                    rows=[r for r in _dms.get(channel,[]) if r[0]>since][-CHAT_PAGE:]
+                    history_start = _dm_starts.get(channel)
+                elif since > 0:
                     rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? AND id > ? ORDER BY id",
                                      (channel, since)).fetchall()
                 else:
                     rows = c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? ORDER BY id DESC LIMIT ?",
                                      (channel, CHAT_PAGE)).fetchall()[::-1]
-                latest_rows = c.execute("SELECT channel, MAX(id) FROM messages GROUP BY channel").fetchall()
+                latest_rows = c.execute("SELECT channel, MAX(id) FROM messages WHERE channel NOT LIKE 'dm:%' GROUP BY channel").fetchall()
+                latest_rows += [(ch, rows[-1][0]) for ch, rows in _dms.items() if rows]
         finally:
             c.close()
     latest = dict(latest_rows)
@@ -223,6 +246,7 @@ def read(since: int, name: str, token: str, emoji: str = "", leave: bool = False
     from .chatbot import model_status
     st = model_status() if bots() else {"online": False, "model": "", "why": "the crew are off"}
     return {"messages": [_row(*r) for r in rows], "online": online, "channel": channel, "rooms": rooms,
+            "temporary": channel.startswith('dm:'), "history_start": history_start,
             "typing": sorted(_typing.get(channel, set())), "error": error,
             "crew": [{"handle": h, "name": p["name"], "emoji": p["emoji"], "beat": p["beat"], "room": p.get("room", p["name"])} for h, p in bots().items()],
             "room_bots": bots_in(channel), "model": st["model"] if st["online"] else st.get("why", ""),
@@ -235,7 +259,12 @@ def context(channel: str, limit: int = CONTEXT_BYTES) -> list[dict]:
     c = conn()
     try:
         out, size = [], 0
-        for r in c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? ORDER BY id DESC LIMIT 400", (channel,)):
+        if channel.startswith('dm:'):
+            with _lock:
+                expire_dms(); recent=list(reversed(_dms.get(channel,[])))
+        else:
+            recent=c.execute("SELECT id, t, name, text, emoji, meta FROM messages WHERE channel = ? ORDER BY id DESC LIMIT 400", (channel,))
+        for r in recent:
             size += len(r[3].encode("utf-8")) + len(r[2]) + 4
             if size > limit and out:
                 break
@@ -267,11 +296,19 @@ def post(addr: str, name: str, text: str, emoji: str = "", channel: str = "ship"
                     return {"error": err}
                 _last_post[addr] = now
                 _online[name] = {"t": now, "room": channel, "emoji": emoji or _online.get(name, {}).get("emoji", "")}
-            cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji, channel, meta) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            if channel.startswith('dm:'):
+                expire_dms()
+                rows=_dms.setdefault(channel,[])
+                mid=max(int(now*1000000),rows[-1][0]+1 if rows else 0)
+                _dm_starts.setdefault(channel, mid)
+                rows.append((mid,now,name,text,emoji,json.dumps(meta) if meta else None))
+                del rows[:-CHAT_PAGE]
+            else:
+                cur = c.execute("INSERT INTO messages (t, addr, name, text, emoji, channel, meta) VALUES (?, ?, ?, ?, ?, ?, ?)",
                             (now, addr, name, text, emoji, channel, json.dumps(meta) if meta else None))
-            c.execute("DELETE FROM messages WHERE id <= (SELECT MAX(id) FROM messages) - ?", (CHAT_KEEP,))
-            c.commit()
-            mid = cur.lastrowid
+                c.execute("DELETE FROM messages WHERE id <= (SELECT MAX(id) FROM messages) - ?", (CHAT_KEEP,))
+                c.commit()
+                mid = cur.lastrowid
         finally:
             c.close()
     if not bot and CREW:
@@ -280,21 +317,18 @@ def post(addr: str, name: str, text: str, emoji: str = "", channel: str = "ship"
 
 
 def clear(channel: str, name: str, token: str) -> dict:
-    """Empty a room. A room whose only other member is a crew member is
-    deleted on the server, which forgets it; any other room is the device's
-    to hide, so nothing is deleted for anyone else."""
+    """Clear a direct conversation for both participants; shared rooms stay stored."""
     name = clean_name(name)
     if not valid_channel(channel, name):
         return {"error": "no such room"}
-    others = [p for p in participants(channel) if p != name.lower()]
     with _lock:
         c = conn()
         try:
             if claim(c, name, token):
                 return {"error": "not your name"}
-            if channel.startswith("dm:") and others and all(o.startswith("@") for o in others):
-                n = c.execute("DELETE FROM messages WHERE channel = ?", (channel,)).rowcount
-                c.commit()
+            if channel.startswith("dm:"):
+                n=len(_dms.pop(channel,[]))
+                _dm_starts.pop(channel, None)
                 return {"ok": True, "deleted": n}
             return {"ok": True, "deleted": 0}
         finally:

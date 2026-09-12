@@ -655,9 +655,24 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
             continue
         out = root / "data" / "casts" / leg.id
         out.mkdir(parents=True, exist_ok=True)
+        logs = {}
+        for path in (DATA_ROOT / 'Rosette' / leg.id / 'Logs').glob('RosetteSheet_*.xlsx'):
+            match = re.fullmatch(r'RosetteSheet_(\d+)\.xlsx',path.name)
+            if match: logs[int(match[1])] = path
         for c in casts:
             atomic_write(out / (c.id.split(":")[-1] + ".json"), json.dumps(c.payload(), separators=(",", ":")))
-            index.append(c.meta())
+            meta=c.meta()
+            source=logs.get(int(c.cast)) if c.kind in {'CTD','TM'} and c.cast.isdigit() else None
+            if source:
+                import shutil
+                target=out/source.name
+                try:
+                    if not target.exists() or source.stat().st_mtime>target.stat().st_mtime:
+                        temp=target.with_suffix('.tmp');shutil.copy2(source,temp);temp.replace(target)
+                    meta['log_url']=f'data/casts/{leg.id}/{source.name}'
+                except OSError as error:
+                    log.warning('Rosette log unavailable: %s (%s)',source,error)
+            index.append(meta)
     index.sort(key=lambda m: (m["time"] or "", m["id"]))
     idx = {"casts": index, "variables": sorted({v for m in index for v in m["vars"]})}
     atomic_write(root / "data" / "casts" / "index.json", json.dumps(idx, separators=(",", ":")))

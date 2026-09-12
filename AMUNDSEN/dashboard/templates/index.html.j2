@@ -137,7 +137,7 @@
         <div class="castside">
           <div class="pane-tools compact">
             <span class="lbl">Select Cast Type</span>
-            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="live" title="the cast in the water, from Seasave's TCP/IP output">Live</button></div>
+            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="live" title="the cast in the water, from Seasave's TCP/IP output">Live</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="TRS" title="saved transects">TRS</button></div>
             <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)" aria-label="Filter casts"><button id="castcsv" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
           <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
@@ -151,6 +151,7 @@
             <span class="muted" id="castmeta"></span>
           </div>
           <div class="pane-tools compact" id="castrow2" hidden>
+            <button type="button" id="savetransect" disabled title="Save this section and its station order in this browser">Save transect</button>
             <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
             <label class="group select" id="castvarwrap">Color by <select id="castvar"></select></label>
           </div>
@@ -190,6 +191,7 @@
         <button type="button" id="histask" class="chip ask" title="ask the crew in the chat">Ask Crew</button>
         <input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, species, ice, weather" aria-label="Search the wiki">
         <select id="histkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal"></select>
+        <button type="button" id="wikiclose" class="chip" aria-label="Close Wiki" title="Return to the last non-Wiki page">X</button>
       </div>
       <article class="histmain" id="histmain"><div class="empty">Loading the wiki…</div></article>
     </div>

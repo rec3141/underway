@@ -608,6 +608,14 @@ def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str
     return out
 
 
+def navigation_position(lat, lon):
+    def component(value, positive, negative):
+        minutes=round(abs(float(value))*60,3)
+        degrees=int(minutes//60)
+        return f"{degrees}° {minutes-degrees*60:06.3f}′ {positive if value>=0 else negative}"
+    return component(lat,'N','S')+', '+component(lon,'E','W')
+
+
 def _num(x, nd=2):
     try:
         return f"{float(x):.{nd}f}"
@@ -655,7 +663,7 @@ class Crew:
         from zoneinfo import ZoneInfo
         local = datetime.now(ZoneInfo("America/Toronto")).strftime("%Y-%m-%d %H:%M %Z")
         lines.append(f"Now (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} (ship time {local}). Latest data at {end[:16].replace('T', ' ')} UTC"
-                     + (f", position {_num(lat, 3)}, {_num(lon, 3)}" if lat is not None else "") + (f", leg {live}" if live else "") + ".")
+                     + (f", position {navigation_position(lat, lon)}" if lat is not None and lon is not None else "") + (f", leg {live}" if live else "") + ". Use this timestamped position rather than coordinates in earlier messages.")
         if beat == "meta":
             return "\n".join(lines)
         want = {"schedule": [("Air temperature (°C)", 1), ("Relative wind speed (kn)", 0), ("Ship speed (kn)", 1), ("Bottom depth (m)", 0),

@@ -16,13 +16,14 @@
     idx: null, loadedFor: null,
     sel: new Set(store.get("casts.sel", [])),
     mode: store.get("casts.mode", "profiles"),          // single | profiles (Multi) | section
-    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | live (the cast in the water)
+    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | TRS | live (the cast in the water)
     xmode: store.get("casts.xmode", "time"),            // the section's own x axis: time | distance | custom (an order of the user's)
     order: store.get("casts.order", []),                // custom: profile ids in the order they are laid along the section
     variable: store.get("casts.var", "Temperature"),
     bottles: store.get("casts.bottles", false),          // mark the bottle firings on the casts
     smooth: store.get("casts.smooth", true),             // the section smooths the jittery sensors down the profile
     search: "",
+    transects: store.get("casts.transects", []),
   };
   // a profile's variable at a pressure, interpolated between its levels
   const valueAt = (prof, v, pres) => {
@@ -37,8 +38,10 @@
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
-  const castById = (id) => casts.idx?.casts.find((c) => c.id === parentId(id));
-  const dipSel = (towId) => [...casts.sel].filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
+  const allCasts = () => [...(casts.idx?.casts || []), ...casts.transects];
+  const castById = (id) => (id.startsWith("trs:") ? casts.transects : casts.idx?.casts)?.find((c) => c.id === parentId(id));
+  const selectionIds = () => [...new Set([...casts.sel].flatMap((id) => id.startsWith("trs:") ? castById(id)?.members || [] : [id]))];
+  const dipSel = (towId) => selectionIds().filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
   casts.open = new Set(store.get("casts.open", []));
   const castLabel = (c) => c.kind === "LIVE" ? "Live cast" : c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}`
     : `${c.kind === "TM" ? "TM cast" : "Cast"} ${c.cast}${c.station ? " · " + c.station : ""}`;
@@ -53,7 +56,7 @@
       .filter((p) => !picked.size || picked.has(p.index));
   };
 
-  UW.selectedCastKeys = () => new Set([...casts.sel].map(parentId));
+  UW.selectedCastKeys = () => new Set(selectionIds().map(parentId));
   // a station click on the map toggles its cast and opens the Casts tab; a
   // quiet call (the stations table) only makes sure it is selected
   UW.onStationClick = async (key, opts = {}) => {
@@ -76,7 +79,14 @@
   };
   UW.extraMapTraces = () => {
     const out = [];
-    if (!casts.idx || casts.kind === "CTD") return out;
+    if (!casts.idx) return out;
+    for (const c of casts.transects.filter((c) => casts.sel.has(c.id))) {
+      out.push({ type: "scattermap", mode: "lines+markers", name: c.label, showlegend: false,
+        lat: c.track.map((p) => p[0]), lon: c.track.map((p) => p[1]), connectgaps: false,
+        text: c.stations, hoverinfo: "text", customdata: c.track.map(() => c.id),
+        line: { width: 4, color: C.accent2 }, marker: { size: 7, color: C.accent2 } });
+    }
+    if (casts.kind === "CTD") return out;
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
     const f = UW.spanFilter();
@@ -104,7 +114,7 @@
         marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? C.accent2 : C.ok), symbol: "circle" } });
     }
     const sel = orderedSelection().filter((c) => c.lat != null);
-    if (casts.mode === "section" && sel.length > 1) out.push({
+    if (casts.mode === "section" && sel.length > 1 && !casts.transects.some((c) => casts.sel.has(c.id))) out.push({
       type: "scattermap", mode: "lines", name: "section", showlegend: false, hoverinfo: "skip",
       lat: sel.map((c) => c.lat), lon: sel.map((c) => c.lon), line: { width: 2, color: "rgba(255,180,84,.6)" },
     });
@@ -113,11 +123,21 @@
 
   function orderedSelection() {
     const seen = new Set();
-    return [...casts.sel].map(castById).filter((c) => c && !seen.has(c.id) && seen.add(c.id))
+    return selectionIds().map(castById).filter((c) => c && !seen.has(c.id) && seen.add(c.id))
       .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   }
   const isSelected = (c) => casts.sel.has(c.id) || dipSel(c.id).length > 0;
   function toggleCast(id) {
+    const transect = castById(id);
+    if (transect?.kind === "TRS" && !casts.sel.has(id)) {
+      casts.sel.clear();
+      casts.mode = "section"; casts.xmode = "custom"; casts.order = [...transect.members];
+      casts.variable = transect.variable;
+      for (const key of ["mode", "xmode", "order"]) store.set(`casts.${key}`, casts[key]);
+      store.set("casts.var", casts.variable);
+      $("#castxmode .xcycle").textContent = "Custom";
+      for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
+    }
     if (id.includes("#")) {
       // a dip: selecting one turns a whole-tow selection into a dip selection
       const tow = parentId(id);
@@ -149,7 +169,7 @@
   // when it is still available, else Temperature or the first
   function fillCastVars() {
     if (!casts.idx) return;
-    const chosen = [...casts.sel].map(castById).filter(Boolean);
+    const chosen = orderedSelection();
     const vars = chosen.length ? orderVars(new Set(chosen.flatMap((c) => c.vars || []))) : orderVars(casts.idx.variables);
     const sel = $("#castvar"); sel.innerHTML = "";
     for (const v of vars) { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); }
@@ -175,11 +195,13 @@
     if (!casts.idx) return { rows: [], inLegs: [] };
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
-    const inLegs = casts.idx.casts
-      .filter((c) => f.legs.has(c.leg))
+    const inLegs = allCasts()
+      .filter((c) => (c.legs || [c.leg]).some((leg) => f.legs.has(leg)))
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
       .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q));
-    const rows = inLegs.filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
+    const rows = inLegs.filter((c) => c.kind === "TRS"
+      ? c.members.some((id) => { const m = castById(id); return m && (UW.inFilter(m.leg, m.time_end || m.time, f) || UW.inFilter(m.leg, m.time, f)); })
+      : UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
       .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg, depth: c.max_p != null ? Math.round(depthFrom(c.max_p, c.lat)) : null, bottles: c.n_bottles ?? null }));
     const k = casts.sort.key, dir = casts.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : k === "sel" ? (casts.sel.has(r.id) ? 1 : 0) : r[k];
@@ -195,13 +217,13 @@
     }
     const { rows, inLegs, f } = castRows();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
       let html = `<tr class="${whole ? "sel" : part ? "part" : ""}" data-id="${esc(c.id)}">
-        <td class="sel">${isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
-        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${esc(c.cast)}</td>
+        <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="Delete saved transect" aria-label="Delete saved transect">×</button>` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
+        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="Open rosette log">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
         <td>${esc(c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
         <td class="mono">${esc(castDate(c))}</td><td class="mono">${c.depth ?? ""}</td><td class="mono">${c.bottles ?? ""}</td><td>${esc(c.legLabel)}</td></tr>`;
       if (isTow && casts.open.has(c.id)) {
@@ -221,7 +243,15 @@
       if (e.target.closest(".tog") || e.target.closest("a")) return;
       e.preventDefault(); toggleCast(tr.dataset.id);
     };
-    for (const b of tbl.querySelectorAll("button.tog")) b.onclick = (e) => {
+    for (const b of tbl.querySelectorAll("[data-delete-transect]")) b.onclick = (e) => {
+      e.stopPropagation();
+      const id = b.dataset.deleteTransect;
+      if (!confirm(`Delete saved transect “${castById(id).label}”?`)) return;
+      casts.transects = casts.transects.filter((c) => c.id !== id); casts.sel.delete(id);
+      store.set("casts.transects", casts.transects); store.set("casts.sel", [...casts.sel]);
+      renderCastList(); renderCastPlots(); UW.renderMap();
+    };
+    for (const b of tbl.querySelectorAll("button[data-tow]")) b.onclick = (e) => {
       e.stopPropagation();
       const id = b.dataset.tow; casts.open.has(id) ? casts.open.delete(id) : casts.open.add(id);
       store.set("casts.open", [...casts.open]); renderCastList();
@@ -265,7 +295,8 @@
     const yv = spec.depth.map(yT);
     vars.forEach((v, i) => {
       const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = pal(i);
-      const bottom = i % 2 === 0, k = Math.floor(i / 2);
+      const bottom = spec.axisOrderTopDown ? i >= nt : i % 2 === 0;
+      const k = spec.axisOrderTopDown ? (bottom ? i-nt : nt-1-i) : Math.floor(i / 2);
       const unit = spec.units?.[v] ? ` (${spec.units[v]})` : "";
       // each axis carries a baseline in its colour, ticks tight against it and the
       // title tight against the ticks, so the stacked axes read as groups
@@ -393,21 +424,31 @@
     const profs = profilesOf(pick);                        // a tow's selected dips, or the one profile
     const prof = profs.find((p) => p.index === single.dip) || profs[0];
     const vars = orderVars(Object.keys(prof.vars));
-    host.innerHTML = `<div class="livebar"><div class="livevars">${varChips(vars, single.vars, "singlevar")}</div>
-      ${data.length > 1 ? `<div class="livevars"><span class="muted">cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
-      ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div><div id="singlebody"></div>`;
+    const savedOrder=store.get('casts.single.order',[]),ordered=[...savedOrder.filter(v=>vars.includes(v)),...vars.filter(v=>!savedOrder.includes(v))];
+    host.innerHTML = `<div class="livebar">
+      ${data.length > 1 ? `<div class="livevars"><span class="muted">Select Cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
+      ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
+      <div class="single-layout"><div class="single-parameters" aria-label="Parameters, axes ordered top to bottom">${ordered.map((v,i)=>`<div class="parameter" draggable="true" data-i="${i}">${varChips([v],single.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${esc(v)} up" ${i===0?'disabled':''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${esc(v)} down" ${i===ordered.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div id="singlebody"></div></div>`;
+    const move=(from,to)=>{if(to<0||to>=ordered.length||from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.single.order',ordered);renderSingle(host,data)};
+    let drag=null;
+    for(const row of host.querySelectorAll('.parameter')){
+      row.ondragstart=e=>{drag=+row.dataset.i;e.dataTransfer.setData('text/plain',String(drag))};
+      row.ondragover=e=>e.preventDefault();row.ondrop=e=>{e.preventDefault();if(drag!=null)move(drag,+row.dataset.i);drag=null};
+      for(const b of row.querySelectorAll('.nudge'))b.onclick=()=>move(+row.dataset.i,+row.dataset.i+Number(b.dataset.d));
+    }
     for (const b of host.querySelectorAll(".singlevar")) b.onclick = () => { single.vars = single.vars.includes(b.dataset.v) ? single.vars.filter((x) => x !== b.dataset.v) : [...single.vars, b.dataset.v]; store.set("casts.single.vars", single.vars); renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-id]")) b.onclick = () => { single.id = b.dataset.id; single.dip = null; renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
     const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
     drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? `${castLabel(pick)} · dip #${prof.index + 1}` : castLabel(pick),
       { depth: depths(prof), vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, drawn(prof, v)])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
-        sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, single.vars);
+        axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, ordered.filter(v=>single.vars.includes(v)));
     wireCastPanels(host, () => renderSingle(host, data));
   }
 
   let plotSeq = 0;
   async function renderCastPlots() {
+    $("#savetransect").disabled = true;
     const seq = ++plotSeq, stamp = UW.M.generated_utc;
     fillCastVars();
     if (casts.kind !== "live") clearTimeout(live.timer);
@@ -522,7 +563,7 @@
 
   function renderProfiles(host, data) {
     // the legend is a panel like the graphs (movable, minimisable), named LEGEND in the order
-    const all = castOrder([...orderVars(new Set(data.flatMap((d) => Object.keys(d.units)))), LEGEND]);
+    const all = [LEGEND,...castOrder([...orderVars(new Set(data.flatMap((d) => Object.keys(d.units))))]).filter(v=>v!==LEGEND)];
     const vars = all.filter((v) => !castPanelState.min.has(v));
     const minimised = all.filter((v) => castPanelState.min.has(v));
     if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
@@ -650,6 +691,31 @@
     const stationOf = (d) => String(d.station ?? d.parent?.station ?? d.label ?? "");
     if (az) withVar = [...withVar].sort((a, b) => stationOf(a).localeCompare(stationOf(b), undefined, { numeric: true, sensitivity: "base" }) || (a.time || "").localeCompare(b.time || ""));
     if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
+    const save = $("#savetransect");
+    save.disabled = false;
+    save.onclick = () => {
+      const label = prompt("Transect name (saved in this browser)", `Transect ${casts.transects.length + 1}`)?.trim();
+      if (!label) return;
+      const times = withVar.map((d) => d.time).filter(Boolean).sort();
+      const legs = [...new Set(withVar.map((d) => d.parent?.leg || d.leg).filter(Boolean))];
+      const stations = withVar.map((d) => d.station || d.parent?.station || d.label);
+      const uid = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) => n.toString(16).padStart(8, "0")).join("");
+      const transect = { id: `trs:${uid}`, kind: "TRS", cast: "", label,
+        members: withVar.map(profileId), variable: v, legs, leg: legs[0],
+        station: stations.join(" → "), stations, time: times[0], time_end: times.at(-1),
+        track: withVar.map((d) => {
+          const lat = d.lat ?? d.parent?.lat, lon = d.lon ?? d.parent?.lon;
+          return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : [null, null];
+        }) };
+      const next = [...casts.transects, transect];
+      try { localStorage.setItem("uw:casts.transects", JSON.stringify(next)); }
+      catch { alert("This browser could not save the transect. Check available storage and try again."); return; }
+      casts.transects = next;
+      casts.kind = "TRS"; casts.search = ""; $("#castsearch").value = "";
+      store.set("casts.kind", casts.kind);
+      for (const b of $("#castkind").querySelectorAll("button")) b.classList.toggle("on", b.dataset.k === casts.kind);
+      toggleCast(transect.id);
+    };
     // depth grid (metres) shared by every profile
     const maxD = Math.max(...withVar.map((d) => depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
     const step = maxD > 1500 ? 5 : maxD > 400 ? 2 : 1;
@@ -1364,7 +1430,7 @@
   // one row per CTD cast from the logbook, and one per station the event
   // log records without a cast (kind "event", with what was done there)
   const stn = { sort: store.get("stn.sort", { key: "time", dir: -1 }), search: "" };
-  const STATION_COLS = [["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
+  const STATION_COLS = [["station", "station"], ["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
@@ -1382,7 +1448,7 @@
   function renderStations() {
     const rows = stationRows();
     const arrow = (k) => stn.sort.key === k ? (stn.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
@@ -1461,7 +1527,7 @@
     const stat = ["mean", "min", "max", "n"][tbl.stat];
     const cols = [["t", "time (ship)"], ["leg", "leg"], ["lat", "lat"], ["lon", "lon"], ...d.variables.map((v) => [v, v])];
     const arrow = (k) => tbl.sort.key === k ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtTs(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + tbl.hidden, UW.currentFilter(), "tr", cols.length)}${body}</tbody>`;
