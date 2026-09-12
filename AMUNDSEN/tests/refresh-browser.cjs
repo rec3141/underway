@@ -28,7 +28,7 @@ const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc
 function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
-    ...(process.env.UPLOAD_UI?{history:{stamp:'test'}}:{}),
+    ...(process.env.UPLOAD_UI||process.env.WIKI_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -159,7 +159,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       const realTimeout=window.setTimeout;
       window.setTimeout=(fn,ms,...args)=>{if(ms===4000||ms===20000)window.__chatPoll=fn;return realTimeout(fn,ms,...args);};
     `});
-    await call('Emulation.setDeviceMetricsOverride',{width:Number(process.env.UI_WIDTH)||390,height:844,deviceScaleFactor:1,mobile:!process.env.UI_WIDTH});
+    const initialWidth=Number(process.env.UI_WIDTH)||(process.env.HEADER_UI||process.env.WIKI_UI?1400:390);
+    await call('Emulation.setDeviceMetricsOverride',{width:initialWidth,height:844,deviceScaleFactor:1,mobile:initialWidth<=640});
     await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/${process.env.UI_PREFIX?'underway/':''}`});
     await until('window.UW && document.querySelector("#connection").textContent.includes("Underway")');
     assert.equal(await evaluate('!!window.UW.state.raw'),false);
@@ -174,6 +175,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate(`document.querySelector('#schedlinks').innerHTML='<a class="bigcal" href="#">GCal</a><a class="bigcal" href="#">ICS</a>';document.querySelector('#schedcols').innerHTML='<div class="scol">Previous</div><div class="scol">Now</div><div class="scol">Next</div>';document.querySelector('#schedrow').hidden=false;`);
       assert.equal(await evaluate('document.querySelector("#alert").parentElement.classList.contains("top")'),true);
       await evaluate('document.querySelector("#alert").hidden=false');
+      assert.equal(await evaluate('(()=>{const a=[...document.querySelectorAll("#schedlinks a")].map(e=>e.getBoundingClientRect().width);return a[0]===a[1]})()'),true);
       assert.equal(await evaluate('(()=>{const cols=document.querySelector("#schedcols").getBoundingClientRect(),links=[...document.querySelectorAll("#schedlinks a")].map(a=>a.getBoundingClientRect());return links[0].left>=cols.right&&links[1].top>=links[0].bottom&&links[0].top<cols.bottom&&links[1].bottom<=cols.bottom+1})()'),true);
       assert.equal(await evaluate('(()=>{const b=document.querySelector(".brand").getBoundingClientRect(),s=document.querySelector("#alert").getBoundingClientRect();return s.left>=b.right&&s.width>b.width})()'),true);
       assert.equal(await evaluate('(()=>{const a=document.querySelector(".mapcolour").getBoundingClientRect(),b=document.querySelector(".map-toolbar .tools").getBoundingClientRect();return a.top<b.bottom&&b.top<a.bottom&&a.right<=b.left})()'),true);
@@ -475,6 +477,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       for(const width of [1400,900,640,390,320]){
         await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<=640});
         await evaluate('UW.histShared.refresh()');await wait(100);
+        assert.equal(await evaluate(`(()=>{for(const pair of document.querySelectorAll('.wiki-split')){const controls=[...pair.querySelectorAll('button[data-layer],summary')].filter(e=>e.getBoundingClientRect().width);if(controls.length!==2)return false;const [a,b]=controls,ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();if(Math.abs(ar.right-br.left)>1.1||Math.abs(ar.top-br.top)>1||getComputedStyle(a).borderTopRightRadius!=='0px'||getComputedStyle(b).borderTopLeftRadius!=='0px')return false}return true})()`),true);
         const boxes=await evaluate('(()=>{const s=document.querySelector("#histsearch").getBoundingClientRect(),b=document.querySelector("#histkindsel").getBoundingClientRect(),r=document.querySelector(".wiki-search-row").getBoundingClientRect();return {search:s.width,browse:b.width,row:r.width,overlap:s.left<b.right&&b.left<s.right&&s.top<b.bottom&&b.top<s.bottom}})()');
         assert(boxes.search>=Math.min(160,boxes.row)-1,JSON.stringify({width,...boxes}));
         assert(boxes.browse<150,JSON.stringify({width,...boxes}));
@@ -660,7 +663,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       return;
     }
 
-    await evaluate('window.UW.showTab("calendar")');
+    await evaluate('window.UW.showTab("calendar"); document.querySelector("#calview [data-v=timeline]").click()');
     await until('document.querySelector("#calendar").textContent.includes("event-1")');
     generation=2;failures.add('/data/w-1h.json');await poll();
     assert.equal(await evaluate('window.UW.M.generated_utc'),'2026-09-04T12:00:01Z');
@@ -668,18 +671,18 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     failures.clear();await poll();
     await until('document.querySelector("#calendar").textContent.includes("event-2")');
     assert.equal(await evaluate('window.UW.M.generated_utc'),'2026-09-04T12:00:02Z');
-    console.log('PASS failed refresh retains matching metadata/data; open Agenda updates on retry');
+    console.log('PASS failed refresh retains matching metadata/data; open Event Log updates on retry');
 
     generation=3;failures.add('/data/calendar.json');await poll();
     assert.equal(await evaluate('document.querySelector("#calendar").textContent.includes("event-2")'),true);
-    assert.equal(await evaluate('document.querySelector("#connection").textContent.includes("Agenda")'),true);
+    assert.equal(await evaluate('document.querySelector("#connection").textContent.includes("Schedule")'),true);
     failures.clear();await poll();
     await until('document.querySelector("#calendar").textContent.includes("event-3")');
-    console.log('PASS Agenda failure preserves previous content and retries the same generation');
+    console.log('PASS Schedule failure preserves previous content and retries the same generation');
 
     await evaluate('window.UW.showTab("table")');
-    failures.add('/data/agg-1h.json');
-    await evaluate(`document.querySelector('#aggrule [data-r="1h"]').click()`);
+    failures.add('/data/agg-1d.json');
+    await evaluate(`document.querySelector('#aggrule [data-r="1d"]').click()`);
     await until('document.querySelector("#connection").textContent.includes("Table")');
     failures.clear();await poll();
     await until('document.querySelector("#aggtable").textContent.includes("3.00")');
@@ -716,18 +719,18 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     const before=requests.filter(u=>u.startsWith('/data/casts/cast.json')).length;
     await poll();
     assert.equal(requests.filter(u=>u.startsWith('/data/casts/cast.json')).length,before);
-    await evaluate('window.UW.showTab("casts"); document.querySelector("#castmode [data-m=live]").click()');
-    await until('document.querySelector("#livecfg")');
-    await evaluate('document.querySelector("#livecfg").click();document.querySelector("#livecfgform [name=port]").value="6000";document.querySelector("#livecfgform").requestSubmit()');
+    await evaluate('window.UW.showTab("casts"); document.querySelector("#castkind [data-k=live]").click()');
+    await until('document.querySelector("#livecfgform")');
+    await evaluate('document.querySelector("#livecfgform [name=tcp]").value="127.0.0.1:6000";document.querySelector("#livecfgform").requestSubmit()');
     await until('document.querySelector("#livecfgerror")?.textContent.includes("Port already in use")');
-    assert.equal(await evaluate('document.querySelector("#livecfgform [name=port]").value'),'6000');
+    assert.equal(await evaluate('document.querySelector("#livecfgform [name=tcp]").value'),'127.0.0.1:6000');
     rejectLiveConfig=false;
     await evaluate('document.querySelector("#livecfgform").requestSubmit()');
-    await until('!document.querySelector("#livecfgform")');
+    await until('!document.querySelector("#livecfgform button").disabled && !document.querySelector("#livecfgerror").textContent');
     await evaluate('document.querySelector("[data-w=last]").click()');
-    await until('document.querySelector("#livestatus").textContent.includes("max 10 m")');
+    await until('document.querySelector("#livesetupstatus").textContent.includes("max 10 m")');
     await until('document.querySelector("#livebody .js-plotly-plot")?.data?.[0]?.y?.[0]===10');
-    console.log('PASS live settings retain edits on rejection; successful retry closes form; last cast uses its own pressure schema');
+    console.log('PASS live settings retain edits on rejection; successful retry applies settings; last cast uses its own pressure schema');
     const fits = async selector => {
       const outside = await evaluate(`Array.from(document.querySelectorAll(${JSON.stringify(selector)})).filter(e => {
         const r=e.getBoundingClientRect(); return r.width && (r.left < -1 || r.right > innerWidth+1);
@@ -737,28 +740,26 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     for (const width of [320,390,768]) {
       await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
       await evaluate('window.UW.showTab("calendar")');
-      await until('document.querySelector(".agenda .ev")');
-      await evaluate('document.querySelector(".agenda .ev .st").textContent="Ice station — multidisciplinary sampling"');
-      await fits('#tabs button, .agenda .ev > *, #sources');
+      await until('document.querySelector("#evlog .logged")');
+      await evaluate('document.querySelector("#evlog .logged td:nth-child(4)").textContent="Ice station — multidisciplinary sampling"');
+      await fits('#tabs button, #evlog, #sources');
       await evaluate('document.querySelector("#legmenu").open=true');
       await fits('#legmenu .pop, #legmenu li label > *');
       await evaluate('document.querySelector("#legmenu").open=false;window.UW.showTab("casts")');
-      await until('document.querySelector("#livecfg")');
-      await evaluate('document.querySelector("#livecfg").click()');
+      await until('document.querySelector("#livecfgform")');
       await fits('#livecfgform input, #livecfgform button');
       if (width <= 640) {
-        assert.equal(await evaluate(`Array.from(document.querySelectorAll('#tabs button,.maptools button,#castmode button')).every(e=>e.getBoundingClientRect().height>=44)`),true);
+        assert.equal(await evaluate(`Array.from(document.querySelectorAll('#tabs button,.maptools button,#castmode button')).filter(e=>e.getBoundingClientRect().width).every(e=>e.getBoundingClientRect().height>=44)`),true);
       }
-      await evaluate('document.querySelector("#livecfgclose").click()');
     }
-    console.log('PASS mobile navigation, Agenda, leg menu and live settings fit 320/390/768px; phone touch targets are enlarged');
+    console.log('PASS mobile navigation, Event Log, leg menu and live settings fit 320/390/768px; phone touch targets are enlarged');
     await evaluate('window.UW.state.raw.pump_low=[false,true];window.UW.showTab("underway");window.UW.renderMap()');
     await until('document.querySelector(".panel .plot")?.data?.length===3');
     assert.equal(await evaluate('document.querySelector(".panel .plot").data[1].y[1]'),null);
     assert.equal(await evaluate('document.querySelector(".panel .plot").data[2].marker.color'),'#7d8895');
     assert.equal(await evaluate('document.querySelector(".panel .plot").data[2].y[1]'),6);
     await until('window.UW.mapView?.traces.base.some(t=>t.name==="pump off")');
-    await evaluate('window.UW.showTab("calendar")');
+    await evaluate('window.UW.showTab("calendar"); document.querySelector("#calview [data-v=timeline]").click()');
     await until('document.querySelector("#calendar").textContent.includes("Pump off / low intake flow")');
     await evaluate('document.querySelector("#calview [data-v=month]").click()');
     await until('document.querySelector("#calspan")');

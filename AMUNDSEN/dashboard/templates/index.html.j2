@@ -93,6 +93,7 @@
       </div>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
+      <div class="wiki-split plan-photos">
       <span class="pillset" title="the ship's own layers">
       <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
       <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
@@ -100,10 +101,15 @@
       <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
       </span>
       <button data-layer="photos" title="the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it">Photos</button>
+      </div>
+      <div class="wiki-split">
       <button data-layer="history" title="the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it" hidden>History</button>
       <div class="mapmenu" id="maphistlayers" hidden></div>
+      </div>
+      <div class="wiki-split">
       <button data-layer="nature" title="the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it" hidden>Nature</button>
       <div class="mapmenu" id="mapnatlayers" hidden></div>
+      </div>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>

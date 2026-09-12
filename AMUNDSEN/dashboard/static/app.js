@@ -1594,8 +1594,9 @@
     state.win = spanWindowOf(manifest).label;
     renderControls();
     const files = windowFiles(manifest), key = files.join("+");
-    if (manifest === M && state.rawFile === key && state.raw) { applyAndRender(); return true; }   // the same record: only the view changed
+    // Even a cached selection supersedes a download for the previous span.
     const seq = ++loadSeq;
+    if (manifest === M && state.rawFile === key && state.raw) { windowLoading = false; applyAndRender(); return true; }   // the same record: only the view changed
     windowLoading = true;
     try {
       const [cover, span] = await Promise.all(files.map((f) => fetchJSON(`${f}?v=${encodeURIComponent(manifest.generated_utc)}`)));

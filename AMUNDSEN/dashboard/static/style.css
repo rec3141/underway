@@ -613,6 +613,10 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 .group.sectionx { gap: 8px; }
 #castmode button:disabled { opacity: .4; cursor: not-allowed; }
 .castlist li.livesetup, .castlist tr.livesetup td { display: block; grid-template-areas: none; padding: 6px 8px; cursor: default; }   /* not a cast entry: no grid, no click */
+#casttable:has(.livesetup) { width: 100%; table-layout: fixed; }
+.castlist tr.livesetup td { white-space: normal; }
+.castlist .livecfgform label { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; }
+.castlist .livecfgform input { box-sizing: border-box; max-width: 100%; }
 .castlist .livesetup-title { font-weight: 650; margin-bottom: 6px; }
 .castlist .livecfgform { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .castlist .livecfgform input { flex: 1 1 140px; min-width: 0; }
@@ -1321,6 +1325,7 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
    underlined, LIVE blinking, tooltips yellow, nothing rounded. The bevel
    rules carry !important because every component styles its own buttons. */
 html[data-theme^="navigator"] .top { background: linear-gradient(90deg, #000080, #1084d0); border-bottom: 2px outset var(--bevel); color: #fff; }
+html[data-theme="navigator-dark"] .top { background: linear-gradient(90deg, #000080, #002050); }
 html[data-theme^="navigator"] .top :is(.brand h1, .brand .sub, .brand .sub b, .pickhint, .themepick, .themepick label.select, .brand .sub .refresh) { color: #fff; }
 html[data-theme^="navigator"] .brand .sub .refresh { border-bottom-color: #a0c0ff; }
 html[data-theme^="navigator"] .brand h1 { font-family: var(--font-head); font-size: var(--t-xl); letter-spacing: 0; }
@@ -1459,13 +1464,25 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 .map-toolbar .mapcolour { flex:1 1 15em; min-width:min(15em,100%); margin:0; order:0; }
 .map-toolbar .tools { flex:0 0 auto; margin-left:auto; order:0; }
 #mobile-appearance { padding:12px; }
+.wiki-split { display:contents; }
+body.tab-wiki .maplayers .wiki-split { display:inline-flex; align-items:stretch; gap:0; flex:0 0 auto; }
+body.tab-wiki .maplayers .wiki-split .pillset { flex:0 0 auto; }
+body.tab-wiki .maplayers .wiki-split > button:first-child,
+body.tab-wiki .maplayers .wiki-split .pillset button[data-layer=plan] { border-radius:999px 0 0 999px; }
+body.tab-wiki .maplayers .wiki-split > button:last-child,
+body.tab-wiki .maplayers .wiki-split .mapmenu summary { border-radius:0 999px 999px 0; margin-left:-1px; }
+body.tab-wiki .maplayers .wiki-split .mapmenu,
+body.tab-wiki .maplayers .wiki-split .legmenu { display:flex; align-items:stretch; }
+body.tab-wiki .maplayers .wiki-split .mapmenu summary { display:flex; align-items:center; font-size:inherit; }
+body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child { border-radius:999px; }
 #mobile-appearance .themepick { justify-content:center; margin:0; }
 @media (min-width:1000px) {
   .top .brand { flex:0 1 28%; }
   .top > #alert { order:1; flex:1 1 60%; min-width:0; padding:6px 8px; border:1px solid var(--line); border-radius:8px; }
   .top > #alert .schedrow { flex-wrap:nowrap; gap:6px; }
   .top > #alert .schedcols { flex:1 1 0; }
-  .top > #alert .schedlinks { flex:0 0 auto; flex-direction:column; justify-content:center; margin-left:auto; }
+  .top > #alert .schedlinks { flex:0 0 auto; flex-direction:column; align-items:stretch; justify-content:center; margin-left:auto; }
+  .top > #alert .schedlinks .bigcal { text-align:center; }
 }
 @media (max-width:640px) {
   .top #tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; background:transparent; border:0; padding:0; }
