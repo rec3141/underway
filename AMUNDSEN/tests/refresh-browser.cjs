@@ -159,9 +159,13 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       }
       await evaluate(`window.__download=[];HTMLAnchorElement.prototype.click=function(){window.__download.push({url:this.href,name:this.download})};document.querySelector('[data-name="Rosette depth (m)"] .plot-export').click()`);
       await until('!!document.querySelector(".export-canvas")?.data && !document.querySelector("[data-format=png]").disabled');
-      await evaluate('document.querySelector(".plot-export-dialog").style.width="800px";document.querySelector(".plot-export-dialog").style.height="700px";const s=document.querySelector(".plot-export-dialog input");s.value="3";s.dispatchEvent(new Event("input"))');
+      await evaluate('document.querySelector(".plot-export-dialog").style.width="800px";document.querySelector(".plot-export-dialog").style.height="700px";const s=document.querySelector(".plot-export-dialog input[type=range]");s.value="3";s.dispatchEvent(new Event("input"))');
+      await wait(200);
+      assert.equal(await evaluate('(()=>{const c=document.querySelector(".plot-export-controls").getBoundingClientRect(),p=document.querySelector(".export-canvas").getBoundingClientRect();return c.right<=p.left && getComputedStyle(document.querySelector(".plot-export-dialog")).opacity==="1"})()'),true);
+      await evaluate('for(const [name,value] of Object.entries({width:640,height:820})){const input=document.querySelector(`.plot-export-dialog [name=${name}]`);input.value=value;input.dispatchEvent(new Event("change"))}');
       await wait(200);
       const size=await evaluate('({w:document.querySelector(".export-canvas").clientWidth,h:document.querySelector(".export-canvas").clientHeight})');
+      assert.deepEqual(size,{w:640,h:820});
       await evaluate('document.querySelector("[data-format=png]").click()');
       await until('window.__download.length===1');
       assert.match(await evaluate('window.__download[0].name'),/\.png$/);
@@ -172,8 +176,23 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.match(await evaluate('window.__download[1].url'),/^data:image\/svg\+xml/);
       await evaluate('document.querySelector(".export-close").click()');
       assert.equal(await evaluate('document.querySelector(".plot-export-dialog").open'),false);
+      await evaluate(`UW.mapView.map.setStyle({version:8,sources:{test:{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[[-79,75],[-77,77]]}}}},layers:[{id:'background',type:'background',paint:{'background-color':'#123456'}},{id:'test-line',type:'line',source:'test',paint:{'line-color':'#ff0000','line-width':8}}]});`);
+      await wait(600);
+      const original=await evaluate('({center:UW.mapView.map.getCenter(),zoom:UW.mapView.map.getZoom(),width:UW.mapView.map.getCanvas().width})');
+      await evaluate('document.querySelector("#mapexport").click()');
+      await until('!!document.querySelector(".export-canvas canvas") && !document.querySelector("[data-format=png]").disabled');
+      await evaluate('for(const [name,value] of Object.entries({width:500,height:600})){const input=document.querySelector(`.plot-export-dialog [name=${name}]`);input.value=value;input.dispatchEvent(new Event("change"))}');
+      await wait(200);
+      await evaluate('document.querySelector("[data-format=png]").click()');
+      await until('window.__download.length===3');
+      assert.deepEqual(await evaluate('new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>{const c=document.createElement("canvas");c.width=im.width;c.height=im.height;const ctx=c.getContext("2d");ctx.drawImage(im,0,0);resolve([im.width,im.height,...ctx.getImageData(1,1,1,1).data])};im.onerror=reject;im.src=window.__download[2].url})'),[1500,1800,18,52,86,255]);
+      await evaluate('document.querySelector("[data-format=svg]").click()');
+      await until('window.__download.length===4');
+      assert.match(await evaluate('decodeURIComponent(window.__download[3].url)'),/<image/);
+      await evaluate('document.querySelector(".export-close").click()');
+      assert.deepEqual(await evaluate('({center:UW.mapView.map.getCenter(),zoom:UW.mapView.map.getZoom(),width:UW.mapView.map.getCanvas().width})'),original);
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS downward depths, inverse colours, sqrt spacing, reset and resizable PNG/SVG export');
+      console.log('PASS depth axes, sidebar/exact-size graph export and isolated PNG/SVG map export');
       return;
     }
     if(process.env.SINGLE_UI) {

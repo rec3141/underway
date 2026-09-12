@@ -1148,6 +1148,7 @@
       mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: mapEmptyClick, onZoom: onMapZoom,
         onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); } });
       window.UW.mapView = mapView;
+      $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
     }
     try {
       mapView.draw({ style: mapStyle(sat, near), view, base: traces, live: liveTraces(ship) }).then(() => {
