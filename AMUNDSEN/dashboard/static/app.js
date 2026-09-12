@@ -1050,15 +1050,16 @@
   // with the limits at its ends, from the stops the map and the charts share.
   function renderColourBar(v, lim) {
     const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
-    UW.mapLegend={name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low:lim?fmtVal(lim[0],''):'',high:lim?fmtVal(lim[1],v?.unit||''):''};
+    const [low,high]=UWMapLegend.formatRange(lim);
+    UW.mapLegend={name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low,high};
     renderMapLegend();
     for (const bar of document.querySelectorAll(".cbar")) {
       const show = !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
       bar.hidden = !show;
       if (!show) continue;
       bar.querySelector(".grad").style.background = `linear-gradient(90deg, ${stops.map(([t, col]) => `${col} ${(t * 100).toFixed(1)}%`).join(", ")})`;
-      bar.querySelector(".lo").textContent = fmtVal(lim[0], "");
-      bar.querySelector(".hi").textContent = fmtVal(lim[1], v?.unit || "");
+      bar.querySelector(".lo").textContent = low;
+      bar.querySelector(".hi").textContent = high;
       bar.title = `${state.colour}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span`;
     }
   }
