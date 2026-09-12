@@ -147,6 +147,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     console.log('PASS initial load retries without reload');
     if(process.env.DEPTH_UI) {
       assert.equal(await evaluate('document.querySelector("#trackstep").closest("#controls-underway")!==null'),true);
+      assert.equal(await evaluate('(()=>{const tools=document.querySelector("#maplayers .tools").getBoundingClientRect(),colour=document.querySelector(".mapcolour").getBoundingClientRect();return tools.bottom<=colour.top+1})()'),true);
+      if(process.env.UI_WIDTH)assert.equal(await evaluate('(()=>{const a=getComputedStyle(document.querySelector(".group.span")),b=getComputedStyle(document.querySelector(".group.maptrack"));return ["backgroundColor","padding","borderRadius","gap"].every(k=>a[k]===b[k])&&getComputedStyle(document.querySelector("#span")).width===getComputedStyle(document.querySelector("#trackstep")).width&&getComputedStyle(document.querySelector("#spanlabel")).fontFamily===getComputedStyle(document.querySelector("#tracksteplabel")).fontFamily})()'),true);
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#trackstepsel")).display!=="none"'),!process.env.UI_WIDTH);
       await evaluate('const select=document.querySelector("#trackstepsel");select.value="2";select.dispatchEvent(new Event("change"))');
       assert.equal(await evaluate('document.querySelector("#trackstep").value'), '2');
@@ -194,6 +196,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate('for(const [name,value] of Object.entries({width:500,height:600})){const input=document.querySelector(`.plot-export-dialog [name=${name}]`);input.value=value;input.dispatchEvent(new Event("change"))}');
       await wait(200);
       assert.equal(await evaluate('document.querySelector(".export-canvas .map-legend").dataset.edge'),'top');
+      assert.equal(await evaluate('document.querySelector(".export-canvas .map-legend").getContext("2d").getImageData(10,10,1,1).data[3]'),209);
       await evaluate('window.__legendText=[];const fill=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(text,...args){window.__legendText.push(text);return fill.call(this,text,...args)}');
       await evaluate('document.querySelector("[data-format=png]").click()');
       await until('window.__download.length===3');

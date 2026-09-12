@@ -63,8 +63,8 @@
     </div>
     <div class="group maptrack" title="Track points drawn per kilometre">
       <span class="lbl">Track detail</span>
-      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
       <output id="tracksteplabel" for="trackstep">all points</output>
+      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
       <select id="trackstepsel" aria-label="Track detail"></select>
     </div>
   </div>
@@ -85,8 +85,8 @@
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
+      <div class="tools"><button id="mapdetailsopen">Details</button><button id="mapexport" title="Preview and export the map">Export</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button><button id="mapreset" title="fit to track">⟲</button></div>
       <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
-      <div class="tools"><button id="mapdetailsopen">Details</button><button id="mapexport" title="Preview and export the map">Export</button><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
       <span class="pillset" title="the ship's own layers">
