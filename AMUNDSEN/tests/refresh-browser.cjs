@@ -36,7 +36,7 @@ function manifest() {
   };
 }
 function dataset(p) {
-  if(process.env.NATURE_UI && p.startsWith('/data/history/')) {
+  if((process.env.NATURE_UI||process.env.WIKI_UI) && p.startsWith('/data/history/')) {
     if(p.endsWith('/index.json')) return {topics:[],pages:[]};
     if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
     if(p.endsWith('/observations.json')) return {observations:[{id:'seal',subject:'Seal',date:'2020-01-01',lat:76,lon:-78},{id:'rock',subject:'Rock',date:'2020-01-01',lat:77,lon:-79}]};
@@ -146,9 +146,12 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
     if(process.env.DEPTH_UI) {
+      assert.deepEqual(await evaluate('[...document.querySelectorAll("#maplayers .tools button")].map(b=>b.id)'),['mapdetailsopen','mapexport','mapreset','mapnone','mapfull']);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#maplayers .tools")).justifyContent'),'flex-end');
       assert.equal(await evaluate('document.querySelector("#trackstep").closest("#controls-underway")!==null'),true);
       assert.equal(await evaluate('(()=>{const tools=document.querySelector("#maplayers .tools").getBoundingClientRect(),colour=document.querySelector(".mapcolour").getBoundingClientRect();return tools.bottom<=colour.top+1})()'),true);
       if(process.env.UI_WIDTH)assert.equal(await evaluate('(()=>{const a=getComputedStyle(document.querySelector(".group.span")),b=getComputedStyle(document.querySelector(".group.maptrack"));return ["backgroundColor","padding","borderRadius","gap"].every(k=>a[k]===b[k])&&getComputedStyle(document.querySelector("#span")).width===getComputedStyle(document.querySelector("#trackstep")).width&&getComputedStyle(document.querySelector("#spanlabel")).fontFamily===getComputedStyle(document.querySelector("#tracksteplabel")).fontFamily})()'),true);
+      if(process.env.UI_WIDTH)assert.equal(await evaluate('(()=>{const span=document.querySelector("#span"),track=document.querySelector("#trackstep"),size=()=>[span.getBoundingClientRect().width,track.getBoundingClientRect().width,span.getBoundingClientRect().height,track.getBoundingClientRect().height,document.querySelector(".maptrack").getBoundingClientRect().width];const before=size();for(let i=0;i<=7;i++){track.value=i;track.dispatchEvent(new Event("input"));if(JSON.stringify(size())!==JSON.stringify(before))return false;}return before[0]===before[1]&&before[2]===before[3]})()'),true);
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#trackstepsel")).display!=="none"'),!process.env.UI_WIDTH);
       await evaluate('const select=document.querySelector("#trackstepsel");select.value="2";select.dispatchEvent(new Event("change"))');
       assert.equal(await evaluate('document.querySelector("#trackstep").value'), '2');
@@ -170,6 +173,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       }
       await evaluate(`window.__download=[];HTMLAnchorElement.prototype.click=function(){window.__download.push({url:this.href,name:this.download})};document.querySelector('[data-name="Rosette depth (m)"] .plot-export').click()`);
       await until('!!document.querySelector(".export-canvas")?.data && !document.querySelector("[data-format=png]").disabled');
+      assert.deepEqual(await evaluate('[...document.querySelectorAll(\'[data-name="Rosette depth (m)"] .tools button\')].filter(b=>b.matches(".plot-export,.reset,.min,.wide")).map(b=>b.textContent)'),['⇩','⟲','—','⤢']);
       await evaluate('document.querySelector(".plot-export-dialog").style.width="800px";document.querySelector(".plot-export-dialog").style.height="700px";const s=document.querySelector(".plot-export-dialog input[type=range]");s.value="3";s.dispatchEvent(new Event("input"))');
       await wait(200);
       assert.equal(await evaluate('(()=>{const c=document.querySelector(".plot-export-controls").getBoundingClientRect(),p=document.querySelector(".export-canvas").getBoundingClientRect();return c.right<=p.left && getComputedStyle(document.querySelector(".plot-export-dialog")).opacity==="1"})()'),true);
@@ -399,6 +403,22 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       console.log('PASS summary table toggles, pump alarm, no internal scrolling, chart click preserves map zoom');
       console.log('PASS satellite history selects separate moved near boxes with original bounds; older wide scenes do not borrow current detail');
       return;
+    }
+    if(process.env.WIKI_UI){
+      await evaluate('UW.M.history={stamp:"test"};UW.showTab("wiki")');
+      await until('document.querySelector("#histask").textContent==="Ask a Q"');
+      assert.equal(await evaluate('document.querySelectorAll("#wikidomains .on").length'),0);
+      assert.equal(await evaluate('UW.histShared.domainOn("history")&&UW.histShared.domainOn("nature")'),true);
+      assert.equal(await evaluate('(()=>{const search=document.querySelector(".wiki-search-row").getBoundingClientRect(),domains=document.querySelector("#wikidomains").getBoundingClientRect();return search.top>=domains.bottom})()'),true);
+      await evaluate('document.querySelector(\'[data-domain="history"]\').click()');
+      await until('document.querySelector("#histask").textContent==="Ask Ada"');
+      assert.equal(await evaluate('UW.histShared.domainOn("nature")'),false);
+      await evaluate('document.querySelector(\'[data-domain="history"]\').click()');
+      await until('document.querySelector("#histask").textContent==="Ask a Q" && location.hash==="#wiki/"');
+      assert.equal(await evaluate('document.querySelectorAll("#wikidomains .on").length'),0);
+      assert.equal(await evaluate('UW.histShared.domainOn("history")&&UW.histShared.domainOn("nature")'),true);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS Wiki search row, unselected all-domain home and toggle-off reset');return;
     }
     if (process.env.NATURE_UI) {
       await evaluate(`(async()=>{ UW.M.history={stamp:'test'}; UW.state.nature=true; UW.state.photos=false;

@@ -5,20 +5,21 @@
     const vertical=height<width, pad=8;
     ctx.save();ctx.translate(pad,pad);
     ctx.font='600 13px system-ui';
-    const w=vertical?Math.min(112,Math.max(80,ctx.measureText(legend.name).width+12)):Math.min(width-16,Math.max(180,Math.min(320,ctx.measureText(legend.name).width+12)));
+    const w=vertical?Math.min(90,Math.max(64,ctx.measureText(legend.name).width+12)):Math.min(width-16,Math.max(180,Math.min(320,ctx.measureText(legend.name).width+12)));
     const words=legend.name.split(' '), lines=[];let line='';
     for(const word of words){const next=line?`${line} ${word}`:word;if(line&&ctx.measureText(next).width>w-12){lines.push(line);line=word;}else line=next;}lines.push(line);
     const titleLines=lines.slice(0,3), top=titleLines.length*15+8;
-    const length=vertical?Math.max(24,Math.min(140,height-top-40)):w-16;
-    const h=legend.showScale?top+(vertical?length+6:30):top;
+    const length=vertical?Math.max(24,Math.min(140,height-top-64)):w-16;
+    const h=legend.showScale?top+(vertical?length+34:30):top;
     ctx.fillStyle='rgba(255,255,255,.82)';ctx.fillRect(0,0,w,h);ctx.strokeStyle='rgba(80,95,110,.35)';ctx.strokeRect(.5,.5,w-1,h-1);
     ctx.fillStyle='#17202a';titleLines.forEach((text,i)=>ctx.fillText(text,6,16+i*15,w-12));
     if(legend.showScale){
-      const gradient=vertical?ctx.createLinearGradient(0,top+length,0,top):ctx.createLinearGradient(8,0,8+length,0);
+      const barTop=vertical?top+15:top, barX=vertical?(w-12)/2:8;
+      const gradient=vertical?ctx.createLinearGradient(0,barTop+length,0,barTop):ctx.createLinearGradient(8,0,8+length,0);
       for(const [stop,color] of legend.stops)gradient.addColorStop(stop,color);
-      ctx.fillStyle=gradient;ctx.fillRect(8,top,vertical?12:length,vertical?length:10);
+      ctx.fillStyle=gradient;ctx.fillRect(barX,barTop,vertical?12:length,vertical?length:10);
       ctx.font='12px system-ui';ctx.fillStyle='#17202a';
-      if(vertical){ctx.fillText(legend.high,26,top+10,w-32);ctx.fillText(legend.low,26,top+length,w-32);}
+      if(vertical){ctx.textAlign='center';ctx.fillText(legend.high,w/2,top+10,w-12);ctx.fillText(legend.low,w/2,barTop+length+14,w-12);}
       else{ctx.fillText(legend.low,8,top+25);ctx.textAlign='right';ctx.fillText(legend.high,w-8,top+25);}
     }
     ctx.restore();

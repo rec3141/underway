@@ -64,7 +64,8 @@
     <div class="group maptrack" title="Track points drawn per kilometre">
       <span class="lbl">Track detail</span>
       <output id="tracksteplabel" for="trackstep">all points</output>
-      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
+      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" list="trackticks" aria-label="Track detail">
+      <datalist id="trackticks"></datalist>
       <select id="trackstepsel" aria-label="Track detail"></select>
     </div>
   </div>
@@ -85,7 +86,7 @@
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
-      <div class="tools"><button id="mapdetailsopen">Details</button><button id="mapexport" title="Preview and export the map">Export</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button><button id="mapreset" title="fit to track">⟲</button></div>
+      <div class="tools"><button id="mapdetailsopen" title="Map details" aria-label="Map details">ⓘ</button><button id="mapexport" title="Preview and export the map" aria-label="Export map">⇩</button><button id="mapreset" title="fit to track" aria-label="Reset map view">⟲</button><button id="mapnone" title="no map: the pane takes the whole width" aria-label="Minimise map">—</button><button id="mapfull" title="full map: the map takes the whole page" aria-label="Maximise map">⤢</button></div>
       <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
@@ -189,13 +190,14 @@
         <button type="button" id="histhome" class="chip" title="the front page: today, here, the journal, the domains and the narratives">Home</button>
         <button type="button" id="histexplore" class="chip histexplore" title="every topic, with its pages and artifacts">Explore</button>
         <span class="domset" id="wikidomains" role="group" aria-label="What the wiki shows">
-          <button type="button" class="chip dom on" data-domain="history" aria-pressed="true" title="the human past: voyages, people, places and artifacts">History</button>
-          <button type="button" class="chip dom on" data-domain="nature" aria-pressed="true" title="the natural record: subjects, observations, the domains and the ship's journal">Nature</button>
+          <button type="button" class="chip dom" data-domain="history" aria-pressed="false" title="the human past: voyages, people, places and artifacts">History</button>
+          <button type="button" class="chip dom" data-domain="nature" aria-pressed="false" title="the natural record: subjects, observations, the domains and the ship's journal">Nature</button>
         </span>
         <button type="button" id="histask" class="chip ask" title="ask the crew in the chat">Ask Crew</button>
-        <input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, species, ice, weather" aria-label="Search the wiki">
-        <select id="histkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal"></select>
         <button type="button" id="wikiclose" class="chip" aria-label="Close Wiki" title="Return to the last non-Wiki page">X</button>
+        <div class="wiki-search-row"><input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, species, ice, weather" aria-label="Search the wiki">
+        <select id="histkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal"></select>
+        </div>
       </div>
       <article class="histmain" id="histmain"><div class="empty">Loading the wiki…</div></article>
     </div>

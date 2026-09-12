@@ -60,7 +60,7 @@
     flags: new Map(),                                     // artifact id → the flag anyone has raised for review (shared through the server)
     names: null,                                          // every person and place name that has a page, longest first, for the cross-links
     slug: store.get("wiki.slug", ""),                     // what is shown: "" home, explore, bib, provenance, kind/<k>[/<topic>], topic/<t>, one of the natural half's own views, or a page
-    domains: new Set(store.get("wiki.domains", DOMAINS_ALL).filter((d) => DOMAINS_ALL.includes(d))),   // the labels on: the domains the pane lists
+    domains: new Set(store.get("wiki.domains.v2", []).filter((d) => DOMAINS_ALL.includes(d))),   // no selected filter means all domains
     types: new Set(store.get("hist.types", Object.keys(TYPES))),   // the kinds the map layers show
     search: "",
     faces: null,                                          // the face crops the backend publishes, or null
@@ -73,9 +73,9 @@
   // topics) of the domains its labels have on; each domain's map layer draws
   // its own. `ns` names what is being rendered, the pane or one layer; every
   // link is #wiki/<slug>.
-  if (!hist.domains.size) hist.domains = new Set(DOMAINS_ALL);
+  if (!hist.domains.size) hist.slug = '';
   const NS = {
-    wiki: { key: "wiki", domains: () => hist.domains },
+    wiki: { key: "wiki", domains: () => hist.domains.size ? hist.domains : new Set(DOMAINS_ALL) },
     history: { key: "history", domains: () => new Set(["history"]) },   // `key` names a layer's traces
     nature: { key: "nature", domains: () => new Set(["nature"]) },
   };
@@ -84,7 +84,7 @@
   const topicDomain = (slug) => hist.index?.topics.find((t) => t.slug === slug)?.domain || "history";
   // a row belongs to the domain its topic has; a row without a topic is history's
   const inDomain = (x) => ns.domains().has(x.topic ? topicDomain(x.topic) : "history");
-  const domainOn = (d) => hist.domains.has(d);
+  const domainOn = (d) => !hist.domains.size || hist.domains.has(d);
   const domainsOn = () => DOMAINS_ALL.filter(domainOn);
   const arts = () => (hist.artifacts || []).filter(inDomain);
   const topics = () => (hist.index?.topics || []).filter((t) => ns.domains().has(t.domain || "history"));
@@ -1183,7 +1183,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   }
   async function renderBib(el) {
     const bib = await bibliography();
-    const by = citedBy(), both = hist.domains.size === DOMAINS_ALL.length;
+    const by = citedBy(), both = domainsOn().length === DOMAINS_ALL.length;
     // the works the labels on cite; one nobody cites shows while both are on
     const inScope = (e) => domainsOn().some((d) => by[d].has(e.key)) || (both && !by.history.has(e.key) && !by.nature.has(e.key));
     const sorted = [...bib].filter(inScope).sort((a, b) => (a.author || a.title || "").localeCompare(b.author || b.title || ""));
@@ -1267,24 +1267,23 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   const ASK = {
     history: { label: "Ask Ada", room: "ada", title: "open the Library in the chat and ask Ada, the librarian, about the region's past" },
     nature: { label: "Ask Doc", room: "doc", title: "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal" },
-    both: { label: "Ask both", room: "deck", title: "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature" },
+    both: { label: "Ask a Q", room: "deck", title: "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature" },
   };
-  const askTarget = () => ASK[hist.domains.size > 1 ? "both" : domainOn("nature") ? "nature" : "history"];
+  const askTarget = () => ASK[hist.domains.size !== 1 ? "both" : domainOn("nature") ? "nature" : "history"];
   function renderTools() {
     $("#histhome").classList.toggle("on", !hist.slug && !hist.search);
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
     $("#histback").disabled = !hist.slug && nav.n === 0;
     $("#histback").title = nav.fromMap ? "back to the map" : "back to the view before";
-    for (const b of document.querySelectorAll("#wikidomains .dom")) { const on = domainOn(b.dataset.domain); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
+    for (const b of document.querySelectorAll("#wikidomains .dom")) { const on = hist.domains.has(b.dataset.domain); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
     const ask = $("#histask"), t = askTarget(); ask.textContent = t.label; ask.title = t.title;
   }
   // a label switched: the pane lists that domain or not, and on the tab its map layer follows
   function setDomain(d, on) {
-    if (!on && hist.domains.size === 1) { UW.toast?.("One of the two stays on; switch the other on first."); return; }
     on ? hist.domains.add(d) : hist.domains.delete(d);
-    store.set("wiki.domains", domainsOn());
-    if (stashed) { UW.state[d] = on; store.set(d, on); pill(d, on); }
-    if (on) ensureAll().then(() => render()).catch(() => {}); else render();
+    store.set("wiki.domains.v2", [...hist.domains]);
+    if (stashed) for(const layer of LAYERS){UW.state[layer]=domainOn(layer);store.set(layer,domainOn(layer));pill(layer,domainOn(layer));}
+    ensureAll().then(() => hist.domains.size ? render() : open('')).catch(() => {});
   }
   async function render() {
     ns = NS.wiki;
@@ -1510,7 +1509,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     $("#histhome").onclick = () => open("");
     $("#histexplore").onclick = () => open(hist.slug === "explore" ? "" : "explore");
     $("#histask").onclick = () => UW.chatRoom?.(askTarget().room);
-    for (const b of document.querySelectorAll("#wikidomains .dom")) b.onclick = () => setDomain(b.dataset.domain, !domainOn(b.dataset.domain));
+    for (const b of document.querySelectorAll("#wikidomains .dom")) b.onclick = () => setDomain(b.dataset.domain, !hist.domains.has(b.dataset.domain));
     for (const layer of LAYERS) {
       const p = document.querySelector(`#maplayers button[data-layer="${layer}"]`);
       if (p) { p.hidden = !UW.M.history; p.addEventListener("click", () => setTimeout(renderChips, 0)); }

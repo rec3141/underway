@@ -462,6 +462,7 @@
     {
       const r = $("#trackstep"), out = $("#tracksteplabel"), sel = $('#trackstepsel');
       sel.innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}">${detailLabel(km)}</option>`).join('');
+      $('#trackticks').innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}"></option>`).join('');
       if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
       let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
       r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);

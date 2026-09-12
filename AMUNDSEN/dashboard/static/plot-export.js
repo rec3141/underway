@@ -108,7 +108,9 @@
   window.UWPlotExport={openMap:map=>open(null,map),attach(plot){
     const tools=plot.closest('.panel')?.querySelector('.head .tools');if(!tools)return;
     let button=tools.querySelector('.plot-export');
-    if(!button){button=document.createElement('button');button.type='button';button.className='plot-export';button.textContent='Export';button.title='Preview and export this graph';tools.prepend(button);}
+    if(!button){button=document.createElement('button');button.type='button';button.className='plot-export';button.textContent='⇩';button.title='Preview and export this graph';button.setAttribute('aria-label','Export graph');tools.prepend(button);}
+    // Keep these common actions adjacent and in the same order in every view.
+    for(const selector of ['.plot-export','.reset','.min','.wide']){const action=tools.querySelector(selector);if(action)tools.append(action);}
     button.onclick=()=>open(plot);
   }};
 })();
