@@ -479,6 +479,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await until('document.querySelector(".crumbs")?.textContent.includes("Destination") && document.querySelector("#phone-files")');
       await evaluate(`const f=document.querySelector('#natimportform input[name=name]');f.value='Test photographer';f.dispatchEvent(new Event('input',{bubbles:true}));const dt=new DataTransfer();dt.items.add(new File(['photo a'],'a.jpg',{type:'image/jpeg'}));dt.items.add(new File(['photo b'],'b.jpg',{type:'image/jpeg'}));const picker=document.querySelector('#phone-files');picker.files=dt.files;picker.dispatchEvent(new Event('change'));`);
       assert.equal(await evaluate('document.querySelector("#natimportform input[name=name]").value'),'Test photographer');
+      assert.equal(await evaluate('document.querySelector("#phone-upload").textContent'),'Upload Selected Photos');
+      assert.equal(await evaluate('(()=>{const b=document.querySelector("#phone-upload"),r=b.getBoundingClientRect();return r.height>=56&&r.width>=b.parentElement.clientWidth-1&&parseFloat(getComputedStyle(b).fontSize)>=16})()'),true);
       await evaluate('document.querySelector("#phone-upload").click()');
       await until('document.querySelector("#phone-message")?.textContent.includes("Test interrupted upload")');
       assert.deepEqual(uploadFiles,[0,1]);

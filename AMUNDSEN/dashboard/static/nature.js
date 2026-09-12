@@ -502,7 +502,7 @@
       <p class="small">Destination: <b>${esc(u?.parent != null ? '/Share/' + u.parent : l ? '/Share/' + l.path : 'Choose a folder above')}</b> → new subfolder</p>
       <label>Folder name <input id="phone-label" maxlength="60" value="${esc(u?.label || 'Phone photos')}" ${u?.batch || u?.busy ? 'disabled' : ''}></label>
       <label>Photos <input id="phone-files" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple ${u?.batch || u?.busy ? 'disabled' : ''}></label>
-      <div class="jtools"><button type="button" id="phone-upload" ${!u?.files.length || u.busy || u.done === u.files.length || !l || l.error ? 'disabled' : ''}>${u?.batch ? 'Retry remaining photos' : 'Upload into new subfolder'}</button>
+      <div class="jtools"><button type="button" id="phone-upload" ${!u?.files.length || u.busy || u.done === u.files.length || !l || l.error ? 'disabled' : ''}>${u?.busy ? 'Uploading…' : u?.batch ? 'Retry Remaining Photos' : 'Upload Selected Photos'}</button>
       ${u && !u.busy ? '<button type="button" id="phone-clear">New selection</button>' : ''}</div>
       <progress id="phone-progress" max="100" value="${u?.percent || 0}" ${u ? '' : 'hidden'} aria-label="Photo upload progress"></progress>
       <p id="phone-message" class="small" role="status" aria-live="polite">${esc(u?.message || 'No photos selected.')}</p></section>`;
