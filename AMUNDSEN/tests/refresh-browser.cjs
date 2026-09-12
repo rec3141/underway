@@ -435,6 +435,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       return;
     }
     if(process.env.WIKI_UI){
+      assert.equal(await evaluate('document.querySelector("#tabs button:last-child").dataset.tab'),'sources');
       await evaluate('UW.M.history={stamp:"test"};UW.showTab("wiki")');
       await until('document.querySelector("#histask").textContent==="Ask a Q"');
       assert.equal(await evaluate('document.querySelectorAll("#wikidomains .on").length'),0);
