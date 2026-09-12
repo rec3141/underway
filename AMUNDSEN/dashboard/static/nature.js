@@ -260,10 +260,10 @@
         xaxis: { ...UW.THEME.xaxis, ...H.yearTicks(lo - pad, hi + pad), range: [lo - pad, hi + pad], zeroline: false, title: { text: "year", font: { size: fz(12) } }, tickfont: { size: fz(12) } },
         yaxis: { ...UW.THEME.yaxis, type: "category", categoryorder: "array", categoryarray: cats.slice().reverse(), tickfont: { size: fz(11) }, fixedrange: true } };
     }
-    Plotly.react(gd, traces, layout, UW.CFG).then((g) => {
+    UW.reactPlot(gd, traces, layout, UW.CFG).then((g) => {
       UW.axisZoom(g);
       g.removeAllListeners?.("plotly_click"); g.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k != null) showRow(k); });
-      g.removeAllListeners?.("plotly_relayout"); g.on("plotly_relayout", () => {
+      if (g._yearTicksHandler) g.removeListener("plotly_relayout", g._yearTicksHandler); g.on("plotly_relayout", g._yearTicksHandler = () => {
         const r = g._fullLayout?.xaxis?.range; if (!r) return;
         const t = H.yearTicks(r[0], r[1]);
         if (JSON.stringify(t.tickvals) !== JSON.stringify(g.layout.xaxis.tickvals)) Plotly.relayout(g, { "xaxis.tickvals": t.tickvals, "xaxis.ticktext": t.ticktext });

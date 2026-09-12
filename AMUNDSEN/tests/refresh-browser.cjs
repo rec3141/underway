@@ -28,7 +28,7 @@ function manifest() {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
-    variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'}],
+    variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
     surprise:{scales:[],note:''},stations:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
     data_range:{start:new Date(t-10000).toISOString(),end:new Date(t+10000).toISOString()},
     latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json'},
@@ -44,13 +44,14 @@ function dataset(p) {
   }
   if(p==='/api/nature/journal') return {observations:[]};
   if(p==='/data/manifest.json') return manifest();
-  if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation]},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
+  if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation],...(process.env.DEPTH_UI?{'Bottom depth (m)':[25,100],'Rosette depth (m)':[25,100]}:{})},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
   if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
   if(p.startsWith('/data/agg-')) return {variables:['SST (°C)'],rows:[{t,leg:0,lat:76,lon:-78,'SST (°C)':[generation,generation,generation,2]}]};
   const cast={id:`${leg}:CTD_001`,leg,kind:'CTD',cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78,p:[1,2],units:{Temperature:'°C'},vars:{Temperature:[generation,generation]}};
   if(process.env.SINGLE_UI) {
     cast.vars={Temperature:[2,3],Salinity:[30,31],'Sigma-t':[23,24],Fluorescence:[0.1,0.2],CDOM:[1,2],Oxygen:[280,290]};
     cast.units={Temperature:'°C',Salinity:'PSU','Sigma-t':'kg/m³',Fluorescence:'mg/m³',CDOM:'ppb',Oxygen:'µmol/kg'};
+    cast.log_url='data/casts/RosetteSheet_001.xlsx';
   }
   if(process.env.TRANSECT_UI) {
     const casts=Array.from({length:30},(_,i)=>({...cast,id:`${leg}:CTD_${String(i+1).padStart(3,'0')}`,cast:String(i+1),station:`Station ${i+1}`,lat:76+i/100,lon:-78-i/100,file:`data/casts/cast-${i}.json`}));
@@ -144,21 +145,63 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.DEPTH_UI) {
+      for(const name of ['Bottom depth (m)','Rosette depth (m)']) {
+        await evaluate(`UW.showTab('underway');UW.selectColour(${JSON.stringify(name)});document.querySelector('[data-name="${name}"]').scrollIntoView();`);
+        await until(`!!document.querySelector('[data-name="${name}"] .plot')?._fullLayout`);
+        const inspect=()=>evaluate(`(()=>{const p=document.querySelector('[data-name="${name}"] .plot');return {range:p._fullLayout.yaxis.range,y:p.data[0].y,raw:p.data[0].customdata,reverse:p.data[0].marker.reversescale}})()`);
+        const normal=await inspect();assert.equal(normal.range[1],0);assert(normal.range[0]>100);assert.equal(normal.reverse,true);
+        await evaluate(`document.querySelector('[data-name="${name}"] .depthscale').click()`);
+        await until(`document.querySelector('[data-name="${name}"] .plot').data[0].y[1]===10`);
+        const compressed=await inspect();assert.deepEqual(compressed.y,[5,10]);assert.deepEqual(compressed.raw,[25,100]);assert.equal(compressed.range[1],0);
+        await evaluate(`document.querySelector('[data-name="${name}"] .reset').click()`);
+        await wait(100);assert.equal((await inspect()).range[1],0);
+      }
+      await evaluate(`window.__download=[];HTMLAnchorElement.prototype.click=function(){window.__download.push({url:this.href,name:this.download})};document.querySelector('[data-name="Rosette depth (m)"] .plot-export').click()`);
+      await until('!!document.querySelector(".export-canvas")?.data && !document.querySelector("[data-format=png]").disabled');
+      await evaluate('document.querySelector(".plot-export-dialog").style.width="800px";document.querySelector(".plot-export-dialog").style.height="700px";const s=document.querySelector(".plot-export-dialog input");s.value="3";s.dispatchEvent(new Event("input"))');
+      await wait(200);
+      const size=await evaluate('({w:document.querySelector(".export-canvas").clientWidth,h:document.querySelector(".export-canvas").clientHeight})');
+      await evaluate('document.querySelector("[data-format=png]").click()');
+      await until('window.__download.length===1');
+      assert.match(await evaluate('window.__download[0].name'),/\.png$/);
+      assert.deepEqual(await evaluate('new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>resolve([im.width,im.height]);im.onerror=reject;im.src=window.__download[0].url})'),[size.w*3,size.h*3]);
+      await evaluate('document.querySelector("[data-format=svg]").click()');
+      await until('window.__download.length===2');
+      assert.match(await evaluate('window.__download[1].name'),/\.svg$/);
+      assert.match(await evaluate('window.__download[1].url'),/^data:image\/svg\+xml/);
+      await evaluate('document.querySelector(".export-close").click()');
+      assert.equal(await evaluate('document.querySelector(".plot-export-dialog").open'),false);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS downward depths, inverse colours, sqrt spacing, reset and resizable PNG/SVG export');
+      return;
+    }
     if(process.env.SINGLE_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelector("#casttable tr[data-id]")');
       await evaluate('document.querySelector("#casttable tr[data-id]").click();document.querySelector("#castmode [data-m=single]").click()');
       await until('document.querySelector("#single-plot")?.data');
       assert.equal(await evaluate('document.querySelectorAll(".singlevar[aria-pressed=false]").length'),4);
+      assert.equal(await evaluate('document.querySelector(".livebar a").getAttribute("href")'),'data/casts/RosetteSheet_001.xlsx');
+      assert.equal(await evaluate('document.querySelector("#casttable a").getAttribute("href")'),'data/casts/RosetteSheet_001.xlsx');
+      assert.equal(await evaluate('new Set([...document.querySelectorAll("#casttable th,#casttable td,#casttable .kind")].map(e=>getComputedStyle(e).fontFamily)).size'),1);
       const geometry=()=>evaluate('(()=>{const b=document.querySelector("#singlebody").getBoundingClientRect(),p=document.querySelector(".single-parameters").getBoundingClientRect(),s=document.querySelector(".single-layout").getBoundingClientRect(),c=document.querySelector("#singlebody .castplot").getBoundingClientRect();return {beside:b.left>=p.right,aligned:Math.abs(b.top-p.top)<2,full:Math.abs(c.width-b.width)<2,span:Math.abs(s.width-document.querySelector("#castplots").clientWidth)<2}})()');
       assert.deepEqual(await geometry(),{beside:true,aligned:true,full:true,span:true});
       await evaluate('for(const b of [...document.querySelectorAll(".singlevar:not(.on)")]){document.querySelector(`.singlevar[data-v="${b.dataset.v}"]`).click()}');
       await until('document.querySelector("#single-plot")?.data?.length===6');
+      await evaluate(`for(let i=0;i<2;i++)document.querySelector('.chart-divider .nudge[data-d="1"]').click()`);
+      await until('document.querySelector("#single-plot")?._fullLayout?.xaxis?.anchor==="free"');
       assert.equal(await evaluate('document.querySelector("#single-plot")._fullLayout.xaxis.anchor'),'free');
       assert.equal(await evaluate('(()=>{const l=document.querySelector("#single-plot")._fullLayout;return l.xaxis.position>l.xaxis2.position&&l.xaxis2.position>l.yaxis.domain[1]&&l.xaxis5.position<l.yaxis.domain[0]&&l.xaxis6.position<l.xaxis5.position})()'),true);
       const before=await evaluate('document.querySelector(".singlevar").dataset.v');
+      await evaluate('Plotly.relayout(document.querySelector("#single-plot"),{"xaxis.range":[2.2,2.8],"xaxis.autorange":false,"yaxis.range":[1.5,1.1],"yaxis.autorange":false})');
+      generation=2;await poll();
+      await until('!!document.querySelector("#single-plot")?._fullLayout');
+      assert.deepEqual(await evaluate('document.querySelector("#single-plot")._fullLayout.xaxis.range'),[2.2,2.8]);
+      assert.deepEqual(await evaluate('document.querySelector("#single-plot")._fullLayout.yaxis.range'),[1.5,1.1]);
       await evaluate('document.querySelector(".parameter .nudge[data-d=\\"1\\"]").click()');
       await until(`document.querySelector('#single-plot')?.data?.[1]?.name===${JSON.stringify(before)}`);
+      assert.deepEqual(await evaluate('document.querySelector("#single-plot")._fullLayout.xaxis2.range'),[2.2,2.8]);
       await evaluate(`document.querySelector('.singlevar[data-v="${before}"]').click()`);
       await until('document.querySelector("#single-plot")?.data?.length===5');
       assert.equal(await evaluate(`document.querySelector('#single-plot').data.some(t=>t.name===${JSON.stringify(before)})`),false);
@@ -166,11 +209,35 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelector("#singlebody").textContent.includes("Select at least one parameter")'),true);
       await evaluate(`document.querySelector('.singlevar[data-v="${before}"]').click()`);
       await until('document.querySelector("#single-plot")?.data?.length===1');
+      await evaluate(`while(!document.querySelector('.chart-divider .nudge[data-d="1"]').disabled)document.querySelector('.chart-divider .nudge[data-d="1"]').click()`);
+      await until('document.querySelector("#single-plot")?._fullLayout?.xaxis.side==="top"');
+      await evaluate(`while(!document.querySelector('.chart-divider .nudge[data-d="-1"]').disabled)document.querySelector('.chart-divider .nudge[data-d="-1"]').click()`);
+      await until('document.querySelector("#single-plot")?._fullLayout?.xaxis.side==="bottom"');
       await evaluate('document.documentElement.classList.add("bigtype");window.dispatchEvent(new Event("resize"))');
       assert.deepEqual(await geometry(),{beside:true,aligned:true,full:true,span:true});
       if(process.env.UI_SCREENSHOT) {const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS Single plot beside parameters, full width, six ordered axes and large text');
+      console.log('PASS movable Chart divider and custom axis ranges survive refresh and parameter reorder');
+      await evaluate('document.querySelector("#castmode [data-m=profiles]").click()');
+      await until('!!document.querySelector("#cp-Temperature")?._fullLayout');
+      await evaluate('Plotly.relayout(document.querySelector("#cp-Temperature"),{"xaxis.range":[2.2,2.8],"xaxis.autorange":false,"yaxis.range":[1.5,1.1],"yaxis.autorange":false})');
+      generation=3;await poll();
+      await until('!!document.querySelector("#cp-Temperature")?._fullLayout');
+      assert.deepEqual(await evaluate('document.querySelector("#cp-Temperature")._fullLayout.xaxis.range'),[2.2,2.8]);
+      assert.deepEqual(await evaluate('document.querySelector("#cp-Temperature")._fullLayout.yaxis.range'),[1.5,1.1]);
+      await evaluate('document.querySelector("#cp-Temperature").closest(".castplot").querySelector(".reset").click()');
+      generation=4;await poll();
+      await until('!!document.querySelector("#cp-Temperature")?._fullLayout');
+      assert.notDeepEqual(await evaluate('document.querySelector("#cp-Temperature")._fullLayout.xaxis.range'),[2.2,2.8]);
+      await evaluate('document.querySelector("#castmode [data-m=single]").click();document.querySelector("#castkind [data-k=live]").click()');
+      await until('!!document.querySelector("#live-plot")?._fullLayout');
+      await evaluate('Plotly.relayout(document.querySelector("#live-plot"),{"xaxis.range":[3.2,3.8],"xaxis.autorange":false,"yaxis.range":[30,20],"yaxis.autorange":false})');
+      await wait(2500);
+      assert.deepEqual(await evaluate('document.querySelector("#live-plot")._fullLayout.xaxis.range'),[3.2,3.8]);
+      assert.deepEqual(await evaluate('document.querySelector("#live-plot")._fullLayout.yaxis.range'),[30,20]);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS Multi refresh/reset and Live polling retain custom axes');
       return;
     }
     if(process.env.TIMEZONE_UI) {
@@ -181,6 +248,10 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(axis.x,Date.parse('2026-09-04T08:00:00Z'));
       assert.match(axis.title,/EDT/);
       assert.equal(axis.hover.includes('Z'),false);
+      await evaluate('Plotly.relayout(document.querySelector("#panels .plot"),{"yaxis.range":[0.2,0.8],"yaxis.autorange":false,"xaxis.range":["2026-09-04T08:00:01","2026-09-04T08:00:05"],"xaxis.autorange":false})');
+      generation=2;await poll();
+      assert.deepEqual(await evaluate('document.querySelector("#panels .plot")._fullLayout.yaxis.range'),[0.2,0.8]);
+      assert.deepEqual(await evaluate('document.querySelector("#panels .plot")._fullLayout.xaxis.range'),['2026-09-04T08:00:01','2026-09-04T08:00:05']);
       assert.equal(await evaluate('document.querySelector(".dockgroup .gn").textContent.includes("ago")'),true);
       const ages=await evaluate(`(async()=>{const old=Date.now;try{const ages=[];for(const now of [${t+310000},${t+370000}]){Date.now=()=>now;await window.__poll();ages.push(document.querySelector('.dockgroup .gn').textContent)}return ages}finally{Date.now=old}})()`);
       assert.deepEqual(ages,['5 min ago','6 min ago']);

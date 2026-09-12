@@ -76,7 +76,7 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^ats_portside — short wave", r"^ats_starboard — short wave", r"short wave radiation")),
     Variable("Bottom depth (m)", "m",
              (r"^multibeam — bottom depth", r"^ek60 — bottom depth", r"bottom depth"), log_ok=True, reverse=True),
-    Variable("Rosette depth (m)", "m", (r"^ctd-rosette — rosette depth",)),
+    Variable("Rosette depth (m)", "m", (r"^ctd-rosette — rosette depth",), reverse=True),
     Variable("Rosette rate (m/s)", "m/s", (), derived=True),
     Variable("Cable length (m)", "m", (r"^500hp — winch cable length",)),
     Variable("Cable rate (m/s)", "m/s", (r"^500hp — winch cable speed",)),

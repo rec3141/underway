@@ -52,6 +52,7 @@
     satAt: null,                                        // an archived picture's scene time, or null for the newest
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
+    depthScale: store.get("depthScale", {}),
     raw: null,                                        // window payload as built
     data: null,                                       // same, filtered to shown legs
     geo: null,
@@ -59,6 +60,7 @@
   };
 
   const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)", "TSG line warming (°C)"]);
+  const isDepth = (name) => name === 'Bottom depth (m)' || name === 'Rosette depth (m)';
   if(newViewer){for(const v of M.variables)state.panel[v.name]='min';store.set('panel',state.panel)}
   const extraPanels = new Map();
   const extraColours = new Map();
@@ -136,6 +138,13 @@
     // Appearance and feedback controls remain in the upper-right header.
   }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
+  const rememberPlot = window.UWData.plotState(Plotly);
+  function reactPlot(gd, data, layout, config, context = '') {
+    const pane = gd.closest('.pane')?.id || '';
+    const name = gd.id || gd.closest('[data-name]')?.dataset.name || '';
+    const filter = pane === 'pane-underway' ? [state.win, state.xmode, [...state.hidden].sort()] : pane === 'pane-wiki' ? [location.hash] : [];
+    return rememberPlot(gd, data, layout, config, JSON.stringify([pane, name, filter, context])).then(plot=>{window.UWPlotExport?.attach(plot);return plot;});
+  }
 
   // Shift+scroll zooms the x axis alone, Ctrl+scroll the y axis alone, about
   // the cursor; a plain scroll keeps Plotly's zoom of both. Listens in the
@@ -1204,8 +1213,9 @@
         <span class="handle" title="drag to reorder">⋮⋮</span>
         <h3 title="colour everything by this variable">${name}</h3>
         <div class="tools"><span class="now"></span>
-          ${v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
+          ${!isDepth(name) && v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
           <button class="reset" title="reset zoom">⟲</button>
+          ${isDepth(name) ? '<button class="dscale depthscale" title="compress the depth axis (square root)" aria-label="Toggle square-root depth spacing">⇅</button>' : ''}
           <button class="min" title="minimise to its group">—</button>
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
@@ -1214,7 +1224,8 @@
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
-    el.querySelector(".reset").onclick = () => { const r = state.data && spanRange(state.data); Plotly.relayout(el.querySelector(".plot"), { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); };
+    el.querySelector('.depthscale')?.addEventListener('click', () => { state.depthScale[name] = !state.depthScale[name]; store.set('depthScale', state.depthScale); renderPanel(name); });
+    el.querySelector(".reset").onclick = async () => { const r = state.data && spanRange(state.data), plot=el.querySelector('.plot'); await Plotly.relayout(plot, { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); if(isDepth(name)){plot._uwSig=null;renderPanel(name);} };
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
     el.querySelector(".min").onclick = () => setPanelState(name, "min");
     wireCardDrag(el, name);
@@ -1389,6 +1400,8 @@
     el.classList.toggle("on", on);
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
+    el.querySelector('.depthscale')?.classList.toggle('on', !!state.depthScale[name]);
+    el.querySelector('.depthscale')?.setAttribute('aria-pressed', String(!!state.depthScale[name]));
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
     if (panelWatch && !inView.has(name)) { el.dataset.stale = "1"; return; }     // drawn when scrolled into view
     delete el.dataset.stale;
@@ -1439,7 +1452,14 @@
                     marker: { size: 3.5, color: "#7d8895", opacity: .55 }, text: legText,
                     hovertemplate: `%{y:.3~f} ${v.unit} · <i>intake pump off</i><br>%{x}<br>%{text}<extra></extra>` });
     }
-    const useLog = !!state.log[name] && y.some((q) => q > 0);
+    const depth = isDepth(name), compressed = depth && !!state.depthScale[name];
+    const depthY = (n) => n == null ? null : compressed ? Math.sqrt(Math.max(0,n)) : n;
+    const useLog = !depth && !!state.log[name] && y.some((q) => q > 0);
+    if (depth) {
+      trace.customdata = y;
+      trace.y = y.map(depthY);
+      trace.hovertemplate = `%{customdata:.0f} m<br>%{x}<br>%{text}<extra></extra>`;
+    }
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const xr = spanRange(d);                                           // the span: the axis opens on it, the data run on before it
@@ -1460,6 +1480,15 @@
       const r = pumpedRange(name, y, d);
       if (r) layout.yaxis.range = r;
     }
+    if (depth) {
+      const maxD = Math.max(1, minmax(y)[1] * 1.03);
+      layout.yaxis = { ...layout.yaxis, autorange:false, range:[depthY(maxD),0],
+        title:{...layout.yaxis.title,text:compressed?'depth (m, √ spacing)':'depth (m)'} };
+      if (compressed) {
+        const ticks = [0,5,10,20,30,50,75,100,150,200,300,400,500,750,1000,1500,2000,3000,4000,5000,6000,8000,10000,12000].filter(n=>n<=maxD);
+        layout.yaxis.tickvals = ticks.map(depthY); layout.yaxis.ticktext = ticks.map(String);
+      }
+    }
     if (name.startsWith("Surprise")) {
       const top = Math.max(3.5, minmax(y)[1] * 1.08);
       layout.yaxis.range = [0, top];
@@ -1478,7 +1507,7 @@
     const sig = drawSignature(traces, layout, on);
     if (plot.data && plot._uwSig === sig) { onClick(); return; }
     plot._uwSig = sig;
-    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot); onClick(); });
+    reactPlot(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot); onClick(); });
   }
   // what a draw depends on, small enough to compare every build: each
   // array's length, ends and a weighted sum of its values (strings hashed
@@ -1710,7 +1739,7 @@
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
     fmtTs, tzAbbr, shipAxis, plotDate, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
+    renderMap, showTab, focusMap, requestFit, axisZoom, reactPlot, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
       layoutPanels();
       if (extraColours.has(state.colour)) render();

@@ -11,6 +11,27 @@ function api(overrides = {}) {
 }
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b; }); return {promise,resolve,reject}; };
 
+test('custom ranges survive new data and replacement plot elements, follow variables and respect reset', async () => {
+  const {EventEmitter} = require('node:events');
+  const plot = () => new EventEmitter();
+  const draw = api().plotState({react:async(gd,data,layout)=>{gd._fullLayout=layout;return gd;}});
+  const layout = {xaxis:{title:{text:'Temperature'},range:[0,10]},yaxis:{title:{text:'Depth'},range:[100,0]}};
+  const first=await draw(plot(),[],layout,{},'cast1');
+  first._fullLayout.xaxis.range=[2,4];first._fullLayout.yaxis.range=[80,20];
+  first.emit('plotly_relayout',{'xaxis.range':[2,4],'yaxis.range':[80,20]});
+  const changed={...layout,xaxis:{title:{text:'Salinity'},range:[30,35]},xaxis2:{title:{text:'Temperature'},range:[-10,10]}};
+  const next=await draw(plot(),[],changed,{},'cast1');
+  assert.deepEqual(Array.from(next._fullLayout.xaxis2.range),[2,4]);
+  assert.deepEqual(Array.from(next._fullLayout.xaxis.range),[30,35]);
+  assert.deepEqual(Array.from(next._fullLayout.yaxis.range),[80,20]);
+  next.emit('plotly_relayout',{'xaxis2.autorange':true,'yaxis.autorange':'reversed'});
+  const reset=await draw(plot(),[],changed,{},'cast1');
+  assert.deepEqual(Array.from(reset._fullLayout.xaxis2.range),[-10,10]);
+  assert.deepEqual(Array.from(reset._fullLayout.yaxis.range),[100,0]);
+  const other=await draw(plot(),[],layout,{},'cast2');
+  assert.deepEqual(Array.from(other._fullLayout.xaxis.range),[0,10]);
+});
+
 test('failed requests retry, successful requests share a generation cache', async () => {
   let attempts=0;
   const get = api().generationCache(async () => { if (++attempts === 1) throw Error('offline'); return 42; }, () => 'one');

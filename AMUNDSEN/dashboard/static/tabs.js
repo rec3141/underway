@@ -223,8 +223,8 @@
       const isTow = c.kind === "MVP" && c.n_profiles;
       let html = `<tr class="${whole ? "sel" : part ? "part" : ""}" data-id="${esc(c.id)}">
         <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="Delete saved transect" aria-label="Delete saved transect">×</button>` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
-        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="Open rosette log">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
-        <td>${esc(c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
+        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="Open rosette sheet">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
+        <td title="${esc(c.station || '')}">${esc(c.kind==='TRS' && c.stations?.length ? `${c.stations[0]} → ${c.stations.at(-1)}` : c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
         <td class="mono">${esc(castDate(c))}</td><td class="mono">${c.depth ?? ""}</td><td class="mono">${c.bottles ?? ""}</td><td>${esc(c.legLabel)}</td></tr>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
@@ -284,7 +284,7 @@
     // each extra axis needs ~64 px of ticks and title: the canvas grows by
     // that much per axis beyond the first at the top and the bottom, so the
     // profile keeps its height; the margins hold the outermost axes
-    const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
+    const nt = spec.upperAxes ? vars.filter((v) => spec.upperAxes.includes(v)).length : Math.floor(vars.length / 2), nb = vars.length - nt;
     const extra = Math.max(0, nb - 1) + Math.max(0, nt - 1);
     gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(64))}px)` : "";
     const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / Math.max(1, H - 2 * fz(64));
@@ -321,7 +321,7 @@
         text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
     if (!vars.length) { body.innerHTML = '<div class="empty">Select at least one parameter.</div>'; return; }
-    Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd, { x: false }));
+    UW.reactPlot($(`#${plotId}`), traces, layout, CFG, [spec.scope || plotId, casts.dscale]).then((gd) => UW.axisZoom(gd, { x: false }));
     const sub = body.querySelector(`#${plotId}`)?.closest(".castplot")?.querySelector(".now");
     if (sub) sub.textContent = spec.sub || "";
   }
@@ -412,7 +412,7 @@
       renderProfiles(body, [pseudo]);
       return;
     }
-    drawOverlay(body, "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li],
+    drawOverlay(body, "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li], scope:[live.which,cast.started],
       sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, live.vars);
     wireCastPanels(host, () => drawLive(host));
   }
@@ -422,14 +422,24 @@
     const pick = data.find((d) => d.id === single.id) || data[data.length - 1];
     if (!pick) { host.innerHTML = '<div class="empty">Select a cast from the list or the map.</div>'; return; }
     single.id = pick.id;
+    const sheet = pick.log_url || castById(pick.id)?.log_url;
     const profs = profilesOf(pick);                        // a tow's selected dips, or the one profile
     const prof = profs.find((p) => p.index === single.dip) || profs[0];
     const vars = orderVars(Object.keys(prof.vars));
-    const savedOrder=store.get('casts.single.order',[]),ordered=[...savedOrder.filter(v=>vars.includes(v)),...vars.filter(v=>!savedOrder.includes(v))];
+    const CHART = '__chart__';
+    const savedOrder=store.get('casts.single.order',[]),ordered=[...savedOrder.filter(v=>v===CHART||vars.includes(v)),...vars.filter(v=>!savedOrder.includes(v))];
+    if (!ordered.includes(CHART)) {
+      const enabled = ordered.filter(v=>single.vars.includes(v));
+      const firstLower = enabled[Math.floor(enabled.length / 2)];
+      ordered.splice(firstLower ? ordered.indexOf(firstLower) : 0, 0, CHART);
+      store.set('casts.single.order', ordered);
+    }
+    const upperAxes = ordered.slice(0, ordered.indexOf(CHART));
     host.innerHTML = `<div class="livebar">
+      ${sheet ? `<div><a class="chip" href="${esc(sheet)}" target="_blank" rel="noopener">Rosette sheet ↗</a></div>` : ''}
       ${data.length > 1 ? `<div class="livevars"><span class="muted">Select Cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
       ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
-      <div class="single-layout"><div class="single-parameters" aria-label="Parameters, axes ordered top to bottom">${ordered.map((v,i)=>`<div class="parameter" draggable="true" data-i="${i}">${varChips([v],single.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${esc(v)} up" ${i===0?'disabled':''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${esc(v)} down" ${i===ordered.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div id="singlebody"></div></div>`;
+      <div class="single-layout"><div class="single-parameters" aria-label="Parameters above Chart use upper axes; parameters below use lower axes">${ordered.map((v,i)=>`<div class="parameter ${v===CHART?'chart-divider':''}" draggable="true" data-i="${i}">${v===CHART?'<span class="chip chart-chip" title="Move Chart to divide upper and lower axes">Chart</span>':varChips([v],single.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${v===CHART?'Chart':esc(v)} up" ${i===0?'disabled':''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${v===CHART?'Chart':esc(v)} down" ${i===ordered.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div id="singlebody"></div></div>`;
     const move=(from,to)=>{if(to<0||to>=ordered.length||from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.single.order',ordered);renderSingle(host,data)};
     let drag=null;
     for(const row of host.querySelectorAll('.parameter')){
@@ -443,7 +453,7 @@
     const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
     drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? `${castLabel(pick)} · dip #${prof.index + 1}` : castLabel(pick),
       { depth: depths(prof), vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, drawn(prof, v)])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
-        axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, ordered.filter(v=>single.vars.includes(v)));
+        scope:[pick.id,single.dip], upperAxes, axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, ordered.filter(v=>v!==CHART&&single.vars.includes(v)));
     wireCastPanels(host, () => renderSingle(host, data));
   }
 
@@ -527,7 +537,11 @@
     for (const sec of host.querySelectorAll(".castplot")) {
       const id = sec.dataset.cp, v = sec.dataset.var;
       const rs = sec.querySelector(".reset");
-      if (rs) rs.onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
+      if (rs) rs.onclick = () => {
+        const plot = sec.querySelector('.plot'), reset = {};
+        for (const key of Object.keys(plot._fullLayout || {})) if (/^[xy]axis\d*$/.test(key)) reset[`${key}.autorange`] = key[0]==='y' && plot._fullLayout[key].range[0]>plot._fullLayout[key].range[1] ? 'reversed' : true;
+        Plotly.relayout(plot, reset);
+      };
       if (sec.querySelector(".dscale")) sec.querySelector(".dscale").onclick = () => { casts.dscale = casts.dscale === "sqrt" ? "linear" : "sqrt"; store.set("casts.dscale", casts.dscale); renderCastPlots(); };
       sec.querySelector(".wide")?.addEventListener("click", () => {
         castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
@@ -599,7 +613,7 @@
       const layout = { ...castLayout(), hovermode: "closest",
         xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) } },
         yaxis: depthAxis(Math.max(1, ...data.flatMap((d) => profilesOf(d).flatMap((p) => p.vars[v] ? depths(p) : []))) * 1.02) };
-      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
+      UW.reactPlot(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG, [[...casts.sel].sort(),casts.dscale]).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
     }
     wireCastPanels(host, () => renderProfiles(host, data), all);
   }
@@ -608,11 +622,11 @@
   // reset) is applied to the others; the flag keeps the echoes from looping
   let depthSyncing = false;
   function syncDepthAxes(host, gd) {
-    gd.removeAllListeners?.("plotly_relayout");
-    gd.on("plotly_relayout", (ev) => {
+    if (gd._syncDepth) gd.removeListener('plotly_relayout', gd._syncDepth);
+    gd.on("plotly_relayout", gd._syncDepth = (ev) => {
       if (depthSyncing) return;
       let upd = null;
-      if (ev["yaxis.autorange"]) upd = { "yaxis.autorange": true };
+      if (ev["yaxis.autorange"]) upd = { "yaxis.autorange": ev["yaxis.autorange"] };
       else if (ev["yaxis.range[0]"] != null) upd = { "yaxis.range": [ev["yaxis.range[0]"], ev["yaxis.range[1]"]] };
       else if (Array.isArray(ev["yaxis.range"])) upd = { "yaxis.range": ev["yaxis.range"] };
       if (!upd) return;
@@ -808,7 +822,7 @@
     const layout = { ...castLayout(), margin: { l: fz(54), r: 8, t: fz(18), b: fz(40) },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) }, type: byTime ? "date" : "linear" },
       yaxis: depthAxis(maxD + step) };
-    Plotly.react($("#cs-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
+    UW.reactPlot($("#cs-plot"), traces, layout, CFG, [[...casts.sel].sort(),casts.dscale,casts.xmode,casts.variable]).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
   }
 
@@ -1240,7 +1254,7 @@
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
       annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: fz(11), color: C.now } }] };
-    Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
+    UW.reactPlot($("#cal-plot"), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
     wireCastPanels(host, () => renderTimeline(host, evs, s));
   }
   // Calendar view: a month grid or three days centred on a day, from the

@@ -660,7 +660,6 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
             match = re.fullmatch(r'RosetteSheet_(\d+)\.xlsx',path.name)
             if match: logs[int(match[1])] = path
         for c in casts:
-            atomic_write(out / (c.id.split(":")[-1] + ".json"), json.dumps(c.payload(), separators=(",", ":")))
             meta=c.meta()
             source=logs.get(int(c.cast)) if c.kind in {'CTD','TM'} and c.cast.isdigit() else None
             if source:
@@ -672,6 +671,10 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
                     meta['log_url']=f'data/casts/{leg.id}/{source.name}'
                 except OSError as error:
                     log.warning('Rosette log unavailable: %s (%s)',source,error)
+            payload = c.payload()
+            if 'log_url' in meta:
+                payload['log_url'] = meta['log_url']
+            atomic_write(out / (c.id.split(":")[-1] + ".json"), json.dumps(payload, separators=(",", ":")))
             index.append(meta)
     index.sort(key=lambda m: (m["time"] or "", m["id"]))
     idx = {"casts": index, "variables": sorted({v for m in index for v in m["vars"]})}
