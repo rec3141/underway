@@ -169,11 +169,39 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.HEADER_UI) {
+      assert.equal(await evaluate('document.querySelector("#alert").parentElement.classList.contains("top")'),true);
+      await evaluate('document.querySelector("#alert").hidden=false');
+      assert.equal(await evaluate('(()=>{const b=document.querySelector(".brand").getBoundingClientRect(),s=document.querySelector("#alert").getBoundingClientRect();return s.left>=b.right&&s.width>b.width})()'),true);
+      assert.equal(await evaluate('(()=>{const a=document.querySelector(".mapcolour").getBoundingClientRect(),b=document.querySelector(".map-toolbar .tools").getBoundingClientRect();return a.top<b.bottom&&b.top<a.bottom&&a.right<=b.left})()'),true);
+      const ids=await evaluate('[...document.querySelectorAll("#tabs > button")].map(b=>b.id||b.dataset.tab)');
+      for(const width of [640,390,320]) {
+        await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});await wait(100);
+        assert.deepEqual(await evaluate('[...document.querySelectorAll(".mobile-nav > summary")].map(s=>s.textContent)'),['☰ Map','☰ Science','☰ Extras']);
+        assert.equal(await evaluate('document.querySelector("#theme").closest("#mobile-appearance")!==null'),true);
+        assert.equal(await evaluate('document.querySelector("#alert").parentElement===document.body'),true);
+        await evaluate('document.querySelectorAll(".mobile-nav summary")[1].click()');
+        await until('document.querySelectorAll(".mobile-nav")[1].open');
+        await evaluate('document.querySelector("#tabs [data-tab=stations]").click()');
+        assert.equal(await evaluate('document.querySelector("#pane-stations").hidden'),false);
+        assert.equal(await evaluate('document.querySelectorAll(".mobile-nav[open]").length'),0);
+        await evaluate('document.querySelectorAll(".mobile-nav summary")[2].click()');
+        await until('document.querySelectorAll(".mobile-nav")[2].open');
+        await evaluate('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
+        assert.equal(await evaluate('document.querySelectorAll(".mobile-nav[open]").length'),0);
+        assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
+      }
+      await call('Emulation.setDeviceMetricsOverride',{width:1400,height:844,deviceScaleFactor:1,mobile:false});await wait(100);
+      assert.deepEqual(await evaluate('[...document.querySelectorAll("#tabs > button")].map(b=>b.id||b.dataset.tab)'),ids);
+      assert.equal(await evaluate('document.querySelector("#theme").closest(".tabrow")!==null'),true);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS desktop status/map compaction, three mobile menus, navigation, dismissal, footer controls and resize restoration');return;
+    }
     if(process.env.DEPTH_UI) {
       assert.deepEqual(await evaluate('[...document.querySelectorAll("#maplayers .tools button")].map(b=>b.id)'),['mapdetailsopen','mapexport','mapreset','mapnone','mapfull']);
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#maplayers .tools")).justifyContent'),'flex-end');
       assert.equal(await evaluate('document.querySelector("#trackstep").closest("#controls-underway")!==null'),true);
-      assert.equal(await evaluate('(()=>{const tools=document.querySelector("#maplayers .tools").getBoundingClientRect(),colour=document.querySelector(".mapcolour").getBoundingClientRect();return tools.bottom<=colour.top+1})()'),true);
+      assert.equal(await evaluate('(()=>{const tools=document.querySelector("#maplayers .tools").getBoundingClientRect(),colour=document.querySelector(".mapcolour").getBoundingClientRect();return tools.bottom<=colour.top+1||colour.bottom<=tools.top+1||colour.right<=tools.left+1})()'),true);
       if(process.env.UI_WIDTH)assert.equal(await evaluate('(()=>{const a=getComputedStyle(document.querySelector(".group.span")),b=getComputedStyle(document.querySelector(".group.maptrack"));return ["backgroundColor","padding","borderRadius","gap"].every(k=>a[k]===b[k])&&getComputedStyle(document.querySelector("#span")).width===getComputedStyle(document.querySelector("#trackstep")).width&&getComputedStyle(document.querySelector("#spanlabel")).fontFamily===getComputedStyle(document.querySelector("#tracksteplabel")).fontFamily})()'),true);
       if(process.env.UI_WIDTH)assert.equal(await evaluate('(()=>{const span=document.querySelector("#span"),track=document.querySelector("#trackstep"),size=()=>[span.getBoundingClientRect().width,track.getBoundingClientRect().width,span.getBoundingClientRect().height,track.getBoundingClientRect().height,document.querySelector(".maptrack").getBoundingClientRect().width];const before=size();for(let i=0;i<=7;i++){track.value=i;track.dispatchEvent(new Event("input"));if(JSON.stringify(size())!==JSON.stringify(before))return false;}return before[0]===before[1]&&before[2]===before[3]})()'),true);
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#trackstepsel")).display!=="none"'),!process.env.UI_WIDTH);
@@ -449,10 +477,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
         assert(boxes.browse<150,JSON.stringify({width,...boxes}));
         assert.equal(boxes.overlap,false);
         assert.equal(await evaluate('(()=>{const x=document.querySelector("#wikiclose").getBoundingClientRect(),h=document.querySelector(".histtools").getBoundingClientRect();return Math.abs(x.top-h.top)<2&&Math.abs(x.right-h.right)<2})()'),true);
-        if(width<=640) {
-          const rows=await evaluate('(()=>{const rows={};for(const b of document.querySelectorAll("#tabs button")){const r=b.getBoundingClientRect();if(r.width)rows[r.top]=(rows[r.top]||0)+1}return Object.values(rows)})()');
-          assert(Math.max(...rows)-Math.min(...rows)<=1,JSON.stringify({width,rows}));
-        }
+        if(width<=640) assert.deepEqual(await evaluate('[...document.querySelectorAll(".mobile-nav > summary")].map(b=>b.textContent)'),['☰ Map','☰ Science','☰ Extras']);
       }
       await evaluate('document.querySelector(\'[data-domain="history"]\').click()');
       await until('document.querySelector("#histask").textContent==="Ask Ada"');
@@ -480,7 +505,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate(`const f=document.querySelector('#natimportform input[name=name]');f.value='Test photographer';f.dispatchEvent(new Event('input',{bubbles:true}));const dt=new DataTransfer();dt.items.add(new File(['photo a'],'a.jpg',{type:'image/jpeg'}));dt.items.add(new File(['photo b'],'b.jpg',{type:'image/jpeg'}));const picker=document.querySelector('#phone-files');picker.files=dt.files;picker.dispatchEvent(new Event('change'));`);
       assert.equal(await evaluate('document.querySelector("#natimportform input[name=name]").value'),'Test photographer');
       assert.equal(await evaluate('document.querySelector("#phone-upload").textContent'),'Upload Selected Photos');
-      assert.equal(await evaluate('(()=>{const b=document.querySelector("#phone-upload"),r=b.getBoundingClientRect();return r.height>=56&&r.width>=b.parentElement.clientWidth-1&&parseFloat(getComputedStyle(b).fontSize)>=16})()'),true);
+      assert.equal(await evaluate('document.querySelector("#phone-upload").classList.contains("go")'),true);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#phone-upload")).padding'),await evaluate('getComputedStyle(document.querySelector("#natimportgo")).padding'));
       await evaluate('document.querySelector("#phone-upload").click()');
       await until('document.querySelector("#phone-message")?.textContent.includes("Test interrupted upload")');
       assert.deepEqual(uploadFiles,[0,1]);

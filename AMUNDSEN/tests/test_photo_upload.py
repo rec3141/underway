@@ -32,7 +32,11 @@ def batch(data, **extra):
 
 def test_new_subfolders_preserve_originals_and_retry(share):
     data = picture()
-    a, b = batch(data, label='My trip'), batch(data, label='My trip')
+    a = batch(data, label='My trip')
+    assert a['path'] == 'Pictures/My trip'
+    with pytest.raises(ValueError, match='already exists'):
+        batch(data, label='My trip')
+    b = batch(data, label='Another trip')
     assert a['path'] != b['path']
     assert (share / a['path']).parent == share / 'Pictures'
     target = share / a['path'] / a['files'][0]['name']
@@ -56,6 +60,13 @@ def test_duplicate_names_get_unique_targets(share):
     assert photos._files_of({'folder':'Pictures'}) == []
     assert len(photos.folder_files(a['path'])) == 2
     assert len(photos._files_of({'folder':a['path']})) == 2
+
+
+@pytest.mark.parametrize('label', ['../escape', 'nested/folder', 'trailing.', ' x ', '.hidden', 'x'*61])
+def test_invalid_folder_names_are_not_silently_changed(share, label):
+    with pytest.raises(ValueError):
+        batch(picture(), label=label)
+    assert not list((share / 'Pictures').iterdir())
 
 
 @pytest.mark.parametrize('name', ['../x.jpg', '/x.jpg', 'a\\b.jpg', 'photo.heic', 'script.html'])
@@ -108,7 +119,7 @@ def test_expired_batch_and_share_write_failure(share, monkeypatch):
         db.execute('UPDATE batches SET created=0 WHERE id=?', (a['id'],))
     with pytest.raises(ValueError, match='expired'):
         upload.receive(a['id'], 0, io.BytesIO(data), len(data))
-    b = batch(data)
+    b = batch(data, label='Retry batch')
     def fail(*args):
         raise OSError('Share disconnected')
     monkeypatch.setattr(upload.shutil, 'copyfileobj', fail)

@@ -2,8 +2,9 @@
 
 In Photos → Submit → Import from: This device, browse to the destination folder on the
 ship's share, select photos, optionally name the batch, and choose **Upload
-into new subfolder**. Each batch creates a fresh subfolder with a UTC timestamp
-and random suffix; files get numeric prefixes so duplicate camera filenames
+Selected Photos**. Each batch creates a fresh subfolder with the exact supplied
+name. An existing name is refused; choose another name rather than overwriting.
+Files get numeric prefixes so duplicate camera filenames
 remain distinct. Original file bytes, including embedded metadata, are retained.
 
 This uses the local dashboard connection, including the IP-address `/underway/`

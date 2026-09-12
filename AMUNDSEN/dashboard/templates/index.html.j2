@@ -87,8 +87,10 @@
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
-      <div class="tools"><button id="mapdetailsopen" title="Map details" aria-label="Map details">ⓘ</button><button id="mapexport" title="Preview and export the map" aria-label="Export map">⇩</button><button id="mapreset" title="fit to track" aria-label="Reset map view">⟲</button><button id="mapnone" title="no map: the pane takes the whole width" aria-label="Minimise map">—</button><button id="mapfull" title="full map: the map takes the whole page" aria-label="Maximise map">⤢</button></div>
+      <div class="map-toolbar">
       <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+      <div class="tools"><button id="mapdetailsopen" title="Map details" aria-label="Map details">ⓘ</button><button id="mapexport" title="Preview and export the map" aria-label="Export map">⇩</button><button id="mapreset" title="fit to track" aria-label="Reset map view">⟲</button><button id="mapnone" title="no map: the pane takes the whole width" aria-label="Minimise map">—</button><button id="mapfull" title="full map: the map takes the whole page" aria-label="Maximise map">⤢</button></div>
+      </div>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
       <span class="pillset" title="the ship's own layers">
@@ -231,6 +233,7 @@
     </form>
   </dialog>
 </main>
+<footer id="mobile-appearance" aria-label="Feedback and appearance" hidden></footer>
 
 <script>
 window.__SITE__ = {{ site|tojson }};
@@ -264,6 +267,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/plot-export.js?v={{ site.asset_version }}"></script>
 <script src="static/map.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>
+<script src="static/responsive-header.js?v={{ site.asset_version }}"></script>
 <link rel="stylesheet" href="static/ice.css?v={{ site.asset_version }}">
 <script src="static/ice.js?v={{ site.asset_version }}"></script>
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>

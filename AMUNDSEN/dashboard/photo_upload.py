@@ -12,7 +12,6 @@ import sqlite3
 import tempfile
 import threading
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 from PIL import Image
@@ -64,10 +63,14 @@ def create(spec):
     if sum(f['size'] for f in entries) > MAX_BATCH:
         raise ValueError('A batch must be at most 2 GiB')
     identifier = secrets.token_hex(24)
-    label = _name(spec.get('label') or 'Phone photos', 60)
-    stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
-    folder = parent / f'{label}-{stamp}-{secrets.token_hex(4)}'
-    folder.mkdir()  # exclusive creation; never adopt an existing directory
+    label = spec.get('label') or 'Phone photos'
+    if not isinstance(label, str) or not 1 <= len(label) <= 60 or label != label.strip(' .') or label in ('.','..') or any(c in label for c in '/\\\x00<>:"|?*') or any(ord(c)<32 for c in label):
+        raise ValueError('Use a folder name of 1–60 characters, without path separators or special characters')
+    folder = parent / label
+    try:
+        folder.mkdir()  # exclusive creation; never adopt an existing directory
+    except FileExistsError as e:
+        raise ValueError('That folder already exists. Choose another name to create a new folder.') from e
     # A watch on the parent belongs to somebody else: it must not silently
     # publish this user's photos under that person's name/licence.
     (folder / photos.UPLOAD_MARKER).write_text('Import this folder explicitly to choose credit and licence.\n')
