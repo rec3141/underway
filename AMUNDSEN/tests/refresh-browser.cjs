@@ -502,7 +502,11 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelector(".upload-complete").textContent.includes("1 photos")'),false);
       assert.equal(await evaluate('document.querySelector(".import-history summary").textContent'),'Imports Status');
       assert.equal(await evaluate('document.querySelector(".import-history").open'),false);
-      assert.equal(await evaluate('document.querySelector(".watches .watch").getBoundingClientRect().top >= document.querySelector(".watches .lbl").getBoundingClientRect().bottom'),true);
+      assert.equal(await evaluate('document.querySelector(".watch-history").open'),false);
+      await evaluate('document.querySelector(".watch-history summary").click()');
+      assert.equal(await evaluate('document.querySelector(".watch-history").open'),true);
+      assert.equal(await evaluate('document.querySelector(".watches .watch").getBoundingClientRect().top >= document.querySelector(".watch-history summary").getBoundingClientRect().bottom'),true);
+      assert.equal(await evaluate('document.querySelector(".watch-history [data-unwatch]").textContent'),'Stop');
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#natimportform label .muted")).whiteSpace'),'normal');
       await evaluate('document.querySelector("#natimportform").requestSubmit();document.querySelector("#natimportform").requestSubmit()');
       await until('document.querySelector("#import-status progress")?.value===40');

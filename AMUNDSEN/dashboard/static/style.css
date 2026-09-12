@@ -1301,7 +1301,7 @@ table.sched.record td:nth-child(3) { min-width: 14em; }
 #natimportform button.go { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 7px; padding: 6px 14px; font: inherit; font-weight: 650; cursor: pointer; }
 #natimportform button.go:disabled { opacity: .5; cursor: default; }
 .imports { margin-top: 8px; font-size: var(--t-sm); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; } .imports .lbl { color: var(--muted); }
-.import-history { margin-top:12px; }
+.import-history, .watch-history { margin-top:12px; }
 .import-progress { margin-block:12px; padding:12px; background:var(--card-2); border:1px solid var(--accent); border-radius:8px; overflow-wrap:anywhere; }
 .import-progress h4 { margin:0 0 8px; }
 .import-progress progress { width:100%; accent-color:var(--accent); }
