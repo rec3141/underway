@@ -462,12 +462,20 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.deepEqual(uploadFiles,[0,1]);
       assert.equal(uploadBatches.length,1);assert.equal(uploadBatches[0].parent,'Pictures/Destination');
       await evaluate('document.querySelector("#phone-upload").click()');
-      await until('document.querySelector("#phone-message")?.textContent.includes("Saved 2 photos")');
+      await until('document.querySelector("#phone-saved")?.textContent.includes("2 photos saved")');
+      assert.equal(await evaluate('document.querySelector("#phone-message").textContent'),'Upload complete. Not yet added to the journal.');
+      assert.equal(await evaluate('document.querySelector("#phone-files")'),null);
+      await evaluate('document.querySelector("#phone-next").click()');
+      await until('document.activeElement===document.querySelector("#natimportform [name=name]")');
+      assert.equal(await evaluate('document.querySelector("#natimportgo").textContent'),'Add to journal · 2 photos');
       assert.deepEqual(uploadFiles,[0,1,1]);assert.equal(uploadBatches.length,1);
       if(process.env.UI_PREFIX) assert(requests.filter(p=>p.includes('/api/nature/')).every(p=>p.startsWith('/underway/')));
       assert.equal(await evaluate('document.querySelector("#natimportgo").disabled'),false);
       assert.equal(await evaluate('document.querySelector(".crumbs").textContent.includes("batch")'),true);
       assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
+      await evaluate(`document.querySelector('#phone-clear').click();const single=new DataTransfer();single.items.add(new File(['photo'],'single.jpg',{type:'image/jpeg'}));const input=document.querySelector('#phone-files');input.files=single.files;input.dispatchEvent(new Event('change'));document.querySelector('#phone-upload').click();`);
+      await until('document.querySelector("#phone-saved")?.textContent.includes("1 photo saved")');
+      assert.equal(await evaluate('document.querySelector(".upload-complete").textContent.includes("1 photos")'),false);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS phone picker, selected destination, retry only remaining files, credit retention, and import handoff');return;
     }

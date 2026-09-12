@@ -487,6 +487,15 @@
   let phoneUpload = null;
   function uploadHTML(l) {
     const u = phoneUpload;
+    if (u?.batch && u.files.length && u.done === u.files.length && !u.busy) {
+      return `<section class="phone-upload upload-complete" aria-labelledby="phone-saved">
+        <h4 id="phone-saved">✓ ${u.done} photo${u.done === 1 ? '' : 's'} saved to the share</h4>
+        <p id="phone-message" role="status">${u.journalJob ? 'Journal import started.' : 'Upload complete. Not yet added to the journal.'}</p>
+        ${u.journalJob ? `<a class="chip" href="#wiki/import/${esc(u.journalJob)}" data-slug="import/${esc(u.journalJob)}">Follow journal import</a>` :
+          '<p>Next, enter your name and choose a licence in the form below, then select <b>Add to journal</b>.</p><button type="button" class="go" id="phone-next">Next: add to journal ↓</button>'}
+        <details><summary>Saved folder</summary><p class="small">/Share/${esc(u.batch.path)}</p></details>
+        <button type="button" class="chip small" id="phone-clear">Upload more photos</button></section>`;
+    }
     return `<section class="phone-upload"><h4>Upload from phone or computer</h4>
       <p class="muted small">Open a destination folder above. Uploads always create a new subfolder there; existing files and phone originals are left alone. JPEG, PNG or WebP · up to 300 photos, 64 MiB each, 2 GiB per batch. Keep this page open and your phone awake until finished.</p>
       <p class="small">Destination: <b>${esc(u?.parent != null ? '/Share/' + u.parent : l ? '/Share/' + l.path : 'Choose a folder above')}</b> → new subfolder</p>
@@ -524,17 +533,24 @@
   }
   function wireUpload(box) {
     const picker = box.querySelector('#phone-files');
-    picker.onchange = () => {
+    if (picker) picker.onchange = () => {
       const files = [...picker.files], label = box.querySelector('#phone-label').value.trim() || 'Phone photos';
       const total = files.reduce((n, f) => n + f.size, 0);
       const error = files.length > 300 || total > 2 * 1024 ** 3 ? 'Choose up to 300 photos and 2 GiB per batch.' :
         files.some(f => !/\.(jpe?g|png|webp)$/i.test(f.name) || !f.size || f.size > 64 * 1024 ** 2) ? 'Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.' : '';
       phoneUpload = { files: error ? [] : files, label, parent: share.list?.path, total, done: 0, percent: 0, busy: false,
-        message: error || `${files.length} photos selected · ${(total / 1024 ** 2).toFixed(1)} MiB. Ready to upload.` };
+        message: error || `${files.length} photo${files.length === 1 ? '' : 's'} selected · ${(total / 1024 ** 2).toFixed(1)} MiB. Ready to upload.` };
       H.rerender();
     };
     box.querySelector('#phone-clear')?.addEventListener('click', () => { phoneUpload = null; H.rerender(); });
-    box.querySelector('#phone-upload').onclick = async () => {
+    box.querySelector('#phone-next')?.addEventListener('click', async () => {
+      if (share.list?.path !== phoneUpload.batch.path) { await loadShare(phoneUpload.batch.path); H.rerender(); }
+      const form = $('#natimportform');
+      form?.scrollIntoView({block:'start', behavior:'smooth'});
+      form?.querySelector('[name=name]')?.focus({preventScroll:true});
+    });
+    const uploadButton = box.querySelector('#phone-upload');
+    if (uploadButton) uploadButton.onclick = async () => {
       const u = phoneUpload; if (!u || u.busy || !u.files.length) return;
       u.label = box.querySelector('#phone-label').value.trim() || 'Phone photos';
       if (!u.batch) u.parent = share.list.path;
@@ -547,11 +563,14 @@
         }
         for (; u.done < u.files.length; u.done++) await sendPhoto(u, u.done);
         u.percent = 100;
-        u.message = `Saved ${u.done} photos to /Share/${u.batch.path}. To add them to the journal, complete the credit/licence form below and choose Import.`;
+        u.message = `Saved ${u.done} photo${u.done === 1 ? '' : 's'} to /Share/${u.batch.path}.`;
         await loadShare(u.batch.path);
       } catch (e) {
         u.message = `${u.done}/${u.files.length} saved. ${e.message || e}. Keep this page open and retry; saved photos will not be uploaded again.`;
-      } finally { u.busy = false; H.rerender(); }
+      } finally {
+        u.busy = false; H.rerender();
+        if (u.done === u.files.length) requestAnimationFrame(() => $('#phone-next')?.scrollIntoView({block:'nearest', behavior:'smooth'}));
+      }
     };
   }
   window.addEventListener('beforeunload', e => { if (phoneUpload?.busy) { e.preventDefault(); e.returnValue = ''; } });
@@ -599,13 +618,14 @@
       <div class="sharelist" id="sharelist">${l ? (folders + files || `<p class="muted small">Nothing here.</p>`) : `<p class="muted small">Reading the share…</p>`}</div>
       ${uploadHTML(l)}
       <form id="natimportform" autocomplete="off">
+        <h4 class="wide">Add to the journal</h4>
         <label>Your name <span class="muted">as the photographs are credited</span><input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
         <label>Organisation<input name="org" value="${esc(f.org || "")}" maxlength="120" placeholder="university, agency, the ship's company"></label>
         <label>Email <span class="muted">kept on the ship, for questions about the pictures</span><input name="email" type="email" value="${esc(f.email || "")}" maxlength="120"></label>
         <label>Licence <span class="muted">how the pictures may be used</span><select name="licence">${lic}</select></label>
         <label>Camera clock <span class="muted">when a photograph does not say its zone</span><select name="clock">${clocks}</select></label>
         <label class="row wide"><input type="checkbox" name="watch" ${watched ? "checked" : ""}><span>Keep importing from this folder: I allow the ship to import photographs added to it later, under this name and licence, until I stop it here.</span></label>
-        <div class="wide"><button type="submit" class="go" id="natimportgo" ${n && here ? "" : "disabled"}>${here ? `Import ${esc(here)} · ${n} photograph${n === 1 ? "" : "s"}` : "Open a folder to import it"}</button> <span class="muted small" id="natimportmsg">${w ? watchLine(w) : ""}</span></div>
+        <div class="wide"><button type="submit" class="go" id="natimportgo" ${n && here ? "" : "disabled"}>${here ? `Add to journal · ${n} photo${n === 1 ? "" : "s"}` : "Open a folder to import it"}</button> <span class="muted small" id="natimportmsg">${w ? watchLine(w) : ""}</span></div>
       </form>
       ${share.watches.length ? `<div class="watches"><span class="lbl">Watched folders</span>${share.watches.map((x) => `<span class="watch"><a href="#" data-share="${esc(x.path)}">📁 ${esc(x.path.split("/").slice(-2).join("/"))}</a> · ${esc(x.form?.name || "")} · ${x.imported || 0} imported${x.checked ? ` · looked at ${esc(x.checked.slice(11, 16))} UTC` : ""} <button type="button" class="chip small" data-unwatch="${esc(x.path)}" title="stop importing from this folder">stop</button></span>`).join("")}</div>` : ""}
       ${share.jobs.length ? `<div class="imports"><span class="lbl">Imports so far</span>${share.jobs.slice(0, 8).map((j) => `<a class="chip small" href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${esc(j.form?.name || "")} · ${j.imported}/${j.total}${j.status !== "done" ? " · " + esc(j.status) : ""}${j.from_watch ? " · watched" : ""}</a>`).join(" ")}</div>` : ""}
@@ -648,6 +668,7 @@
         const r = await fetch("api/nature/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
         share.watch = j.job;
+        if (phoneUpload?.batch?.path === body.folder) phoneUpload.journalJob = j.job.id;
         UW.toast?.(`Importing ${j.job.total} photograph${j.job.total === 1 ? "" : "s"}${j.job.known ? ` (${j.job.known} already in the journal)` : ""}${body.watch ? "; the folder is watched" : ""}`);
         watchJob(j.job.id);
         await loadImports(); H.rerender();

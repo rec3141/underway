@@ -1432,3 +1432,8 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 .phone-upload input { display:block; max-width:100%; box-sizing:border-box; margin-top:4px; }
 .phone-upload progress { width:100%; }
 .phone-upload p { overflow-wrap:anywhere; }
+.upload-complete { padding:16px; border:1px solid var(--accent); border-radius:8px; background:var(--card-2); }
+.upload-complete h4 { margin:0 0 8px; color:var(--ok); }
+.upload-complete #phone-next { min-height:44px; padding:10px 16px; font:inherit; background:var(--accent); color:var(--on-accent); border:0; border-radius:5px; cursor:pointer; }
+.upload-complete details { margin-block:12px; }
+#natimportform { scroll-margin-top:16px; }
