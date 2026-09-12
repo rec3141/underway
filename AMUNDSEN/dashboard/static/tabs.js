@@ -287,7 +287,7 @@
     const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
     const extra = Math.max(0, nb - 1) + Math.max(0, nt - 1);
     gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(64))}px)` : "";
-    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / H;
+    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / Math.max(1, H - 2 * fz(64));
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
     const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(64), b: fz(64) }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
@@ -302,7 +302,8 @@
       // title tight against the ticks, so the stacked axes read as groups
       layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: fz(12), color }, standoff: 2 }, tickfont: { size: fz(11), color }, ticks: "outside", ticklen: 3, tickcolor: color,
         showline: true, linecolor: color, linewidth: 1.5, showgrid: i === 0, side: bottom ? "bottom" : "top",
-        ...(i === 0 ? { anchor: "y" } : { overlaying: "x", anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) }) };
+        ...(i === 0 ? {} : { overlaying: "x" }),
+        anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) };
       const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v}${dash ? " up" : ""}`, xaxis: ax, yaxis: "y",
         x: spec.vars[v].slice(from, to), y: yv.slice(from, to), customdata: spec.depth.slice(from, to), connectgaps: false, line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
         hovertemplate: `${esc(v)} %{x:.3~f}${esc(unit)}<br>%{customdata:.1f} m<extra>${dash ? "up" : ""}</extra>` });
@@ -319,12 +320,12 @@
       traces.push({ type: "scatter", mode: "markers", xaxis: "x20", yaxis: "y", name: "bottles", x: spec.bottles.map(() => 0.975), y: spec.bottles.map((b) => yT(bottleDepth(b, spec.lat))),
         text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
-    if (!vars.length) { body.innerHTML = '<div class="empty">Tick at least one variable above.</div>'; return; }
+    if (!vars.length) { body.innerHTML = '<div class="empty">Select at least one parameter.</div>'; return; }
     Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd, { x: false }));
     const sub = body.querySelector(`#${plotId}`)?.closest(".castplot")?.querySelector(".now");
     if (sub) sub.textContent = spec.sub || "";
   }
-  const varChips = (names, on, cls) => names.map((c) => `<button type="button" class="chip ${cls} ${on.includes(c) ? "on" : ""}" data-v="${esc(c)}">${esc(c)}</button>`).join("");
+  const varChips = (names, on, cls) => names.map((c) => `<button type="button" class="chip ${cls} ${on.includes(c) ? "on" : ""}" data-v="${esc(c)}" aria-pressed="${on.includes(c)}" title="${on.includes(c) ? 'Hide' : 'Show'} ${esc(c)} axis">${esc(c)}${cls === 'singlevar' ? `<small>${on.includes(c) ? 'On' : 'Off'}</small>` : ''}</button>`).join("");
 
   // ---- live
   async function pollLive() {
@@ -755,8 +756,8 @@
       if (za == null || zb == null) return t < 0.5 ? za : zb;      // no bridging into a gap
       return za + (zb - za) * t;
     }));
-    const xPlot = byTime ? xg.map((t) => new Date(t)) : xg;
-    const xPts = byTime ? xs.map((t) => new Date(t)) : km;          // the same ship-time shift as the heatmap
+    const xPlot = byTime ? xg.map(UW.plotDate) : xg;
+    const xPts = byTime ? xs.map(UW.plotDate) : xs;
     const dense = withVar.length > 24;      // a tow: label only every few dips
     // the legend: a column of chips to the left of the plot, always
     // movable (drag, or ▲ ▼); moving one switches the axis to custom and
@@ -1206,7 +1207,7 @@
   const opColour = (name, fallback) => OP_COLOUR[opKind(name)] || fallback;
   function renderTimeline(host, evs, s, nHidden = 0) {
     const now = Date.now();
-    const shifted = (t) => new Date(t + offsetMs(t));      // the axis reads as ship time
+    const shifted = (t) => UW.plotDate(UW.shipAxis(t));
     const when = (e) => shifted(UW.tms(e.time_utc));
     const recent = evs;                                   // already the legs and span on display
     const counts = new Map(); for (const e of recent) counts.set(opName(e.activity), (counts.get(opName(e.activity)) || 0) + 1);
@@ -1224,10 +1225,10 @@
     // event-log row of the same kind: current ones bright, former ones (off
     // the intranet page now) dimmer
     const f = UW.currentFilter();
-    const rows = scheduledRows(s).map((r) => ({ r, d0: shifted(UW.tms(r.start_utc)), d1: shifted(UW.tms(r.end_utc)) })).filter((b) => b.d1 - offsetMs(b.d1) >= f.start);
+    const rows = scheduledRows(s).filter((r) => UW.tms(r.end_utc) >= f.start).map((r) => ({ r, d0: shifted(UW.tms(r.start_utc)), duration: UW.shipAxis(UW.tms(r.end_utc)) - UW.shipAxis(UW.tms(r.start_utc)) }));
     const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
     const barColour = (b) => opColour(b.r.operation, pal((b.r.operation || "").length));
-    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
+    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.duration), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${stampL(UW.tms(b.r.start_utc))}–${hmL(UW.tms(b.r.end_utc))} ${tzAbbr()}`),
       hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => rgba(barColour(b), b.r.former ? .3 : .8)), line: { color: rows.map(barColour), width: 1 } }, width: .5 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span · click a point for its log entry`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +

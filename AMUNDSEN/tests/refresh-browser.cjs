@@ -48,17 +48,21 @@ function dataset(p) {
   if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
   if(p.startsWith('/data/agg-')) return {variables:['SST (°C)'],rows:[{t,leg:0,lat:76,lon:-78,'SST (°C)':[generation,generation,generation,2]}]};
   const cast={id:`${leg}:CTD_001`,leg,kind:'CTD',cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78,p:[1,2],units:{Temperature:'°C'},vars:{Temperature:[generation,generation]}};
+  if(process.env.SINGLE_UI) {
+    cast.vars={Temperature:[2,3],Salinity:[30,31],'Sigma-t':[23,24],Fluorescence:[0.1,0.2],CDOM:[1,2],Oxygen:[280,290]};
+    cast.units={Temperature:'°C',Salinity:'PSU','Sigma-t':'kg/m³',Fluorescence:'mg/m³',CDOM:'ppb',Oxygen:'µmol/kg'};
+  }
   if(process.env.TRANSECT_UI) {
     const casts=Array.from({length:30},(_,i)=>({...cast,id:`${leg}:CTD_${String(i+1).padStart(3,'0')}`,cast:String(i+1),station:`Station ${i+1}`,lat:76+i/100,lon:-78-i/100,file:`data/casts/cast-${i}.json`}));
     if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:casts.map(c=>({...c,vars:['Temperature']}))};
     const match=p.match(/^\/data\/casts\/cast-(\d+)\.json$/); if(match) return casts[+match[1]];
   }
-  if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:[{...cast,vars:['Temperature'],file:'data/casts/cast.json'}]};
+  if(p==='/data/casts/index.json') return {variables:Object.keys(cast.vars),casts:[{...cast,vars:Object.keys(cast.vars),file:'data/casts/cast.json'}]};
   if(p==='/data/casts/cast.json') return cast;
   if(p==='/api/chat') return {messages:[],online:[],crew:[],typing:[]};
   if(p==='/api/live') return liveData;
 }
-const site={title:'Refresh test',version:'test',local_tz:'UTC',default_window:'1h',geo_layers:[],intranet:[],links:[],asset_version:'test',plotly_version:'test'};
+const site={title:'Refresh test',version:'test',local_tz:process.env.TIMEZONE_UI?'America/Toronto':'UTC',default_window:'1h',geo_layers:[],intranet:[],links:[],asset_version:'test',plotly_version:'test'};
 const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
   'import sys,json; from jinja2 import Environment,FileSystemLoader; d=json.load(sys.stdin); print(Environment(loader=FileSystemLoader(sys.argv[1]),autoescape=True).get_template("index.html.j2").render(**d))',
   path.join(root,'dashboard/templates')],{input:JSON.stringify({site,m:manifest()}),encoding:'utf8'});
@@ -119,6 +123,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     const until=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression))return;await wait(100);}throw Error(`Timed out: ${expression}; ${JSON.stringify(await evaluate("({errors:window.__errors,url:location.href})"))}`);};
     const poll=async()=>{await evaluate('window.__poll()');await wait(250);};
     await call('Page.enable');
+    if(process.env.TIMEZONE_UI) await call('Emulation.setTimezoneOverride',{timezoneId:process.env.TIMEZONE_UI});
     await call('Page.addScriptToEvaluateOnNewDocument',{source:`
       window.__errors=[];
       ${process.env.SUMMARY_UI?'':"localStorage.setItem('uw:panel','{}');"}
@@ -139,6 +144,50 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.SINGLE_UI) {
+      await evaluate('UW.showTab("casts")');
+      await until('document.querySelector("#casttable tr[data-id]")');
+      await evaluate('document.querySelector("#casttable tr[data-id]").click();document.querySelector("#castmode [data-m=single]").click()');
+      await until('document.querySelector("#single-plot")?.data');
+      assert.equal(await evaluate('document.querySelectorAll(".singlevar[aria-pressed=false]").length'),4);
+      const geometry=()=>evaluate('(()=>{const b=document.querySelector("#singlebody").getBoundingClientRect(),p=document.querySelector(".single-parameters").getBoundingClientRect(),s=document.querySelector(".single-layout").getBoundingClientRect(),c=document.querySelector("#singlebody .castplot").getBoundingClientRect();return {beside:b.left>=p.right,aligned:Math.abs(b.top-p.top)<2,full:Math.abs(c.width-b.width)<2,span:Math.abs(s.width-document.querySelector("#castplots").clientWidth)<2}})()');
+      assert.deepEqual(await geometry(),{beside:true,aligned:true,full:true,span:true});
+      await evaluate('for(const b of [...document.querySelectorAll(".singlevar:not(.on)")]){document.querySelector(`.singlevar[data-v="${b.dataset.v}"]`).click()}');
+      await until('document.querySelector("#single-plot")?.data?.length===6');
+      assert.equal(await evaluate('document.querySelector("#single-plot")._fullLayout.xaxis.anchor'),'free');
+      assert.equal(await evaluate('(()=>{const l=document.querySelector("#single-plot")._fullLayout;return l.xaxis.position>l.xaxis2.position&&l.xaxis2.position>l.yaxis.domain[1]&&l.xaxis5.position<l.yaxis.domain[0]&&l.xaxis6.position<l.xaxis5.position})()'),true);
+      const before=await evaluate('document.querySelector(".singlevar").dataset.v');
+      await evaluate('document.querySelector(".parameter .nudge[data-d=\\"1\\"]").click()');
+      await until(`document.querySelector('#single-plot')?.data?.[1]?.name===${JSON.stringify(before)}`);
+      await evaluate(`document.querySelector('.singlevar[data-v="${before}"]').click()`);
+      await until('document.querySelector("#single-plot")?.data?.length===5');
+      assert.equal(await evaluate(`document.querySelector('#single-plot').data.some(t=>t.name===${JSON.stringify(before)})`),false);
+      await evaluate('for(const b of [...document.querySelectorAll(".singlevar.on")])document.querySelector(`.singlevar[data-v="${b.dataset.v}"]`).click()');
+      assert.equal(await evaluate('document.querySelector("#singlebody").textContent.includes("Select at least one parameter")'),true);
+      await evaluate(`document.querySelector('.singlevar[data-v="${before}"]').click()`);
+      await until('document.querySelector("#single-plot")?.data?.length===1');
+      await evaluate('document.documentElement.classList.add("bigtype");window.dispatchEvent(new Event("resize"))');
+      assert.deepEqual(await geometry(),{beside:true,aligned:true,full:true,span:true});
+      if(process.env.UI_SCREENSHOT) {const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS Single plot beside parameters, full width, six ordered axes and large text');
+      return;
+    }
+    if(process.env.TIMEZONE_UI) {
+      await evaluate('UW.showTab("underway")');
+      await until('document.querySelector("#panels .plot")?.calcdata?.[0]?.length');
+      const axis=await evaluate('(()=>{const p=document.querySelector("#panels .plot");return {x:p.calcdata[0][0].x,title:p._fullLayout.xaxis.title.text,hover:p._fullLayout.xaxis.hoverformat}})()');
+      console.log('TIMEZONE', process.env.TIMEZONE_UI, axis);
+      assert.equal(axis.x,Date.parse('2026-09-04T08:00:00Z'));
+      assert.match(axis.title,/EDT/);
+      assert.equal(axis.hover.includes('Z'),false);
+      assert.equal(await evaluate('document.querySelector(".dockgroup .gn").textContent.includes("ago")'),true);
+      const ages=await evaluate(`(async()=>{const old=Date.now;try{const ages=[];for(const now of [${t+310000},${t+370000}]){Date.now=()=>now;await window.__poll();ages.push(document.querySelector('.dockgroup .gn').textContent)}return ages}finally{Date.now=old}})()`);
+      assert.deepEqual(ages,['5 min ago','6 min ago']);
+      assert.equal(await evaluate('UW.shipAxis(Date.parse("2026-01-04T12:00:00Z"))'),Date.parse('2026-01-04T07:00:00Z'));
+      console.log('PASS ship-time plot coordinates independent of browser timezone, including winter offset');
+      return;
+    }
     if(process.env.TRANSECT_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelectorAll("#casttable tr[data-id]").length===30');

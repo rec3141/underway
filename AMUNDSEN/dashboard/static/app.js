@@ -187,7 +187,10 @@
   const fmtTs = (ms) => { if (ms == null || isNaN(ms)) return ""; const p = localParts(ms); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`; };
   const tzAbbr = (ms = Date.now()) => new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date(ms)).find((p) => p.type === "timeZoneName")?.value || SITE.local_tz;
   const offsetMs = (ms) => { const p = localParts(ms); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60000) * 60000; };
-  const shipAxis = (ms) => new Date(ms + offsetMs(ms));
+  // Keep shifted milliseconds for arithmetic; pass explicit wall-time strings
+  // to Plotly, whose numeric/Date inputs depend on the browser timezone.
+  const shipAxis = (ms) => ms + offsetMs(ms);
+  const plotDate = (ms) => new Date(ms).toISOString().slice(0, -1);
   const fmtLocal = (iso) => new Date(iso).toLocaleString(undefined, { timeZone: SITE.local_tz,
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const ago = (iso) => {
@@ -200,7 +203,7 @@
   const lastFinite = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i]; return null; };
   const fmtVal = (v, unit) => v == null ? "—" : `${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)}${unit ? " " + unit : ""}`;
   const dms = (lat, lon) => `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
-  const xvals = (d) => state.xmode === "time" ? d.t.map(shipAxis) : d.dist_km;
+  const xvals = (d) => state.xmode === "time" ? d.t.map((t) => plotDate(shipAxis(t))) : d.dist_km;
   const xTitle = () => state.xmode === "time" ? `ship time (${tzAbbr()})` : "distance along track (km)";
   const minmax = (a) => { let lo = Infinity, hi = -Infinity; for (const x of a) if (x != null) { if (x < lo) lo = x; if (x > hi) hi = x; } return [lo, hi]; };
   const cssId = (s) => s.replace(/[^a-z0-9]+/gi, "_");
@@ -314,7 +317,7 @@
   function spanRange(d) {
     const f = spanFilter();
     if (!isFinite(f.start)) return undefined;
-    if (state.xmode === "time") return [+shipAxis(f.start), +shipAxis(f.end + 60e3)];
+    if (state.xmode === "time") return [plotDate(shipAxis(f.start)), plotDate(shipAxis(f.end + 60e3))];
     let i0 = d.t.findIndex((t) => t != null && t >= f.start); if (i0 < 0) i0 = 0;
     const first = d.dist_km.slice(i0).find((x) => x != null), last = lastFinite(d.dist_km);
     return first != null && last != null && last > first ? [first, last] : undefined;
@@ -371,6 +374,10 @@
   // flushes its CSV every ten minutes, so the newest observation is up to
   // eleven minutes old in normal running; LIVE holds up to fifteen.
   function renderStatus() {
+    for (const el of document.querySelectorAll('.dockgroup .gn[data-updated]')) {
+      const text = [el.dataset.summary, ago(Number(el.dataset.updated))].filter(Boolean).join(' · ');
+      if (el.textContent !== text) el.textContent = text;
+    }
     const end = M.data_range.end;
     const ageMin = (Date.now() - new Date(end)) / 60000;
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: SITE.local_tz, year: "numeric", month: "long", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date()).map((p) => [p.type, p.value]));
@@ -687,7 +694,7 @@
       let index=-1,delta=Infinity;
       for(let i=0;i<data.t.length;i++){
         if(data.lat[i]==null||data.lon[i]==null)continue;
-        const x=state.xmode==='time'?shipAxis(data.t[i]):data.dist_km[i];if(x==null)continue;
+        const x=state.xmode==='time'?plotDate(shipAxis(data.t[i])):data.dist_km[i];if(x==null)continue;
         const distance=Math.abs(axis.d2p(x)-px);if(distance<delta){delta=distance;index=i}
       }
       if(index>=0)focusMap(data.lat[index],data.lon[index],fmtTs(data.t[index]),true);
@@ -1294,7 +1301,10 @@
       const summary=members.map(n=>extraPanels.get(n)?.groupSummary).find(Boolean);
       const times=members.map(n=>extraPanels.get(n)?.updated?.() ?? (()=>{const y=state.data?.vars[n];if(!y)return null;for(let i=y.length-1;i>=0;i--)if(y[i]!=null)return state.data.t[i];return null})()).filter(t=>t!=null);
       const updated=times.length?Math.max(...times):null;
-      box.querySelector(".gn").textContent = [summary?summary():null,updated?`${fmtTs(updated).slice(11)} ${tzAbbr()}`:'no data'].filter(Boolean).join(' · ');
+      const groupAge = box.querySelector('.gn');
+      groupAge.dataset.summary = summary ? summary() || '' : '';
+      if (updated != null) groupAge.dataset.updated = updated; else delete groupAge.dataset.updated;
+      groupAge.textContent = [groupAge.dataset.summary, updated != null ? ago(updated) : 'no data'].filter(Boolean).join(' · ');
       box.querySelector('.gn').title=updated?`Latest displayed observation: ${fmtTs(updated)} ${tzAbbr()}`:'No observations';
       box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
       box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this group`;
@@ -1440,7 +1450,7 @@
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) },
                ...(xr ? { range: xr, autorange: false } : {}),
                type: state.xmode === "time" ? "date" : "linear",
-               hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
+               hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%S" : ".1f",
                ticksuffix: state.xmode === "time" ? "" : " km",
                nticks: Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))), tickangle: 0, automargin:true },
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
@@ -1699,7 +1709,7 @@
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
-    fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
+    fmtTs, tzAbbr, shipAxis, plotDate, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
       layoutPanels();

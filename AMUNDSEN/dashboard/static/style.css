@@ -1382,11 +1382,14 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 .chat-privacy { margin:0; padding:6px 10px; font-size:var(--t-sm); color:var(--fg); background:var(--card-2); border-bottom:1px solid var(--line); }
 .maplayers .mapcolour select, .plotctl .colourpick { flex:0 1 auto; width:auto; max-width:100%; }
 #wikiclose { margin-left:auto; }
-.single-layout { display:grid; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:10px; width:100%; }
+.single-layout { display:grid; grid-column:1 / -1; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:10px; width:100%; align-items:start; }
 .single-parameters { display:flex; flex-direction:column; gap:6px; }
 .single-parameters .parameter { display:flex; gap:3px; align-items:center; }
-.single-parameters .singlevar { flex:1; min-width:0; white-space:normal; text-align:left; }
-.single-layout #singlebody { min-width:0; }
+.single-parameters .singlevar { display:flex; align-items:center; justify-content:space-between; gap:6px; flex:1; min-width:0; white-space:normal; text-align:left; }
+.single-parameters .singlevar small { font-size:var(--t-xs); opacity:.8; }
+.single-parameters .singlevar.on { color:var(--accent); border-color:var(--accent); background:var(--card); }
+#castplots .single-layout #singlebody { grid-column:2; grid-row:1; min-width:0; }
+#castplots .single-layout .castplot.tall { width:100%; }
 @media(max-width:480px){.single-layout{grid-template-columns:minmax(100px,32%) minmax(0,1fr)}}
 #feedback-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; background: var(--card); color: var(--fg); }
 #feedback-dialog::backdrop { background: rgba(0, 0, 0, .5); }
