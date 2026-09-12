@@ -270,6 +270,38 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urlsplit(self.path)
+        if u.path in ('/api/nature/upload', '/api/nature/upload/file'):
+            from . import photo_upload
+            try:
+                # No cross-site form uploads; custom header also forces a CORS
+                # preflight from unrelated websites (we grant no CORS access).
+                if self.headers.get('X-Photo-Upload') != '1' or self.headers.get('Sec-Fetch-Site') == 'cross-site':
+                    raise ValueError('Use the photo upload form on this site')
+                origin = self.headers.get('Origin')
+                if origin and urlsplit(origin).netloc != self.headers.get('Host'):
+                    raise ValueError('Upload origin does not match this site')
+                if self.headers.get('Transfer-Encoding'):
+                    raise ValueError('Upload requires a content length')
+                n = int(self.headers.get('Content-Length', '0'))
+                self.connection.settimeout(90)
+                if u.path.endswith('/file'):
+                    q = parse_qs(u.query)
+                    result = photo_upload.receive(self.headers.get('X-Upload-ID', ''), int(q.get('index', ['-1'])[0]), self.rfile, n)
+                else:
+                    if not 0 < n <= 128 * 1024:
+                        raise ValueError('Invalid upload batch size')
+                    result = photo_upload.create(json.loads(self.rfile.read(n)))
+                return self._json(200, result)
+            except (ValueError, UnicodeDecodeError) as e:
+                self.close_connection = True
+                return self._json(400, {'error': str(e)})
+            except OSError:
+                self.close_connection = True
+                return self._json(503, {'error': 'Could not finish writing to the share. Keep this page open and retry.'})
+            except Exception:
+                self.close_connection = True
+                log.exception('photo upload failed')
+                return self._json(500, {'error': 'Upload failed; keep this page open and retry.'})
         if u.path == "/api/feedback":
             from .feedback import submit
             try:

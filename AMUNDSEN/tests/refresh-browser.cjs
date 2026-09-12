@@ -15,6 +15,7 @@ const wait = ms => new Promise(r => setTimeout(r,ms));
 let generation=1;
 let rejectFeedback=true; const feedbackRows=[];
 let rejectLiveConfig=true;
+const uploadBatches=[], uploadFiles=[]; let rejectUpload=true;
 const liveCast=(pressure_col, pressure)=>({started:1,n:2,n_raw:2,max_p:pressure,depth_like:true,t:[1,2],columns:['scan',pressure_col,'temperature'],pressure_col,cols:{scan:[1,2],[pressure_col]:[pressure,pressure],temperature:[3,4]}});
 const liveData={port:5555,columns:['scan','depth','temperature'],pressure_col:'depth',current:liveCast('depth',25),last:liveCast('depth_m',10)};
 const failures=new Set(['/data/manifest.json','/data/w-1h.json']), requests=[];
@@ -36,7 +37,7 @@ function manifest() {
   };
 }
 function dataset(p) {
-  if((process.env.NATURE_UI||process.env.WIKI_UI) && p.startsWith('/data/history/')) {
+  if((process.env.NATURE_UI||process.env.WIKI_UI||process.env.UPLOAD_UI) && p.startsWith('/data/history/')) {
     if(p.endsWith('/index.json')) return {topics:[],pages:[]};
     if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
     if(p.endsWith('/observations.json')) return {observations:[{id:'seal',subject:'Seal',date:'2020-01-01',lat:76,lon:-78},{id:'rock',subject:'Rock',date:'2020-01-01',lat:77,lon:-79}]};
@@ -69,7 +70,20 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
   path.join(root,'dashboard/templates')],{input:JSON.stringify({site,m:manifest()}),encoding:'utf8'});
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
-  const p=new URL(req.url,'http://localhost').pathname; requests.push(req.url);
+  const p=new URL(req.url,'http://localhost').pathname.replace(/^\/underway\//,'/'); requests.push(req.url);
+  if(process.env.UPLOAD_UI && p.startsWith('/api/nature/')) {
+    res.setHeader('Content-Type','application/json');
+    const q=new URL(req.url,'http://localhost').searchParams;
+    if(p==='/api/nature/share') {const folder=q.get('path')??'Pictures';res.end(JSON.stringify({path:folder,folders:folder==='Pictures'?[{name:'Destination'}]:[],files:folder.endsWith('/batch')?[{name:'001-a.jpg'},{name:'002-b.jpg'}]:[]}));return;}
+    if(p==='/api/nature/import') {res.end(JSON.stringify({jobs:[],watches:[],licences:{attribution:'Attribution'}}));return;}
+    if(p==='/api/nature/upload'||p==='/api/nature/upload/file') {
+      const chunks=[];req.on('data',c=>chunks.push(c));req.on('end',()=>{
+        assert.equal(req.headers['x-photo-upload'],'1');
+        if(p.endsWith('/file')) {const i=Number(q.get('index'));uploadFiles.push(i);if(i===1&&rejectUpload){rejectUpload=false;res.writeHead(503);res.end(JSON.stringify({error:'Test interrupted upload'}));}else res.end(JSON.stringify({ok:true}));}
+        else {const spec=JSON.parse(Buffer.concat(chunks));uploadBatches.push(spec);res.end(JSON.stringify({id:'test-batch',path:spec.parent+'/batch'}));}
+      });return;
+    }
+  }
   if(p==='/api/chat' && process.env.TRANSECT_UI) {
     const since=Number(new URL(req.url,'http://localhost').searchParams.get('since')||0);
     res.setHeader('Content-Type','application/json');res.end(JSON.stringify({messages:chatMessages.filter(m=>m.id>since),online:[],crew:[],typing:[]}));return;
@@ -136,7 +150,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       window.setTimeout=(fn,ms,...args)=>{if(ms===4000||ms===20000)window.__chatPoll=fn;return realTimeout(fn,ms,...args);};
     `});
     await call('Emulation.setDeviceMetricsOverride',{width:Number(process.env.UI_WIDTH)||390,height:844,deviceScaleFactor:1,mobile:!process.env.UI_WIDTH});
-    await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
+    await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/${process.env.UI_PREFIX?'underway/':''}`});
     await until('window.UW && document.querySelector("#connection").textContent.includes("Underway")');
     assert.equal(await evaluate('!!window.UW.state.raw'),false);
     failures.delete('/data/manifest.json'); await poll();
@@ -433,6 +447,29 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('UW.histShared.domainOn("history")&&UW.histShared.domainOn("nature")'),true);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS Wiki search row, unselected all-domain home and toggle-off reset');return;
+    }
+    if (process.env.UPLOAD_UI) {
+      await evaluate(`(async()=>{UW.M.history={stamp:'test'};await UW.natureViews.ensure();UW.showTab('wiki');location.hash='#wiki/journal';})()`);
+      await until('document.querySelector("#jtabs")');
+      await evaluate('document.querySelector("#jtabs [data-t=submit]").click()');
+      await until('document.querySelector("a[data-share=\\"Pictures/Destination\\"]")');
+      await evaluate('document.querySelector("a[data-share=\\"Pictures/Destination\\"]").click()');
+      await until('document.querySelector(".crumbs")?.textContent.includes("Destination") && document.querySelector("#phone-files")');
+      await evaluate(`const f=document.querySelector('#natimportform input[name=name]');f.value='Test photographer';f.dispatchEvent(new Event('input',{bubbles:true}));const dt=new DataTransfer();dt.items.add(new File(['photo a'],'a.jpg',{type:'image/jpeg'}));dt.items.add(new File(['photo b'],'b.jpg',{type:'image/jpeg'}));const picker=document.querySelector('#phone-files');picker.files=dt.files;picker.dispatchEvent(new Event('change'));`);
+      assert.equal(await evaluate('document.querySelector("#natimportform input[name=name]").value'),'Test photographer');
+      await evaluate('document.querySelector("#phone-upload").click()');
+      await until('document.querySelector("#phone-message")?.textContent.includes("Test interrupted upload")');
+      assert.deepEqual(uploadFiles,[0,1]);
+      assert.equal(uploadBatches.length,1);assert.equal(uploadBatches[0].parent,'Pictures/Destination');
+      await evaluate('document.querySelector("#phone-upload").click()');
+      await until('document.querySelector("#phone-message")?.textContent.includes("Saved 2 photos")');
+      assert.deepEqual(uploadFiles,[0,1,1]);assert.equal(uploadBatches.length,1);
+      if(process.env.UI_PREFIX) assert(requests.filter(p=>p.includes('/api/nature/')).every(p=>p.startsWith('/underway/')));
+      assert.equal(await evaluate('document.querySelector("#natimportgo").disabled'),false);
+      assert.equal(await evaluate('document.querySelector(".crumbs").textContent.includes("batch")'),true);
+      assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS phone picker, selected destination, retry only remaining files, credit retention, and import handoff');return;
     }
     if (process.env.NATURE_UI) {
       await evaluate(`(async()=>{ UW.M.history={stamp:'test'}; UW.state.nature=true; UW.state.photos=false;

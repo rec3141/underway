@@ -110,7 +110,7 @@
   // the journal's lines, as observations, until grid has ingested them
   async function loadJournal() {
     try {
-      const r = await fetch("/api/nature/journal", { cache: "no-store" });
+      const r = await fetch("api/nature/journal", { cache: "no-store" });
       if (!r.ok) return;
       const j = await r.json();
       nat.journal = (j.entries || []).map((e) => { const o = { ...e, _journal: true, origin: e.origin || "ship" }; prep(o); return o; });
@@ -482,6 +482,79 @@
   // from the ship's GPS and the time from the clock. Lines reach grid on the
   // next push; grid's writer validates them.
   const share = { path: null, list: null, jobs: [], licences: {}, watches: [], watch: null, tab: store.get("nat.jtab", "gallery") };
+  // Files stay in memory while navigating the wiki. Only explicit selection
+  // and Upload send bytes; journal import remains a separate consent step.
+  let phoneUpload = null;
+  function uploadHTML(l) {
+    const u = phoneUpload;
+    return `<section class="phone-upload"><h4>Upload from phone or computer</h4>
+      <p class="muted small">Open a destination folder above. Uploads always create a new subfolder there; existing files and phone originals are left alone. JPEG, PNG or WebP · up to 300 photos, 64 MiB each, 2 GiB per batch. Keep this page open and your phone awake until finished.</p>
+      <p class="small">Destination: <b>${esc(u?.parent != null ? '/Share/' + u.parent : l ? '/Share/' + l.path : 'Choose a folder above')}</b> → new subfolder</p>
+      <label>Subfolder label <input id="phone-label" maxlength="60" value="${esc(u?.label || 'Phone photos')}" ${u?.batch || u?.busy ? 'disabled' : ''}></label>
+      <label>Select photos <input id="phone-files" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple ${u?.batch || u?.busy ? 'disabled' : ''}></label>
+      <div class="jtools"><button type="button" id="phone-upload" ${!u?.files.length || u.busy || u.done === u.files.length || !l || l.error ? 'disabled' : ''}>${u?.batch ? 'Retry remaining photos' : 'Upload into new subfolder'}</button>
+      ${u && !u.busy ? '<button type="button" id="phone-clear">New selection</button>' : ''}</div>
+      <progress id="phone-progress" max="100" value="${u?.percent || 0}" ${u ? '' : 'hidden'} aria-label="Photo upload progress"></progress>
+      <p id="phone-message" class="small" role="status" aria-live="polite">${esc(u?.message || 'No photos selected. Uploading does not publish photos to the journal.')}</p></section>`;
+  }
+  function paintUpload() {
+    const u = phoneUpload, msg = $('#phone-message'), bar = $('#phone-progress');
+    if (msg) msg.textContent = u.message;
+    if (bar) { bar.hidden = false; bar.value = u.percent || 0; }
+  }
+  function sendPhoto(u, i) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `api/nature/upload/file?index=${i}`);
+      xhr.setRequestHeader('X-Photo-Upload', '1');
+      xhr.setRequestHeader('X-Upload-ID', u.batch.id);
+      xhr.timeout = 300000;
+      xhr.upload.onprogress = e => {
+        const completed = u.files.slice(0, i).reduce((n, f) => n + f.size, 0);
+        u.percent = 100 * (completed + e.loaded) / u.total;
+        u.message = `Uploading ${i + 1}/${u.files.length}: ${u.files[i].name} · ${Math.floor(u.percent)}% transferred`;
+        paintUpload();
+      };
+      xhr.onload = () => { let data; try { data = JSON.parse(xhr.responseText); } catch { data = {}; }
+        if (xhr.status >= 200 && xhr.status < 300 && data.ok) resolve(data);
+        else reject(new Error(data.error || `Upload failed (${xhr.status})`)); };
+      xhr.onerror = xhr.ontimeout = () => reject(new Error('Connection interrupted'));
+      xhr.send(u.files[i]);
+    });
+  }
+  function wireUpload(box) {
+    const picker = box.querySelector('#phone-files');
+    picker.onchange = () => {
+      const files = [...picker.files], label = box.querySelector('#phone-label').value.trim() || 'Phone photos';
+      const total = files.reduce((n, f) => n + f.size, 0);
+      const error = files.length > 300 || total > 2 * 1024 ** 3 ? 'Choose up to 300 photos and 2 GiB per batch.' :
+        files.some(f => !/\.(jpe?g|png|webp)$/i.test(f.name) || !f.size || f.size > 64 * 1024 ** 2) ? 'Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.' : '';
+      phoneUpload = { files: error ? [] : files, label, parent: share.list?.path, total, done: 0, percent: 0, busy: false,
+        message: error || `${files.length} photos selected · ${(total / 1024 ** 2).toFixed(1)} MiB. Ready to upload.` };
+      H.rerender();
+    };
+    box.querySelector('#phone-clear')?.addEventListener('click', () => { phoneUpload = null; H.rerender(); });
+    box.querySelector('#phone-upload').onclick = async () => {
+      const u = phoneUpload; if (!u || u.busy || !u.files.length) return;
+      u.label = box.querySelector('#phone-label').value.trim() || 'Phone photos';
+      if (!u.batch) u.parent = share.list.path;
+      u.busy = true; u.message = 'Preparing a new upload folder…'; H.rerender();
+      try {
+        if (!u.batch) {
+          const r = await fetch('api/nature/upload', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Photo-Upload': '1'},
+            body: JSON.stringify({parent: u.parent, label: u.label, files: u.files.map(f => ({name: f.name, size: f.size}))}) });
+          const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); u.batch = j;
+        }
+        for (; u.done < u.files.length; u.done++) await sendPhoto(u, u.done);
+        u.percent = 100;
+        u.message = `Saved ${u.done} photos to /Share/${u.batch.path}. To add them to the journal, complete the credit/licence form below and choose Import.`;
+        await loadShare(u.batch.path);
+      } catch (e) {
+        u.message = `${u.done}/${u.files.length} saved. ${e.message || e}. Keep this page open and retry; saved photos will not be uploaded again.`;
+      } finally { u.busy = false; H.rerender(); }
+    };
+  }
+  window.addEventListener('beforeunload', e => { if (phoneUpload?.busy) { e.preventDefault(); e.returnValue = ''; } });
   const jentry = (o) => `<div class="jentry">${obsLine(o, `<b>${esc((o.date || o.date_start || "").slice(0, 16).replace("T", " ").replace(/(\d\d:\d\d)$/, "$1 UTC"))}</b>`)}</div>`;
   const journalPic = (o) => "journal/" + o.artifact_file.replace(/^_journal\/img\//, "");
   // the page: Gallery (the journal's pictures, newest first, each a card to its page) | Submit (the import, and one line by hand)
@@ -513,7 +586,7 @@
     const l = share.list, at = (nm) => (l.path ? l.path + "/" : "") + nm;
     const crumbs = l ? ["Share", ...l.path.split("/").filter(Boolean)].map((seg, i, a) => i === a.length - 1 ? `<b>${esc(seg)}</b>` : `<a href="#" data-share="${esc(a.slice(1, i + 1).join("/"))}">${esc(seg)}</a>`).join(" › ") : "…";
     const folders = l ? l.folders.map((d) => `<a class="shfolder" href="#" data-share="${esc(at(d.name))}" title="open this folder">📁 ${esc(d.name)}${d.images ? ` <span class="muted">${d.images}</span>` : ""}</a>`).join("") : "";
-    const files = l ? l.files.map((x) => `<figure class="shfile"><img src="/api/nature/share/thumb?path=${encodeURIComponent(at(x.name))}" alt="" loading="lazy"><figcaption title="${esc(x.name)}">${esc(x.name)}</figcaption></figure>`).join("") : "";
+    const files = l ? l.files.map((x) => `<figure class="shfile"><img src="api/nature/share/thumb?path=${encodeURIComponent(at(x.name))}" alt="" loading="lazy"><figcaption title="${esc(x.name)}">${esc(x.name)}</figcaption></figure>`).join("") : "";
     const lic = Object.entries(share.licences).map(([k, v]) => `<option value="${esc(k)}" ${(f.licence || "attribution") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
     const clocks = CLOCKS.map(([k, v]) => `<option value="${k}" ${(f.clock || "exif") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
     const n = folderCount(l), here = l && l.path ? l.path.split("/").pop() : "";
@@ -521,9 +594,10 @@
     const w = share.watch;
     return `<section class="import card">
       <h3>Import a folder of photographs from the share</h3>
-      <p class="muted small">Open the folder that holds your photographs, anywhere under /Share, and import it. Each photograph is placed by its own time and position (the camera's, or the ship's track at that moment), read by the model for a caption and tags, and written into the journal with the picture beside it: on the map, in the record, and up to grid with the next push. A photograph already in the journal is passed over, so a folder can be imported again for what is new in it. The share is only read.</p>
+      <p class="muted small">Open a folder anywhere under /Share to import existing photographs or upload photos into a new subfolder. Journal import reads each photograph's time and position (the camera's, or the ship's track at that moment), generates captions and tags, and copies it into the journal. Photos already in the journal are skipped. Importing leaves share originals unchanged; only the explicit Upload action writes to the share.</p>
       <div class="sharebar"><span class="crumbs">${crumbs}</span>${l ? `<span class="muted small">${l.files.length} photograph${l.files.length === 1 ? "" : "s"} · ${l.folders.length} folder${l.folders.length === 1 ? "" : "s"}${l.error ? ` · <span class="warn">${esc(l.error)}</span>` : ""}</span>` : ""}${watched ? `<span class="chip small on" title="new photographs here are imported every ten minutes">watched · ${esc(watched.form?.name || "")}</span>` : ""}</div>
       <div class="sharelist" id="sharelist">${l ? (folders + files || `<p class="muted small">Nothing here.</p>`) : `<p class="muted small">Reading the share…</p>`}</div>
+      ${uploadHTML(l)}
       <form id="natimportform" autocomplete="off">
         <label>Your name <span class="muted">as the photographs are credited</span><input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
         <label>Organisation<input name="org" value="${esc(f.org || "")}" maxlength="120" placeholder="university, agency, the ship's company"></label>
@@ -543,24 +617,26 @@
     : `${esc(j.stage || j.status)}${j.total ? ` · ${j.done}/${j.total}` : ""} · <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">follow</a>`;
   async function loadShare(path) {
     try {
-      const r = await fetch(`/api/nature/share${path == null ? "" : "?path=" + encodeURIComponent(path)}`, { cache: "no-store" });
+      const r = await fetch(`api/nature/share${path == null ? "" : "?path=" + encodeURIComponent(path)}`, { cache: "no-store" });
       const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
       share.list = j; share.path = j.path;
     } catch (e) { share.list = { path: path || "", parent: null, folders: [], files: [], error: e.message || String(e) }; }
   }
   async function loadImports() {
-    try { const r = await fetch("/api/nature/import", { cache: "no-store" }); const j = await r.json(); share.jobs = j.jobs || []; share.watches = j.watches || []; share.licences = j.licences || share.licences; } catch { /* the panel stands without the list */ }
+    try { const r = await fetch("api/nature/import", { cache: "no-store" }); const j = await r.json(); share.jobs = j.jobs || []; share.watches = j.watches || []; share.licences = j.licences || share.licences; } catch { /* the panel stands without the list */ }
   }
   function wireImport(el) {
     const box = el.querySelector(".import"); if (!box) return;
+    wireUpload(box);
     if (!share.list) Promise.all([loadShare(share.path), loadImports()]).then(() => { if (slug() === "journal") H.rerender(); });
-    for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); share.list = null; share.path = a.dataset.share; H.rerender(); };
+    for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); if (phoneUpload?.busy) return; share.list = null; share.path = a.dataset.share; if (phoneUpload && !phoneUpload.batch) phoneUpload.parent = a.dataset.share; H.rerender(); };
     for (const b of box.querySelectorAll("button[data-unwatch]")) b.onclick = async () => {
       b.disabled = true;
-      try { await fetch("/api/nature/watch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: b.dataset.unwatch, stop: true }) }); } catch { /* the list below says */ }
+      try { await fetch("api/nature/watch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: b.dataset.unwatch, stop: true }) }); } catch { /* the list below says */ }
       await loadImports(); H.rerender();
     };
     const go = box.querySelector("#natimportgo"), form = box.querySelector("#natimportform"), msg = box.querySelector("#natimportmsg");
+    form.oninput = () => { const f = form.elements; store.set('nat.import.form', {name:f.name.value, org:f.org.value, email:f.email.value, licence:f.licence.value, clock:f.clock.value}); };
     form.onsubmit = async (ev) => {
       ev.preventDefault();
       const f = form.elements, l = share.list; if (!l || !l.path) return;
@@ -569,7 +645,7 @@
       if (body.name) store.set("chat.name", body.name);
       go.disabled = true; msg.textContent = "starting…";
       try {
-        const r = await fetch("/api/nature/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const r = await fetch("api/nature/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
         share.watch = j.job;
         UW.toast?.(`Importing ${j.job.total} photograph${j.job.total === 1 ? "" : "s"}${j.job.known ? ` (${j.job.known} already in the journal)` : ""}${body.watch ? "; the folder is watched" : ""}`);
@@ -582,7 +658,7 @@
   async function watchJob(id) {
     for (;;) {
       await new Promise((r) => setTimeout(r, 2500));
-      let j; try { const r = await fetch(`/api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); j = await r.json(); if (!r.ok) throw new Error(); } catch { continue; }
+      let j; try { const r = await fetch(`api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); j = await r.json(); if (!r.ok) throw new Error(); } catch { continue; }
       share.watch = j;
       const msg = $("#natimportmsg"); if (msg) msg.innerHTML = watchLine(j);
       if (j.status === "done" || j.status === "failed") {
@@ -597,11 +673,11 @@
   // an import's page: what became of each photograph, live while it runs
   async function renderImport(el, id) {
     let j = null;
-    try { const r = await fetch(`/api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); if (r.ok) j = await r.json(); } catch { /* shown as missing */ }
+    try { const r = await fetch(`api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); if (r.ok) j = await r.json(); } catch { /* shown as missing */ }
     if (!j) { el.innerHTML = crumb(here("Import", slug())) + `<p class="muted">No such import.</p>`; return; }
     const live = j.status === "queued" || j.status === "running";
     const item = (it) => {
-      const pic = it.artifact_file ? `journal/${esc(it.artifact_file.replace(/^_journal\/img\//, ""))}` : `/api/nature/share/thumb?path=${encodeURIComponent(it.file)}`;
+      const pic = it.artifact_file ? `journal/${esc(it.artifact_file.replace(/^_journal\/img\//, ""))}` : `api/nature/share/thumb?path=${encodeURIComponent(it.file)}`;
       const s = it.subject_page ? subjectOf(it.subject_page) : null;
       const subj = s ? `<a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}"><span class="dot" style="background:${domainOf(s.domain).colour}"></span>${esc(displayName(s))}</a>` : esc(it.subject || "");
       const where = it.lat != null ? `${(+it.lat).toFixed(3)}, ${(+it.lon).toFixed(3)}${it.position ? ` <span class="muted">(${esc(it.position)})</span>` : ""}` : "";

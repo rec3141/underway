@@ -1427,3 +1427,8 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 .feedback-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .feedback-actions button { min-height: 40px; padding: 8px 12px; font: inherit; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 #feedback-page { overflow-wrap: anywhere; }
+.phone-upload { border-block:1px solid var(--line); padding-block:12px; margin-block:12px; }
+.phone-upload label { display:block; margin-block:8px; }
+.phone-upload input { display:block; max-width:100%; box-sizing:border-box; margin-top:4px; }
+.phone-upload progress { width:100%; }
+.phone-upload p { overflow-wrap:anywhere; }

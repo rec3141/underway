@@ -51,6 +51,7 @@ from .config import DB_DIR, LOCAL_TZ, SHARE_ROOT
 log = logging.getLogger(__name__)
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+UPLOAD_MARKER = '.phone-upload'                   # never inherit a parent's import/watch consent
 PHOTOS_DIR = DB_DIR / "photos"                  # the ship's own: thumbnails of the share, the import records
 THUMB_DIR = PHOTOS_DIR / "thumbs"
 JOBS_DIR = PHOTOS_DIR / "imports"
@@ -586,7 +587,7 @@ def folder_files(rel: str, settled: bool = False) -> list[str]:
             continue
         if ok(c):
             found.append(c)
-        elif c.is_dir():
+        elif c.is_dir() and not (c / UPLOAD_MARKER).exists():
             for j, x in enumerate(sorted(c.iterdir(), key=lambda x: x.name.lower())):
                 if j >= MAX_LIST:
                     break
@@ -615,7 +616,7 @@ def _files_of(spec: dict) -> list[str]:
                 continue
             if c.is_file() and c.suffix.lower() in IMAGE_EXT:
                 found.append(c)
-            elif c.is_dir():
+            elif c.is_dir() and not (c / UPLOAD_MARKER).exists():
                 for j, x in enumerate(sorted(c.iterdir(), key=lambda x: x.name.lower())):
                     if j >= MAX_LIST:
                         break
