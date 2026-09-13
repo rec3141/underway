@@ -411,19 +411,44 @@ Natural Earth.
 `tools/publish-web.sh` puts the dashboard at https://cryomics.org/underway/,
 in two hops, because the ship's firewall lets it reach grid and nothing else:
 
-1. **On the ship** `publish-web.sh push` rsyncs the web root to grid
-   (`UNDERWAY_PUBLISH_REMOTE`, without `data/history/`) and tells grid to
-   deploy. `underway-publish.timer` does this every fifteen minutes; enable
-   it once with `sudo deploy/install.sh` then
-   `sudo systemctl enable --now underway-publish.timer`.
-2. **On grid** `publish-web.sh deploy` renders the History tab's layer from
-   grid's own database (the ship's copy of the history is only what it pulled
-   from grid), copies the page's assets from the checkout, writes the web
-   server's `.htaccess`, and rsyncs the mirror to the web server
-   (`UNDERWAY_PUBLISH_TARGET`), the wiki's files included: grid to the web
-   server is the campus wire, so nothing is size-gated there (the 100 MB gate
-   is the ship's pull over the satellite link). `UNDERWAY_PUBLISH_MAX_MB`
-   caps the wiki's files if a cap is ever wanted.
+1. **On the ship** `publish-web.sh push` first runs `publish-sources.sh`.
+   This incrementally mirrors the full current/archived ACSD CSV records,
+   TSG inputs, event logs, Rosette logbooks/bottle files and MVP profiles to
+   `grid:/data/underway_server/source`. CTD CNVs and rendered cast HTML are
+   excluded; TSG CNVs are included because they supply the underway readings.
+   Only the dedicated `source/` mirror is pruned, including excluded files.
+   Recorded live snapshots and the provisional tail go into `source/runtime/`;
+   accounts, subscriptions and credentials are never transferred.
+2. The ship pushes its built site to grid's `www/`, excluding `data/w-*.json`
+   and the history layer. Grid retains its generated data. Use
+   `publish-web.sh push --dry-run` to preview source and site transfers without
+   rebuilding or deploying; the source destination directories may be created.
+3. **On grid**, `publish-web.sh rebuild-deploy` stages a `build --tracks-only`
+   from `source/Data`, `source/Share` and the recorded live snapshots. Per-leg
+   stores and analysis caches stay in grid's `db/` and `cache/` for reuse.
+   The build verifies source leg order against the incoming manifest, then
+   generates every track window locally. A failed rebuild blocks deployment.
+   Other ship-generated products (casts, schedule and aggregate tables) stay
+   intact. Grid renders its history layer, updates the public manifest and
+   front page, then publishes to DreamHost. The campus-to-web transfer includes
+   all history files unless `UNDERWAY_PUBLISH_MAX_MB` specifies a cap.
+
+Grid needs its own Python environment with the dashboard dependencies. For example:
+
+```sh
+python3 -m venv /data/underway_server/.venv
+/data/underway_server/.venv/bin/pip install -e '/data/dev/underway/AMUNDSEN[cameras]'
+```
+
+`UNDERWAY_PUBLISH_TRACK_PYTHON` overrides that interpreter;
+`UNDERWAY_PUBLISH_SOURCE_REMOTE` overrides the ship's destination and
+`UNDERWAY_PUBLISH_SOURCE_DIR` the corresponding grid directory. Keep the
+source destination a dedicated absolute directory ending in `/source`.
+`UNDERWAY_PUBLISH_STATE_DIR` defaults to the parent of the mirror's `www/`.
+
+Enable fifteen-minute pushes on the ship with `sudo deploy/install.sh` and
+`sudo systemctl enable --now underway-publish.timer`. The first run can ingest
+all source records; subsequent runs reuse stores and rsync only changes.
 
 What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
 photographs (`/journal/`) and the raster tiles.

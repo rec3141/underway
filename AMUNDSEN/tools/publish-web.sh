@@ -37,10 +37,45 @@ MIRROR=${UNDERWAY_PUBLISH_MIRROR:-/data/underway_server/www}
 TARGET=${UNDERWAY_PUBLISH_TARGET:-dreamhost:cryomics.org/underway}
 URL=${UNDERWAY_PUBLISH_URL:-https://cryomics.org/underway/}
 MAX_MB=${UNDERWAY_PUBLISH_MAX_MB:-0}
+GRID_HOME=${UNDERWAY_PUBLISH_STATE_DIR:-${MIRROR%/*}}
+SOURCE=${UNDERWAY_PUBLISH_SOURCE_DIR:-$GRID_HOME/source}
+TRACK_PY=${UNDERWAY_PUBLISH_TRACK_PYTHON:-$GRID_HOME/.venv/bin/python}
 HIST=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
 PY=${UNDERWAY_PYTHON:-$HIST/.route-venv/bin/python}
 RSYNC="rsync -az --partial --timeout=120 --info=stats1"
+DRY_ARGS=()
+if [[ ${2:-} == --dry-run && ${1:-} == push ]]; then
+  DRY_ARGS=(--dry-run)
+  RSYNC+=" --dry-run"
+elif [[ $# -gt 1 ]]; then
+  echo 'Only push accepts --dry-run' >&2; exit 2
+fi
 stats() { grep -E "Number of (regular files transferred|created|deleted)|Total transferred|Total file size" || true; }
+
+rebuild_tracks() {
+  [[ -f $MIRROR/data/manifest.json && -f $MIRROR/index.html ]] || { echo 'No incoming ship manifest/index' >&2; return 1; }
+  [[ -d $SOURCE/Data/FULL_CSV && -d $SOURCE/Share ]] || { echo "No source observations at $SOURCE" >&2; return 1; }
+  [[ -x $TRACK_PY ]] || { echo "Set up grid's rebuild Python at $TRACK_PY (README)" >&2; return 1; }
+  mkdir -p "$GRID_HOME/db" "$GRID_HOME/cache"
+  rsync -a "$SOURCE/runtime/" "$GRID_HOME/db/"
+  local stage
+  stage=$(mktemp -d "$GRID_HOME/.tracks-stage.XXXXXX")
+  mkdir -p "$stage/data"
+  cp "$MIRROR/data/manifest.json" "$stage/data/manifest.json"
+  cp "$MIRROR/index.html" "$stage/index.html"
+  echo "== Rebuilding track windows on grid from $SOURCE (stage $stage)"
+  if ! UNDERWAY_DATA_ROOT="$SOURCE/Data" UNDERWAY_SHARE_ROOT="$SOURCE/Share" \
+    UNDERWAY_DB_DIR="$GRID_HOME/db" UNDERWAY_CACHE_DIR="$GRID_HOME/cache" \
+    PYTHONPATH="$HERE" OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+    "$TRACK_PY" -m dashboard build --tracks-only --root "$stage"; then
+    echo "Track rebuild failed; web deployment skipped. Stage retained at $stage" >&2
+    return 1
+  fi
+  # Commit complete generated files before the manifest that references them.
+  rsync -a --exclude manifest.json "$stage/data/" "$MIRROR/data/"
+  mv "$stage/data/manifest.json" "$MIRROR/data/manifest.json"
+  rm -rf -- "$stage"
+}
 
 history_layer() {
   # the History tab's wiki, map layer, bibliography, thumbnails and files,
@@ -98,32 +133,48 @@ public_manifest() {
   # the tab says so instead of asking for videos that are not there
   local m=$MIRROR/data/manifest.json
   [[ -f $m ]] || return 0
-  "$PY" - "$m" <<'PYEOF'
-import json, sys
-p = sys.argv[1]
-m = json.load(open(p))
-if m.get("cameras"):
-    m["cameras"] = []
-    m["public"] = True
-    json.dump(m, open(p, "w"), indent=1)
+  PYTHONPATH="$HERE" "$PY" - "$m" "$MIRROR/index.html" "$HERE/dashboard/templates" <<'PYEOF'
+import json, sys, re
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
+p, index = Path(sys.argv[1]), Path(sys.argv[2])
+m = json.loads(p.read_text())
+m['cameras'] = []
+m['public'] = True
+p.with_suffix('.json.tmp').write_text(json.dumps(m, indent=1))
+p.with_suffix('.json.tmp').replace(p)
+if index.is_file():
+    site = json.loads(re.search(r'window\.__SITE__ = (.*);', index.read_text()).group(1))
+    site['default_window'] = m['default_window']
+    html = Environment(loader=FileSystemLoader(sys.argv[3]), autoescape=True).get_template('index.html.j2').render(site=site, m=m)
+    index.with_suffix('.html.tmp').write_text(html)
+    index.with_suffix('.html.tmp').replace(index)
 PYEOF
 }
 
 case "${1:-}" in
   push)
     [[ -f $WEBROOT/index.html ]] || { echo "no web root at $WEBROOT" >&2; exit 1; }
+    "$HERE/tools/publish-sources.sh" "${DRY_ARGS[@]}"
     echo "== $WEBROOT -> $REMOTE (without the history layer, which grid publishes itself)"
     # what grid makes for itself stays: the history layer is not sent, and
     # nothing under data/ that the ship does not send is deleted there, so
     # the track files generated on grid survive every push
-    $RSYNC --delete --exclude 'data/history/' --exclude '.htaccess' --exclude 'api-off.json' \
+    $RSYNC --delete --exclude 'data/history/' --exclude 'data/w-*.json' --exclude '.htaccess' --exclude 'api-off.json' --exclude '.published' \
       --filter='P data/**' --exclude '*.tmp' --exclude '*.part' "$WEBROOT/" "$REMOTE/" | stats
-    echo "== grid deploys"
-    ssh "${REMOTE%%:*}" "UNDERWAY_PUBLISH_MIRROR=${REMOTE#*:} $REMOTE_APP/tools/publish-web.sh deploy"
+    if [[ ${#DRY_ARGS[@]} -gt 0 ]]; then echo "Dry run complete; grid rebuild/deploy skipped"; exit 0; fi
+    echo "== grid rebuilds and deploys"
+    printf -v command 'UNDERWAY_PUBLISH_MIRROR=%q %q rebuild-deploy' "${REMOTE#*:}" "$REMOTE_APP/tools/publish-web.sh"
+    ssh "${REMOTE%%:*}" "$command"
     ;;
   history) history_layer ;;
   static) static_assets ;;
-  deploy)
+  rebuild) rebuild_tracks ;;
+  deploy|rebuild-deploy)
+    mkdir -p "$GRID_HOME"
+    exec 7>"$GRID_HOME/.publish.lock"
+    flock 7
+    if [[ $1 == rebuild-deploy ]]; then rebuild_tracks; fi
     echo "== the history layer, from $HIST"
     history_layer
     echo "== the page's assets"
@@ -158,5 +209,5 @@ case "${1:-}" in
     ssh "${TARGET%%:*}" "du -sh ${TARGET#*:} 2>/dev/null; ls -la ${TARGET#*:}/index.html ${TARGET#*:}/data/manifest.json 2>/dev/null" || true
     echo "served at $URL"
     ;;
-  *) echo "usage: publish-web.sh {push|deploy|history|static|status}" >&2; exit 1 ;;
+  *) echo "usage: publish-web.sh {push|rebuild|rebuild-deploy|deploy|history|static|status}" >&2; exit 1 ;;
 esac

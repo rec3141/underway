@@ -448,9 +448,17 @@ def _limits(vals: list) -> list | None:
 
 # ---------------------------------------------------------------- build
 
-def build(root: Path, title: str, links: list[dict]) -> dict:
+def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = False) -> dict:
     started = datetime.now(timezone.utc)
+    incoming = None
+    if tracks_only:
+        manifest_path = root / "data" / "manifest.json"
+        if not manifest_path.is_file():
+            raise ValueError("tracks-only build requires the ship manifest")
+        incoming = json.loads(manifest_path.read_text())
     legs = discover()
+    if tracks_only and [leg.id for leg in legs] != [leg["id"] for leg in incoming.get("legs", [])]:
+        raise ValueError("source legs/order do not match the ship manifest")
     if not legs:
         raise SystemExit("no legs found under the data roots")
 
@@ -468,6 +476,11 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         stores.append((leg, st))
     if not stores:
         raise SystemExit("all stores are empty")
+
+    if tracks_only and [leg.id for leg, _ in stores] != [leg["id"] for leg in incoming["legs"]]:
+        for _, st in stores:
+            st.close()
+        raise ValueError("nonempty source legs/order do not match the ship manifest")
 
     keys = list(union_keys)
     want, res, pos_pairs, feats = needed_keys(keys, union_keys)
@@ -554,7 +567,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # in the browser, independently of the charts' time-averaged windows.
     def write_window(w: Window) -> dict:
         fn = f"w-{w.label}.json"
-        kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
+        kept = None if tracks_only else kept_window(w.label, w.step_s, root / "data" / fn, started)
         if kept and kept.get("fine_step_s") == FINE_STEP_S and kept.get("fine_file") and (root / kept["fine_file"]).is_file():
             log.info("window %-4s kept", w.label)
             return kept
@@ -581,6 +594,29 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         windows_meta.append(write_window(w))
         windows_meta.sort(key=lambda m: m["hours"])
         default_window = "leg"
+
+    if tracks_only:
+        # The ship owns casts, calendar, history and the page shell. Only replace
+        # metadata describing the observations regenerated in this staging root.
+        last = a.frame[["lat", "lon"]].dropna()
+        latest = None
+        if not last.empty:
+            lt = last.index[-1]
+            latest = {"time": lt.isoformat(), "lat": float(last["lat"].iloc[-1]),
+                      "lon": float(last["lon"].iloc[-1]), "heading": _latest_heading(a.frame, lt)}
+        incoming.update(
+            windows=windows_meta, default_window=default_window,
+            generated_utc=started.isoformat(timespec="seconds"),
+            data_range={"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
+            latest=latest,
+            provisional={"from": prov_from.isoformat(), "source": " + ".join(prov_src)} if prov_from is not None else None,
+        )
+        incoming["sources"] = {**incoming.get("sources", {}), "full_csv": acsd_end.isoformat(),
+                               "tsg": tsg.index.max().isoformat() if tsg is not None and len(tsg) else None}
+        atomic_write(root / "data" / "manifest.json", json.dumps(incoming, indent=1))
+        return {"seconds": (datetime.now(timezone.utc) - started).total_seconds(),
+                "unresolved": [r.variable.name for r in res if not r.resolved],
+                "legs": len(stores), "windows": {w["label"]: w["n"] for w in windows_meta}}
 
     # time-aggregated tables for the data tab
     agg_meta = {}

@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
 
     b = sub.add_parser("build", help="ingest new files and regenerate the dashboard")
     b.add_argument("--root", required=True, type=Path, help="web root to write into")
+    b.add_argument("--tracks-only", action="store_true", help="rebuild track windows while preserving the ship manifest and page")
     b.add_argument("--title", default=DEFAULT_TITLE)
     b.add_argument("--link", action="append", default=[], metavar="LABEL|URL", help="footer link; repeatable")
 
@@ -97,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
         if url:
             links.append({"label": label.strip(), "url": url.strip()})
     try:
-        r = build(a.root, a.title, links)
+        r = build(a.root, a.title, links, tracks_only=a.tracks_only)
     except RootsUnavailable as e:
         # exit non-zero so the systemd timer surfaces it instead of quietly
         # republishing an empty dashboard over a good one
