@@ -113,8 +113,11 @@ case "${1:-}" in
   push)
     [[ -f $WEBROOT/index.html ]] || { echo "no web root at $WEBROOT" >&2; exit 1; }
     echo "== $WEBROOT -> $REMOTE (without the history layer, which grid publishes itself)"
+    # what grid makes for itself stays: the history layer is not sent, and
+    # nothing under data/ that the ship does not send is deleted there, so
+    # the track files generated on grid survive every push
     $RSYNC --delete --exclude 'data/history/' --exclude '.htaccess' --exclude 'api-off.json' \
-      --exclude '*.tmp' --exclude '*.part' "$WEBROOT/" "$REMOTE/" | stats
+      --filter='P data/**' --exclude '*.tmp' --exclude '*.part' "$WEBROOT/" "$REMOTE/" | stats
     echo "== grid deploys"
     ssh "${REMOTE%%:*}" "UNDERWAY_PUBLISH_MIRROR=${REMOTE#*:} $REMOTE_APP/tools/publish-web.sh deploy"
     ;;
