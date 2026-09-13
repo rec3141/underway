@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Publish the dashboard to the public web, in two hops. The ship's firewall
 # lets it reach grid only, so the ship pushes its web root to grid; grid puts
-# the history layer in from its own database (fresher than the ship's copy,
-# and the 22 GB of plates are already there) and copies the light parts to
-# the web server: the page, its data, the wiki with its thumbnails and the
+# the history layer in from its own database (the ship's copy of the history
+# is only what it pulled from grid, and the plates are already here) and
+# copies the light parts to the web server: the page, its data, the wiki with its thumbnails and the
 # pictures under a size cap. What stays behind: the shipboard cameras
 # (/camera/), the nature journal's photographs (/journal/), the raster tiles,
 # and every picture over the cap. The page's own services (chat, uploads, the

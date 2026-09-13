@@ -417,8 +417,8 @@ in two hops, because the ship's firewall lets it reach grid and nothing else:
    it once with `sudo deploy/install.sh` then
    `sudo systemctl enable --now underway-publish.timer`.
 2. **On grid** `publish-web.sh deploy` renders the History tab's layer from
-   grid's own database (fresher than the ship's copy, and the plates are
-   already there), copies the page's assets from the checkout, writes the web
+   grid's own database (the ship's copy of the history is only what it pulled
+   from grid), copies the page's assets from the checkout, writes the web
    server's `.htaccess`, and rsyncs the mirror to the web server
    (`UNDERWAY_PUBLISH_TARGET`) with pictures over `UNDERWAY_PUBLISH_MAX_MB`
    (default 5) left out.
