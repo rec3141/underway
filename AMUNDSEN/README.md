@@ -420,11 +420,13 @@ in two hops, because the ship's firewall lets it reach grid and nothing else:
    grid's own database (the ship's copy of the history is only what it pulled
    from grid), copies the page's assets from the checkout, writes the web
    server's `.htaccess`, and rsyncs the mirror to the web server
-   (`UNDERWAY_PUBLISH_TARGET`) with pictures over `UNDERWAY_PUBLISH_MAX_MB`
-   (default 5) left out.
+   (`UNDERWAY_PUBLISH_TARGET`), the wiki's files included: grid to the web
+   server is the campus wire, so nothing is size-gated there (the 100 MB gate
+   is the ship's pull over the satellite link). `UNDERWAY_PUBLISH_MAX_MB`
+   caps the wiki's files if a cap is ever wanted.
 
 What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
-photographs (`/journal/`), the raster tiles, and every picture over the cap.
+photographs (`/journal/`) and the raster tiles.
 The page's services do not run on the web server: every `api/` request there
 answers 503 with a JSON body, which the page already handles as it handles
 the share being unreachable, and the published manifest lists no cameras.

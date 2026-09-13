@@ -23,7 +23,7 @@
 #   UNDERWAY_PUBLISH_MIRROR   grid side: the mirror of the web root (/data/underway/www)
 #   UNDERWAY_PUBLISH_TARGET   grid side: the web server, host:path  (dreamhost:cryomics.org/underway)
 #   UNDERWAY_PUBLISH_URL      where that is served                  (https://cryomics.org/underway/)
-#   UNDERWAY_PUBLISH_MAX_MB   the size cap on a picture              (5)
+#   UNDERWAY_PUBLISH_MAX_MB   a size cap on the history's files, if one is wanted (0: none)
 #   ARCTIC_HISTORY_ROOT       grid side: the history clone           (/data/dev/arctic-history)
 #   UNDERWAY_PYTHON           grid side: a Python >= 3.11 with PIL   (the history clone's .route-venv)
 set -euo pipefail
@@ -36,7 +36,7 @@ REMOTE_APP=${UNDERWAY_PUBLISH_APP:-/data/dev/underway/AMUNDSEN}
 MIRROR=${UNDERWAY_PUBLISH_MIRROR:-/data/underway/www}
 TARGET=${UNDERWAY_PUBLISH_TARGET:-dreamhost:cryomics.org/underway}
 URL=${UNDERWAY_PUBLISH_URL:-https://cryomics.org/underway/}
-MAX_MB=${UNDERWAY_PUBLISH_MAX_MB:-5}
+MAX_MB=${UNDERWAY_PUBLISH_MAX_MB:-0}
 HIST=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
 PY=${UNDERWAY_PYTHON:-$HIST/.route-venv/bin/python}
 RSYNC="rsync -az --partial --timeout=120 --info=stats1"
@@ -128,13 +128,18 @@ case "${1:-}" in
     web_files
     public_manifest
     echo "== $MIRROR -> $TARGET (no cameras, journal photographs or tiles)"
-    # two passes: the page and its data whole (an index of ten thousand
-    # artifacts is bigger than a picture), then the history's files under the cap
+    # two passes: the page and its data, then the history's files (whole unless
+    # a cap is set: an index of ten thousand artifacts is bigger than a picture)
     $RSYNC --delete \
       --exclude 'camera/' --exclude 'journal/' --exclude 'static/tiles/' --exclude 'data/history/files/' \
       --exclude '*.tmp' --exclude '*.part' "$MIRROR/" "$TARGET/" | stats
-    echo "== the history's files, up to $MAX_MB MB each"
-    $RSYNC --delete --max-size="${MAX_MB}m" "$MIRROR/data/history/files/" "$TARGET/data/history/files/" | stats
+    if [[ ${MAX_MB} != 0 ]]; then
+      echo "== the history's files, up to $MAX_MB MB each"
+      $RSYNC --delete --max-size="${MAX_MB}m" "$MIRROR/data/history/files/" "$TARGET/data/history/files/" | stats
+    else
+      echo "== the history's files, all of them"
+      $RSYNC --delete "$MIRROR/data/history/files/" "$TARGET/data/history/files/" | stats
+    fi
     date -u +%Y-%m-%dT%H:%M:%SZ > "$MIRROR/.published"
     echo "published: $URL"
     ;;
