@@ -127,10 +127,14 @@ case "${1:-}" in
     static_assets
     web_files
     public_manifest
-    echo "== $MIRROR -> $TARGET (pictures up to $MAX_MB MB; no cameras, journal photographs or tiles)"
-    $RSYNC --delete --max-size="${MAX_MB}m" \
-      --exclude 'camera/' --exclude 'journal/' --exclude 'static/tiles/' \
+    echo "== $MIRROR -> $TARGET (no cameras, journal photographs or tiles)"
+    # two passes: the page and its data whole (an index of ten thousand
+    # artifacts is bigger than a picture), then the history's files under the cap
+    $RSYNC --delete \
+      --exclude 'camera/' --exclude 'journal/' --exclude 'static/tiles/' --exclude 'data/history/files/' \
       --exclude '*.tmp' --exclude '*.part' "$MIRROR/" "$TARGET/" | stats
+    echo "== the history's files, up to $MAX_MB MB each"
+    $RSYNC --delete --max-size="${MAX_MB}m" "$MIRROR/data/history/files/" "$TARGET/data/history/files/" | stats
     date -u +%Y-%m-%dT%H:%M:%SZ > "$MIRROR/.published"
     echo "published: $URL"
     ;;
