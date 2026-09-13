@@ -406,6 +406,31 @@ layer as the shoreline and, without the relief raster, the `land` layer as
 land, and fetches neither Natural Earth file. Glaciers and depth bands stay
 Natural Earth.
 
+## Publishing to the public web
+
+`tools/publish-web.sh` puts the dashboard at https://cryomics.org/underway/,
+in two hops, because the ship's firewall lets it reach grid and nothing else:
+
+1. **On the ship** `publish-web.sh push` rsyncs the web root to grid
+   (`UNDERWAY_PUBLISH_REMOTE`, without `data/history/`) and tells grid to
+   deploy. `underway-publish.timer` does this every fifteen minutes; enable
+   it once with `sudo deploy/install.sh` then
+   `sudo systemctl enable --now underway-publish.timer`.
+2. **On grid** `publish-web.sh deploy` renders the History tab's layer from
+   grid's own database (fresher than the ship's copy, and the plates are
+   already there), copies the page's assets from the checkout, writes the web
+   server's `.htaccess`, and rsyncs the mirror to the web server
+   (`UNDERWAY_PUBLISH_TARGET`) with pictures over `UNDERWAY_PUBLISH_MAX_MB`
+   (default 5) left out.
+
+What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
+photographs (`/journal/`), the raster tiles, and every picture over the cap.
+The page's services do not run on the web server: every `api/` request there
+answers 503 with a JSON body, which the page already handles as it handles
+the share being unreachable, and the published manifest lists no cameras.
+`publish-web.sh status` says what is where and when; the settings are the
+`UNDERWAY_PUBLISH_*` lines of `site.env`.
+
 ## Front end notes
 
 - Plotly's toolbar is off. Drag pans, the wheel zooms, double-click resets, ⟲
