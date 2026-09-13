@@ -9,6 +9,8 @@ open (``/api/chat``), kept in a small SQLite file outside the web root.
 from __future__ import annotations
 
 import html
+import gzip
+import io
 import json
 from datetime import datetime, timezone
 import urllib.request
@@ -102,23 +104,43 @@ from .nature import IMG_DIR as JOURNAL_IMG
 
 
 class Handler(SimpleHTTPRequestHandler):
-    # The basemap is GeoJSON, a megabyte a file. Served as application/geo+json
-    # the front proxy leaves it uncompressed (its compression list does not
-    # know the type); as application/json it goes out gzipped at a quarter the size.
+    # Use application/json for GeoJSON so proxy compression also recognizes it.
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".geojson": "application/json", ".pbf": "application/x-protobuf"}
 
     def log_message(self, fmt, *args):          # only failures are worth a line
         if str(args[1:2]).startswith(("('4", "('5")):
             log.info("%s %s", self.address_string(), fmt % args)
 
+    def _accepts_gzip(self) -> bool:
+        qualities = {}
+        for item in self.headers.get("Accept-Encoding", "").lower().split(","):
+            coding, *params = item.strip().split(";")
+            quality = 1.0
+            for param in params:
+                key, _, value = param.strip().partition("=")
+                if key == "q":
+                    try:
+                        quality = float(value)
+                    except ValueError:
+                        quality = 0.0
+            qualities[coding] = quality
+        return 0 < qualities.get("gzip", qualities.get("*", 0)) <= 1
+
     def _json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload).encode()
+        compressed = len(body) >= 1024 and self._accepts_gzip()
+        if compressed:
+            body = gzip.compress(body, compresslevel=5, mtime=0)
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Vary", "Accept-Encoding")
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         SimpleHTTPRequestHandler.end_headers(self)
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def _bytes(self, code: int, ctype: str, body: bytes, cache: str = "private, max-age=86400") -> None:
         self.send_response(code)
@@ -551,6 +573,28 @@ class Handler(SimpleHTTPRequestHandler):
         # Both GET and HEAD pass through here. Do not substitute a sentinel
         # filename: that file could actually exist inside the configured root.
         try:
+            path = Path(self.translate_path(self.path))
+            # Bound memory and CPU: legacy whole-cruise fine files stay streamed.
+            # Conditional requests retain the standard handler's validation.
+            if (path.suffix.lower() in (".json", ".geojson") and self._accepts_gzip()
+                    and not self.headers.get("If-Modified-Since")
+                    and not self.headers.get("If-None-Match")):
+                try:
+                    with path.open("rb") as source:
+                        stat = os.fstat(source.fileno())
+                        if 1024 <= stat.st_size <= 8 * 1024 * 1024:
+                            raw = source.read(8 * 1024 * 1024 + 1)
+                            if len(raw) <= 8 * 1024 * 1024:
+                                body = gzip.compress(raw, compresslevel=5, mtime=0)
+                                self.send_response(200)
+                                self.send_header("Content-Type", self.guess_type(str(path)))
+                                self.send_header("Content-Encoding", "gzip")
+                                self.send_header("Content-Length", str(len(body)))
+                                self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+                                self.end_headers()
+                                return io.BytesIO(body)
+                except OSError:
+                    pass
             return super().send_head()
         except ValueError:
             self.send_error(404, "File not found")
@@ -558,7 +602,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         p = self.path.split("?")[0]
-        if p.startswith("/data/") or p.endswith(".json"):
+        if p.endswith((".json", ".geojson")):
+            self.send_header("Vary", "Accept-Encoding")
+        if re.fullmatch(r"/data/track/[0-9a-f]{16,64}\.json", p):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        elif p.startswith("/data/") or p.endswith(".json"):
             self.send_header("Cache-Control", "no-store")            # rebuilt every few minutes
         elif p == "/" or p.endswith(".html"):
             self.send_header("Cache-Control", "no-cache")            # revalidate; carries the asset versions

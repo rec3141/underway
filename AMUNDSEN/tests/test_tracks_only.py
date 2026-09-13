@@ -63,7 +63,14 @@ class TracksOnlyTests(unittest.TestCase):
             self.assertEqual(manifest['sources']['calendar'], 'kept')
             self.assertEqual((root / 'index.html').read_text(), 'ship shell')
             for window in manifest['windows']:
-                fine = json.loads((root / window['fine_file']).read_text())
-                self.assertEqual(fine['n'], 3); self.assertEqual(fine['lat'], [70., 70.00001, 70.00002])
+                self.assertNotIn('fine_file', window)
+                self.assertTrue((root / window['file']).is_file())
+            self.assertFalse(list((root / 'data').glob('*-fine.json')))
+            native = next(level for level in manifest['track']['levels'] if level['spacing_km'] == 0)
+            points = {}
+            for chunk in native['chunks']:
+                payload = json.loads((root / chunk['file']).read_text())
+                points.update(zip(payload['t'], payload['lat']))
+            self.assertEqual(list(points.values()), [70., 70.00001, 70.00002])
             self.assertEqual(manifest['latest']['lat'], 70.00002)
             self.assertEqual(manifest['data_range']['end'], index[-1].isoformat())

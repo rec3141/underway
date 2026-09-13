@@ -30,7 +30,7 @@
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
-  if (store.get("prefs.v", 0) < 5) { store.set("prefs.v", 5); store.set("trackKm", null); }   // track detail follows the span (a point a km)
+  if (store.get("prefs.v", 0) < 6) { store.set("prefs.v", 6); store.set("trackKm", "auto"); }
   const newViewer = store.get('panel',null) === null;
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
@@ -39,7 +39,7 @@
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
-    trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the span)
+    trackKm: store.get("trackKm", "auto"),              // auto follows map scale; 0 requests native observations
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
     photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
@@ -314,10 +314,18 @@
     const vars = {};
     for (const k of new Set([...Object.keys(cover.vars), ...Object.keys(span.vars)])) vars[k] = cat(cover.vars[k], span.vars[k], cover.t.length, span.t.length);
     // each file's distance runs from its own start: the span's continues the cover's
-    const base = lastFinite(cover.dist_km.slice(0, cut)) ?? 0, d0 = span.dist_km.find((x) => x != null) ?? 0;
+    const anchored = Number.isFinite(cover.dist_origin_km) && Number.isFinite(span.dist_origin_km);
+    const base = anchored ? span.dist_origin_km - cover.dist_origin_km : lastFinite(cover.dist_km.slice(0, cut)) ?? 0;
+    const d0 = anchored ? 0 : span.dist_km.find((x) => x != null) ?? 0;
     const dist = span.dist_km.map((x) => (x == null ? null : x - d0 + base));
-    return { ...span, start: cover.start, n: cut + span.t.length, t: cat(cover.t, span.t), lat: cat(cover.lat, span.lat), lon: cat(cover.lon, span.lon),
-             dist_km: cat(cover.dist_km, dist), leg: cat(cover.leg, span.leg), vars,
+    const mergedT = cat(cover.t, span.t), mergedDist = cat(cover.dist_km, dist);
+    if ('Distance travelled (km)' in vars) vars['Distance travelled (km)'] = mergedDist;
+    if ('Time elapsed (h)' in vars) {
+      const origin = mergedT.find(t => t != null);
+      vars['Time elapsed (h)'] = mergedT.map(t => t == null ? null : (t - origin) / 3600e3);
+    }
+    return { ...span, start: cover.start, dist_origin_km:cover.dist_origin_km, n: cut + span.t.length, t: mergedT, lat: cat(cover.lat, span.lat), lon: cat(cover.lon, span.lon),
+             dist_km: mergedDist, leg: cat(cover.leg, span.leg), vars,
              pump_low: cover.pump_low && span.pump_low ? cat(cover.pump_low, span.pump_low) : null,
              limits: span.limits || cover.limits };
   }
@@ -455,7 +463,7 @@
       const layer = b.dataset.layer;
       b.classList.toggle("on", !!state[layer]);
       b.setAttribute("aria-pressed", String(!!state[layer]));
-      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "photos") closeCamera(); renderMap(); };
+      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "photos") closeCamera(); if (layer === "track") resetTrack(); renderMap(); };
     }
     renderSatPill();
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
@@ -463,13 +471,14 @@
       const r = $("#trackstep"), out = $("#tracksteplabel"), sel = $('#trackstepsel');
       sel.innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}">${detailLabel(km)}</option>`).join('');
       $('#trackticks').innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}"></option>`).join('');
-      if (state.trackKm == null) setTrackDetail(detailFor(currentWindow()?.hours || 1));
+      if (!TRACK_STEPS.includes(state.trackKm)) setTrackDetail('auto');
       let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
       r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);
       sel.value=idx;
       r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
       r.onchange = () => {
         setTrackDetail(TRACK_STEPS[r.value]);
+        resetTrack();
         renderMap();
       };
       sel.onchange=()=>{r.value=sel.value;r.onchange();};
@@ -964,41 +973,19 @@
   }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
-  // Track detail: the window's points thinned to one per so many km along
-  // the track (the gap markers, and the last fix, always stay). Every array
-  // of the window is cut the same way, so hover, colours and the pump marks
-  // line up with the points drawn.
-  const TRACK_STEPS = [50, 20, 10, 5, 2, 1, 0.5, 0];         // left to right: coarser to every point
-  // the track detail a span asks for: every point up to half a day, then coarser as the span grows
-  const detailFor = (hours) => hours <= 12 ? 0 : hours <= 48 ? 0.5 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
-  const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
+  // Map detail is selected before transfer; charts retain their time bins.
+  const TRACK_STEPS = ['auto', 0.1, 0.025, 0.005, 0];
+  const detailFor = () => 'auto';
+  const detailLabel = (km) => km === 'auto' ? 'auto · map scale' : km ? `${km * 1000} m detail` : 'all points · visible area';
   const currentWindow = () => M.windows.find((x) => x.label === state.win);
-  // Apply every distance setting to native observations, never time averages.
-  const windowFile = (w) => w?.fine_file || w?.file;
+  // Chart windows never download the monolithic native track files.
+  const windowFile = (w) => w?.file;
   function setTrackDetail(km) {
+    km = TRACK_STEPS.includes(km) ? km : 'auto';
     state.trackKm = km; store.set("trackKm", km);
     const r = $("#trackstep"), out = $("#tracksteplabel");
     if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? TRACK_STEPS.length - 1 : i; out.textContent = detailLabel(km); r.setAttribute("aria-valuetext", detailLabel(km)); }
-    if($('#trackstepsel'))$('#trackstepsel').value=r.value;
-  }
-  let thinCache = { src: null, km: null, out: null };
-  function thinTrack(d, km) {
-    if (!d || !km) return d;
-    if (thinCache.src === d && thinCache.km === km) return thinCache.out;
-    const n = d.t.length, keep = [];
-    let last = -1, bucket = null;
-    for (let i = n - 1; i >= 0; i--) if (d.lat[i] != null) { last = i; break; }
-    for (let i = 0; i < n; i++) {
-      if (d.lat[i] == null) { keep.push(i); bucket = null; continue; }
-      const b = Math.floor((d.dist_km[i] ?? 0) / km);
-      if (b !== bucket || i === last) { keep.push(i); bucket = b; }
-    }
-    const cut = (a) => Array.isArray(a) && a.length === n ? keep.map((i) => a[i]) : a;
-    const out = {};
-    for (const [k, v] of Object.entries(d)) out[k] = k === "vars" ? Object.fromEntries(Object.entries(v).map(([name, a]) => [name, cut(a)])) : cut(v);
-    out.shown = keep.filter((i) => d.lat[i] != null).length;
-    thinCache = { src: d, km, out };
-    return out;
+    if($('#trackstepsel') && r)$('#trackstepsel').value=r.value;
   }
   // the ship's position: the intranet live page when it is newer than the
   // record's last fix, else that fix (with the build's averaged heading)
@@ -1067,6 +1054,66 @@
   }
   // the map (static/map.js): made on the first draw, kept for the page's life
   let mapView = null, mapData = null;
+  const trackLoader = window.UWTrack?.createLoader();
+  let trackData = null, trackKey = '', trackTimer = null, trackStatus = '', trackSequence = 0;
+  function setTrackStatus(message) {
+    trackStatus = message;
+    const el = $('#trackstatus');
+    if (el) el.textContent = message;
+  }
+  function resetTrack() {
+    clearTimeout(trackTimer); trackLoader?.cancel(); ++trackSequence;
+    trackData = null; trackKey = ''; trackStatus = '';
+    setLoadError('Track', false);
+  }
+  function trackSpacing() {
+    if (state.trackKm !== 'auto') return state.trackKm;
+    const map = mapView?.map;
+    if (!map) return 0.1;
+    // Two screen pixels in Web Mercator, using latitude so Arctic zooms
+    // receive the same ground detail as views farther south.
+    const km = 2 * 40075.016686 * Math.cos(map.getCenter().lat * Math.PI / 180) / (512 * 2 ** map.getZoom());
+    return km >= 0.1 ? 0.1 : km >= 0.025 ? 0.025 : km >= 0.005 ? 0.005 : 0;
+  }
+  function scheduleTrack() {
+    if (!state.track || !mapView?.map || !state.span) return;
+    if (!M.track || !trackLoader) { setTrackStatus('Track detail needs a new dashboard build'); return; }
+    const box = mapView.map.getBounds(), f = spanFilter();
+    const bounds = [box.getWest(), box.getSouth(), box.getEast(), box.getNorth()].map(x => +x.toFixed(5));
+    const legs = shownLegs().map(l => l.index), spacingKm = trackSpacing();
+    const key = JSON.stringify([M.generated_utc, bounds, f.start, f.end, legs, spacingKm]);
+    if (key === trackKey) return;
+    clearTimeout(trackTimer); trackLoader.cancel();
+    const sequence = ++trackSequence;
+    trackKey = key; setTrackStatus('Loading visible track…');
+    const track = M.track, generation = M.generated_utc;
+    trackTimer = setTimeout(async () => {
+      try {
+        const next = await trackLoader.load({track, bounds, start:f.start, end:f.end, legs, spacingKm, generation});
+        if (sequence !== trackSequence) return;
+        // Geometry and values remain native; colour limits stay tied to the
+        // entire selected span, so panning never changes the colour meaning.
+        const origin = state.raw?.t?.find(t => t != null) ?? f.start;
+        const distanceOrigin = state.raw?.dist_origin_km ?? M.track.dist_start_km ?? 0;
+        const vars = {...next.vars};
+        vars['Time elapsed (h)'] = next.t.map(t => t == null ? null : (t - origin) / 3600e3);
+        const distances = next.dist_km.map(x => x == null ? null : x - distanceOrigin);
+        vars['Distance travelled (km)'] = distances;
+        trackData = {...next, vars, dist_km:distances, limits:state.span.limits,
+          label:state.span.label, start:state.span.start, end:state.span.end};
+        setTrackStatus(next.limited ? 'Track density limit reached · zoom in or shorten the span for more points' :
+          `${next.shown.toLocaleString()} visible track points · ${detailLabel(next.spacing_km)}`);
+        setLoadError('Track', false);
+        renderMap();
+      } catch (error) {
+        if (sequence !== trackSequence || error.name === 'AbortError') return;
+        trackKey = ''; setTrackStatus('Track unavailable · retrying');
+        setLoadError('Track', true);
+        // Keep the last successful track and retry without blocking charts.
+        trackTimer = setTimeout(scheduleTrack, 5000);
+      }
+    }, 120);
+  }
   // a click on a point: the handlers of what it belongs to; a click where
   // there is no point takes the focus mark away
   function mapClick(p) {
@@ -1081,9 +1128,10 @@
   }
   function mapEmptyClick() { if (state.focus) { state.focus = null; renderMap(); } }
   function renderMap() {
-    const d = thinTrack(state.span, state.trackKm);
+    const overview = state.span;
+    const d = trackData || {...overview, t:[], lat:[], lon:[], leg:[], dist_km:[], vars:{}, pump_low:[], n:0, shown:0};
     const el = $("#map");
-    if (!d || !(d.shown ?? d.n)) { mapView?.clear(); mapMessage(d ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
+    if (!overview || !(overview.shown ?? overview.n)) { mapView?.clear(); mapMessage(overview ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1099,7 +1147,7 @@
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
     const f0 = spanFilter();
-    const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
+    const view = (!state.fitPending && state.view) || fitView(overview.lat, overview.lon);
     labelsAt = labelBuckets(view.zoom);
     const traces = [...planTraces(view.zoom), ...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces(view.zoom);
@@ -1125,7 +1173,7 @@
     });
     // the intranet's live page, polled every few seconds, is fresher than any
     // file: while it is, the ship stands where it says
-    const ship = shipNow(d, lastFix(d));
+    const ship = shipNow(overview, lastFix(overview));
     state.shipHeading = ship.heading;
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
@@ -1158,7 +1206,7 @@
     mapData = d;
     if (!mapView) {
       mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: mapEmptyClick, onZoom: onMapZoom,
-        onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); } });
+        onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
       window.UW.mapView = mapView;
       $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
     }
@@ -1167,6 +1215,7 @@
         state.fitPending = false;
         if (!state.view) state.view = view;
         updateScale();
+        scheduleTrack();
       });
       mapMessage("");
     } catch (e) {
@@ -1178,11 +1227,12 @@
     // distance travelled: the along-track extent of each selected leg's
     // points in the span (dist_km runs on through the whole record)
     const ext = new Map();
-    d.dist_km.forEach((x, i) => { if (x == null || d.lat[i] == null || d.leg[i] == null) return; const e = ext.get(d.leg[i]); if (!e) ext.set(d.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
+    overview.dist_km.forEach((x, i) => { if (x == null || overview.lat[i] == null || overview.leg[i] == null) return; const e = ext.get(overview.leg[i]); if (!e) ext.set(overview.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
     const km = [...ext.values()].reduce((a, [lo, hi]) => a + hi - lo, 0);
     const nLegs = shownLegs().length;
     $("#mapfoot").innerHTML =
       `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
+      (state.track ? `<span id="trackstatus" role="status">${esc(trackStatus || 'Loading visible track…')}</span>` : '') +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
       (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(near.scene || near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
@@ -1566,6 +1616,7 @@
   // ------------------------------------------------------------ data flow
   function applyAndRender() {
     if (!state.raw) return;
+    resetTrack();
     // a remembered colour the page no longer offers (a module gone) falls back to the default
     if (!VAR[state.colour] && !extraColours.has(state.colour)) { state.colour = VAR["SST (°C)"] ? "SST (°C)" : M.variables[0]?.name; store.set("colour", state.colour); renderControls(); }
     state.data = applyLegFilter(state.raw);
@@ -1579,8 +1630,7 @@
   let loadSeq = 0;
   let windowLoading = false;
   // the files a build's window set asks for: the cover window's, and the
-  // span's own when the span is the shorter (the "all points" variant of the
-  // span's where the build made one)
+  // span's own chart window when the span is shorter.
   function windowFiles(manifest) {
     const spanW = spanWindowOf(manifest), coverW = coverWindowOf(manifest);
     if (coverW.hours <= spanW.hours) return [windowFile(coverW)];

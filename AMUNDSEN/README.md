@@ -151,11 +151,37 @@ are (a stat there costs a round trip). Delete a cache file to force a re-parse.
 
 `build` syncs every leg's store (only new or changed day files are parsed),
 combines the legs, computes derived variables, writes `data/w-*.json` for each
-window plus `data/manifest.json`, copies `static/`, and renders `index.html`.
+window plus `data/manifest.json`, publishes track chunks under `data/track/`,
+copies `static/`, and renders `index.html`.
 Files are written under a temporary name and renamed, so a page polling the
 directory never reads a partial file. A full build of eight legs (2.8 M rows)
 takes about 15 s and 2 GB of memory; a build with nothing new takes a few
-seconds.
+seconds (these timings predate the initial track-chunk publication).
+
+The map loads observations independently of the charts. `manifest.track`
+indexes immutable, content-addressed chunks of at most 2,048 observations at
+100 m, 25 m, 5 m, and native resolution. Auto detail follows the map's ground
+scale; manual settings never exceed 100 m spacing. Selection preserves actual
+observations, bends, leg boundaries, and gaps. Native observations farther
+apart than the selected spacing remain gaps in sampling; no points are invented.
+Charts continue to use time-averaged windows. New builds no longer publish
+`w-*-fine.json`, and the browser never requests those legacy files.
+
+Panning and zooming request only chunks overlapping the visible bounds and
+selected time/legs. The loader cancels superseded requests, fetches at most
+four chunks concurrently, and caps each request/render at 50,000 rows. Its
+cache is bounded by 100,000 rows and an estimated 64 MiB. A density message
+asks the viewer to zoom in or shorten the span when that budget is reached;
+the track may be incomplete until then. Colours use the selected span's
+limits, which stay stable when panning. Camera ice observations remain a
+separate time-filtered API and are matched to the loaded track by time/leg.
+
+The Python server negotiates gzip for JSON (static files up to 8 MiB), and
+track chunks use immutable caching. Unreferenced chunks are reclaimed after
+seven days so open pages can finish using an older generation. Other data remains uncached. Track detail
+also works on a static server; configure gzip there separately. Rebuild the
+site to publish the track index and new scripts together, and restart the
+Python page server to enable its compression changes.
 
 Stores live in `AMUNDSEN/db/<leg>.db` by default (`UNDERWAY_DB_DIR` overrides).
 They are derived data: delete them and the next build reloads everything.
@@ -419,7 +445,7 @@ in two hops, because the ship's firewall lets it reach grid and nothing else:
    Only the dedicated `source/` mirror is pruned, including excluded files.
    Recorded live snapshots and the provisional tail go into `source/runtime/`;
    accounts, subscriptions and credentials are never transferred.
-2. The ship pushes its built site to grid's `www/`, excluding `data/w-*.json`
+2. The ship pushes its built site to grid's `www/`, excluding `data/w-*.json`, `data/track/`
    and the history layer. Grid retains its generated data. Use
    `publish-web.sh push --dry-run` to preview source and site transfers without
    rebuilding or deploying; the source destination directories may be created.
@@ -427,7 +453,9 @@ in two hops, because the ship's firewall lets it reach grid and nothing else:
    from `source/Data`, `source/Share` and the recorded live snapshots. Per-leg
    stores and analysis caches stay in grid's `db/` and `cache/` for reuse.
    The build verifies source leg order against the incoming manifest, then
-   generates every track window locally. A failed rebuild blocks deployment.
+   generates chart windows and viewport track chunks locally. Immutable chunks
+   and their fingerprint indexes are reused from the previous build; unreferenced
+   chunks expire after seven days. A failed rebuild blocks deployment.
    Other ship-generated products (casts, schedule and aggregate tables) stay
    intact. Grid renders its history layer, updates the public manifest and
    front page, then publishes to DreamHost. The campus-to-web transfer includes
@@ -508,12 +536,15 @@ It needs Chromium and Python with Jinja2. Set `PYTHON` to the desired interprete
 
 ```sh
 PYTHON=python3 node tests/refresh-browser.cjs /path/to/chromium
+PYTHON=python3 node tests/track-browser.cjs /path/to/chromium
 ```
 
 This test starts Chromium with its sandbox disabled for compatibility with
 restricted development environments, using a fresh temporary profile and only
 the local test page. It checks initial-load recovery, failed updates, active
 tab refresh, revised cast data, and out-of-order window responses.
+The track check verifies viewport loading, zoom-dependent detail, stale-request
+rejection, and event-log axis bounds without discarding out-of-span events.
 
 ### Wind-direction statistics
 

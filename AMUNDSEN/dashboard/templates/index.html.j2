@@ -64,8 +64,8 @@
     </div>
     <div class="group maptrack" title="Track points drawn per kilometre">
       <span class="lbl">Track detail</span>
-      <output id="tracksteplabel" for="trackstep">all points</output>
-      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" list="trackticks" aria-label="Track detail">
+      <output id="tracksteplabel" for="trackstep">auto · map scale</output>
+      <input type="range" id="trackstep" min="0" max="4" step="1" value="0" list="trackticks" aria-label="Track detail">
       <datalist id="trackticks"></datalist>
       <select id="trackstepsel" aria-label="Track detail"></select>
     </div>
@@ -270,6 +270,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 </aside>
 
 <script src="static/data.js?v={{ site.asset_version }}"></script>
+<script src="static/track-data.js?v={{ site.asset_version }}"></script>
 <script src="static/map-legend.js?v={{ site.asset_version }}"></script>
 <script src="static/plot-export.js?v={{ site.asset_version }}"></script>
 <script src="static/map.js?v={{ site.asset_version }}"></script>

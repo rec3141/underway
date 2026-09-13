@@ -1,5 +1,6 @@
 """Exercise real rsync filters against isolated local source/destination trees."""
 import os
+import shlex
 from pathlib import Path
 import subprocess
 import tempfile
@@ -44,3 +45,27 @@ class SourceSyncTests(unittest.TestCase):
             self.assertTrue((target/'runtime/live_scrape/20260913.jsonl').exists())
             self.assertFalse((target/'runtime/alerts.json').exists())
             self.assertTrue((source/reject[0]).exists())
+
+    def test_site_push_excludes_generated_chunks_and_preserves_grid_data(self):
+        # Exercise the actual push filter arguments with real local rsync.
+        script = SCRIPT.with_name('publish-web.sh').read_text().replace('\\\n', ' ')
+        command = next(line.strip() for line in script.splitlines() if line.strip().startswith('$RSYNC --delete '))
+        words = shlex.split(command)
+        filters = words[1:words.index('$WEBROOT/')]
+        with tempfile.TemporaryDirectory() as tmp:
+            source, target = Path(tmp) / 'ship', Path(tmp) / 'grid'
+            for root in (source, target):
+                (root / 'data/track').mkdir(parents=True)
+            (source / 'index.html').write_text('new page')
+            (source / 'data/manifest.json').write_text('new metadata')
+            (source / 'data/w-1h.json').write_text('ship chart')
+            (source / 'data/track/ship.json').write_text('large generated chunk')
+            (target / 'data/w-1h.json').write_text('grid chart')
+            (target / 'data/track/grid.json').write_text('grid chunk')
+            result = subprocess.run(['/usr/bin/rsync', '-a', *filters, str(source) + '/', str(target) + '/'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((target / 'index.html').read_text(), 'new page')
+            self.assertEqual((target / 'data/manifest.json').read_text(), 'new metadata')
+            self.assertEqual((target / 'data/w-1h.json').read_text(), 'grid chart')
+            self.assertEqual((target / 'data/track/grid.json').read_text(), 'grid chunk')
+            self.assertFalse((target / 'data/track/ship.json').exists())

@@ -63,6 +63,12 @@ rebuild_tracks() {
   mkdir -p "$stage/data"
   cp "$MIRROR/data/manifest.json" "$stage/data/manifest.json"
   cp "$MIRROR/index.html" "$stage/index.html"
+  # Immutable payloads and fingerprint indexes make unchanged history reusable
+  # in the isolated build. Hard links avoid copying the whole track archive.
+  if [[ -d $MIRROR/data/track ]]; then
+    mkdir -p "$stage/data/track"
+    rsync -a --link-dest="$MIRROR/data/track" "$MIRROR/data/track/" "$stage/data/track/"
+  fi
   echo "== Rebuilding track windows on grid from $SOURCE (stage $stage)"
   if ! UNDERWAY_DATA_ROOT="$SOURCE/Data" UNDERWAY_SHARE_ROOT="$SOURCE/Share" \
     UNDERWAY_DB_DIR="$GRID_HOME/db" UNDERWAY_CACHE_DIR="$GRID_HOME/cache" \
@@ -74,6 +80,13 @@ rebuild_tracks() {
   # Commit complete generated files before the manifest that references them.
   rsync -a --exclude manifest.json "$stage/data/" "$MIRROR/data/"
   mv "$stage/data/manifest.json" "$MIRROR/data/manifest.json"
+  PYTHONPATH="$HERE" "$TRACK_PY" - "$MIRROR" <<'PYEOF'
+import json, sys
+from pathlib import Path
+from dashboard.track import prune_track
+root = Path(sys.argv[1])
+prune_track(root, json.loads((root / 'data/manifest.json').read_text())['track'])
+PYEOF
   rm -rf -- "$stage"
 }
 
@@ -160,7 +173,7 @@ case "${1:-}" in
     # what grid makes for itself stays: the history layer is not sent, and
     # nothing under data/ that the ship does not send is deleted there, so
     # the track files generated on grid survive every push
-    $RSYNC --delete --exclude 'data/history/' --exclude 'data/w-*.json' --exclude '.htaccess' --exclude 'api-off.json' --exclude '.published' \
+    $RSYNC --delete --exclude 'data/history/' --exclude 'data/w-*.json' --exclude 'data/track/' --exclude '.htaccess' --exclude 'api-off.json' --exclude '.published' \
       --filter='P data/**' --exclude '*.tmp' --exclude '*.part' "$WEBROOT/" "$REMOTE/" | stats
     if [[ ${#DRY_ARGS[@]} -gt 0 ]]; then echo "Dry run complete; grid rebuild/deploy skipped"; exit 0; fi
     echo "== grid rebuilds and deploys"
