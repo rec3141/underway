@@ -312,6 +312,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         "t": (g.index.as_unit("ms").asi8).tolist(),
         "lat": col(g["lat"], 6), "lon": col(g["lon"], 6),
         "dist_km": col(dist_rel, 3),
+        "dist_origin_km": float(dist.dropna().iloc[0]) if dist.notna().any() else 0.0,
         "leg": [None if (x is None or not np.isfinite(x)) else int(x) for x in g["leg"].to_numpy()],
         "vars": vars_out,
         "pump_low": low,
@@ -550,23 +551,19 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     (root / "data").mkdir(exist_ok=True)
     windows_meta = []
-    # Every span also serves native observations: track spacing is chosen
-    # in the browser, independently of the charts' time-averaged windows.
+    # Charts use time windows; native track observations are published once
+    # in bounded, reusable spatial chunks rather than duplicated per window.
     def write_window(w: Window) -> dict:
         fn = f"w-{w.label}.json"
         kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
-        if kept and kept.get("fine_step_s") == FINE_STEP_S and kept.get("fine_file") and (root / kept["fine_file"]).is_file():
+        if kept and kept.get("chart_version") == 1:
             log.info("window %-4s kept", w.label)
-            return kept
+            return {k: v for k, v in kept.items() if not k.startswith("fine_")}
         payload = slice_window(a, w, end)
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
-        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"],
+        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"], "chart_version": 1,
                 "start": payload.get("start"), "end": payload.get("end")}
-        if w.step_s > FINE_STEP_S:
-            fine = slice_window(a, Window(w.label, w.hours, FINE_STEP_S), end)
-            atomic_write(root / "data" / f"w-{w.label}-fine.json", json.dumps(fine, separators=(",", ":")))
-            meta.update(fine_file=f"data/w-{w.label}-fine.json", fine_step_s=FINE_STEP_S, fine_n=fine["n"])
-        log.info("window %-4s %6d points%s", w.label, payload["n"], f" (fine {meta['fine_n']})" if "fine_n" in meta else "")
+        log.info("window %-4s %6d chart points", w.label, payload["n"])
         return meta
     for w in WINDOWS:
         windows_meta.append(write_window(w))
@@ -620,12 +617,15 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     except Exception:                       # noqa: BLE001 — the timelapses are extra, never required
         log.exception("camera index failed")
         cameras = []
+    from .track import publish_track, prune_track
+    track = publish_track(a.frame, root)
     manifest = {
         "cameras": cameras,
         "title": title, "version": __version__,
         "generated_utc": started.isoformat(timespec="seconds"),
         "local_tz": LOCAL_TZ, "default_window": default_window,
         "windows": windows_meta,
+        "track": track,
         "legs": [dict(leg.meta(), index=i) for i, (leg, _) in enumerate(stores)],
         "live": next((leg.id for leg, _ in stores if leg.live), None),
         "variables": [{
@@ -686,7 +686,7 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
+    for name in ("data.js", "track-data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
     # too many files for the share or the repository — and the server maps
@@ -703,6 +703,12 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
             "maplibre_version": str((PKG / "static" / "maplibre-gl.js").stat().st_size)}
     env = Environment(loader=FileSystemLoader(str(PKG / "templates")), autoescape=True)
     atomic_write(root / "index.html", env.get_template("index.html.j2").render(site=site, m=manifest))
+    # Keep old immutable chunks for open pages; reclaim only unreferenced
+    # generations after the new index and page have both been published.
+    try:
+        prune_track(root, track)
+    except OSError:
+        log.warning("old track chunks could not be pruned", exc_info=True)
 
     took = (datetime.now(timezone.utc) - started).total_seconds()
     unresolved = [r.variable.name for r in res if not r.resolved]

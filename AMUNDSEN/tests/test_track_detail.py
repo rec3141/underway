@@ -18,3 +18,11 @@ class TrackDetailTests(unittest.TestCase):
         self.assertEqual(result['t'], index.as_unit('ms').asi8.tolist())
         self.assertEqual(result['vars']['SST (°C)'], list(range(24)))
         self.assertEqual(result['n'], 24)
+
+    def test_chart_window_carries_absolute_distance_origin_for_native_track(self):
+        index = pd.date_range('2026-09-13', periods=3, freq='1h', tz='UTC')
+        frame = pd.DataFrame({'lat': 70., 'lon': -60., 'dist_km': [100., 105., 110.],
+                              'leg': 0, 'SST (°C)': 1.}, index=index)
+        result = slice_window(SimpleNamespace(frame=frame), Window('1h', 1, 60), index[-1])
+        self.assertEqual(result['dist_origin_km'], 105.)
+        self.assertEqual([d for d in result['dist_km'] if d is not None][-1], 5.)

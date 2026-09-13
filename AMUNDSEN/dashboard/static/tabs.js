@@ -1223,7 +1223,9 @@
     const now = Date.now();
     const shifted = (t) => UW.plotDate(UW.shipAxis(t));
     const when = (e) => shifted(UW.tms(e.time_utc));
-    const recent = evs;                                   // already the legs and span on display
+    const recent = evs;                                   // retain the selected legs' events outside the visible span
+    const span = UW.spanFilter();
+    const range = isFinite(span.start) ? [shifted(span.start), shifted(span.end)] : undefined;
     const counts = new Map(); for (const e of recent) counts.set(opName(e.activity), (counts.get(opName(e.activity)) || 0) + 1);
     const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 19).map(([t]) => t);
     const typeOf = (e) => top.includes(opName(e.activity)) ? opName(e.activity) : "other";
@@ -1250,12 +1252,14 @@
     wireEventList(host);
     const layout = { ...castLayout(), margin: { l: fz(130), r: 10, t: fz(28), b: fz(58) }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: fz(12) } }, tickfont: { size: fz(12) },
-               ...(isFinite(UW.spanFilter().start) ? { range: [shifted(UW.spanFilter().start), shifted(UW.spanFilter().end + 3600e3)], autorange: false } : {}) },   // opens on the span; the log runs on before it
+               range, autorange: !range },   // only the axis is limited to the span; retain the full log
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
       annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: fz(11), color: C.now } }] };
-    UW.reactPlot($("#cal-plot"), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
+    UW.reactPlot($("#cal-plot"), traces, layout, CFG, `event-span:${span.start}:${span.end}`).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
     wireCastPanels(host, () => renderTimeline(host, evs, s));
+    host.querySelector('[data-cp="cal-plot"] .reset').onclick = () => Plotly.relayout($("#cal-plot"),
+      range ? { "xaxis.range": range, "xaxis.autorange": false } : { "xaxis.autorange": true });
   }
   // Calendar view: a month grid or three days centred on a day, from the
   // Google calendars (imported at build time) and the intranet schedule.
