@@ -469,9 +469,8 @@
       sel.value=idx;
       r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
       r.onchange = () => {
-        const before = windowFile(currentWindow());
         setTrackDetail(TRACK_STEPS[r.value]);
-        if (windowFile(currentWindow()) !== before) loadWindow(); else renderMap();   // "all points" may mean the fine file
+        renderMap();
       };
       sel.onchange=()=>{r.value=sel.value;r.onchange();};
     }
@@ -970,15 +969,12 @@
   // of the window is cut the same way, so hover, colours and the pump marks
   // line up with the points drawn.
   const TRACK_STEPS = [50, 20, 10, 5, 2, 1, 0.5, 0];         // left to right: coarser to every point
-  // the span picks a starting detail (up to a week: a point a km; months:
-  // 5 km; years: 20 km) that the slider then overrides; "all points" is a
-  // choice, never the default
   // the track detail a span asks for: every point up to half a day, then coarser as the span grows
   const detailFor = (hours) => hours <= 12 ? 0 : hours <= 48 ? 0.5 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
   const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
   const currentWindow = () => M.windows.find((x) => x.label === state.win);
-  // "all points" loads the window's fine variant when the build made one
-  const windowFile = (w) => (state.trackKm === 0 && w?.fine_file) ? w.fine_file : w?.file;
+  // Apply every distance setting to native observations, never time averages.
+  const windowFile = (w) => w?.fine_file || w?.file;
   function setTrackDetail(km) {
     state.trackKm = km; store.set("trackKm", km);
     const r = $("#trackstep"), out = $("#tracksteplabel");
@@ -993,7 +989,7 @@
     let last = -1, bucket = null;
     for (let i = n - 1; i >= 0; i--) if (d.lat[i] != null) { last = i; break; }
     for (let i = 0; i < n; i++) {
-      if (d.lat[i] == null) { keep.push(i); continue; }
+      if (d.lat[i] == null) { keep.push(i); bucket = null; continue; }
       const b = Math.floor((d.dist_km[i] ?? 0) / km);
       if (b !== bucket || i === last) { keep.push(i); bucket = b; }
     }

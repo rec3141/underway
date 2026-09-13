@@ -44,7 +44,7 @@ def atomic_write(path: Path, text: str) -> None:
 
 # ---------------------------------------------------------------- stations
 
-FINE_STEP_S = 30      # the finest window step served ("all points" on the map), for spans up to a week
+FINE_STEP_S = 0       # native observations, without time averaging ("all points")
 
 def read_stations(path: Path | None, leg_id: str) -> list[dict]:
     """CTD logbook rows; tolerant of a missing or partial file, since a leg's
@@ -238,34 +238,37 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
             agg[v.name] = _circular_mean_deg
         else:
             agg[v.name] = "mean"
-    g = df.resample(rule).agg(agg)
-    # A bin is labelled by the mean time of its samples, not the grid edge, so
-    # its mean position sits at the instant it represents (an hour bin labelled
-    # at its start would put a mid-transit position half an hour early and
-    # break the along-track spacing below).
-    tmean = pd.Series(df.index.as_unit("ns").asi8.astype("float64"), index=df.index).resample(rule).mean()
-    # However coarse the time step, the track keeps at least one point every
-    # MAP_KM_STEP km along the way: the first raw record in each distance
-    # bucket joins the time bins, so a transit does not thin to a dotted line
-    # at the long spans.
-    if w.step_s >= 600 and "dist_km" in df.columns:
-        bucket = np.floor(df["dist_km"].ffill() / MAP_KM_STEP)
-        extra = df.loc[bucket.diff().fillna(1) != 0, list(agg.keys())]
-        extra = extra[~extra.index.isin(g.index)]
-        if len(extra):
-            g = pd.concat([g, extra]).sort_index()
-    # An empty bin becomes a null, which breaks the plotted line. One null per
-    # gap is enough for that, so long runs of empty bins (a port call, the
-    # months between seasons) collapse to a single row rather than a grid.
-    empty = g.drop(columns=["leg"]).isna().all(axis=1)
-    keep = ~empty | (empty & ~empty.shift(fill_value=False))
-    g = g[keep]
-    tm = tmean.reindex(g.index)
-    stamped = pd.to_datetime(tm.to_numpy(), unit="ns")
-    if g.index.tz is not None:
-        stamped = stamped.tz_localize("UTC").tz_convert(g.index.tz)
-    g.index = pd.DatetimeIndex(stamped.where(tm.notna().to_numpy(), g.index), name=g.index.name)
-    g = g[~g.index.duplicated(keep="first")].sort_index()
+    if w.step_s == FINE_STEP_S:
+        g = df[list(agg)].copy()
+    else:
+        g = df.resample(rule).agg(agg)
+        # A bin is labelled by the mean time of its samples, not the grid edge, so
+        # its mean position sits at the instant it represents (an hour bin labelled
+        # at its start would put a mid-transit position half an hour early and
+        # break the along-track spacing below).
+        tmean = pd.Series(df.index.as_unit("ns").asi8.astype("float64"), index=df.index).resample(rule).mean()
+        # However coarse the time step, the track keeps at least one point every
+        # MAP_KM_STEP km along the way: the first raw record in each distance
+        # bucket joins the time bins, so a transit does not thin to a dotted line
+        # at the long spans.
+        if w.step_s >= 600 and "dist_km" in df.columns:
+            bucket = np.floor(df["dist_km"].ffill() / MAP_KM_STEP)
+            extra = df.loc[bucket.diff().fillna(1) != 0, list(agg.keys())]
+            extra = extra[~extra.index.isin(g.index)]
+            if len(extra):
+                g = pd.concat([g, extra]).sort_index()
+        # An empty bin becomes a null, which breaks the plotted line. One null per
+        # gap is enough for that, so long runs of empty bins (a port call, the
+        # months between seasons) collapse to a single row rather than a grid.
+        empty = g.drop(columns=["leg"]).isna().all(axis=1)
+        keep = ~empty | (empty & ~empty.shift(fill_value=False))
+        g = g[keep]
+        tm = tmean.reindex(g.index)
+        stamped = pd.to_datetime(tm.to_numpy(), unit="ns")
+        if g.index.tz is not None:
+            stamped = stamped.tz_localize("UTC").tz_convert(g.index.tz)
+        g.index = pd.DatetimeIndex(stamped.where(tm.notna().to_numpy(), g.index), name=g.index.name)
+        g = g[~g.index.duplicated(keep="first")].sort_index()
     g = _break_discontinuities(g)
 
     t0 = g.index.min()
@@ -547,20 +550,19 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     (root / "data").mkdir(exist_ok=True)
     windows_meta = []
-    # Windows up to a week also come at FINE_STEP_S ("all points" on the
-    # map's track-detail slider), so the span decides the default detail but
-    # not the finest the browser can ask for.
+    # Every span also serves native observations: track spacing is chosen
+    # in the browser, independently of the charts' time-averaged windows.
     def write_window(w: Window) -> dict:
         fn = f"w-{w.label}.json"
         kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
-        if kept:
+        if kept and kept.get("fine_step_s") == FINE_STEP_S and kept.get("fine_file") and (root / kept["fine_file"]).is_file():
             log.info("window %-4s kept", w.label)
             return kept
         payload = slice_window(a, w, end)
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
         meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"],
                 "start": payload.get("start"), "end": payload.get("end")}
-        if w.step_s > FINE_STEP_S and w.hours <= 24 * 7:
+        if w.step_s > FINE_STEP_S:
             fine = slice_window(a, Window(w.label, w.hours, FINE_STEP_S), end)
             atomic_write(root / "data" / f"w-{w.label}-fine.json", json.dumps(fine, separators=(",", ":")))
             meta.update(fine_file=f"data/w-{w.label}-fine.json", fine_step_s=FINE_STEP_S, fine_n=fine["n"])
