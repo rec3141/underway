@@ -72,6 +72,7 @@ ROW_EVENTS = EVENTS             # … and every change to it
 MOVED_MIN = 15                  # a start that shifts by less is not worth a message
 STATUS_STARTED = ("in progress",)
 STATUS_FINISHED = ("completed", "canceled", "cancelled")
+CHANGE_NOTICE = "the schedule has changed http://10.0.0.2/Schedule.html"
 CHANGES_KEY = "changes"         # the schedule-changes follow, as a bell's key and a /start payload
 CHANGE_EVENTS = ("added", "removed", "moved")   # … and a cancellation, which is a "finished" event
 MAX_LINES = 25                  # lines in one message; a rewritten schedule says how many more
@@ -667,7 +668,11 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
             if key in mine:
                 continue
             mine[key] = now.isoformat(timespec="seconds")
-            lines.append(text)
+            if change and ev not in wanted:
+                if CHANGE_NOTICE not in lines:
+                    lines.append(CHANGE_NOTICE)
+            else:
+                lines.append(text)
         # forget rows that are long gone so the record stays small
         for k in [k for k, t in mine.items() if (now - datetime.fromisoformat(t)).days > 14]:
             del mine[k]
@@ -807,7 +812,7 @@ HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
 
 
 CHANGES_ON = ("You hear whenever the schedule changes: an operation added, taken off, moved or canceled; "
-              "no reminders. /changes off stops that, /status shows everything you follow.")
+              "one short notice and a link to the schedule, no reminders. /changes off stops that, /status shows everything you follow. /none stops an existing /all subscription.")
 
 
 def handle_telegram(tg: Telegram, wait: int = 0) -> int:
@@ -993,7 +998,7 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
             elif sub["channel"] == "telegram":
                 if tg is None:
                     raise RuntimeError("telegram not configured")
-                tg.send(sub["to"], "🔔 Amundsen schedule\n" + body)
+                tg.send(sub["to"], CHANGE_NOTICE if lines == [CHANGE_NOTICE] else "🔔 Amundsen schedule\n" + body)
             else:
                 if cfg is None:
                     raise RuntimeError("email not configured")

@@ -259,9 +259,25 @@ class ChangesTests(unittest.TestCase):
         rows = [_row("S1", "CTD", self.t(20), self.t(80), status="In progress"), _row("S2", "Net", self.t(180), self.t(240), status="Completed"),
                 _row("S3", "Box Core", self.t(300), self.t(360))]
         msgs = {s["to"]: lines for s, lines in alerts.messages_for([sub, everyone], alerts.due_events(rows, state, self.now), state, self.now)}
-        self.assertEqual(msgs["42"], ["Added: S3 — Box Core (" + alerts._when(rows[2]) + ")"])   # no heads-up, no start, no completion
+        self.assertEqual(msgs["42"], [alerts.CHANGE_NOTICE])   # no heads-up, no start, no completion
         self.assertTrue(any(l.startswith("Now in progress") for l in msgs["43"]))
         self.assertFalse(any(l.startswith("Added") for l in msgs["43"]))                        # a general subscription does not hear of additions
+
+    def test_multiple_changes_produce_one_short_notice(self):
+        state = alerts.load_state()
+        sub = alerts.set_changes("telegram", "42", True)
+        rows = [_row("S1", "CTD", self.t(60), self.t(120)), _row("S2", "Net", self.t(180), self.t(240))]
+        events = [("added", r, "Added detailed operation") for r in rows]
+        self.assertEqual(alerts.messages_for([sub], events, state, self.now), [(sub, [alerts.CHANGE_NOTICE])])
+        self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
+
+    def test_telegram_change_notice_has_no_heading_or_bullets(self):
+        alerts.set_changes("telegram", "42", True)
+        row = _row("S1", "CTD", self.t(60), self.t(120))
+        tg = FakeTelegram()
+        with patch.object(alerts, 'due_events', return_value=[('added', row, 'Detailed operation')]):
+            alerts.run(self.now, tg=tg, email=lambda *args: None)
+        self.assertEqual(tg.sent, [('42', 'the schedule has changed http://10.0.0.2/Schedule.html')])
 
     def test_following_the_bell_and_telegram(self):
         alerts.set_whiteboard("email", "ann@example.org", True)
