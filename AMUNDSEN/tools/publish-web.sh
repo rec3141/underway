@@ -18,9 +18,9 @@
 #   tools/publish-web.sh status    what is where, and when
 #
 # Settings, from /etc/underway/site.env or the environment:
-#   UNDERWAY_PUBLISH_REMOTE   ship side: where the web root goes  (grid:/data/underway/www)
+#   UNDERWAY_PUBLISH_REMOTE   ship side: where the web root goes  (grid:/data/underway_server/www)
 #   UNDERWAY_PUBLISH_APP      ship side: this checkout on grid     (/data/dev/underway/AMUNDSEN)
-#   UNDERWAY_PUBLISH_MIRROR   grid side: the mirror of the web root (/data/underway/www)
+#   UNDERWAY_PUBLISH_MIRROR   grid side: the mirror of the web root (/data/underway_server/www)
 #   UNDERWAY_PUBLISH_TARGET   grid side: the web server, host:path  (dreamhost:cryomics.org/underway)
 #   UNDERWAY_PUBLISH_URL      where that is served                  (https://cryomics.org/underway/)
 #   UNDERWAY_PUBLISH_MAX_MB   a size cap on the history's files, if one is wanted (0: none)
@@ -31,9 +31,9 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SITE=${UNDERWAY_SITE:-/etc/underway/site.env}
 if [[ -r $SITE ]]; then set -a; . "$SITE"; set +a; fi
 WEBROOT=${UNDERWAY_WEBROOT:-${UNDERWAY_HOME:-/data/underway_server}/www}
-REMOTE=${UNDERWAY_PUBLISH_REMOTE:-grid:/data/underway/www}
+REMOTE=${UNDERWAY_PUBLISH_REMOTE:-grid:/data/underway_server/www}
 REMOTE_APP=${UNDERWAY_PUBLISH_APP:-/data/dev/underway/AMUNDSEN}
-MIRROR=${UNDERWAY_PUBLISH_MIRROR:-/data/underway/www}
+MIRROR=${UNDERWAY_PUBLISH_MIRROR:-/data/underway_server/www}
 TARGET=${UNDERWAY_PUBLISH_TARGET:-dreamhost:cryomics.org/underway}
 URL=${UNDERWAY_PUBLISH_URL:-https://cryomics.org/underway/}
 MAX_MB=${UNDERWAY_PUBLISH_MAX_MB:-0}
