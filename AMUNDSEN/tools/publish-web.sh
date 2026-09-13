@@ -146,7 +146,7 @@ public_manifest() {
   # the tab says so instead of asking for videos that are not there
   local m=$MIRROR/data/manifest.json
   [[ -f $m ]] || return 0
-  PYTHONPATH="$HERE" "$PY" - "$m" "$MIRROR/index.html" "$HERE/dashboard/templates" <<'PYEOF'
+  PYTHONPATH="$HERE" "$TRACK_PY" - "$m" "$MIRROR/index.html" "$HERE/dashboard/templates" <<'PYEOF'
 import json, sys, re
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
