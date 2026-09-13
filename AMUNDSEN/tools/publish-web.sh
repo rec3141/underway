@@ -124,6 +124,9 @@ DirectoryIndex index.html
 Options -Indexes
 AddType application/json .json
 AddType application/geo+json .geojson
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE application/json application/geo+json
+</IfModule>
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^api(/|$) - [R=503,L]
@@ -138,6 +141,14 @@ ErrorDocument 503 ${base%/}/api-off.json
   </FilesMatch>
 </IfModule>
 HT
+  mkdir -p "$MIRROR/data/track"
+  cat > "$MIRROR/data/track/.htaccess" <<'HT'
+<IfModule mod_headers.c>
+  <FilesMatch "^[0-9a-f]{24}\.json$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+HT
   printf '{"error": "this copy of the dashboard is published to the web from the ship; the services that answer here (the chat, the live feed, uploads, alerts) run only aboard", "off": true}\n' > "$MIRROR/api-off.json"
 }
 
@@ -147,7 +158,7 @@ public_manifest() {
   local m=$MIRROR/data/manifest.json
   [[ -f $m ]] || return 0
   PYTHONPATH="$HERE" "$TRACK_PY" - "$m" "$MIRROR/index.html" "$HERE/dashboard/templates" <<'PYEOF'
-import json, sys, re
+import hashlib, json, sys, re
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 p, index = Path(sys.argv[1]), Path(sys.argv[2])
@@ -159,6 +170,13 @@ p.with_suffix('.json.tmp').replace(p)
 if index.is_file():
     site = json.loads(re.search(r'window\.__SITE__ = (.*);', index.read_text()).group(1))
     site['default_window'] = m['default_window']
+    assets = sorted(f for f in (index.parent / 'static').glob('*') if f.suffix in ('.js', '.css'))
+    if assets:
+        digest = hashlib.sha1()
+        for asset in assets:
+            digest.update(asset.name.encode())
+            digest.update(asset.read_bytes())
+        site['asset_version'] = digest.hexdigest()[:10]
     html = Environment(loader=FileSystemLoader(sys.argv[3]), autoescape=True).get_template('index.html.j2').render(site=site, m=m)
     index.with_suffix('.html.tmp').write_text(html)
     index.with_suffix('.html.tmp').replace(index)
