@@ -47,3 +47,10 @@ front-door or hostname failure, but cannot detect a powered-off host or prove
 reachability from another ship computer. For that coverage, run the same probe
 on a separate always-on LAN host with its own database directory, alert
 configuration and `UNDERWAY_UPTIME_URLS` pointing at the ship-facing site.
+
+The unlinked `/status.html` page reports current checks, pending email notice
+count, the latest 100 outage/recovery events recorded after its installation,
+and daily page-view counts. It refreshes every 30 seconds and marks monitoring
+older than three minutes as stale. It is also available at
+`/underway/status.html`; no dashboard navigation link is added. The data response
+is `/status.html?format=json` (or the corresponding prefixed path).

@@ -49,6 +49,16 @@ class TileServingTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_unlinked_status_page_and_data(self):
+        code, body = self.request('/status.html')
+        self.assertEqual(code, 200)
+        self.assertIn(b'Underway status', body)
+        self.assertIn(b'noindex,nofollow', body)
+        with patch('dashboard.status.report', return_value={'stale': True, 'views': []}):
+            code, body = self.request('/status.html?format=json')
+            self.assertEqual(code, 200)
+            self.assertEqual(json.loads(body), {'stale': True, 'views': []})
+
     def test_health_requires_built_site(self):
         self.assertEqual(self.request('/api/health')[0], 503)
         (self.web / 'data').mkdir()

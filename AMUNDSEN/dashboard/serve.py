@@ -133,6 +133,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == '/status.html':
+            if parse_qs(u.query).get('format') == ['json']:
+                from .status import report
+                try:
+                    return self._json(200, report())
+                except (OSError, sqlite3.Error):
+                    return self._json(503, {'error': 'Monitoring data unavailable'})
+            return self._bytes(200, 'text/html; charset=utf-8', (Path(__file__).parent / 'static/status.html').read_bytes(), 'no-store')
         if u.path == '/api/health':
             root = Path(self.directory)
             ready = (root / 'index.html').is_file() and (root / 'data/manifest.json').is_file()

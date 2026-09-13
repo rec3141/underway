@@ -1,10 +1,11 @@
 """Usage aggregation and uptime state transitions without contacting recipients."""
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from dashboard import uptime, usage
+from dashboard import uptime, usage, status
 
 
 class MonitoringTests(unittest.TestCase):
@@ -32,6 +33,19 @@ class MonitoringTests(unittest.TestCase):
         uptime.update(state, good, 'seven')
         self.assertEqual(len(state['pending']), 2)
         self.assertIn('recovered', state['pending'][-1]['text'])
+        self.assertEqual([e['status'] for e in state['events']], ['down', 'recovered'])
+
+    def test_status_marks_old_checks_stale_and_omits_notice_text(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(uptime, 'DB_DIR', Path(tmp)), patch.object(usage, 'DB_DIR', Path(tmp)):
+            self.assertTrue(status.report()['stale'])
+            state = {'checked_at': '2020-01-01T00:00:00+00:00', 'pending': [{'text': 'private delivery detail'}],
+                     'checks': {'http://test': {'result': {'ok': True, 'ms': 12}}}}
+            (Path(tmp) / 'uptime.json').write_text(json.dumps(state))
+            result = status.report()
+            self.assertTrue(result['stale'])
+            self.assertEqual(result['pending_email'], 1)
+            self.assertNotIn('private delivery detail', json.dumps(result))
+            self.assertEqual(result['checks'][0]['ms'], 12)
 
     def test_email_retries_without_telegram(self):
         state = {'pending': [{'text': 'Underway unavailable: test', 'sent': []}]}

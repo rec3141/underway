@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Underway status</title>
+<style>
+:root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;background:light-dark(#f4f5f7,#16191d);color:light-dark(#20252d,#e5e9ef)}body{max-width:1000px;margin:auto;padding:24px}h1{margin-bottom:4px}h2{font-size:1.15rem}p{margin:8px 0;color:light-dark(#536070,#a9b6c6)}section{background:light-dark(white,#20252c);border:1px solid light-dark(#d7dde5,#3b4551);border-radius:12px;padding:18px;margin:20px 0}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid light-dark(#e0e5ec,#3b4551);vertical-align:top}th{font-weight:600}td:first-child{overflow-wrap:anywhere}button{font:inherit;padding:8px 16px;cursor:pointer}#health{font-weight:650}.good{color:light-dark(#146437,#7de0a2)}.bad{color:light-dark(#a3261c,#ffb2a8)}.muted{color:light-dark(#64615a,#c4baa6)}.stats{display:flex;gap:24px;flex-wrap:wrap}.stats b{display:block;font-size:1.8rem}#error{color:light-dark(#a3261c,#ffb2a8)}@media(max-width:600px){body{padding:14px}section{padding:12px}th,td{padding:8px}#checks td:first-child{min-width:165px}table{font-size:14px}}
+</style>
+</head>
+<body>
+<h1>Underway status</h1><p>Availability and page views</p>
+<button id="refresh" type="button">Refresh</button><p id="error" role="alert" hidden></p>
+<section><h2 id="health" aria-live="polite">Loading monitoring data…</h2><p id="checked"></p>
+<div class="scroll"><table><thead><tr><th>Endpoint</th><th>Status</th><th>Response</th><th>Checked</th></tr></thead><tbody id="checks"></tbody></table></div>
+<p id="alerts"></p><p>Checks run every minute from the server. Two consecutive failures trigger an outage email; recovery triggers another. These checks do not prove reachability from another ship computer.</p></section>
+<section><h2>Page views</h2><div class="stats"><div><b id="today">—</b>Today (UTC)</div><div><b id="week">—</b>Last 7 days</div><div><b id="total">—</b>Retained total</div></div>
+<p>Page opens and main-tab changes, not unique visitors. Automatic data refreshes do not count. Up to 90 days retained.</p>
+<label for="days">Show </label><select id="days"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+<div class="scroll"><table><thead><tr><th>Day (UTC)</th><th>Page</th><th>Views</th></tr></thead><tbody id="views"></tbody></table></div></section>
+<section><h2>Recent outage and recovery notices</h2><p>Up to 100 events recorded since this status page was enabled.</p><div class="scroll"><table><thead><tr><th>Time</th><th>Endpoint</th><th>Event</th></tr></thead><tbody id="events"></tbody></table></div></section>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),fmt=t=>t?new Date(t).toLocaleString():'Not checked';let data=null,busy=false;
+function rows(id,values){const body=$(id);body.replaceChildren();for(const values0 of values){const row=body.insertRow();for(const value of values0)row.insertCell().textContent=value;}if(!values.length){const cell=body.insertRow().insertCell();cell.colSpan=4;cell.textContent='No records yet.';}}
+const since=days=>new Date(Date.now()-(days-1)*86400000).toISOString().slice(0,10);
+function views(){if(!data)return;const v=data.views,cut=since(+$('days').value),sum=days=>v.filter(r=>r.day>=since(days)).reduce((n,r)=>n+r.views,0);$('today').textContent=sum(1);$('week').textContent=sum(7);$('total').textContent=v.reduce((n,r)=>n+r.views,0);rows('views',v.filter(r=>r.day>=cut).map(r=>[r.day,r.page,r.views]));}
+function draw(){const stale=data.stale||!data.checks.length,down=data.checks.some(c=>c.down),failed=data.checks.some(c=>!c.ok);$('health').textContent=stale?'Monitoring is stale or has not started':down?'Outage detected':failed?'A check failed — awaiting confirmation':'All checks passing';$('health').className=stale?'muted':failed?'bad':'good';$('checked').textContent='Last monitor run: '+fmt(data.checked_at);rows('checks',data.checks.map(c=>[c.url,stale?'Unknown (stale)':c.ok?'Passing':c.down?'Down':'First failure',c.ms==null?'—':c.ms+' ms',fmt(c.last_check)]));$('alerts').textContent='Alerts: server logs and email · '+data.pending_email+' email notice(s) awaiting delivery';rows('events',[...data.events].reverse().map(e=>[fmt(e.at),e.url,e.status]));views();}
+async function refresh(){if(busy)return;busy=true;$('refresh').disabled=true;try{const response=await fetch('status.html?format=json',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('Status request failed ('+response.status+')');data=await response.json();draw();$('error').hidden=true;}catch(e){$('error').textContent='Unable to refresh status. Displayed data may be older. '+e.message;$('error').hidden=false;$('health').textContent='Current status unavailable';$('health').className='muted';}finally{busy=false;$('refresh').disabled=false;}}
+$('refresh').onclick=refresh;$('days').onchange=views;refresh();setInterval(refresh,30000);
+})();
+</script></body></html>

@@ -50,6 +50,8 @@ def update(state, results, now):
         if text:
             log.warning('%s', text)
             pending.append({'text': text, 'sent': []})
+            state.setdefault('events', []).append({'at': now, 'url': url, 'status': 'down' if previous['down'] else 'recovered'})
+            state['events'] = state['events'][-100:]
     state['checked_at'] = now
 
 
