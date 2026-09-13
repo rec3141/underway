@@ -220,7 +220,8 @@
           <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD)</span>
           <span class="right">underway v{{ site.version }} · built <time id="gen"></time></span>
         </div>
-        <div class="hscroll"><table id="sources"></table></div>
+        <p class="sources-scroll-hint">Swipe the table sideways to see source columns and leg coverage.</p>
+        <div class="hscroll" tabindex="0" role="region" aria-label="Source columns and leg coverage"><table id="sources"></table></div>
         <div class="notes" id="notes"></div>
       </div>
     </div>

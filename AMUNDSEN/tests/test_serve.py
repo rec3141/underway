@@ -49,6 +49,32 @@ class TileServingTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_health_requires_built_site(self):
+        self.assertEqual(self.request('/api/health')[0], 503)
+        (self.web / 'data').mkdir()
+        (self.web / 'data/manifest.json').write_text('{}')
+        status, body = self.request('/api/health')
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {'ok': True})
+
+    def test_page_view_endpoint(self):
+        from dashboard import usage
+        with patch.object(usage, 'DB_DIR', Path(self.tmp.name) / 'usage'):
+            conn = http.client.HTTPConnection('127.0.0.1', self.server.server_port, timeout=3)
+            try:
+                conn.request('POST', '/api/usage', body='casts')
+                response = conn.getresponse()
+                self.assertEqual(response.status, 200)
+                response.read()
+                self.assertEqual(usage.report()[0]['views'], 1)
+                conn.request('POST', '/api/usage', body='casts', headers={'Sec-Fetch-Site': 'cross-site'})
+                response = conn.getresponse()
+                self.assertEqual(response.status, 400)
+                response.read()
+                self.assertEqual(usage.report()[0]['views'], 1)
+            finally:
+                conn.close()
+
     def test_ordinary_tile_and_site(self):
         self.assertEqual(self.request("/static/tiles/tile.png?v=123"), (200, b"tile bytes"))
         self.assertEqual(self.request("/static/tiles/tile.png", "HEAD"), (200, b""))

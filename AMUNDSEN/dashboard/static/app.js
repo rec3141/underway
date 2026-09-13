@@ -1728,11 +1728,21 @@
 
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
-  function showTab(name) {
+  let usageTab = null;
+  const tabFromHash = () => {
+    if (/^#(wiki|history|nature)\//.test(location.hash)) return "wiki";
+    const m = /^#tab\/([a-z]+)$/.exec(location.hash);
+    return m && (m[1] === "photos" || document.getElementById(`pane-${m[1]}`)) ? m[1] : null;
+  };
+  function showTab(name, { pop = false } = {}) {
     if(name==='table')name='underway'; // old bookmarks and saved tab choices
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
     if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
+    if (!pop) {
+      const hash = name === "wiki" ? (/^#(wiki|history|nature)\//.test(location.hash) ? location.hash : `#wiki/${store.get("wiki.slug", "")}`) : `#tab/${name}`;
+      if (location.hash !== hash) try { history.pushState({ tab: name }, "", hash); } catch {}
+    }
     if(name!=='wiki' && name!=='photos')store.set('lastNonWikiTab',name);
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat" && b.dataset.tab !== "map") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + (name==='photos'?'wiki':name);
@@ -1743,9 +1753,16 @@
     $("#controls-underway").hidden = false;
     const hint = $("#maphint"); if (hint) hint.hidden = name !== "casts";
     store.set("tab", name);
+    if (usageTab !== name) {
+      usageTab = name;
+      try { navigator.sendBeacon?.("api/usage", name); } catch {}
+    }
     window.UW?.onTab?.(name);
     if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);
   }
+  const restoreTab = () => { const name = tabFromHash(); if (name) showTab(name, { pop: true }); };
+  window.addEventListener("popstate", restoreTab);
+  window.addEventListener("hashchange", restoreTab);
   for (const b of $("#tabs").querySelectorAll("button")) b.onclick = () => showTab(b.dataset.tab);
   $('#wikiclose').onclick=()=>showTab(store.get('lastNonWikiTab','underway'));
 
@@ -1800,7 +1817,7 @@
   (async () => {
     renderControls();
     renderProvenance();
-    showTab(store.get("tab", "underway"));
+    showTab(tabFromHash() || store.get("tab", "underway"), { pop: true });
     setInterval(checkForUpdate, 30 * 1000);
     window.addEventListener("online", checkForUpdate);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });

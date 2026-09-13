@@ -19,6 +19,7 @@ const uploadBatches=[], uploadFiles=[]; let rejectUpload=true;
 let importRequests=0, importJob=null, finishImport=false;
 const liveCast=(pressure_col, pressure)=>({started:1,n:2,n_raw:2,max_p:pressure,depth_like:true,t:[1,2],columns:['scan',pressure_col,'temperature'],pressure_col,cols:{scan:[1,2],[pressure_col]:[pressure,pressure],temperature:[3,4]}});
 const liveData={port:5555,columns:['scan','depth','temperature'],pressure_col:'depth',current:liveCast('depth',25),last:liveCast('depth_m',10)};
+const pageViews=[];
 const failures=new Set(['/data/manifest.json','/data/w-1h.json']), requests=[];
 const chatMessages=Array.from({length:45},(_,i)=>({id:i+1,t:1700000000+i,name:'Sailor',text:`Message ${i+1}: reading a long conversation.`,emoji:''}));
 const hold=new Set(), held=[];
@@ -73,6 +74,7 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname.replace(/^\/underway\//,'/'); requests.push(req.url);
+  if(p==='/api/usage' && req.method==='POST') {let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{pageViews.push(body);res.end('{}');});return;}
   if(process.env.UPLOAD_UI && p.startsWith('/api/nature/')) {
     res.setHeader('Content-Type','application/json');
     const q=new URL(req.url,'http://localhost').searchParams;
@@ -182,7 +184,19 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       const ids=await evaluate('[...document.querySelectorAll("#tabs > button")].map(b=>b.id||b.dataset.tab)');
       for(const width of [640,390,320]) {
         await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});await wait(100);
-        assert.deepEqual(await evaluate('[...document.querySelectorAll(".mobile-nav > summary")].map(s=>s.textContent)'),['☰ Map','☰ Science','☰ Extras']);
+        assert.deepEqual(await evaluate('[...document.querySelectorAll(".mobile-nav > summary")].map(s=>s.textContent)'),['◧ Map','☰ Science','☰ Extras']);
+        assert.deepEqual(await evaluate('[...document.querySelectorAll("[data-map-mode]")].map(b=>b.textContent)'), ['□ No map','◧ Half map','■ Full map']);
+        for (const [mode,icon] of [['none','□'],['full','■'],['half','◧']]) {
+          await evaluate(`document.querySelector('.mobile-map summary').click();document.querySelector('[data-map-mode=${mode}]').click()`);
+          await until(`document.querySelector('.mobile-map summary').textContent===${JSON.stringify(icon+' Map')}`);
+          assert.equal(await evaluate('UW.mapMode()'),mode);
+          assert.equal(await evaluate(`document.querySelector('[data-map-mode=${mode}]').getAttribute('aria-pressed')`),'true');
+          assert.equal(await evaluate('document.querySelector(".mobile-map").open'),false);
+        }
+        await evaluate('UW.setMapMode("none")');
+        await until('document.querySelector(".mobile-map summary").textContent==="□ Map"');
+        await evaluate('UW.setMapMode("half")');
+        assert.equal(await evaluate('document.querySelector("#tabs [data-tab=sources]").textContent'),'Sources');
         assert.equal(await evaluate('document.querySelector("#theme").closest("#mobile-appearance")!==null'),true);
         assert.equal(await evaluate('document.querySelector("#alert").parentElement===document.body'),true);
         await evaluate('document.querySelectorAll(".mobile-nav summary")[1].click()');
@@ -194,10 +208,16 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
         await until('document.querySelectorAll(".mobile-nav")[2].open');
         await evaluate('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape"}))');
         assert.equal(await evaluate('document.querySelectorAll(".mobile-nav[open]").length'),0);
-        assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true);
+        await evaluate('UW.showTab("sources")');
+        const sourceLayout = await evaluate(`(()=>{const table=document.querySelector('#sources'),box=table.parentElement,cells=table.rows[1].cells;box.scrollLeft=100;return {viewport:document.documentElement.scrollWidth<=innerWidth,scrolls:box.scrollWidth>box.clientWidth,scrolled:box.scrollLeft>0,panel:cells[0].getBoundingClientRect().width,source:cells[1].getBoundingClientRect().width,font:parseFloat(getComputedStyle(cells[1]).fontSize)}})()`);
+        assert.equal(sourceLayout.viewport,true);
+        if (width<=390) { assert.equal(sourceLayout.scrolls,true); assert.equal(sourceLayout.scrolled,true); }
+        assert(sourceLayout.panel>=140 && sourceLayout.source>=220 && sourceLayout.font>=12,JSON.stringify(sourceLayout));
       }
       await call('Emulation.setDeviceMetricsOverride',{width:1400,height:844,deviceScaleFactor:1,mobile:false});await wait(100);
       assert.deepEqual(await evaluate('[...document.querySelectorAll("#tabs > button")].map(b=>b.id||b.dataset.tab)'),ids);
+      assert.equal(await evaluate('document.querySelector("#tabs [data-tab=sources]").textContent'),'?');
+      assert.notEqual(await evaluate('getComputedStyle(document.querySelector("#maptoggle")).display'),'none');
       assert.equal(await evaluate('document.querySelector("#theme").closest(".tabrow")!==null'),true);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS desktop status/map compaction, three mobile menus, navigation, dismissal, footer controls and resize restoration');return;
@@ -483,7 +503,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
         assert(boxes.browse<150,JSON.stringify({width,...boxes}));
         assert.equal(boxes.overlap,false);
         assert.equal(await evaluate('(()=>{const x=document.querySelector("#wikiclose").getBoundingClientRect(),h=document.querySelector(".histtools").getBoundingClientRect();return Math.abs(x.top-h.top)<2&&Math.abs(x.right-h.right)<2})()'),true);
-        if(width<=640) assert.deepEqual(await evaluate('[...document.querySelectorAll(".mobile-nav > summary")].map(b=>b.textContent)'),['☰ Map','☰ Science','☰ Extras']);
+        if(width<=640) assert.deepEqual(await evaluate('[...document.querySelectorAll(".mobile-nav > summary")].map(b=>b.textContent)'),['◧ Map','☰ Science','☰ Extras']);
       }
       await evaluate('document.querySelector(\'[data-domain="history"]\').click()');
       await until('document.querySelector("#histask").textContent==="Ask Ada"');
@@ -493,7 +513,30 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelectorAll("#wikidomains .on").length'),0);
       assert.equal(await evaluate('UW.histShared.domainOn("history")&&UW.histShared.domainOn("nature")'),true);
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS Wiki search row, unselected all-domain home and toggle-off reset');return;
+      await evaluate('UW.histShared.open("kind/people")');
+      await until('location.hash==="#wiki/kind/people"');
+      await evaluate('UW.showTab("underway")');
+      assert.equal(await evaluate('location.hash'), '#tab/underway');
+      await wait(150);
+      const viewsBefore=pageViews.length;
+      await evaluate('UW.showTab("underway");UW.renderMap()');
+      await wait(150);
+      assert.equal(pageViews.length,viewsBefore);
+      assert.equal(pageViews.at(-1),'underway');
+      await evaluate('history.back()');
+      await until('location.hash==="#wiki/kind/people" && !document.querySelector("#pane-wiki").hidden');
+      await evaluate('history.forward()');
+      await until('location.hash==="#tab/underway" && !document.querySelector("#pane-underway").hidden');
+      for (const tab of ['underway', 'casts', 'stations', 'calendar', 'sources']) {
+        await evaluate(`UW.showTab(${JSON.stringify(tab)});window.__reloadMarker=true`);
+        await call('Page.reload');
+        await until('window.UW && !window.__reloadMarker && window.UW.state.raw');
+        assert.equal(await evaluate('location.hash'), `#tab/${tab}`);
+        assert.equal(await evaluate(`document.querySelector('#pane-${tab}').hidden`), false);
+      }
+      await evaluate('UW.showTab("wiki")');
+      await until('location.hash==="#wiki/kind/people" && !document.querySelector("#pane-wiki").hidden');
+      console.log('PASS Wiki layout and Science anchors, refresh, Back/Forward, and Wiki return');return;
     }
     if (process.env.UPLOAD_UI) {
       await evaluate(`(async()=>{UW.M.history={stamp:'test'};await UW.natureViews.ensure();document.querySelector('#tabs [data-tab=photos]').click();})()`);

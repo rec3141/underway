@@ -133,6 +133,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == '/api/health':
+            root = Path(self.directory)
+            ready = (root / 'index.html').is_file() and (root / 'data/manifest.json').is_file()
+            return self._json(200 if ready else 503, {'ok': ready})
         if u.path.startswith('/api/ice/'):
             from . import ice_store
             q=parse_qs(u.query)
@@ -270,6 +274,25 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urlsplit(self.path)
+        if u.path == '/api/usage':
+            from . import usage
+            try:
+                if self.headers.get('Sec-Fetch-Site') == 'cross-site' or self.headers.get('Transfer-Encoding'):
+                    raise ValueError('Invalid request')
+                origin = self.headers.get('Origin')
+                if origin and urlsplit(origin).netloc != self.headers.get('Host'):
+                    raise ValueError('Invalid origin')
+                n = int(self.headers.get('Content-Length', '0'))
+                if not 0 < n <= 32:
+                    raise ValueError('Invalid page')
+                self.connection.settimeout(5)
+                usage.record(self.rfile.read(n).decode('ascii'))
+                return self._json(200, {'ok': True})
+            except (ValueError, UnicodeError):
+                return self._json(400, {'error': 'Invalid page view'})
+            except (OSError, sqlite3.Error):
+                log.warning('Usage count could not be saved')
+                return self._json(503, {'error': 'Usage unavailable'})
         if u.path in ('/api/nature/upload', '/api/nature/upload/file'):
             from . import photo_upload
             try:

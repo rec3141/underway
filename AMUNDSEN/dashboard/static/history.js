@@ -1346,6 +1346,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   window.addEventListener("popstate", (e) => {
     const left = nav.fromMap;                             // the view being left was opened from the map
     nav.fromMap = !!e.state?.fromMap;
+    if (/^#tab\//.test(location.hash)) { nav.n = 0; return; }
     const s = e.state?.hist ?? hashSlug();
     if (s == null) {
       nav.n = 0;

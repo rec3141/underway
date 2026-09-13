@@ -885,6 +885,7 @@ footer { padding: 14px 0 18px; color: var(--muted); font-size: var(--t-md); }
 details.card { padding: 8px 12px; margin-bottom: 10px; }
 summary { cursor: pointer; color: var(--fg); font-weight: 600; }
 .prov { display: grid; grid-template-columns: 1fr; gap: 10px; padding-top: 8px; }
+.sources-scroll-hint { display: none; }
 table#sources { border-collapse: collapse; width: 100%; font-size: var(--t-md); }
 #sources td, #sources th { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 #sources th { color: var(--muted); font-weight: 600; white-space: nowrap; }
@@ -903,8 +904,14 @@ table#sources { border-collapse: collapse; width: 100%; font-size: var(--t-md); 
   .livecfgform input[name=columns] { width: 100%; }
   .livecfgform details { min-width: 0; }
   #livecfgerror { overflow-wrap: anywhere; }
-  table#sources { table-layout: fixed; }
-  #sources td, #sources th { overflow-wrap: anywhere; white-space: normal; padding: 3px 4px; }
+  #pane-sources .prov, #pane-sources .hscroll { min-width: 0; }
+  table#sources { table-layout: auto; width: max-content; min-width: 100%; }
+  #sources td, #sources th { padding: 8px; white-space: normal; line-height: 1.5; }
+  #sources :is(td, th):first-child { min-width: 140px; max-width: 180px; position: sticky; left: 0; background: var(--card); z-index: 1; }
+  #sources :is(td, th):nth-child(2) { min-width: 220px; max-width: 280px; overflow-wrap: anywhere; }
+  #sources .src { font-size: var(--t-md); }
+  #sources :is(td, th):nth-child(n+3) { min-width: 44px; text-align: center; white-space: nowrap; }
+  .sources-scroll-hint { display: block; margin: 0; color: var(--muted); }
   .legmenu .span, .legmenu .n { white-space: normal; overflow-wrap: anywhere; }
 }
 .notes p { margin: 0 0 6px; }
