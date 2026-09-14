@@ -10,6 +10,11 @@ in the ship's clone of the project, with the photographs beside it in
 writers as everything else; that ingest is idempotent on ``id``, so a
 corrected line with the same id replaces the row.
 
+Most lines come in by the photo import (``photos.py``): a photograph from
+the share, placed by its own time and position and captioned by the model,
+becomes a line through ``append`` like any other; the form on the tab writes
+one line by hand.
+
 Ids carry the ``amundsen-<date>-<nnn>`` prefix, so they never collide with
 research ids. A line carries only the writer's fields (``db/history/JOURNAL.md``
 on grid is the contract); who wrote it goes to ``journal.log`` beside it.
@@ -173,6 +178,11 @@ def append(entry: dict, who: str = "") -> dict:
         row = {"kind": "observation", "id": id_, **{k: v for k, v in row.items() if k != "kind"}}
         if entry.get("image"):
             row["artifact_file"] = _image(entry["image"], id_)
+        else:
+            # a correction without a new photograph keeps the one the line has
+            before = next((e for e in reversed(lines) if e.get("id") == id_ and e.get("artifact_file")), None)
+            if before:
+                row["artifact_file"] = before["artifact_file"]
         with open(FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
         with open(JOURNAL_DIR / "journal.log", "a", encoding="utf-8") as f:

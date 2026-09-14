@@ -1,15 +1,20 @@
 /* Amundsen underway dashboard — renders the JSON produced by the Python build.
- * Self-contained: Plotly is bundled, and the basemap is Natural Earth GeoJSON
- * served from static/geo/ and drawn by Plotly's MapLibre map with no tiles.
+ * Self-contained: Plotly (the charts) and MapLibre (the map, static/map.js) are
+ * served from static/, and the basemap comes from static/geo/ and the local
+ * tile sets.
  *
- * One record spans every leg; each point carries its leg, and the leg list
- * filters what is shown. The map draws the shown legs whole; a span back
- * from the latest data is where the graphs open. */
+ * One record spans every leg. A window is a span back from the latest data;
+ * each point carries its leg, and the leg list filters what is shown. */
 (() => {
   "use strict";
 
   const SITE = window.__SITE__;
   let M = window.__MANIFEST__;
+  // the web copy (tools/publish-web.sh marks its manifest public): the page
+  // stands on its published files alone, and what only runs aboard (the chat,
+  // the photo uploads and /Share gallery, the live feeds, alerts, feedback,
+  // the plan drop) is hidden rather than left to fail against api/
+  const PUBLIC = !!M?.public;
   const $ = (s) => document.querySelector(s);
   const { fetchJSON } = window.UWData;
   const loadErrors = new Set();
@@ -30,7 +35,7 @@
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
-  if (store.get("prefs.v", 0) < 4) { store.set("prefs.v", 4); store.set("trackKm", null); }   // track detail follows the shown legs
+  const newViewer = store.get('panel',null) === null;
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
     win: store.get("win", M.default_window),
@@ -38,11 +43,11 @@
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
-    trackKm: store.get("trackKm", null),                // track detail: 0 = every point, else one per so many km (null: from the shown legs)
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
-    cameras: store.get("cameras", true),                // a camera per daily timelapse on the map
-    communities: store.get("communities", true),        // settlements on the map
+    photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
+    communities: true,                                  // the settlements with people in them are always on the map
+    names: store.get("names", true),                    // the geographic names: bays, sounds, straits, islands, capes, lakes, rivers (tools/make_names_tiles.py)
     plan: store.get("plan", true),                      // the leg's planned track and stations
     history: store.get("history", false),               // the History tab's artifacts and voyage tracks
     nature: store.get("nature", false),                 // the Nature tab's observations
@@ -51,25 +56,23 @@
     satAt: null,                                        // an archived picture's scene time, or null for the newest
     order: store.get("order", []),
     panel: store.get("panel", {}),                    // name -> "min" | "wide" | null (a key the user has set)
+    depthScale: store.get("depthScale", {}),
     raw: null,                                        // window payload as built
     data: null,                                       // same, filtered to shown legs
     geo: null,
     view: null,                                       // user's pan/zoom
   };
 
-  const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)"]);
+  const NOT_PANELS = new Set(["Time elapsed (h)", "Distance travelled (km)", "TSG line warming (°C)"]);
+  const isDepth = (name) => name === 'Bottom depth (m)' || name === 'Rosette depth (m)';
+  if(newViewer){for(const v of M.variables)state.panel[v.name]='min';store.set('panel',state.panel)}
   const extraPanels = new Map();
   const extraColours = new Map();
-  // the per-scale surprise series feed the one surprise panel, which shows
-  // the scale matching the span on display (holding at the longest scale)
+  // Surprise has one summary row per scale; extra charts start minimized.
   const SURPRISE = "Surprise (−log10 p)";
-  for (const v of M.variables) if (v.name.startsWith("Surprise ·")) NOT_PANELS.add(v.name);
-  function surpriseScale() {
-    const scales = M.surprise?.scales || [];
-    const hours = (M.windows.find((w) => w.label === state.win) || {}).hours || 1;
-    let pick = scales[0];
-    for (const sc of scales) if (sc[1] <= hours * 60) pick = sc;
-    return pick ? pick[0] : null;
+  if (!store.get('summary-tables-v1',false)) {
+    for (const v of M.variables) if (v.name.startsWith('Surprise ·')) state.panel[v.name]='min';
+    store.set('panel',state.panel);store.set('summary-tables-v1',true);
   }
   let VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
 
@@ -97,14 +100,15 @@
     const cs = getComputedStyle(document.documentElement);
     const v = (k) => cs.getPropertyValue("--" + k).trim();
     for (const k of ["bg", "card", "card-2", "line", "fg", "fg-2", "muted", "accent", "on-accent", "accent-2", "warn", "ok", "bad", "now", "purple", "pink", "gold",
-                     "marker", "marker-line", "floor", "floor-line", "map-bg", "map-land", "map-coast", "map-ice", "sketch-coast", "plot-legend-bg"])
+                     "marker", "marker-line", "floor", "floor-line", "map-bg", "map-land", "map-coast", "map-ice", "map-name-water", "map-name-land", "map-name-halo",
+                     "sketch-coast", "plot-legend-bg"])
       C[k.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())] = v(k);
     C.palette = v("palette").split(/\s+/);
     C.bathy = v("map-bathy").split(/\s+/);
     C.dark = cs.colorScheme !== "light";
     fontScale = (parseFloat(cs.fontSize) || 14) / 14;
     THEME.plot_bgcolor = v("plot-bg");
-    Object.assign(THEME.font, { color: v("plot-fg"), size: fz(12.5), family: v("plot-font") || THEME.font.family });
+    Object.assign(THEME.font, { color: v("plot-fg"), size: fz(12), family: v("plot-font") || THEME.font.family });
     for (const ax of ["xaxis", "yaxis"]) Object.assign(THEME[ax], { gridcolor: v("plot-grid"), zerolinecolor: v("plot-grid"), linecolor: v("plot-line") });
     Object.assign(THEME.hoverlabel, { bgcolor: v("hover-bg"), bordercolor: v("accent") });
     Object.assign(THEME.hoverlabel.font, { color: v("hover-fg") || v("fg"), size: fz(12) });
@@ -136,14 +140,16 @@
     ssel.value = sizeName();
     ssel.onchange = () => { store.set("textsize", ssel.value); applyTheme(themeName(), true); };
     lightOS.addEventListener?.("change", () => { if (themeName() === "auto") applyTheme("auto", true); });
-    // the top line by width: on a desktop the map cycler, the tabs, the theme picker at the right; on a
-    // phone the cycler flows with the tab buttons and the picker goes to the very foot of the page
-    const pick = document.querySelector(".themepick"), cycler = document.querySelector(".top .maptoggle"), row = document.querySelector(".tabrow"), tabs = $("#tabs"), foot = document.querySelector("main > footer");
-    const narrow = matchMedia("(max-width: 640px)");
-    const place = () => { if (!(pick && cycler && row && tabs && foot)) return; (narrow.matches ? foot : row).append(pick); (narrow.matches ? tabs : row).prepend(cycler); };
-    place(); narrow.addEventListener?.("change", place);
+    // Appearance and feedback controls remain in the upper-right header.
   }
   const CFG = { displayModeBar: false, responsive: true, scrollZoom: true, doubleClick: "reset" };
+  const rememberPlot = window.UWData.plotState(Plotly);
+  function reactPlot(gd, data, layout, config, context = '') {
+    const pane = gd.closest('.pane')?.id || '';
+    const name = gd.id || gd.closest('[data-name]')?.dataset.name || '';
+    const filter = pane === 'pane-underway' ? [state.win, state.xmode, [...state.hidden].sort()] : pane === 'pane-wiki' ? [location.hash] : [];
+    return rememberPlot(gd, data, layout, config, JSON.stringify([pane, name, filter, context]), pane === 'pane-underway' ? {xaxis: sharedXAxis()} : {}).then(plot=>{window.UWPlotExport?.attach(plot);return plot;});
+  }
 
   // Shift+scroll zooms the x axis alone, Ctrl+scroll the y axis alone, about
   // the cursor; a plain scroll keeps Plotly's zoom of both. Listens in the
@@ -195,7 +201,10 @@
   const fmtTs = (ms) => { if (ms == null || isNaN(ms)) return ""; const p = localParts(ms); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`; };
   const tzAbbr = (ms = Date.now()) => new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date(ms)).find((p) => p.type === "timeZoneName")?.value || SITE.local_tz;
   const offsetMs = (ms) => { const p = localParts(ms); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(ms / 60000) * 60000; };
-  const shipAxis = (ms) => new Date(ms + offsetMs(ms));
+  // Keep shifted milliseconds for arithmetic; pass explicit wall-time strings
+  // to Plotly, whose numeric/Date inputs depend on the browser timezone.
+  const shipAxis = (ms) => ms + offsetMs(ms);
+  const plotDate = (ms) => new Date(ms).toISOString().slice(0, -1);
   const fmtLocal = (iso) => new Date(iso).toLocaleString(undefined, { timeZone: SITE.local_tz,
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const ago = (iso) => {
@@ -208,7 +217,7 @@
   const lastFinite = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i]; return null; };
   const fmtVal = (v, unit) => v == null ? "—" : `${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)}${unit ? " " + unit : ""}`;
   const dms = (lat, lon) => `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
-  const xvals = (d) => state.xmode === "time" ? d.t.map(shipAxis) : d.dist_km;
+  const xvals = (d) => state.xmode === "time" ? d.t.map((t) => plotDate(shipAxis(t))) : d.dist_km;
   const xTitle = () => state.xmode === "time" ? `ship time (${tzAbbr()})` : "distance along track (km)";
   const minmax = (a) => { let lo = Infinity, hi = -Infinity; for (const x of a) if (x != null) { if (x < lo) lo = x; if (x > hi) hi = x; } return [lo, hi]; };
   const cssId = (s) => s.replace(/[^a-z0-9]+/gi, "_");
@@ -216,11 +225,11 @@
   const legByIndex = (i) => M.legs[i];
   const shownLegs = () => M.legs.filter((l) => !state.hidden.has(l.id));
   // The legs menu filters the data: what is loaded covers every shown leg
-  // (coverWindow) and hidden legs are masked out, on every tab. The map
-  // draws the shown legs whole, at a detail to suit their length. The span
-  // is a view for the graphs: the panels' x axes open on the last so many
-  // hours; the map and the tables are untouched by it. The span runs back
-  // from the end of the record; times without a zone are UTC.
+  // (coverWindow) and hidden legs are masked out, on every tab. The span is
+  // a view on it: the panels' x axes open on the last so many hours, the map
+  // draws that stretch of track at a detail to suit its length, and the
+  // tables are untouched by it. The span runs back from the end of the
+  // record; times without a zone are UTC.
   const tms = (s) => { if (s == null || s === "") return NaN; if (typeof s === "number") return s;
     let t = String(s).trim().replace(" ", "T").replace(/^(\d{4})\/(\d{2})\/(\d{2})/, "$1-$2-$3");
     if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(t)) t += "Z"; return Date.parse(t); };
@@ -241,13 +250,13 @@
     const end = Date.parse(m.data_range.end), need = legsStartOf(m);
     return m.windows.find((w) => end - w.hours * 3600e3 <= need) || m.windows[m.windows.length - 1];
   };
-  // the legs: what the map and the tables show
+  // the legs: what the tables show
   function currentFilter() {
     const end = Date.parse(M.data_range.end);
     return { legs: new Set(shownLegs().map((l) => l.id)), start: -Infinity, end, label: spanWindow().label };
   }
-  // the legs and the span: what the graphs open on; the span never reaches
-  // before the loaded record
+  // the legs and the span: what the map draws and the graphs open on; the
+  // span never reaches before the loaded record
   function spanFilter() {
     const f = currentFilter();
     const first = state.data?.t?.find((t) => t != null);
@@ -263,13 +272,10 @@
   function setSpan(label) {
     if (label === state.win || !M.windows.some((w) => w.label === label)) return;
     state.win = label; store.set("win", state.win);
-    renderControls(); loadWindow();
+    requestFit(); renderControls(); loadWindow();
   }
-  // the shown legs changed: the track detail follows their length, the map
-  // refits, and the loaded window reaches every one of them
-  function legsChanged() { setTrackDetail(detailFor(coverWindowOf(M).hours)); requestFit(); loadWindow(); }
   // a table's "show all legs" link
-  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); legsChanged(); }
+  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); loadWindow(); }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
     const t = tms(time);
@@ -289,6 +295,20 @@
     return { ...raw, lat: nul(raw.lat), lon: nul(raw.lon), dist_km: nul(raw.dist_km), vars, shown,
              limits: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(raw) : null)])) };
   }
+  // the span's stretch of the record, for the map: the bins from the span's
+  // start on; its colour limits colour the track and the graphs alike
+  function spanSlice(d) {
+    const start = spanFilter().start;
+    let i0 = d.t.findIndex((t) => t != null && t >= start); if (i0 < 0) i0 = d.t.length;
+    const cut = (a) => Array.isArray(a) ? a.slice(i0) : a;
+    const vars = Object.fromEntries(Object.entries(d.vars).map(([k, v]) => [k, cut(v)]));
+    const out = { ...d, t: cut(d.t), lat: cut(d.lat), lon: cut(d.lon), dist_km: cut(d.dist_km), leg: cut(d.leg), vars, pump_low: cut(d.pump_low), n: d.t.length - i0 };
+    out.shown = out.lat.filter((x) => x != null).length;
+    out.limits = Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, quantileLimits(v, VAR[k]?.tsg ? pumpLow(out) : null)]));
+    out.label = spanWindow().label;                                   // the map's foot names the span and its stretch
+    const t0 = out.t.find((t) => t != null); if (t0 != null) out.start = new Date(t0).toISOString();
+    return out;
+  }
   // the cover window's bins before the span's first bin, then the span's
   // own, finer bins: one record with the span at its native resolution
   function mergeWindows(cover, span) {
@@ -299,10 +319,18 @@
     const vars = {};
     for (const k of new Set([...Object.keys(cover.vars), ...Object.keys(span.vars)])) vars[k] = cat(cover.vars[k], span.vars[k], cover.t.length, span.t.length);
     // each file's distance runs from its own start: the span's continues the cover's
-    const base = lastFinite(cover.dist_km.slice(0, cut)) ?? 0, d0 = span.dist_km.find((x) => x != null) ?? 0;
+    const anchored = Number.isFinite(cover.dist_origin_km) && Number.isFinite(span.dist_origin_km);
+    const base = anchored ? span.dist_origin_km - cover.dist_origin_km : lastFinite(cover.dist_km.slice(0, cut)) ?? 0;
+    const d0 = anchored ? 0 : span.dist_km.find((x) => x != null) ?? 0;
     const dist = span.dist_km.map((x) => (x == null ? null : x - d0 + base));
-    return { ...span, start: cover.start, n: cut + span.t.length, t: cat(cover.t, span.t), lat: cat(cover.lat, span.lat), lon: cat(cover.lon, span.lon),
-             dist_km: cat(cover.dist_km, dist), leg: cat(cover.leg, span.leg), vars,
+    const mergedT = cat(cover.t, span.t), mergedDist = cat(cover.dist_km, dist);
+    if ('Distance travelled (km)' in vars) vars['Distance travelled (km)'] = mergedDist;
+    if ('Time elapsed (h)' in vars) {
+      const origin = mergedT.find(t => t != null);
+      vars['Time elapsed (h)'] = mergedT.map(t => t == null ? null : (t - origin) / 3600e3);
+    }
+    return { ...span, start: cover.start, dist_origin_km:cover.dist_origin_km, n: cut + span.t.length, t: mergedT, lat: cat(cover.lat, span.lat), lon: cat(cover.lon, span.lon),
+             dist_km: mergedDist, leg: cat(cover.leg, span.leg), vars,
              pump_low: cover.pump_low && span.pump_low ? cat(cover.pump_low, span.pump_low) : null,
              limits: span.limits || cover.limits };
   }
@@ -311,7 +339,7 @@
   function spanRange(d) {
     const f = spanFilter();
     if (!isFinite(f.start)) return undefined;
-    if (state.xmode === "time") return [+shipAxis(f.start), +shipAxis(f.end + 60e3)];
+    if (state.xmode === "time") return [plotDate(shipAxis(f.start)), plotDate(shipAxis(f.end + 60e3))];
     let i0 = d.t.findIndex((t) => t != null && t >= f.start); if (i0 < 0) i0 = 0;
     const first = d.dist_km.slice(i0).find((x) => x != null), last = lastFinite(d.dist_km);
     return first != null && last != null && last > first ? [first, last] : undefined;
@@ -326,6 +354,13 @@
     if (!flow) return null;
     const thr = SITE.low_flow_v ?? 0.5;
     return flow.map((f) => f != null && f < thr);
+  }
+  function colourData(d = state.data) {
+    const custom = extraColours.get(state.colour), variable = VAR[state.colour] || custom;
+    const values = d ? custom?.values(d) || d.vars[state.colour] || [] : [];
+    return { variable, values, custom: !!custom,
+             limits: d?.limits?.[state.colour] || (variable?.rgb ? null : minmax(values)),
+             low: d && variable?.tsg ? pumpLow(d) : null };
   }
   // colour limits as the build computes them; the TSG variables' from the
   // bins with the intake pump running (see pumpedRange)
@@ -351,14 +386,15 @@
       li.querySelector("input").onchange = (e) => {
         e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
         store.set("hiddenLegs", [...state.hidden]);
-        legsChanged();
+        requestFit();
+        loadWindow();                                                // the loaded window reaches every shown leg
       };
       ul.appendChild(li);
     }
     $("#legsummary").textContent = `Legs · ${shownLegs().length}/${M.legs.length}`;
     $("#legfoot").textContent = `${shownLegs().length} of ${M.legs.length} legs shown · the ${coverWindowOf(M).label} window loaded`;
     $("#legall").onclick = (e) => { e.preventDefault(); showAllLegs(); };
-    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); legsChanged(); };
+    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); loadWindow(); };
   }
 
   // ------------------------------------------------------------ header
@@ -367,6 +403,10 @@
   // flushes its CSV every ten minutes, so the newest observation is up to
   // eleven minutes old in normal running; LIVE holds up to fifteen.
   function renderStatus() {
+    for (const el of document.querySelectorAll('.dockgroup .gn[data-updated]')) {
+      const text = [el.dataset.summary, ago(Number(el.dataset.updated))].filter(Boolean).join(' · ');
+      if (el.textContent !== text) el.textContent = text;
+    }
     const end = M.data_range.end;
     const ageMin = (Date.now() - new Date(end)) / 60000;
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: SITE.local_tz, year: "numeric", month: "long", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date()).map((p) => [p.type, p.value]));
@@ -402,7 +442,7 @@
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
     $("#spanlabel").textContent = labels[idx]; r.setAttribute("aria-valuetext", labels[idx]);
-    const pick = (label) => { state.win = label; store.set("win", state.win); loadWindow(); };
+    const pick = (label) => { state.win = label; store.set("win", state.win); requestFit(); loadWindow(); };
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; r.setAttribute("aria-valuetext", labels[r.value]); };
     r.onchange = () => pick(labels[r.value]);
     // the same choice as a dropdown, which is what a phone shows instead of the slider
@@ -430,33 +470,29 @@
       sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); renderControls(); render(); };
     }
 
-    // the map layers: on/off toggles in the bar above the map
+    // the map layers: on/off toggles in the bar above the map; the names pill only when the build found the tiles
+    const namesPill = document.querySelector('#maplayers button[data-layer="names"]');
+    if (namesPill) namesPill.hidden = !SITE.names;
+    // the pictures stay aboard (the cameras, the /Share photographs): no pill on the web
+    const photosPill = document.querySelector('#maplayers button[data-layer="photos"]');
+    if (photosPill && PUBLIC) { photosPill.hidden = true; state.photos = false; }
     for (const b of document.querySelectorAll("#maplayers button[data-layer]")) {
       const layer = b.dataset.layer;
       b.classList.toggle("on", !!state[layer]);
       b.setAttribute("aria-pressed", String(!!state[layer]));
-      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "cameras") closeCamera(); renderMap(); };
+      b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "photos") closeCamera(); if (layer === "track") resetTrack(); renderMap(); };
     }
     renderSatPill();
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
-    {
-      const r = $("#trackstep"), out = $("#tracksteplabel");
-      if (state.trackKm == null) setTrackDetail(detailFor(coverWindowOf(M).hours));
-      let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
-      r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);
-      r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
-      r.onchange = () => {
-        const before = windowFile(currentWindow());
-        setTrackDetail(TRACK_STEPS[r.value]);
-        if (windowFile(currentWindow()) !== before) loadWindow(); else renderMap();   // "all points" may mean the fine file
-      };
-    }
+    $('#mapdetailsopen').onclick=()=>$('#mapdetails').showModal();
+    $('#mapdetailsclose').onclick=()=>$('#mapdetails').close();
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
     // how much of the page the map takes: half (the left column), full (the
     // whole page, no pane) or none (the pane takes the whole width). The
     // header pill cycles through them; the map's own — and ⤢ buttons pick
     // none and full (⤢ again, back to half). Every plot resizes after.
-    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half Map", full: "Full Map", none: "No Map" };
+    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half map", full: "Full map", none: "No map" };
+    const MAP_ICON = { half: "◧", full: "■", none: "□" };          // the cycler in the tab row shows the state it is in
     const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
     // the classes and labels follow the stored mode; the plots resize and
     // the map refits only when the mode has actually changed (this runs on
@@ -464,7 +500,7 @@
     const applyMapMode = () => {
       const m = mapMode(), main = $("main");
       main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
-      $("#maptoggle").textContent = MAP_WORD[m];
+      $("#maptoggle").innerHTML = `<span class="ico">${MAP_ICON[m]}</span> Map`; $("#maptoggle").title = `${MAP_WORD[m]} · click for ${MAP_WORD[m === "half" ? (mapDir === "up" ? "full" : "none") : "half"].toLowerCase()}`;
       $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
       if (main.dataset.mapmode === m) return;
       const first = !main.dataset.mapmode;
@@ -472,18 +508,18 @@
       if (first) return;                                              // the first draw fits on its own
       setTimeout(() => {
         for (const p of document.querySelectorAll(".plot")) if (p.data) Plotly.Plots.resize(p);
-        if (m !== "none" && $("#map").data) { Plotly.Plots.resize($("#map")); requestFit(); renderMap(); }
+        if (m !== "none" && mapView) { mapView.resize(); requestFit(); renderMap(); }
       }, 0);
     };
     const setMapMode = (m) => { store.set("mapmode", m); applyMapMode(); };
     window.UW = Object.assign(window.UW || {}, { mapMode, setMapMode });
     // the pill swings: none, half, full, half, none, ... so half is always one click away
     let mapDir = "up";
-    $("#maptoggle").onclick = () => {
+    window.UW = Object.assign(window.UW || {}, { cycleMap() {
       const m = mapMode();
       if (m === "half") setMapMode(mapDir === "up" ? "full" : "none");
       else { mapDir = m === "none" ? "up" : "down"; setMapMode("half"); }
-    };
+    } });
     $("#mapnone").onclick = () => setMapMode("none");
     $("#mapfull").onclick = () => setMapMode(mapMode() === "full" ? "half" : "full");
     applyMapMode();
@@ -500,12 +536,20 @@
     const arch = (M?.satellite?.archive || {})[state.sat] || [];
     const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: e.corners || im.corners, label: im.label }));
     if (!rows.length || rows[rows.length - 1].scene !== (im.scene || im.fetched)) rows.push({ url: im.url, scene: im.scene || im.fetched, corners: im.corners, label: im.label });
-    return rows;
+    const near = (M?.satellite?.archive || {})[state.sat+'near'] || [];
+    const detailed = near.filter(e=>e.corners).map(e=>{
+      const background=rows.filter(r=>Date.parse(r.scene)<=Date.parse(e.scene)).at(-1);
+      return {...(background||e),scene:e.scene,key:e.url,near:e,label:e.label||'50 m near-ship image'};
+    });
+    // Each moved high-resolution box is independently browsable, even when
+    // its newest satellite scene is unchanged. Never borrow today's bounds.
+    const current={...rows.at(-1),key:'latest',near:satImages()[state.sat+'near']||null};
+    return [...rows.slice(0,-1),...detailed].sort((a,b)=>Date.parse(a.scene)-Date.parse(b.scene)).concat(current);
   }
   // the picture on the map: the one stepped back to, else the newest
   function satPicture() {
     const rows = satSeries(); if (!rows.length) return null;
-    const i = state.satAt ? rows.findIndex((r) => r.scene === state.satAt) : -1;
+    const i = state.satAt ? rows.findIndex((r) => (r.key||r.url) === state.satAt) : -1;
     return { ...(i >= 0 ? rows[i] : rows[rows.length - 1]), index: i >= 0 ? i : rows.length - 1, n: rows.length };
   }
   function renderSatPill() {
@@ -527,7 +571,7 @@
     $("#satwhen").title = pic.index === pic.n - 1 ? "the newest picture" : "an earlier picture; › steps forward";
     $("#satprev").disabled = pic.index === 0;
     $("#satnext").disabled = pic.index === pic.n - 1;
-    const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : rows[j].scene; renderSatPill(); renderMap(); };
+    const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : (rows[j].key||rows[j].url); renderSatPill(); renderMap(); };
     $("#satprev").onclick = () => step(-1);
     $("#satnext").onclick = () => step(1);
   }
@@ -535,12 +579,10 @@
   // ------------------------------------------------------------ basemap
   const DEPTHS = [0, 200, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];   // the bathymetry contours, coloured by C.bathy in order
 
-  // The basemap lives in the MapLibre style, not in Plotly's layer list.
-  // Plotly drops and re-adds its layout layers on every react, which made
-  // MapLibre re-tile five megabytes of coastline on each redraw; a style is
-  // loaded once and only re-diffed when its id changes. With a GEBCO raster
-  // the shaded relief carries bathymetry and land, so those files are neither
-  // fetched nor drawn.
+  // The basemap lives in the MapLibre style: loaded once and re-diffed only
+  // when its id changes, so a redraw never re-tiles five megabytes of
+  // coastline. With a GEBCO raster the shaded relief carries bathymetry and
+  // land, so those files are neither fetched nor drawn.
   async function loadGeo() {
     if (state.geoComplete) return;
     if (!SITE.geo_layers?.length) { state.geoComplete = true; return; }
@@ -566,18 +608,19 @@
   }
 
   // The GEBCO pyramid goes into the style as a proper source so MapLibre knows
-  // its maxzoom and scales the deepest tiles at closer zooms; a Plotly layer
-  // shorthand cannot say that, and the raster simply vanished past zoom 9.
-  // The satellite pictures go in too, under the coastline, so the shore stays
-  // legible over them. The style's id names everything in it: Plotly reloads
-  // the style only when the id changes, and MapLibre applies that as a diff.
+  // its maxzoom and scales the deepest tiles at closer zooms. The satellite
+  // pictures go in too, under the coastline, so the shore stays legible over
+  // them. The style's id names everything in it: the map takes a new style
+  // only when the id changes, and MapLibre applies that as a diff.
   function mapStyle(sat, near) {
-    // Plotly can drop an empty `sources` object on a subsequent react(),
-    // which MapLibre rejects on installations without raster tiles.
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const relief = !!SITE.raster;
-    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}`,
-                    sources: { base: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
+    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}|names:${state.names ? 1 : 0}`,
+                    // a globe, not Web Mercator: at the ship's latitudes Mercator stretches the map four to eight
+                    // times, and on the globe distances and areas read true. The tiles are the same Web Mercator
+                    // tiles drawn on the sphere, so nothing exists above 85 N, where that tiling ends.
+                    projection: { type: "globe" },
+                    sources: {},
                     sprite: base0 + (SITE.sprite || "static/geo/sprite"),   // squares, triangles, the ship (tools/make_sprite.py); versioned by the build
                     // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
                     // Open Sans Regular PBFs are served locally so it works offline
@@ -617,34 +660,55 @@
     }
     if (vt) style.layers.push({ id: "coast", type: "line", source: "coast", "source-layer": "coast", paint: { "line-color": C.mapCoast, "line-width": 1 } });
     add("coast", g.coast, { type: "line", paint: { "line-color": C.mapCoast, "line-width": 1 } });
+    // the geographic names (tools/make_names_tiles.py): a tile layer per band, each from the
+    // zoom its names belong at, water in italic and land upright. Placement runs from the top
+    // layer down, so the far-out bands go in last and win the collisions; the page's own
+    // labels (places, stations) sit above all of them.
+    const nt = SITE.names;
+    if (nt && state.names && nt.layers?.length) {
+      style.sources.names = { type: "vector", tiles: [base0 + nt.url], minzoom: nt.minzoom, maxzoom: nt.maxzoom,
+                              ...(nt.bounds ? { bounds: nt.bounds } : {}), attribution: nt.attribution };
+      const bands = nt.layers.map((l) => [l, +l.replace(/\D/g, "")]).sort((a, b) => b[1] - a[1]);
+      for (const [layer, band] of bands) {
+        const size = band <= 2 ? 15 : band <= 3 ? 14 : band <= 4 ? 13 : band <= 6 ? 12 : band <= 8 ? 11 : 10.5;
+        style.layers.push({ id: `names-${layer}`, type: "symbol", source: "names", "source-layer": layer, minzoom: band,
+          layout: { "text-field": ["get", "n"], "text-size": fz(size), "text-max-width": 9, "text-line-height": 1.15, "text-padding": 4,
+                    "text-font": ["case", ["==", ["get", "w"], 1], ["literal", ["Open Sans Italic"]], ["literal", ["Open Sans Regular"]]],
+                    "text-letter-spacing": band <= 3 ? 0.15 : band <= 4 ? 0.08 : 0.02, "text-transform": band <= 3 ? "uppercase" : "none" },
+          paint: { "text-color": ["case", ["==", ["get", "w"], 1], C.mapNameWater, C.mapNameLand],
+                   "text-halo-color": C.mapNameHalo, "text-halo-width": 1.1, "text-halo-blur": 0.4 } });
+      }
+    }
     return style;
   }
 
-  // Web-Mercator zoom that fits a lat/lon box into the map element, minus a margin.
+  // The view that fits a lat/lon box: the box itself, for the map to fit
+  // (on the globe the zoom a box needs is the map's to work out).
   function fitView(lats, lons) {
-    const el = $("#map");
-    const W = Math.max(200, el.clientWidth), H = Math.max(200, el.clientHeight);
     let [lat0, lat1] = minmax(lats), [lon0, lon1] = minmax(lons);
     if (!isFinite(lat0) || !isFinite(lon0)) return { center: { lat: 70, lon: -90 }, zoom: 3 };
     const minSpan = 0.05;                                       // a stationary ship still gets a sensible box
     if (lat1 - lat0 < minSpan) { lat0 -= minSpan / 2; lat1 += minSpan / 2; }
     if (lon1 - lon0 < minSpan) { lon0 -= minSpan / 2; lon1 += minSpan / 2; }
-    const mercY = (lat) => { const r = lat * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + r / 2)) / (2 * Math.PI); };
-    const zLon = Math.log2((W / 512) * 360 / (lon1 - lon0));
-    const zLat = Math.log2((H / 512) / (mercY(lat1) - mercY(lat0)));
-    const zoom = Math.min(zLon, zLat) - 0.35;
-    const cLat = Math.atan(Math.sinh(Math.PI * ((mercY(lat0) + mercY(lat1))))) * 180 / Math.PI;
-    return { center: { lat: cLat, lon: (lon0 + lon1) / 2 }, zoom: Math.max(1, Math.min(14, zoom)) };
+    return { bounds: [[lon0, lat0], [lon1, lat1]] };
+  }
+  // metres on the ground per screen pixel at the map's centre, read off the
+  // map itself (the globe has no one scale to compute)
+  function metresPerPixel() {
+    const m = mapView?.map, el = $("#map");
+    if (!m || !el?.offsetHeight) return null;
+    const x = el.clientWidth / 2, y = el.clientHeight / 2;
+    try { return m.unproject([x - 10, y]).distanceTo(m.unproject([x + 10, y])) / 20; } catch { return null; }
   }
 
   // ------------------------------------------------------------ map
   // The scale bar: a 1, 2 or 5 figure of metres or kilometres, as long as it
-  // is at the map's centre latitude and zoom (Web Mercator, 512 px tiles), at
-  // most 120 px wide, placed over the map's bottom-left corner.
+  // is at the map's centre, at most 120 px wide, placed over the map's
+  // bottom-left corner.
   function updateScale() {
     const el = $("#mapscale"), map = $("#map");
-    if (!el || !map || !map.offsetHeight || !state.view?.center) { if (el) el.hidden = true; return; }   // no map shown: no bar
-    const mpp = 40075016.686 * Math.cos(state.view.center.lat * Math.PI / 180) / (512 * Math.pow(2, state.view.zoom));
+    const mpp = metresPerPixel();
+    if (!el || !map || !map.offsetHeight || !(mpp > 0)) { if (el) el.hidden = true; return; }   // no map shown: no bar
     const maxM = 120 * mpp, pow = Math.pow(10, Math.floor(Math.log10(maxM)));
     const len = [5, 2, 1].map((f) => f * pow).find((L) => L <= maxM) || pow;
     el.querySelector(".bar").style.width = `${Math.round(len / mpp)}px`;
@@ -658,12 +722,32 @@
   // reflow fires one on phones) must not put a stale view back before then.
   function requestFit() { state.view = null; state.fitPending = true; }
   // Centre the map on a point (a table row, an event) and mark it.
-  function focusMap(lat, lon, label) {
+  function focusMap(lat, lon, label, preserveZoom = false) {
     if (lat == null || lon == null) return;
-    const zoom = Math.max(state.view?.zoom ?? fitView(state.data?.lat || [lat], state.data?.lon || [lon]).zoom, 6);
+    const currentZoom = mapView?.getView()?.zoom ?? state.view?.zoom ?? 6;
+    const zoom = preserveZoom ? currentZoom : Math.max(currentZoom, 6);
     state.view = { center: { lat: +lat, lon: +lon }, zoom }; state.fitPending = false;
     state.focus = { lat: +lat, lon: +lon, label: label || "" };
     renderMap();
+  }
+  function chartClickAnywhere(plot,d){
+    plot._chartData=d;
+    if(plot._chartClickBound)return;plot._chartClickBound=true;
+    let down=null;
+    plot.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
+    plot.addEventListener('pointerup',e=>{
+      if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5){down=null;return}down=null;
+      const axis=plot._fullLayout?.xaxis,data=plot._chartData;if(!axis||!data)return;
+      const box=plot.querySelector('.svg-container')?.getBoundingClientRect()||plot.getBoundingClientRect();
+      const px=e.clientX-box.left-axis._offset;if(px<0||px>axis._length)return;
+      let index=-1,delta=Infinity;
+      for(let i=0;i<data.t.length;i++){
+        if(data.lat[i]==null||data.lon[i]==null)continue;
+        const x=state.xmode==='time'?plotDate(shipAxis(data.t[i])):data.dist_km[i];if(x==null)continue;
+        const distance=Math.abs(axis.d2p(x)-px);if(distance<delta){delta=distance;index=i}
+      }
+      if(index>=0)focusMap(data.lat[index],data.lon[index],fmtTs(data.t[index]),true);
+    });
   }
   // The event log comes from data/calendar.json (the Agenda's file); fetched
   // once per build while the layer is on, then grouped by position so several
@@ -725,8 +809,8 @@
   // Daily camera timelapses (dashboard.cameras): a camera glyph where the
   // day's shots were taken; a click plays the day's video in a popup over
   // the map, with previous/next stepping through the shown days.
-  const camsShown = (f = currentFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
-    .filter((c) => c.lat != null && c.lon != null && state.cameras && inFilter(c.leg, c.mid_utc, f))
+  const camsShown = (f = spanFilter()) => (M.cameras || []).map((c, i) => ({ ...c, i }))
+    .filter((c) => c.lat != null && c.lon != null && state.photos && inFilter(c.leg, c.mid_utc, f))
     .sort((a, b) => a.day.localeCompare(b.day));
   function cameraTraces(f) {
     const cs = camsShown(f);
@@ -768,9 +852,8 @@
 
   // Settlements: a labelled marker each; labels thin out with zoom so the
   // scientific layers stay readable (population 2000+ far out, all close in).
-  // Sprite symbols take one icon size per trace (Plotly ignores per-point
-  // sizes for them), so places and events are split into size buckets. Icon
-  // scale is marker.size / 10 of a 12 px sprite.
+  // Places and events come in size buckets, a trace each; an icon's scale is
+  // marker.size / 10 of its sprite image.
   const PLACE_BUCKETS = [[0, 6], [1, 8], [200, 10], [1000, 13], [5000, 16]];       // [min population, size]
   const placeBucket = (pop) => { let b = PLACE_BUCKETS[0]; for (const x of PLACE_BUCKETS) if ((pop || 0) >= x[0]) b = x; return b[1]; };
   const EVENT_BUCKETS = [[1, 8.3], [2, 10], [4, 12]];                               // [min events at the spot, size]: 8.3 → a 10 px triangle
@@ -784,7 +867,7 @@
     const minPop = zoom < 3.5 ? 2000 : zoom < 5 ? 400 : zoom < 6.5 ? 100 : 0;
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const groups = new Map();
-    for (const c of state.communities_data) { const sz = placeBucket(c.pop); if (!groups.has(sz)) groups.set(sz, []); groups.get(sz).push(c); }
+    for (const c of state.communities_data) { if (!(c.pop > 0)) continue; const sz = placeBucket(c.pop); if (!groups.has(sz)) groups.set(sz, []); groups.get(sz).push(c); }   // the empty sites are the wiki's Places
     return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([sz, cs]) => ({
       type: "scattermap", mode: "markers+text", name: "places", showlegend: false, hoverinfo: "text",
       lat: cs.map((c) => c.lat), lon: cs.map((c) => c.lon),
@@ -794,50 +877,9 @@
       marker: { symbol: "square", size: sz, opacity: .9 },
     }));
   }
-  // Labels follow the zoom: Plotly only reports user zooms as relayout events
-  // (not programmatic ones), so a light poll of the map's zoom covers both.
-  // the ship glyph is drawn bow-right (east); turn it to the heading on the
-  // MapLibre layer (Plotly's map symbols carry no angle), whenever it drifts —
-  // the first draw's layer may not exist yet when react() resolves
+  // the ship glyph is drawn bow-right (east); marker.angle turns it (degrees
+  // clockwise from north, aligned to the map)
   const shipRotate = () => Math.round(((state.shipHeading - 90) % 360 + 360) % 360);
-  // Plotly drops and re-adds its layers on every react, which would show the
-  // glyph pointing east for a frame: the rotation is written into the layer
-  // definition on its way into MapLibre (the trace carries a fixed uid, so
-  // the layer id is known)
-  function hookShipLayer(map) {
-    if (map._shipHooked) return;
-    map._shipHooked = true;
-    const add = map.addLayer.bind(map);
-    map.addLayer = (layer, before) => {
-      if (layer?.id === "plotly-trace-layer-latest-symbol" && state.shipHeading != null) {
-        layer.layout = { ...(layer.layout || {}), "icon-rotate": shipRotate(), "icon-rotation-alignment": "map" };
-      }
-      return add(layer, before);
-    };
-  }
-  // a click on open water or land, where there is no point, takes the mark
-  // away and leaves the pane as it is; Plotly's own click, which fires first
-  // on the same event, has set _hoverdata when a point was hit
-  function hookEmptyClick(map) {
-    if (map._emptyClickHooked) return;
-    map._emptyClickHooked = true;
-    map.on("click", () => { const el = $("#map"); if (state.focus && !el?._hoverdata?.length) { state.focus = null; renderMap(); } });
-  }
-  function aimShip() {
-    const el = $("#map"); const sp = el?._fullLayout?.map?._subplot;
-    if (!sp?.map) return;
-    hookShipLayer(sp.map);
-    hookEmptyClick(sp.map);
-    if (state.shipHeading == null) return;
-    const lt = el._fullData?.find((t) => t.name === "latest");
-    const layer = lt && sp.traceHash?.[lt.uid]?.layerIds?.symbol;
-    if (!layer || !sp.map.getLayer(layer)) return;
-    const want = shipRotate();
-    if (sp.map.getLayoutProperty(layer, "icon-rotate") !== want) {
-      sp.map.setLayoutProperty(layer, "icon-rotate", want);
-      sp.map.setLayoutProperty(layer, "icon-rotation-alignment", "map");
-    }
-  }
   // Station labels: one per station name (the latest visit), thinned to one
   // per map cell so they never pile up; far out only the stations without a
   // cast and the most recent casts survive, close in every name shows.
@@ -943,68 +985,24 @@
     }
     return out;
   }
-  let lastLabelZoom = null, lastStationZoom = null;
-  setInterval(() => {
-    try { aimShip(); } catch { /* next tick */ }
-    const el = $("#map"); const z = el?._fullLayout?.map?.zoom;
-    if (z == null || !el.data || mapBusy()) return;
-    const bucket = z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3;
-    if (state.communities && bucket !== lastLabelZoom) {
-      lastLabelZoom = bucket;
-      const fresh = placeTraces(z);
-      const idx = el.data.map((t, i) => t.name === "places" ? i : -1).filter((i) => i >= 0);
-      if (fresh.length === idx.length && idx.length) Plotly.restyle(el, { text: fresh.map((t) => t.text) }, idx);
-    }
-    const sz = Math.round(z * 2) / 2;
-    if (state.stationList?.length && sz !== lastStationZoom) {
-      lastStationZoom = sz;
-      const idx = el.data.findIndex((t) => t.name === "stations");
-      if (idx >= 0 && el.data[idx].lat.length === state.stationList.length) Plotly.restyle(el, { text: [stationLabels(state.stationList, z)] }, [idx]);
-      for (const pl of plansShown()) {
-        const pi = el.data.findIndex((t) => t.name === `${pl.key}-stations`);
-        if (pi >= 0 && el.data[pi].lat.length === pl.stations.length) Plotly.restyle(el, { text: [planLabels(pl.stations, z)] }, [pi]);
-      }
-    }
-  }, 1500);
+  // Labels follow the zoom: the places' by population bucket, the stations'
+  // and the plans' by half a zoom level. A zoom that ends in another bucket
+  // redraws the map with the labels for it.
+  const labelBuckets = (z) => [z < 3.5 ? 0 : z < 5 ? 1 : z < 6.5 ? 2 : 3, Math.round(z * 2) / 2];
+  let labelsAt = [null, null];
+  function onMapZoom() {
+    const v = mapView?.getView(); if (!v) return;
+    const [b, h] = labelBuckets(v.zoom);
+    const places = state.communities && b !== labelsAt[0], stations = (state.stationList?.length || plansShown().length) && h !== labelsAt[1];
+    if (!places && !stations) return;
+    state.view = v; renderMap();
+  }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
-  // Track detail: the window's points thinned to one per so many km along
-  // the track (the gap markers, and the last fix, always stay). Every array
-  // of the window is cut the same way, so hover, colours and the pump marks
-  // line up with the points drawn.
-  const TRACK_STEPS = [50, 20, 10, 5, 2, 1, 0.5, 0];         // left to right: coarser to every point
-  // the shown legs' length picks a starting detail (up to half a day: every
-  // point; a week: a point a km; months: 5 km; years: 20 km) that the slider
-  // then overrides; "all points" is a choice, never the default
-  const detailFor = (hours) => hours <= 12 ? 0 : hours <= 48 ? 0.5 : hours <= 24 * 8 ? 1 : hours <= 24 * 62 ? 5 : 20;
-  const detailLabel = (km) => km ? `1 per ${km} km` : "all points";
-  const currentWindow = () => M.windows.find((x) => x.label === state.win);
-  // "all points" loads the window's fine variant when the build made one
-  const windowFile = (w) => (state.trackKm === 0 && w?.fine_file) ? w.fine_file : w?.file;
-  function setTrackDetail(km) {
-    state.trackKm = km; store.set("trackKm", km);
-    const r = $("#trackstep"), out = $("#tracksteplabel");
-    if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? TRACK_STEPS.length - 1 : i; out.textContent = detailLabel(km); r.setAttribute("aria-valuetext", detailLabel(km)); }
-  }
-  let thinCache = { src: null, km: null, out: null };
-  function thinTrack(d, km) {
-    if (!d || !km) return d;
-    if (thinCache.src === d && thinCache.km === km) return thinCache.out;
-    const n = d.t.length, keep = [];
-    let last = -1, bucket = null;
-    for (let i = n - 1; i >= 0; i--) if (d.lat[i] != null) { last = i; break; }
-    for (let i = 0; i < n; i++) {
-      if (d.lat[i] == null) { keep.push(i); continue; }
-      const b = Math.floor((d.dist_km[i] ?? 0) / km);
-      if (b !== bucket || i === last) { keep.push(i); bucket = b; }
-    }
-    const cut = (a) => Array.isArray(a) && a.length === n ? keep.map((i) => a[i]) : a;
-    const out = {};
-    for (const [k, v] of Object.entries(d)) out[k] = k === "vars" ? Object.fromEntries(Object.entries(v).map(([name, a]) => [name, cut(a)])) : cut(v);
-    out.shown = keep.filter((i) => d.lat[i] != null).length;
-    thinCache = { src: d, km, out };
-    return out;
-  }
+  // Map detail is selected before transfer; charts retain their time bins.
+  const detailLabel = (km) => km >= 1 ? `${km} km detail` : km ? `${km * 1000} m detail` : 'all points · visible area';
+  // Chart windows never download the monolithic native track files.
+  const windowFile = (w) => w?.file;
   // the ship's position: the intranet live page when it is newer than the
   // record's last fix, else that fix (with the build's averaged heading)
   function shipNow(d, li) {
@@ -1019,58 +1017,136 @@
     return { lat: d.lat[li], lon: d.lon[li], heading, t: recT,
       text: `CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}` };
   }
+  // the ship at her latest position, and the focus mark: the map's live layers,
+  // which the poller moves without touching the rest
+  function liveTraces(ship) {
+    const out = [];
+    // the sprite's red-and-white Amundsen glyph turned to the heading the build
+    // averaged over the last ten minutes (a window's last bin swings with the
+    // bin width); with no heading to turn it to, a plain red dot stands in
+    if (ship?.lat != null) out.push({
+      type: "scattermap", mode: "markers", name: "latest", lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
+      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, angle: shipRotate() } : { size: 12, color: "#d52b1e", opacity: 1 },
+    });
+    if (state.focus) out.push({
+      type: "scattermap", mode: "markers", name: "focus", hoverinfo: "text", text: [state.focus.label, state.focus.label],
+      lat: [state.focus.lat, state.focus.lat], lon: [state.focus.lon, state.focus.lon],
+      marker: { size: [22, 12], color: [C.accent, C.bg], opacity: [.9, 1] },
+    });
+    return out;
+  }
+  const lastFix = (d) => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; };
   // called by the live poller: move the marker without redrawing the map
   function moveShip() {
-    const el = $("#map"); const d = state.data;
-    if (!el?.data || !d || mapBusy()) return;                          // the next poll moves it
-    const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
-    const ship = shipNow(d, li);
-    const idx = el.data.findIndex((t) => t.name === "latest");
-    if (idx < 0 || ship.lat == null) return;
-    const had = el.data[idx].marker?.symbol === "ship";
-    if ((ship.heading != null) !== had) { renderMap(); return; }        // the glyph itself changes: a full draw
+    const d = state.data;
+    if (!mapView || !d) return;
+    const ship = shipNow(d, lastFix(d));
+    if (ship.lat == null) return;
     state.shipHeading = ship.heading;
-    Plotly.restyle(el, { lat: [[ship.lat]], lon: [[ship.lon]], text: [[ship.text]] }, [idx]).catch(() => {});
+    mapView.setTraces("live", liveTraces(ship));
   }
   // The colour scale beside every Color by picker: the colour map's gradient
-  // with the limits at its ends. The map's track trace resolves a named
-  // colour map into its stops; the last stops seen for a map serve while the
-  // track layer is off.
-  const scaleStops = new Map();
+  // with the limits at its ends, from the stops the map and the charts share.
   function renderColourBar(v, lim) {
-    const el = $("#map");
-    const tr = el._fullData?.find((t) => t.name === "track");
-    const key = v?.cmap || "Viridis";
-    if (tr?.marker?.colorscale && !v?.rgb) scaleStops.set(JSON.stringify(key), tr.marker.colorscale);
-    const stops = Array.isArray(key) ? key : scaleStops.get(JSON.stringify(key));
+    const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
+    const [low,high]=UWMapLegend.formatRange(lim);
+    UW.mapLegend={name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low,high};
+    renderMapLegend();
     for (const bar of document.querySelectorAll(".cbar")) {
-      const show = !!stops && !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
+      const show = !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
       bar.hidden = !show;
       if (!show) continue;
       bar.querySelector(".grad").style.background = `linear-gradient(90deg, ${stops.map(([t, col]) => `${col} ${(t * 100).toFixed(1)}%`).join(", ")})`;
-      bar.querySelector(".lo").textContent = fmtVal(lim[0], "");
-      bar.querySelector(".hi").textContent = fmtVal(lim[1], v?.unit || "");
+      bar.querySelector(".lo").textContent = low;
+      bar.querySelector(".hi").textContent = high;
       bar.title = `${state.colour}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span`;
     }
   }
-  let mapDrawing = false, mapAgain = false;
-  // the MapLibre map behind the plot; a restyle or resize while its style is
-  // still loading (the style changes with the theme, a satellite picture or
-  // new geography) throws inside MapLibre, so callers wait for mapBusy()
-  // (the stylesheet's own flag: isStyleLoaded() also waits for every tile)
-  const mapLibre = () => $("#map")._fullLayout?.map?._subplot?.map;
-  const styleLoading = (ml) => !!ml?.style && ml.style._loaded === false;
-  const mapBusy = () => mapDrawing || styleLoading(mapLibre());
-  const mapStyleLoaded = () => new Promise((res) => {
-    const ml = mapLibre(); if (!styleLoading(ml)) return res();
-    const t = setTimeout(done, 8000); function done() { clearTimeout(t); ml.off("style.load", done); res(); }
-    ml.on("style.load", done);
-  });
+  function renderMapLegend() {
+    const el=$('#map');if(!mapView?.map)return;
+    let canvas=el.querySelector('.map-legend');
+    if(!canvas){canvas=document.createElement('canvas');canvas.className='map-legend';canvas.setAttribute('role','img');el.append(canvas);}
+    UWMapLegend.render(canvas,el.clientWidth,el.clientHeight,UW.mapLegend);
+  }
+  // the map (static/map.js): made on the first draw, kept for the page's life
+  let mapView = null, mapData = null;
+  const trackLoader = window.UWTrack?.createLoader();
+  let trackData = null, trackKey = '', trackTimer = null, trackStatus = '', trackSequence = 0;
+  function setTrackStatus(message) {
+    trackStatus = message;
+    const el = $('#trackstatus');
+    if (el) el.textContent = message;
+  }
+  function resetTrack() {
+    clearTimeout(trackTimer); trackLoader?.cancel(); ++trackSequence;
+    trackData = null; trackKey = ''; trackStatus = '';
+    setLoadError('Track', false);
+  }
+  function trackSpacing() {
+    const mpp = metresPerPixel();
+    if (!(mpp > 0)) return 1;
+    // two screen pixels of ground at the map's centre, so Arctic zooms
+    // receive the same ground detail as views farther south
+    const km = 2 * mpp / 1000;
+    return km >= 1 ? 1 : km >= 0.1 ? 0.1 : km >= 0.025 ? 0.025 : km >= 0.005 ? 0.005 : 0;
+  }
+  function scheduleTrack() {
+    if (!state.track || !mapView?.map || !state.span) return;
+    if (!M.track || !trackLoader) { setTrackStatus('Track detail needs a new dashboard build'); return; }
+    const box = mapView.map.getBounds(), f = spanFilter();
+    const bounds = [box.getWest(), box.getSouth(), box.getEast(), box.getNorth()].map(x => +x.toFixed(5));
+    const legs = shownLegs().map(l => l.index), spacingKm = trackSpacing();
+    const key = JSON.stringify([M.generated_utc, bounds, f.start, f.end, legs, spacingKm]);
+    if (key === trackKey) return;
+    clearTimeout(trackTimer); trackLoader.cancel();
+    const sequence = ++trackSequence;
+    trackKey = key; setTrackStatus('Loading visible track…');
+    const track = M.track, generation = M.generated_utc;
+    trackTimer = setTimeout(async () => {
+      try {
+        const next = await trackLoader.load({track, bounds, start:f.start, end:f.end, legs, spacingKm, generation});
+        if (sequence !== trackSequence) return;
+        // Geometry and values remain native; colour limits stay tied to the
+        // entire selected span, so panning never changes the colour meaning.
+        const origin = state.raw?.t?.find(t => t != null) ?? f.start;
+        const distanceOrigin = state.raw?.dist_origin_km ?? M.track.dist_start_km ?? 0;
+        const vars = {...next.vars};
+        vars['Time elapsed (h)'] = next.t.map(t => t == null ? null : (t - origin) / 3600e3);
+        const distances = next.dist_km.map(x => x == null ? null : x - distanceOrigin);
+        vars['Distance travelled (km)'] = distances;
+        trackData = {...next, vars, dist_km:distances, limits:state.span.limits,
+          label:state.span.label, start:state.span.start, end:state.span.end};
+        setTrackStatus(next.limited ? 'Track density limit reached · zoom in or shorten the span for more points' :
+          `${next.shown.toLocaleString()} visible track points · ${detailLabel(next.spacing_km)}`);
+        setLoadError('Track', false);
+        renderMap();
+      } catch (error) {
+        if (sequence !== trackSequence || error.name === 'AbortError') return;
+        trackKey = ''; setTrackStatus('Track unavailable · retrying');
+        setLoadError('Track', true);
+        // Keep the last successful track and retry without blocking charts.
+        trackTimer = setTimeout(scheduleTrack, 5000);
+      }
+    }, 120);
+  }
+  // a click on a point: the handlers of what it belongs to; a click where
+  // there is no point takes the focus mark away
+  function mapClick(p) {
+    const d = mapData;
+    if (p?.data?.name === "track" && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d, p.pointIndex ?? p.pointNumber);
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5), p);
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("nat:")) return window.UW?.onNatureClick?.(p.customdata.slice(4), p);
+    if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
+    if (p?.lat != null && p.data?.name !== "focus") { state.focus = { lat: +p.lat, lon: +p.lon, label: String(p.text || p.hovertext || "").replace(/<[^>]+>/g, "") }; renderMap(); }   // the mark moves to what was clicked
+    if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
+  }
+  function mapEmptyClick() { if (state.focus) { state.focus = null; renderMap(); } }
   function renderMap() {
-    if (mapDrawing) { mapAgain = true; return; }
-    const d = thinTrack(state.data, state.trackKm);
+    const overview = state.span;
+    const d = trackData || {...overview, t:[], lat:[], lon:[], leg:[], dist_km:[], vars:{}, pump_low:[], n:0, shown:0};
     const el = $("#map");
-    if (!d || !(d.shown ?? d.n)) { Plotly.purge(el); mapMessage(d ? "nothing to show: no legs selected, or no track for them" : "no data"); $("#mapfoot").textContent = ""; return; }
+    if (!overview || !(overview.shown ?? overview.n)) { mapView?.clear(); mapMessage(overview ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1085,15 +1161,18 @@
     // track, and the station markers stay on top so they get the clicks
     // draw order, bottom to top: tow tracks, the ship's track, communities,
     // event-log entries, then the stations (which keep the clicks)
-    const f0 = currentFilter();
-    const traces = [...planTraces((state.view || fitView(d.lat, d.lon)).zoom), ...(window.UW?.extraMapTraces?.() || [])];
-    const placeTr = placeTraces((state.view || fitView(d.lat, d.lon)).zoom);
+    const f0 = spanFilter();
+    const view = (!state.fitPending && state.view) || fitView(overview.lat, overview.lon);
+    const zoom = mapView?.zoomFor(view) ?? view.zoom ?? 4;       // a fit's zoom is known only once the map can work it out
+    labelsAt = labelBuckets(zoom);
+    const traces = [...planTraces(zoom), ...(window.UW?.extraMapTraces?.() || [])];
+    const placeTr = placeTraces(zoom);
     const evTraces = eventTraces(f0);
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: 6, color: c, colorscale: v?.cmap || "Viridis", cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
+      marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1108,25 +1187,13 @@
       text: hover.map((h, i) => (lowMap[i] ? h + "<br><i>intake pump off</i>" : "")), hoverinfo: "text",
       marker: { size: 6, color: "#7d8895", opacity: .8 },
     });
-    const li = (() => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; })();
-    // the ship herself at the latest position: the sprite's red-and-white
-    // Amundsen glyph turned to the heading the build averaged over the last
-    // ten minutes (a window's last bin swings with the bin width). With no
-    // heading to turn it to, a plain red dot stands in. allowoverlap keeps
-    // the glyph from losing the collision pass to labels when zoomed out.
-    // The intranet's live page, polled every few seconds, is fresher than
-    // any file: while it is, the ship stands where it says.
-    const ship = shipNow(d, li);
+    // the intranet's live page, polled every few seconds, is fresher than any
+    // file: while it is, the ship stands where it says
+    const ship = shipNow(overview, lastFix(overview));
     state.shipHeading = ship.heading;
-    if (ship.lat != null) traces.push({
-      type: "scattermap", mode: "markers", name: "latest", uid: "latest", showlegend: false,
-      lat: [ship.lat], lon: [ship.lon], hoverinfo: "text", text: [ship.text],
-      marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, allowoverlap: true }
-                                   : { size: 12, color: "#d52b1e", opacity: 1 },
-    });
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
-    const f = currentFilter();
+    const f = spanFilter();
     // CTD casts (white; orange when selected) and the stations the event log
     // records without a cast (green), each a click target
     const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
@@ -1142,83 +1209,49 @@
     if (st.length) traces.push({
       type: "scattermap", mode: "markers+text", name: "stations", showlegend: false,
       lat: st.map((s) => s.lat), lon: st.map((s) => s.lon), hoverinfo: "text",
-      customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, (state.view || fitView(d.lat, d.lon)).zoom),
+      customdata: st.map(stKey), hovertext: st.map(stText), text: stationLabels(st, view.zoom),
       textposition: "top right", textfont: { size: fz(11), color: "#e8f4ff", family: "Open Sans Regular" },
       marker: { size: st.map((s) => selected.has(stKey(s)) ? 14 : 9),
                 color: st.map((s) => selected.has(stKey(s)) ? C.accent2 : s.kind === "event" ? C.ok : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
-    // an all-but-invisible oversized copy on top gives each station a generous
-    // click target without changing how it looks
-    if (st.length) traces.push({
-      type: "scattermap", mode: "markers", name: "station hit targets", showlegend: false, hoverinfo: "skip",
-      lat: st.map((s) => s.lat), lon: st.map((s) => s.lon),
-      customdata: st.map(stKey),
-      marker: { size: 26, color: "rgba(255,255,255,0.02)" },
-    });
-
-    if (state.focus) traces.push({
-      type: "scattermap", mode: "markers", name: "focus", showlegend: false, hoverinfo: "text", text: [state.focus.label],
-      lat: [state.focus.lat, state.focus.lat], lon: [state.focus.lon, state.focus.lon],
-      marker: { size: [22, 12], color: [C.accent, C.bg], opacity: [.9, 1] },
-    });
-
-    const view = (!state.fitPending && state.view) || fitView(d.lat, d.lon);
     // the satellite picture under the track, and the same sensor at 50 m in
     // a box round the ship over it: both go into the style with the basemap
     const sat = (state.sat && satPicture()) || null;
-    const near = (state.sat && !state.satAt && satImages()[state.sat + "near"]) || null;
-    const layout = { ...THEME, margin: { l: 0, r: 0, t: 0, b: 0 }, showlegend: false, dragmode: "pan",
-                     map: { style: mapStyle(sat, near), center: view.center, zoom: view.zoom, layers: [] } };
-    mapDrawing = true;
-    Promise.resolve().then(() => Plotly.react(el, traces, layout, CFG)).then(mapStyleLoaded).then(() => {
-      state.fitPending = false;
-      try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
-      try { aimShip(); } catch { /* the poll retries */ }
-      if (!state.view) state.view = view;
-      updateScale();
-      el.removeAllListeners?.("plotly_relayout");
-      el.on("plotly_relayout", (ev) => {
-        if (state.fitPending) return;
-        const c2 = ev["map.center"], z = ev["map.zoom"];
-        if (c2 || z != null) state.view = { center: c2 || state.view?.center || view.center, zoom: z ?? state.view?.zoom ?? view.zoom };
+    const near = sat?.near || null;
+    mapData = d;
+    if (!mapView) {
+      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: mapEmptyClick, onZoom: onMapZoom,
+        onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
+      window.UW.mapView = mapView;
+      $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
+    }
+    try {
+      mapView.draw({ style: mapStyle(sat, near), view, base: traces, live: liveTraces(ship) }).then(() => {
+        state.fitPending = false;
+        if (!state.view) state.view = mapView.getView() || view;   // where a fit landed, as centre and zoom
         updateScale();
-      });
-      el.removeAllListeners?.("plotly_click");
-      el.on("plotly_click", (ev) => {
-        const p = ev.points?.[0];
-        if (p?.data?.name === 'track' && extraColours.get(state.colour)?.onPoint) return extraColours.get(state.colour).onPoint(d,p.pointIndex??p.pointNumber);
-        if (typeof p?.customdata === "string" && p.customdata.startsWith("cam:")) return openCamera(+p.customdata.slice(4));
-        if (typeof p?.customdata === "string" && p.customdata.startsWith("hist:")) return window.UW?.onHistoryClick?.(p.customdata.slice(5), p);
-        if (typeof p?.customdata === "string" && p.customdata.startsWith("nat:")) return window.UW?.onNatureClick?.(p.customdata.slice(4), p);
-        if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
-        if (p?.lat != null && p.data?.name !== "focus") { state.focus = { lat: +p.lat, lon: +p.lon, label: String(p.text || p.hovertext || "").replace(/<[^>]+>/g, "") }; renderMap(); }   // the mark moves to what was clicked
-        if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
+        scheduleTrack();
       });
       mapMessage("");
-    }).catch((e) => {
-      // a draw that failed outright leaves no plot; a hiccup after a good
-      // draw (a layer, a listener) is logged and the map stays as it is
+    } catch (e) {
       console.warn("map draw:", e);
-      if (!el._fullLayout?.map?._subplot?.map) mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
-    }).finally(() => {
-      mapDrawing = false;
-      if (mapAgain) { mapAgain = false; renderMap(); }
-    });
+      mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
+    }
+    try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
 
     // distance travelled: the along-track extent of each selected leg's
-    // points (dist_km runs on through the whole record)
+    // points in the span (dist_km runs on through the whole record)
     const ext = new Map();
-    d.dist_km.forEach((x, i) => { if (x == null || d.lat[i] == null || d.leg[i] == null) return; const e = ext.get(d.leg[i]); if (!e) ext.set(d.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
+    overview.dist_km.forEach((x, i) => { if (x == null || overview.lat[i] == null || overview.leg[i] == null) return; const e = ext.get(overview.leg[i]); if (!e) ext.set(overview.leg[i], [x, x]); else { e[0] = Math.min(e[0], x); e[1] = Math.max(e[1], x); } });
     const km = [...ext.values()].reduce((a, [lo, hi]) => a + hi - lo, 0);
     const nLegs = shownLegs().length;
-    let t0 = null, t1 = null;                                          // the first and last points drawn
-    for (let i = 0; i < d.t.length; i++) if (d.t[i] != null && d.lat[i] != null) { if (t0 == null) t0 = d.t[i]; t1 = d.t[i]; }
     $("#mapfoot").innerHTML =
-      `<span><b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
+      `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
+      (state.track ? `<span id="trackstatus" role="status">${esc(trackStatus || 'Loading visible track…')}</span>` : '') +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
-      (t0 != null ? `<span class="mono">${fmtTs(t0)} → ${fmtTs(t1)} ${tzAbbr()}</span>` : "") +
-      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${state.sat && !state.satAt && satImages()[state.sat + "near"] ? ` · 50 m box near the ship from ${fmtTs(Date.parse(satImages()[state.sat + "near"].scene || satImages()[state.sat + "near"].fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
+      `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(near.scene || near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
       plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
@@ -1245,8 +1278,11 @@
     }
     if (due) for (const el of $("#panels").children) if (el.dataset.stale && inView.has(el.dataset.name)) renderPanel(el.dataset.name);
   }, { rootMargin: "200px 0px" }) : null;
+  // Keep detached, minimized panels too: restoring them reuses their chart
+  // and observer instead of creating another observed DOM tree.
+  const panelElements = new Map();
   function panelEl(name) {
-    let el = document.getElementById("p-" + cssId(name));
+    let el = panelElements.get(name);
     if (el) return el;
     const v = VAR[name] || extraPanels.get(name);
     el = document.createElement("section");
@@ -1256,48 +1292,38 @@
         <span class="handle" title="drag to reorder">⋮⋮</span>
         <h3 title="colour everything by this variable">${name}</h3>
         <div class="tools"><span class="now"></span>
-          ${v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
+          ${!isDepth(name) && v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
           <button class="reset" title="reset zoom">⟲</button>
-          <button class="min" title="minimise to the bottom bar">—</button>
+          ${isDepth(name) ? '<button class="dscale depthscale" title="compress the depth axis (square root)" aria-label="Toggle square-root depth spacing">⇅</button>' : ''}
+          <button class="min" title="minimise to its group">—</button>
           <button class="wide" title="expand">⤢</button>
         </div></div><div class="plot"></div>`;
+    el.querySelector("h3").textContent = v?.label || name;
     el.querySelector("h3").onclick = () => selectPanel(name);
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
-    el.querySelector(".reset").onclick = () => { const r = state.data && spanRange(state.data); Plotly.relayout(el.querySelector(".plot"), { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); };
+    el.querySelector('.depthscale')?.addEventListener('click', () => { state.depthScale[name] = !state.depthScale[name]; store.set('depthScale', state.depthScale); renderPanel(name); });
+    el.querySelector(".reset").onclick = async () => { const r = state.data && spanRange(state.data), plot=el.querySelector('.plot'); await Plotly.relayout(plot, { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); if(isDepth(name)){plot._uwSig=null;renderPanel(name);} };
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
     el.querySelector(".min").onclick = () => setPanelState(name, "min");
-    el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", name); el.classList.add("dragging"); });
-    el.addEventListener("dragend", () => el.classList.remove("dragging"));
-    el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
-    el.addEventListener("dragleave", () => el.classList.remove("over"));
-    el.addEventListener("drop", (e) => {
-      e.preventDefault(); el.classList.remove("over");
-      const from = e.dataTransfer.getData("text/plain");
-      if (!from || from === name) return;
-      // the dragged panel and the one it lands on trade places: the result does
-      // not depend on where in the card it was dropped
-      const order = panelNames();
-      const i = order.indexOf(from), j = order.indexOf(name);
-      if (i < 0 || j < 0) return;
-      [order[i], order[j]] = [order[j], order[i]];
-      state.order = order; store.set("order", order);
-      layoutPanels();
-    });
+    wireCardDrag(el, name);
+    panelElements.set(name, el);
     panelWatch?.observe(el);
     return el;
   }
 
-  // the bottom bar groups the panels by where their data come from: an
+  // Group cards collect panels by where their data come from: an
   // extra panel names its group when it registers; a variable's follows its
   // source instrument
-  const GROUPS = ["Lab", "Met Station", "Bridge", "Deck", "Surprise", "Other"];
+  const GROUPS = ["Surprise", "Lab", "Met Station", "Bridge", "Winches", "Other"];
   const GROUP_OF_INSTRUMENT = { TSG: "Lab", AVOS: "Met Station", ATS_Portside: "Met Station", ATS: "Met Station", POSMV: "Bridge", Multibeam: "Bridge" };
   function panelGroup(name) {
     const x = extraPanels.get(name); if (x) return x.group || "Other";
     const v = VAR[name]; if (!v) return "Other";
     if (name.startsWith("Surprise")) return "Surprise";
+    if (/^(Bottom depth|Rosette |Cable )/.test(name)) return "Winches";
+    if (/^(Air temperature|Relative humidity|Atmospheric pressure|True wind direction|Relative wind speed|Short-wave radiation)/.test(name)) return "Met Station";
     if (v.tsg) return "Lab";
     if (/^(Sea state|Roll & pitch|Heading|Ship speed)/.test(name)) return "Bridge";
     return GROUP_OF_INSTRUMENT[(v.source || "").split(" — ")[0].trim()] || "Other";
@@ -1309,32 +1335,69 @@
     renderPanel(name);
   }
 
+  // Group cards and charts share one persistent order in the same grid.
+  function wireCardDrag(el, key) {
+    el.dataset.card = key;
+    el.draggable = true;
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", key); el.classList.add("dragging");
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault(); el.classList.remove("over");
+      const names = panelNames();
+      const keys = [...names, ...new Set(names.map(n => "group:" + panelGroup(n)))];
+      const saved = store.get("cards.order", []).filter(k => keys.includes(k));
+      const order = [...saved, ...keys.filter(k => !saved.includes(k))];
+      const i = order.indexOf(e.dataTransfer.getData("text/plain")), j = order.indexOf(key);
+      if (i < 0 || j < 0 || i === j) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      store.set("cards.order", order);
+      layoutPanels();
+    });
+  }
+
   function layoutPanels() {
-    const grid = $("#panels"), dock = $("#dock");
+    const grid = $("#panels");
     const names = panelNames();
+    let changed = false;
+    const cards = [];
     const byGroup = new Map(GROUPS.map((g) => [g, []]));
     for (const name of names) {
       const g = panelGroup(name); if (!byGroup.has(g)) byGroup.set(g, []); byGroup.get(g).push(name);
       const el = panelEl(name);
-      el.classList.toggle("wide", state.panel[name] === "wide");
-      if (state.panel[name] === "min") { if (el.parentElement) el.remove(); } else grid.appendChild(el);
+      const wide = state.panel[name] === "wide";
+      if (el.classList.contains("wide") !== wide) { el.classList.toggle("wide", wide); changed = true; }
+      if (state.panel[name] === "min") {
+        if (el.parentElement) { el.remove(); changed = true; }
+      } else {
+        cards.push(el);
+      }
     }
-    // the bottom bar: a box per source, there whether or not anything is
-    // minimised, holding the chips of its minimised panels; its head
-    // minimises every panel of the source, or, once all are down, restores them
+    // Table-style summaries keep all chart toggles visible, open or minimized.
     for (const [g, members] of byGroup) {
       if (!members.length) continue;
       let box = document.getElementById("g-" + cssId(g));
       if (!box) {
-        box = document.createElement("div"); box.className = "dockgroup"; box.id = "g-" + cssId(g);
-        box.innerHTML = `<button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button><div class="chips"></div>`;
+        box = document.createElement("section"); box.className = "panel card dockgroup"; box.id = "g-" + cssId(g);
+        box.innerHTML = `<div class="head"><span class="handle" title="drag to reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" role="region" aria-label="${g} chart summaries"></div>`;
+        wireCardDrag(box, "group:" + g);
       }
-      dock.appendChild(box);
+      cards.push(box);
       const minned = members.filter((n) => state.panel[n] === "min"), allMin = minned.length === members.length;
       box.querySelector(".gname").textContent = g;
-      box.querySelector(".gn").textContent = `${members.length - minned.length}/${members.length}`;
+      const summary=members.map(n=>extraPanels.get(n)?.groupSummary).find(Boolean);
+      const times=members.map(n=>extraPanels.get(n)?.updated?.() ?? (()=>{const y=state.data?.vars[n];if(!y)return null;for(let i=y.length-1;i>=0;i--)if(y[i]!=null)return state.data.t[i];return null})()).filter(t=>t!=null);
+      const updated=times.length?Math.max(...times):null;
+      const groupAge = box.querySelector('.gn');
+      groupAge.dataset.summary = summary ? summary() || '' : '';
+      if (updated != null) groupAge.dataset.updated = updated; else delete groupAge.dataset.updated;
+      groupAge.textContent = [groupAge.dataset.summary, updated != null ? ago(updated) : 'no data'].filter(Boolean).join(' · ');
+      box.querySelector('.gn').title=updated?`Latest displayed observation: ${fmtTs(updated)} ${tzAbbr()}`:'No observations';
       box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
-      box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this bar`;
+      box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this group`;
       box.querySelector(".ghead").onclick = () => {
         for (const n of members) { if (allMin) delete state.panel[n]; else state.panel[n] = "min"; }
         store.set("panel", state.panel);
@@ -1342,37 +1405,67 @@
         if (allMin) for (const n of members) renderPanel(n);
       };
       const chips = box.querySelector(".chips");
+      const voltage=state.data?.vars['TSG flow (V)']?.at(-1);
+      const low=g==='Lab'&&voltage!=null&&voltage<(SITE.low_flow_v??0.5);
+      box.classList.toggle('pump-alarm',low);
+      box.querySelector('.gname').textContent=g+(low?' · LOW FLOW':'');
+      box.title=low?`Intake pump voltage ${voltage.toFixed(2)} V: water measurements may be unreliable`:'';
       for (const name of members) {
         let chip = document.getElementById("c-" + cssId(name));
-        if (state.panel[name] !== "min") { chip?.remove(); continue; }
-        if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, null); }
+        if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, state.panel[name] === 'min' ? null : 'min'); }
+        const open = state.panel[name] !== 'min';
+        chip.classList.toggle('on',open);chip.setAttribute('aria-pressed',String(open));
         chips.appendChild(chip);
         const y = state.data?.vars[name];
-        chip.innerHTML = `<span class="cname">${name}</span><b>${fmtVal(y ? lastFinite(y) : null, VAR[name]?.unit)}</b><span>▲</span>`;
-        chip.title = `${name}: restore`;
+        const spec=extraPanels.get(name),preview=spec?.chip?.();
+        chip.classList.toggle('ice-summary-chip',!!preview);
+        chip.replaceChildren();
+        const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||(name===SURPRISE?'Combined':name.replace(/^Surprise · /,''));
+        if(preview?.image){const img=document.createElement('img');img.src=preview.image;img.alt='Latest ROI';img.className='chip-preview';label.prepend(img)}
+        const latestValue=y?lastFinite(y):null;
+        const value=document.createElement('b');value.textContent=preview?.text??(/^(Rosette depth|Cable length)/.test(name)&&latestValue!=null?`${Math.round(latestValue)} m`:fmtVal(latestValue,VAR[name]?.unit));
+        const arrow=document.createElement('span');arrow.className='chart-state';arrow.textContent=open?'▲':'▼';arrow.setAttribute('aria-hidden','true');chip.append(arrow,label,value);
+        chip.title = `${spec?.label||name}: ${open?'minimise':'restore'}`;
+        if (name === 'Excess heat (°C)') chip.title += '; water temperature minus the salinity-based freezing point at surface pressure (0 dbar)';
       }
     }
-    dock.hidden = !names.length;
-    for (const el of grid.children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); }
+    const saved = store.get("cards.order", []);
+    const rank = new Map(saved.map((key, i) => [key, i]));
+    cards.sort((a, b) => (rank.get(a.dataset.card) ?? saved.length) - (rank.get(b.dataset.card) ?? saved.length));
+    cards.forEach((el, i) => {
+      const next = grid.children[i];
+      if (next !== el) { grid.insertBefore(el, next || null); changed = true; }
+    });
+    if (changed) for (const el of grid.children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); }
   }
 
   // The underway panels share one x-axis: a zoom, pan or reset on any of
   // them (drag, shift-scroll, the ⟲ button) is applied to the others.
-  let xSyncing = false;
+  let xSyncing = false, sharedX = null, sharedXFilter = '';
+  const xFilterKey = () => JSON.stringify([state.win, state.xmode, [...state.hidden].sort()]);
+  function sharedXAxis() {
+    if (sharedXFilter !== xFilterKey()) { sharedX = null; sharedXFilter = xFilterKey(); }
+    const range = sharedX || (state.data && spanRange(state.data));
+    return range ? {range: [...range], autorange: false} : {};
+  }
+  const chartMargin = () => ({l: fz(90), r: 8, t: fz(6), b: fz(34)});
   function linkX(plot) {
-    if (plot._xLinked) return;
-    plot._xLinked = true;
-    plot.on("plotly_relayout", (ev) => {
+    if (plot._xLinked) plot.removeListener("plotly_relayout", plot._xLinked);
+    plot._xLinked = (ev) => {
       if (xSyncing) return;
       const upd = {};
       if (ev["xaxis.autorange"]) upd["xaxis.autorange"] = true;
       else if (ev["xaxis.range"]) { upd["xaxis.range"] = ev["xaxis.range"].slice(); upd["xaxis.autorange"] = false; }
       else if (ev["xaxis.range[0]"] != null) { upd["xaxis.range"] = [ev["xaxis.range[0]"], ev["xaxis.range[1]"]]; upd["xaxis.autorange"] = false; }
       else return;
-      const others = [...document.querySelectorAll("#panels .plot, #dock .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
+      sharedXFilter = xFilterKey();
+      sharedX = (upd["xaxis.range"] || plot._fullLayout?.xaxis?.range)?.slice() || null;
+      if (sharedX) { upd["xaxis.range"] = [...sharedX]; upd["xaxis.autorange"] = false; }
+      const others = [...document.querySelectorAll("#panels .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
       xSyncing = true;
       Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { xSyncing = false; });
-    });
+    };
+    plot.on("plotly_relayout", plot._xLinked);
   }
   // The y-range of a TSG variable comes from the bins with the intake pump
   // running: a stopped pump reads the stagnant line (fresh, warm, near 0 V
@@ -1390,13 +1483,15 @@
   }
 
   function renderPanel(name) {
-    if (state.panel[name] === "min") { layoutPanels(); return; }
+    if (state.panel[name] === "min") return;
     const d = state.data, v = VAR[name] || extraPanels.get(name), el = panelEl(name);
     const plot = el.querySelector(".plot");
     const on = panelOn(name);
     el.classList.toggle("on", on);
     el.classList.toggle("unresolved", !v.resolved);
     el.querySelector(".log")?.classList.toggle("on", !!state.log[name]);
+    el.querySelector('.depthscale')?.classList.toggle('on', !!state.depthScale[name]);
+    el.querySelector('.depthscale')?.setAttribute('aria-pressed', String(!!state.depthScale[name]));
     el.querySelector(".wide").classList.toggle("on", state.panel[name] === "wide");
     if (panelWatch && !inView.has(name)) { el.dataset.stale = "1"; return; }     // drawn when scrolled into view
     delete el.dataset.stale;
@@ -1408,17 +1503,14 @@
     }
     let title = name;
     let y = d?.vars[name];
-    if (name === SURPRISE) {
-      const sc = surpriseScale();
-      if (sc && d?.vars[`Surprise · ${sc}`]) { y = d.vars[`Surprise · ${sc}`]; title = `Surprise · ${sc}`; }
-    }
     el.querySelector("h3").textContent = title;
     // the div keeps its "plot" class while empty, so a later render finds it again
     const empty = (msg) => { if (plot.data) Plotly.purge(plot); plot.className = "plot empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
     if (!v.resolved) return empty("source column not found in any leg");
     if (!d || !y || !y.some((x) => x != null)) return empty("no data for the selected legs");
     if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
-    el.querySelector(".now").textContent = fmtVal(lastFinite(y), v.unit);
+    const wholeMetres=/^(Rosette depth|Cable length)/.test(name),last=lastFinite(y);
+    el.querySelector(".now").textContent = wholeMetres&&last!=null?`${Math.round(last)} m`:fmtVal(last,v.unit);
 
     const cv = VAR[state.colour] || extraColours.get(state.colour);
     const c = extraColours.get(state.colour)?.values(d) || d.vars[state.colour] || [];
@@ -1434,10 +1526,10 @@
     const trace = {
       x, y: gated ? y.map((q, i) => (low[i] ? null : q)) : y, type: "scatter", mode: v.circular ? "markers" : "lines+markers", name,
       line: { width: 1, color: "rgba(160,180,200,.45)" }, connectgaps: false,
-      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: cv?.cmap || "Viridis", cmin: lim?.[0], cmax: lim?.[1], showscale: false,
+      marker: { size: v.circular ? 4 : 3.5, color: c, colorscale: UW.cmap(cv?.cmap), reversescale: !!cv?.reverse, cmin: lim?.[0], cmax: lim?.[1], showscale: false,
                 opacity: 1 },
       text: legText,
-      hovertemplate: `%{y:.3~f} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
+      hovertemplate: `%{y:${wholeMetres?'.0f':'.3~f'}} ${v.unit}<br>%{x}<br>%{text}<extra></extra>`,
     };
     const traces = [trace];
     if (gated) {
@@ -1450,26 +1542,42 @@
                     marker: { size: 3.5, color: "#7d8895", opacity: .55 }, text: legText,
                     hovertemplate: `%{y:.3~f} ${v.unit} · <i>intake pump off</i><br>%{x}<br>%{text}<extra></extra>` });
     }
-    const useLog = !!state.log[name] && y.some((q) => q > 0);
+    const depth = isDepth(name), compressed = depth && !!state.depthScale[name];
+    const depthY = (n) => n == null ? null : compressed ? Math.sqrt(Math.max(0,n)) : n;
+    const useLog = !depth && !!state.log[name] && y.some((q) => q > 0);
+    if (depth) {
+      trace.customdata = y;
+      trace.y = y.map(depthY);
+      trace.hovertemplate = `%{customdata:.0f} m<br>%{x}<br>%{text}<extra></extra>`;
+    }
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
-    const xr = spanRange(d);                                           // the span: the axis opens on it, the data run on before it
+    const xr = sharedXAxis().range;                                  // new and restored panels inherit the shared view
     const layout = {
-      ...THEME, margin: { l: fz(52), r: 8, t: fz(6), b: fz(34) }, showlegend: false, hovermode: "closest", hoverdistance: 14,
+      ...THEME, margin: chartMargin(), showlegend: false, hovermode: "closest", hoverdistance: 14,
       dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
       uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) },
                ...(xr ? { range: xr, autorange: false } : {}),
                type: state.xmode === "time" ? "date" : "linear",
-               hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%SZ" : ".1f",
+               hoverformat: state.xmode === "time" ? "%Y-%m-%d %H:%M:%S" : ".1f",
                ticksuffix: state.xmode === "time" ? "" : " km",
-               ...(window.innerWidth < 640 ? { nticks: 4, tickangle: 0 } : {}) },   // a phone's plot: few, level ticks, clear of the title
+               nticks: Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))), tickangle: 0, automargin:true },
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
-               type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
+               automargin: false, type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
     if (!useLog && !v.circular) {
       const r = pumpedRange(name, y, d);
       if (r) layout.yaxis.range = r;
+    }
+    if (depth) {
+      const maxD = Math.max(1, minmax(y)[1] * 1.03);
+      layout.yaxis = { ...layout.yaxis, autorange:false, range:[depthY(maxD),0],
+        title:{...layout.yaxis.title,text:compressed?'depth (m, √ spacing)':'depth (m)'} };
+      if (compressed) {
+        const ticks = [0,5,10,20,30,50,75,100,150,200,300,400,500,750,1000,1500,2000,3000,4000,5000,6000,8000,10000,12000].filter(n=>n<=maxD);
+        layout.yaxis.tickvals = ticks.map(depthY); layout.yaxis.ticktext = ticks.map(String);
+      }
     }
     if (name.startsWith("Surprise")) {
       const top = Math.max(3.5, minmax(y)[1] * 1.08);
@@ -1482,13 +1590,14 @@
     // whose data and layout match the one on screen is skipped; the click
     // handler is rebound to this build's data either way.
     const onClick = () => {
+      chartClickAnywhere(plot,d);
       plot.removeAllListeners?.('plotly_click');
-      plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p)extraColours.get(state.colour)?.onPoint?.(d,p.pointIndex??p.pointNumber);});
+      plot.on('plotly_click',ev=>{const p=ev.points?.[0];if(p){const i=p.pointIndex??p.pointNumber;focusMap(d.lat[i],d.lon[i],fmtTs(d.t[i]),true);extraColours.get(state.colour)?.onPoint?.(d,i);}});
     };
     const sig = drawSignature(traces, layout, on);
     if (plot.data && plot._uwSig === sig) { onClick(); return; }
     plot._uwSig = sig;
-    Plotly.react(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot); onClick(); });
+    reactPlot(plot, traces, layout, { ...CFG, scrollZoom: on }).then(() => { axisZoom(plot); linkX(plot); onClick(); });
   }
   // what a draw depends on, small enough to compare every build: each
   // array's length, ends and a weighted sum of its values (strings hashed
@@ -1524,19 +1633,24 @@
     $("#notes").innerHTML =
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
+      `<p><b>Excess heat (°C)</b>: SST minus the UNESCO 1983 seawater freezing point at surface pressure (0 dbar), calculated from paired temperature and salinity observations. Positive values are above freezing; negative values are below. Missing inputs or salinity outside 0–40 PSU leave gaps. The freezing-point fit is validated over 4–40 PSU; lower salinities use an extrapolation toward freshwater.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Times and time axes are ship time (${SITE.local_tz}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}${SITE.vector ? "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers" : "Natural Earth 10 m coastline, land and glaciers"}${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}${SITE.vector ? "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers" : "Natural Earth 10 m coastline, land and glaciers"}${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland)${SITE.names ? "; geographic names from the Canadian Geographical Names Database (Open Government Licence – Canada) and GeoNames (CC BY 4.0), more of them the closer you zoom" : ""}; all served locally. ` +
+      `The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.</p>`;
   }
 
   // ------------------------------------------------------------ data flow
   function applyAndRender() {
     if (!state.raw) return;
+    resetTrack();
     // a remembered colour the page no longer offers (a module gone) falls back to the default
     if (!VAR[state.colour] && !extraColours.has(state.colour)) { state.colour = VAR["SST (°C)"] ? "SST (°C)" : M.variables[0]?.name; store.set("colour", state.colour); renderControls(); }
     state.data = applyLegFilter(state.raw);
+    state.span = spanSlice(state.data);
+    state.data.limits = state.span.limits;                              // the span's limits colour the graphs too
     renderLegMenu();
     render();
     window.UW?.onFilter?.();
@@ -1545,8 +1659,7 @@
   let loadSeq = 0;
   let windowLoading = false;
   // the files a build's window set asks for: the cover window's, and the
-  // span's own when the span is the shorter (the "all points" variant of the
-  // span's where the build made one)
+  // span's own chart window when the span is shorter.
   function windowFiles(manifest) {
     const spanW = spanWindowOf(manifest), coverW = coverWindowOf(manifest);
     if (coverW.hours <= spanW.hours) return [windowFile(coverW)];
@@ -1556,8 +1669,9 @@
     state.win = spanWindowOf(manifest).label;
     renderControls();
     const files = windowFiles(manifest), key = files.join("+");
-    if (manifest === M && state.rawFile === key && state.raw) { applyAndRender(); return true; }   // the same record: only the view changed
+    // Even a cached selection supersedes a download for the previous span.
     const seq = ++loadSeq;
+    if (manifest === M && state.rawFile === key && state.raw) { windowLoading = false; applyAndRender(); return true; }   // the same record: only the view changed
     windowLoading = true;
     try {
       const [cover, span] = await Promise.all(files.map((f) => fetchJSON(`${f}?v=${encodeURIComponent(manifest.generated_utc)}`)));
@@ -1615,8 +1729,17 @@
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const c = M.calendar || {}, n = c.now;
     const bar = $("#alert");
-    bar.hidden = !n;
+    const hasMessages = !!inapp.msgs.length;
+    bar.hidden = !n && !hasMessages;
     if (bar.hidden) return;
+    const onlyMessages = !n || schedMode() === "hidden";
+    if (onlyMessages) {
+      bar.hidden = !hasMessages;
+      bar.classList.remove("folded"); bar.title = ""; bar.onclick = null;
+      $("#schedrow").hidden = true; $("#schedticker").hidden = true;
+      renderStatus();
+      return;
+    }
     const hm = (t) => t ? new Date(tms(t)).toLocaleTimeString(undefined, { timeZone: SITE.local_tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
     // an operation in progress shows what is left of its slot rather than its times
     const left = (r) => { const m = Math.round((tms(r.end_utc) - Date.now()) / 60000); if (isNaN(m)) return "";
@@ -1634,7 +1757,7 @@
     $("#schedrow").hidden = folded;
     // the fold must not bubble to the bar, whose handler is installed by the re-render
     $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); setSchedMode("ticker"); };
-    bar.onclick = folded ? (ev) => { if (ev.target.closest("a")) return; setSchedMode("hidden"); } : null;
+    bar.onclick = folded ? (ev) => { if (ev.target.closest("a, .inapp")) return; setSchedMode("hidden"); } : null;
     $("#schedticker").hidden = !folded;
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
     const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
@@ -1658,8 +1781,8 @@
   setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
 
   // in-app alerts: this browser's id is its address for the "web" channel;
-  // the timer queues messages for it and the strip above the schedule bar
-  // shows them until cleared (and the browser notifies, when allowed)
+  // the timer queues messages into the existing status bar until cleared
+  // (and the browser notifies, when allowed)
   function webId() {
     let id = store.get("alerts.webid", "");
     if (!id) { id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)); store.set("alerts.webid", id); }
@@ -1670,13 +1793,14 @@
   function renderInapp() {
     const el = $("#inapp");
     el.hidden = !inapp.msgs.length;
-    if (el.hidden) return;
+    if (el.hidden) { el.innerHTML = ""; renderAlert(); return; }
     el.innerHTML = inapp.msgs.map((m) => `<span class="msg">🔔 ${esc(m.text)} <small>${fmtTs(Date.parse(m.t)).slice(11)}</small></span>`).join("") +
       `<button type="button" class="clear" title="clear these">✕</button>`;
-    el.querySelector(".clear").onclick = () => { store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+    el.querySelector(".clear").onclick = (event) => { event.stopPropagation(); store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+    renderAlert();
   }
   async function pollInapp() {
-    if (!store.get("alerts.webid", "") || document.hidden) return;
+    if (PUBLIC || !store.get("alerts.webid", "") || document.hidden) return;
     try {
       const j = await fetchJSON(`api/alerts/inbox?to=${encodeURIComponent(webId())}&since=${encodeURIComponent(store.get("alerts.seen", ""))}&t=${Date.now()}`);
       const have = new Set(inapp.msgs.map((m) => m.t + m.text));
@@ -1693,10 +1817,25 @@
 
   // ------------------------------------------------------------ tabs
   // The map stays; the right-hand pane and the header controls swap.
-  function showTab(name) {
+  let usageTab = null;
+  const tabFromHash = () => {
+    if (/^#(wiki|history|nature)\//.test(location.hash)) return "wiki";
+    const m = /^#tab\/([a-z]+)$/.exec(location.hash);
+    return m && (m[1] === "photos" || document.getElementById(`pane-${m[1]}`)) ? m[1] : null;
+  };
+  function showTab(name, { pop = false } = {}) {
+    if(name==='table')name='underway'; // old bookmarks and saved tab choices
+    if (PUBLIC && name === "photos") name = "wiki";                    // the /Share gallery is aboard only; the wiki stands
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
-    for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat") b.classList.toggle("on", b.dataset.tab === name);
-    for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + name;
+    if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
+    if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
+    if (!pop) {
+      const hash = name === "wiki" ? (/^#(wiki|history|nature)\//.test(location.hash) ? location.hash : `#wiki/${store.get("wiki.slug", "")}`) : `#tab/${name}`;
+      if (location.hash !== hash) try { history.pushState({ tab: name }, "", hash); } catch {}
+    }
+    if(name!=='wiki' && name!=='photos')store.set('lastNonWikiTab',name);
+    for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat" && b.dataset.tab !== "map") b.classList.toggle("on", b.dataset.tab === name);
+    for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + (name==='photos'?'wiki':name);
     if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
     const mn = document.querySelector("main"); mn.className = "tab-" + name + (mn.classList.contains("mapmin") ? " mapmin" : mn.classList.contains("mapfull") ? " mapfull" : "");   // No Map survives a tab change
     // the header row (legs, span) filters every tab; the other switches live
@@ -1704,17 +1843,26 @@
     $("#controls-underway").hidden = false;
     const hint = $("#maphint"); if (hint) hint.hidden = name !== "casts";
     store.set("tab", name);
+    if (usageTab !== name) {
+      usageTab = name;
+      if (!PUBLIC) try { navigator.sendBeacon?.("api/usage", name); } catch {}
+    }
     window.UW?.onTab?.(name);
     if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);
   }
+  const restoreTab = () => { const name = tabFromHash(); if (name) showTab(name, { pop: true }); };
+  window.addEventListener("popstate", restoreTab);
+  window.addEventListener("hashchange", restoreTab);
   for (const b of $("#tabs").querySelectorAll("button")) b.onclick = () => showTab(b.dataset.tab);
+  $('#wikiclose').onclick=()=>showTab(store.get('lastNonWikiTab','underway'));
 
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
-    state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
-    fmtTs, tzAbbr, shipAxis, offsetMs, fmtVal, dms, legById, minmax, store,
-    renderMap, showTab, focusMap, requestFit, axisZoom, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
+    state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError, public: PUBLIC,
+    fmtTs, tzAbbr, shipAxis, plotDate, offsetMs, fmtVal, dms, legById, minmax, store, colourData,
+    renderMap, showTab, focusMap, requestFit, axisZoom, reactPlot, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
+      layoutPanels();
       if (extraColours.has(state.colour)) render();
       else for (const name of extraPanels.keys()) renderPanel(name);
     },
@@ -1722,7 +1870,8 @@
     moveShip,
     registerPanel(name, spec) {
       extraPanels.set(name, spec);
-      if(spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){
+      if(newViewer&&!(name in state.panel)){state.panel[name]='min';store.set('panel',state.panel)}
+      if(!newViewer&&spec.layoutRevision&&store.get('panel-layout:'+name,null)!==spec.layoutRevision){
         const first=spec.after,order=panelNames().filter(n=>n!==name&&n!==first);
         state.order=[first,name,...order].filter(Boolean);store.set('order',state.order);
         delete state.panel[name];store.set('panel',state.panel);
@@ -1730,7 +1879,7 @@
       }
       layoutPanels(); renderPanel(name);
     },
-    linkX,
+    linkX, sharedXAxis, chartMargin,
     registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); if (state.colour === spec.name) render(); },
     selectColour(name) { state.colour=name; store.set('colour',name); renderControls(); render(); },
   });
@@ -1758,18 +1907,22 @@
   (async () => {
     renderControls();
     renderProvenance();
-    showTab(store.get("tab", "underway"));
+    showTab(tabFromHash() || store.get("tab", "underway"), { pop: true });
     setInterval(checkForUpdate, 30 * 1000);
     window.addEventListener("online", checkForUpdate);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
-    // the map box changes with the window and as the bars round it fill; a
-    // resize during a style reload waits for it
-    let resizeTimer = null;
-    const resizeMap = () => { clearTimeout(resizeTimer); if (!$("#map").data) return; if (mapBusy()) { resizeTimer = setTimeout(resizeMap, 300); return; } Plotly.Plots.resize($("#map")); };
+    // the map box changes with the window and as the bars round it fill
+    const resizeMap = () => {mapView?.resize();renderMapLegend();};
     window.addEventListener("resize", resizeMap);
     new ResizeObserver(resizeMap).observe($("#map"));
-    wirePlanDrop(); renderPlanPills();
+    if (PUBLIC) {
+      // the web copy: the tabs and buttons for what runs only aboard go
+      for (const sel of ['#tabs button[data-tab="photos"]', "#tabchat", "#feedback-open"]) { const b = $(sel); if (b) b.hidden = true; }
+      const plan = document.querySelector('#maplayers button[data-layer="plan"]');
+      if (plan) plan.title = "the leg's planned cruise track and stations from the expedition's KMZ";
+    } else wirePlanDrop();
+    renderPlanPills();
     document.addEventListener("click", (e) => { for (const m of document.querySelectorAll("details.legmenu[open]")) if (!m.contains(e.target)) m.open = false; });   // a click outside closes the legs menu and the map's kind menus
   })();
 })();

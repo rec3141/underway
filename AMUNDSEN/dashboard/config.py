@@ -49,6 +49,7 @@ class Variable:
     circular: bool = False          # degrees on a compass; plotted as points, not lines
     tsg: bool = False               # read off the TSG line: meaningless while the intake pump is off
     cmap: str = "Viridis"
+    reverse: bool = False           # the map read the other way: deep water dark
 
     def resolve(self, keys: list[str]) -> str | None:
         for pat in self.candidates:
@@ -65,6 +66,7 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^tsg — hull temperature", r"^tsg — .*temperature", r"sea.*surface.*temp", r"hull temperature"), tsg=True),
     Variable("Salinity (PSU)", "PSU",
              (r"^tsg — salinity", r"salinity \(psu\)"), tsg=True),
+    Variable("Excess heat (°C)", "°C", (), derived=True, tsg=True),
     Variable("TSG line warming (°C)", "°C", (), derived=True, tsg=True),
     Variable("TSG flow (V)", "V", (), derived=True, tsg=True),
     Variable("Fluorescence (µg/L)", "µg/L",
@@ -74,9 +76,15 @@ VARIABLES: tuple[Variable, ...] = (
     Variable("Short-wave radiation (W/m²)", "W/m²",
              (r"^ats_portside — short wave", r"^ats_starboard — short wave", r"short wave radiation")),
     Variable("Bottom depth (m)", "m",
-             (r"^multibeam — bottom depth", r"^ek60 — bottom depth", r"bottom depth"), log_ok=True),
+             (r"^multibeam — bottom depth", r"^ek60 — bottom depth", r"bottom depth"), log_ok=True, reverse=True),
+    Variable("Rosette depth (m)", "m", (r"^ctd-rosette — rosette depth",), reverse=True),
+    Variable("Rosette rate (m/s)", "m/s", (), derived=True),
+    Variable("Cable length (m)", "m", (r"^500hp — winch cable length",)),
+    Variable("Cable rate (m/s)", "m/s", (r"^500hp — winch cable speed",)),
     Variable("Air temperature (°C)", "°C",
              (r"^avos — air temperature", r"^ats_mettower — air temperature", r"air temperature")),
+    Variable("Relative humidity (%)", "%",
+             (r"^avos — air humidity", r"^avos — .*humidity", r"^ats_mettower — .*humidity", r"humidity")),
     Variable("Atmospheric pressure (hPa)", "hPa",
              (r"^avos — atmospheric pressure", r"^ats_mettower — atmospheric pressure", r"pressure \(hpa\)")),
     Variable("True wind direction (°)", "°",
@@ -171,8 +179,8 @@ SURPRISE_NAME = "Surprise (−log10 p)"
 def surprise_scale_name(label: str) -> str:
     return f"Surprise · {label}"
 
-# one variable per scale, after the combined score; the page shows a single
-# surprise panel and picks the scale that matches the span shown
+# One variable per scale, after the combined score; each has a summary row
+# and an independently expandable chart.
 VARIABLES = VARIABLES[:1] + tuple(Variable(surprise_scale_name(l), "", (), derived=True) for l, _ in SURPRISE_SCALES) + VARIABLES[1:]
 
 # ---------------------------------------------------------------- locations
@@ -183,9 +191,17 @@ from pathlib import Path  # noqa: E402
 DATA_ROOT = Path(os.environ.get("UNDERWAY_DATA_ROOT", "/mnt/ship/Data"))    # FULL_CSV/<leg>/, Rosette/<leg>/Logs/
 DATA_SHARE_URL = os.environ.get("UNDERWAY_DATA_URL", "smb://10.0.0.10/Data")  # the same folders as a link people can open
 SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <year>/<leg>/ for archived seasons
-# per-leg SQLite stores; derived data, safe to delete
+# the installation's own directory: app/ (the deploy checkout), db/, cache/, www/, chat/, camera360/.
+# Set once in /etc/underway/site.env (deploy/site.env.example); the paths below default into it
+INSTALL_DIR = Path(os.environ.get("UNDERWAY_HOME", "/data/underway_server"))
+# the service account's own settings: underway.env (every secret; the units load it), gcal-sa.json (the Google
+# key), admins.json, chat-model.json, chat-paused. UNDERWAY_CONFIG in site.env moves it
+CONFIG_DIR = Path(os.environ.get("UNDERWAY_CONFIG", "~/.config/underway")).expanduser()
+# per-leg SQLite stores; derived data, safe to delete. Beside the package unless set, so a
+# development checkout never writes the installation's stores
 DB_DIR = Path(os.environ.get("UNDERWAY_DB_DIR", Path(__file__).resolve().parents[1] / "db"))
-CAMERA_OUTPUT = Path(os.environ.get("UNDERWAY_CAMERA_OUTPUT", "/data/underway/camera360"))   # daily timelapses (dashboard.cameras), served at /camera/
+WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", INSTALL_DIR / "www"))          # the built site the server serves
+CAMERA_OUTPUT = Path(os.environ.get("UNDERWAY_CAMERA_OUTPUT", INSTALL_DIR / "camera360"))   # daily timelapses (dashboard.cameras), served at /camera/
 
 # ---------------------------------------------------------------- ship intranet
 # pages on the ship's own web server, linked from the dashboard (LAN only)
@@ -200,9 +216,9 @@ GCAL = {
     "surprise": {"id": "7ae4b788832de21af8d8aea44eb379098a4f5e1fb2f7dc9262af18c380b62abb@group.calendar.google.com",
                  "label": "Underway Updates", "colour": "#ffb454"},
 }
-GCAL_CREDS = Path(os.environ.get("UNDERWAY_GCAL_CREDS", "~/.config/underway/gcal-sa.json")).expanduser()  # service account key; never in the repo
+GCAL_CREDS = Path(os.environ.get("UNDERWAY_GCAL_CREDS", CONFIG_DIR / "gcal-sa.json")).expanduser()  # service account key; never in the repo
 GCAL_SYNC_MINUTES = 10        # the feed cache is refreshed at most this often
-GCAL_SINCE = "2026-01-01"     # event-log operations before this were pushed by the R scheduler
+GCAL_SINCE = "2026-01-01"     # event-log operations before this are already in the calendar, and are left alone
 GCAL_MAX_CALLS = 200          # API requests per push run: a day's worth of edits and deletes clears in one run, and the run stays well inside the service timeout
 SURPRISE_ALERT_SCALE = "3 h"  # the scale watched for calendar alerts …
 SURPRISE_ALERT = 2.0          # … and the level above which an episode starts

@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>Camera model provenance</title>
+<h1>Camera runtime assets</h1>
+<p>Released from the icecamera development repository, September 2026. Experimental image-plane estimates, not scientific concentration or navigational guidance.</p>
+<ul><li>seawater-v2.json: 64-tree conservative water filter, trained from Eric's imperfect human labels of 2025 leg 4 camera-3 ROIs. Features: 89 colour/texture measurements at 600×300. Scores are not calibrated probabilities.</li><li>reference-key.png: human-selected camera examples used by Gemma; labels are appearance classes, not independent measurements.</li><li>prompt.json: frozen three-image prompt and rough scale assumptions from the successful Gemma all-high, 40 m, size-evidence run. No human per-photo labels are provided to inference.</li></ul>
+<p>ROI contract: camera-3 JPEG 3648×2052, center (0.45, 0.62), angle −30°, native 1200×600. Reject other dimensions. Full inference sees context, key, then enlarged 2400×1200 ROI. The 40 m brash/floe split and apparent thickness labels are project conventions.</p>

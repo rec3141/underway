@@ -22,7 +22,8 @@
 # from the polygons instead of GEBCO's zero contour within LAND_BBOX (lon/lat,
 # default the bbox): a strait the polygons keep open stays open in the
 # picture, and GEBCO only colours the depth inside it.
-# Needs GDAL >= 3.4 (gdalbuildvrt, gdalwarp, gdaldem, gdal2tiles.py).
+# Needs GDAL >= 3.4 (gdalbuildvrt, gdalwarp, gdaldem, gdal2tiles.py) on the
+# PATH and its Python bindings in /usr/bin/python3 or the interpreter GDAL_PYTHON names.
 set -euo pipefail
 
 ZIP=${1:?zip}; OUT=${2:?outdir}
@@ -31,7 +32,11 @@ ZOOMS=${7:-2-9}
 ZMAX=${ZOOMS##*-}
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/gebco.XXXXXX"); trap 'rm -rf "$WORK"' EXIT
 export GDAL_CACHEMAX=4096 GDAL_NUM_THREADS=ALL_CPUS GDAL_PAM_ENABLED=NO   # no .aux.xml beside each tile
-PY=/usr/bin/python3            # the system interpreter is the one with GDAL's Python bindings (python3-gdal)
+PY=${GDAL_PYTHON:-/usr/bin/python3}   # the interpreter with GDAL's Python bindings (python3-gdal), or a conda env's, named in GDAL_PYTHON
+# a conda env's GDAL finds its PROJ database and GDAL data only when told (activating the env would): tell it
+prefix=${PY%/bin/*}
+[[ -z ${PROJ_DATA:-} && -f $prefix/share/proj/proj.db ]] && export PROJ_DATA=$prefix/share/proj
+[[ -z ${GDAL_DATA:-} && -d $prefix/share/gdal ]] && export GDAL_DATA=$prefix/share/gdal
 CO=(-co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=YES)
 
 # the release is eight 90x90-degree tiles; only unpack the ones the box touches

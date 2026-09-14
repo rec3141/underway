@@ -13,27 +13,30 @@
   var s = JSON.parse(localStorage.getItem("uw:textsize")); if (s && s !== "auto") document.documentElement.dataset.size = s;
 } catch (e) {} })();</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230f1419'/%3E%3Cpath d='M6 20 Q11 14 16 18 T26 14' stroke='%235cc8ff' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="static/maplibre-gl.css?v={{ site.maplibre_version }}">
 <link rel="stylesheet" href="static/style.css?v={{ site.asset_version }}">
 <script src="static/plotly.min.js?v={{ site.plotly_version }}"></script>
+<script src="static/maplibre-gl.js?v={{ site.maplibre_version }}"></script>
 </head>
 <body>
 
 <header class="top">
-  <!-- the top line: the map cycler, the tabs, and (on a desktop) the theme picker at the right; a phone carries the picker at the foot of the page -->
+  <!-- Tabs and map cycler, with feedback and appearance controls at the right. -->
   <div class="tabrow">
-    <div class="group maptoggle"><button type="button" id="maptoggle" class="xcycle" title="how much of the page the map takes: half, all of it, or none">Half Map</button></div>
     <nav class="tabs" id="tabs" role="tablist">
+    <button data-tab="map" id="maptoggle" class="mapbtn" title="how much of the page the map takes: half, all of it, or none"><span class="ico">◧</span> Map</button>
     <button data-tab="calendar" role="tab">Schedule</button>
     <button data-tab="stations" role="tab">Stations</button>
     <button data-tab="underway" class="on" role="tab">Underway</button>
     <button data-tab="casts" role="tab">Casts</button>
-    <button data-tab="table" role="tab">Table</button>
-    <button data-tab="history" role="tab" title="the region's history: voyages, people, places and artifacts on the map, with a library and Ada to ask">History</button>
-    <button data-tab="nature" role="tab" title="the region's natural history: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal and Doc to ask">Nature</button>
+    <button data-tab="photos" role="tab" title="Photo gallery and imports">Photos</button>
+    <button data-tab="wiki" role="tab" title="the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask">Wiki</button>
     <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
+    <button data-tab="sources" role="tab" title="Sources" aria-label="Sources">?</button>
     </nav>
     <div class="themepick">
-      <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><span class="lbl">Theme</span><select id="theme" aria-label="Theme"></select></label>
+      <button type="button" id="feedback-open" class="feedback-link">Feedback</button>
+      <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><select id="theme" aria-label="Theme"></select></label>
       <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
     </div>
   </div>
@@ -42,8 +45,8 @@
     <div class="sub" id="status">loading…</div>
     <div class="sub" id="connection" role="status" hidden></div>
   </div>
-  <div class="pickhint phone">Select leg and time span:</div>
   <div class="controls" id="controls-underway">
+    <div class="pickhint phone">Select leg and time span:</div>
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
       <div class="pop">
@@ -61,8 +64,8 @@
     </div>
   </div>
 </header>
-<div class="inapp" id="inapp" hidden></div>
 <div class="alertbar" id="alert" hidden>
+  <div class="inapp" id="inapp" role="status" aria-live="polite" hidden></div>
   <div class="schedrow" id="schedrow">
     <div class="schedcols" id="schedcols"></div>
     <div class="schedlinks" id="schedlinks"></div>
@@ -77,23 +80,33 @@
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
-      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
-      <!-- listed top layer first; each is an on/off toggle -->
+      <div class="map-toolbar">
+      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
+      <div class="tools"><button id="mapdetailsopen" title="Map details" aria-label="Map details">ⓘ</button><button id="mapexport" title="Preview and export the map" aria-label="Export map">⇩</button><button id="mapreset" title="fit to track" aria-label="Reset map view">⟲</button><button id="mapnone" title="no map: the pane takes the whole width" aria-label="Minimise map">—</button><button id="mapfull" title="full map: the map takes the whole page" aria-label="Maximise map">⤢</button></div>
+      </div>
+      <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
-      <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
-      <button data-layer="cameras" title="a camera for each day's timelapse; click one to play it"><span class="full">Cameras</span><span class="short">Cams</span></button>
-      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs">Events</button>
-      <button data-layer="communities" title="settlements (GeoNames, CC BY 4.0)">Places</button>
-      <button data-layer="track" title="the ship's track for the shown legs">Track</button>
+      <div class="wiki-split plan-photos">
+      <span class="pillset" title="the ship's own layers">
       <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
-      <button data-layer="history" title="historical voyages, wrecks, winterings, places and artifacts from the History tab; click one to read about it" hidden>History</button>
-      <button data-layer="nature" title="observations of nature from the Nature tab: sightings, soundings, readings and the ship's own journal; click one to read it" hidden>Nature</button>
+      <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
+      <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
+      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
+      </span>
+      <button data-layer="photos" title="the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it">Photos</button>
+      <button data-layer="names" title="geographic names: bays, sounds, straits, islands, capes, lakes, rivers, glaciers and mountains, from the Canadian Geographical Names Database and GeoNames; more of them appear as you zoom in" hidden>Names</button>
+      </div>
+      <div class="wiki-split">
+      <button data-layer="history" title="the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it" hidden>History</button>
+      <div class="mapmenu" id="maphistlayers" hidden></div>
+      </div>
+      <div class="wiki-split">
+      <button data-layer="nature" title="the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it" hidden>Nature</button>
+      <div class="mapmenu" id="mapnatlayers" hidden></div>
+      </div>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
       </div>
-      <div class="mapmenu" id="maphistlayers" hidden></div>
-      <div class="mapmenu" id="mapnatlayers" hidden></div>
-      <div class="tools"><button id="mapreset" title="fit to track">⟲</button><button id="mapnone" title="no map: the pane takes the whole width">—</button><button id="mapfull" title="full map: the map takes the whole page">⤢</button></div>
     </div>
     <div id="map"></div>
     <div id="campop" class="campop" hidden>
@@ -104,19 +117,27 @@
     </div>
     <div id="mapmsg" class="mapmsg" hidden></div>
     <div id="mapscale" class="mapscale" title="the scale at the centre of the map" hidden><span class="bar"></span><span class="lbl"></span></div>
-    <div class="maptrack" title="how many track points to draw: every point of the shown legs, or one per so many km along the track">
-      <span class="lbl">Track detail</span>
-      <input type="range" id="trackstep" min="0" max="7" step="1" value="7" aria-label="Track detail">
-      <output id="tracksteplabel" for="trackstep">all points</output>
-    </div>
+    <dialog id="mapdetails" aria-labelledby="mapdetailstitle">
+    <div class="mapdetailshead"><h3 id="mapdetailstitle">Map details</h3><button id="mapdetailsclose" aria-label="Close map details">×</button></div>
     <div class="map-foot" id="mapfoot"></div>
     <div class="map-attrib" id="mapattrib"></div>
+    </dialog>
   </section>
 
   <section class="side">
     <div class="pane" id="pane-underway">
       <div class="panels" id="panels"></div>
-      <div class="dock" id="dock" hidden></div>
+      <details id="underway-table" class="card" open>
+        <summary>Data tables</summary>
+        <div class="pane-tools">
+          <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
+          <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
+          <input type="search" id="tblsearch" placeholder="filter rows" aria-label="Filter rows">
+          <button id="tblcsv" title="download the visible table as tab-separated text">TSV</button>
+          <span class="muted" id="tblmeta"></span>
+        </div>
+        <div class="tablewrap"><table id="aggtable"></table></div>
+      </details>
     </div>
 
     <div class="pane" id="pane-casts" hidden>
@@ -124,7 +145,7 @@
         <div class="castside">
           <div class="pane-tools compact">
             <span class="lbl">Select Cast Type</span>
-            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="live" title="the cast in the water, from Seasave's TCP/IP output">Live</button></div>
+            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="live" title="the cast in the water, from Seasave's TCP/IP output">Live</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="TRS" title="saved transects">TRS</button></div>
             <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)" aria-label="Filter casts"><button id="castcsv" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
           <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
@@ -138,6 +159,7 @@
             <span class="muted" id="castmeta"></span>
           </div>
           <div class="pane-tools compact" id="castrow2" hidden>
+            <button type="button" id="savetransect" disabled title="Save this section and its station order in this browser">Save transect</button>
             <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
             <label class="group select" id="castvarwrap">Color by <select id="castvar"></select></label>
           </div>
@@ -164,58 +186,55 @@
       <div class="tablewrap"><table id="stationtable"></table></div>
     </div>
 
-    <div class="pane histpane" id="pane-history" hidden>
+    <!-- the Wiki: the region's past and its nature in one pane; the two labels filter it, one or both on -->
+    <div class="pane histpane" id="pane-wiki" hidden>
       <div class="pane-tools compact histtools">
         <button type="button" id="histback" class="chip histback" title="back to the view before">‹ Back</button>
-        <button type="button" id="histhome" class="chip" title="the History front page: today, here, and the narratives">Home</button>
+        <button type="button" id="histhome" class="chip" title="the front page: today, here, the journal, the domains and the narratives">Home</button>
         <button type="button" id="histexplore" class="chip histexplore" title="every topic, with its pages and artifacts">Explore</button>
-        <button type="button" id="histask" class="chip ask" title="open the Library in the chat and ask Ada about the region's past">Ask Ada</button>
-        <input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, artifacts" aria-label="Search the history">
-        <select id="histkindsel" class="histsel" aria-label="Browse a kind or a page" title="everything of a kind on one page; the bibliography; how this history was made"></select>
+        <span class="domset" id="wikidomains" role="group" aria-label="What the wiki shows">
+          <button type="button" class="chip dom" data-domain="history" aria-pressed="false" title="the human past: voyages, people, places and artifacts">History</button>
+          <button type="button" class="chip dom" data-domain="nature" aria-pressed="false" title="the natural record: subjects, observations, the domains and the ship's journal">Nature</button>
+        </span>
+        <button type="button" id="histask" class="chip ask" title="ask the crew in the chat">Ask a Q</button>
+        <button type="button" id="wikiclose" class="chip" aria-label="Close panel" title="Close panel">×</button>
+        <div class="wiki-search-row"><input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, species, ice, weather" aria-label="Search the wiki">
+        <select id="histkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal"></select>
+        </div>
       </div>
-      <article class="histmain" id="histmain"><div class="empty">Loading the history…</div></article>
+      <article class="histmain" id="histmain"><div class="empty">Loading the wiki…</div></article>
     </div>
 
-    <div class="pane histpane" id="pane-nature" hidden>
-      <div class="pane-tools compact histtools">
-        <button type="button" id="natback" class="chip histback" title="back to the view before">‹ Back</button>
-        <button type="button" id="nathome" class="chip" title="the Nature front page: today, near the ship, the journal, the domains">Home</button>
-        <button type="button" id="natexplore" class="chip histexplore" title="every natural topic, and the kinds of subject">Explore</button>
-        <button type="button" id="natask" class="chip ask" title="open the Lab in the chat and ask Doc, the resident scientist; a sighting told to Doc goes into the journal">Ask Doc</button>
-        <input type="search" id="natsearch" class="histsearch" placeholder="search: species, rock, ice, weather, observers" aria-label="Search the natural history">
-        <select id="natkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="the documents of a kind or a domain on one page; the record; the ship's journal"></select>
-      </div>
-      <article class="histmain" id="natmain"><div class="empty">Loading the record…</div></article>
-    </div>
-
-    <div class="pane" id="pane-table" hidden>
-      <div class="pane-tools">
-        <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
-        <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
-        <input type="search" id="tblsearch" placeholder="filter rows" aria-label="Filter rows">
-        <button id="tblcsv" title="download the visible table as tab-separated text">TSV</button>
-        <span class="muted" id="tblmeta"></span>
-      </div>
-      <div class="tablewrap"><table id="aggtable"></table></div>
-    </div>
-
-  </section>
-  <footer>
-    <details class="card">
-      <summary>Data sources &amp; provenance</summary>
+    <div class="pane card" id="pane-sources" hidden>
+      <h2>Sources</h2>
       <div class="prov">
         <div class="meta">
-          <span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
+          {% if m.public %}<span>Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard</span>{% else %}<span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}
           <span>Calendars: {% for l in site.links %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
           <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD)</span>
           <span class="right">underway v{{ site.version }} · built <time id="gen"></time></span>
         </div>
-        <div class="hscroll"><table id="sources"></table></div>
+        <p class="sources-scroll-hint">Swipe the table sideways to see source columns and leg coverage.</p>
+        <div class="hscroll" tabindex="0" role="region" aria-label="Source columns and leg coverage"><table id="sources"></table></div>
         <div class="notes" id="notes"></div>
       </div>
-    </details>
-  </footer>
+    </div>
+  </section>
+  <dialog id="feedback-dialog" aria-labelledby="feedback-title">
+    <form id="feedback-form">
+      <h2 id="feedback-title">Feedback about this page</h2>
+      <p>Report a problem or suggest an improvement. The current page and view settings are included.</p>
+      <p id="feedback-page" class="muted"></p>
+      <label for="feedback-message">Your feedback</label>
+      <textarea id="feedback-message" rows="6" maxlength="5000" required></textarea>
+      <label for="feedback-name">Name (optional)</label>
+      <input id="feedback-name" maxlength="100" autocomplete="name">
+      <p id="feedback-status" role="status" aria-live="polite"></p>
+      <div class="feedback-actions"><button type="button" id="feedback-close">Cancel</button><button type="submit" id="feedback-send">Submit feedback</button></div>
+    </form>
+  </dialog>
 </main>
+<footer id="mobile-appearance" aria-label="Feedback and appearance" hidden></footer>
 
 <script>
 window.__SITE__ = {{ site|tojson }};
@@ -229,6 +248,7 @@ window.__MANIFEST__ = {{ m|tojson }};
   </div>
   <div class="chatbody">
     <div class="chatrooms" id="chatrooms" role="tablist" aria-label="chat rooms"></div>
+    <p class="chat-privacy" id="chatprivacy">Shared room — anyone on this dashboard can read, including unnamed visitors.</p>
     <div class="chatpicker" id="chatpicker" hidden></div>
     <div class="chatlog" id="chatlog"></div>
     <div class="chattyping muted" id="chattyping" hidden></div>
@@ -244,11 +264,19 @@ window.__MANIFEST__ = {{ m|tojson }};
 </aside>
 
 <script src="static/data.js?v={{ site.asset_version }}"></script>
+<script src="static/track-data.js?v={{ site.asset_version }}"></script>
+<script src="static/map-legend.js?v={{ site.asset_version }}"></script>
+<script src="static/plot-export.js?v={{ site.asset_version }}"></script>
+<script src="static/map.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>
+<script src="static/responsive-header.js?v={{ site.asset_version }}"></script>
+<link rel="stylesheet" href="static/ice.css?v={{ site.asset_version }}">
+<script src="static/ice.js?v={{ site.asset_version }}"></script>
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
 <script src="static/history.js?v={{ site.asset_version }}"></script>
 <script src="static/nature.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
+<script src="static/feedback.js?v={{ site.asset_version }}"></script>
 </body>
 </html>

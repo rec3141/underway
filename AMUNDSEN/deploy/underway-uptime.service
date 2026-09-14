@@ -1,0 +1,20 @@
+[Unit]
+Description=Check Underway availability and send outage/recovery alerts
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard.uptime
+TimeoutStartSec=90
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=@UNDERWAY_HOME@

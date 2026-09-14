@@ -7,4 +7,5 @@ Description=Keep the ship's 10.0.0.x network routed over the LAN, not the VPN
 
 [Service]
 Type=oneshot
-ExecStart=/data/underway/app/AMUNDSEN/tools/ship-routes.sh on
+EnvironmentFile=@UNDERWAY_SITE@
+ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/tools/ship-routes.sh on

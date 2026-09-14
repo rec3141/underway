@@ -9,6 +9,8 @@ open (``/api/chat``), kept in a small SQLite file outside the web root.
 from __future__ import annotations
 
 import html
+import gzip
+import io
 import json
 from datetime import datetime, timezone
 import urllib.request
@@ -102,21 +104,49 @@ from .nature import IMG_DIR as JOURNAL_IMG
 
 
 class Handler(SimpleHTTPRequestHandler):
-    # The basemap is GeoJSON, a megabyte a file. Served as application/geo+json
-    # the front proxy leaves it uncompressed (its compression list does not
-    # know the type); as application/json it goes out gzipped at a quarter the size.
+    # Use application/json for GeoJSON so proxy compression also recognizes it.
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".geojson": "application/json", ".pbf": "application/x-protobuf"}
 
     def log_message(self, fmt, *args):          # only failures are worth a line
         if str(args[1:2]).startswith(("('4", "('5")):
             log.info("%s %s", self.address_string(), fmt % args)
 
+    def _accepts_gzip(self) -> bool:
+        qualities = {}
+        for item in self.headers.get("Accept-Encoding", "").lower().split(","):
+            coding, *params = item.strip().split(";")
+            quality = 1.0
+            for param in params:
+                key, _, value = param.strip().partition("=")
+                if key == "q":
+                    try:
+                        quality = float(value)
+                    except ValueError:
+                        quality = 0.0
+            qualities[coding] = quality
+        return 0 < qualities.get("gzip", qualities.get("*", 0)) <= 1
+
     def _json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload).encode()
+        compressed = len(body) >= 1024 and self._accepts_gzip()
+        if compressed:
+            body = gzip.compress(body, compresslevel=5, mtime=0)
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Vary", "Accept-Encoding")
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        SimpleHTTPRequestHandler.end_headers(self)
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def _bytes(self, code: int, ctype: str, body: bytes, cache: str = "private, max-age=86400") -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", cache)
         SimpleHTTPRequestHandler.end_headers(self)
         self.wfile.write(body)
 
@@ -125,6 +155,32 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == '/status.html':
+            if parse_qs(u.query).get('format') == ['json']:
+                from .status import report
+                try:
+                    return self._json(200, report())
+                except (OSError, sqlite3.Error):
+                    return self._json(503, {'error': 'Monitoring data unavailable'})
+            return self._bytes(200, 'text/html; charset=utf-8', (Path(__file__).parent / 'static/status.html').read_bytes(), 'no-store')
+        if u.path == '/api/health':
+            root = Path(self.directory)
+            ready = (root / 'index.html').is_file() and (root / 'data/manifest.json').is_file()
+            return self._json(200 if ready else 503, {'ok': ready})
+        if u.path.startswith('/api/ice/'):
+            from . import ice_store
+            q=parse_qs(u.query)
+            try:
+                if u.path=='/api/ice/track':
+                    start=float(q.get('start',[time.time()-86400])[0]);end=float(q.get('end',[time.time()])[0])
+                    if not (0<=start<=end and end-start<=32*86400):raise ValueError('Choose a range of at most 32 days')
+                    return self._json(200,ice_store.track(start,end))
+                identifier=q.get('id',[''])[0]
+                if u.path=='/api/ice/detail':return self._json(200,ice_store.detail(identifier) or {})
+                if u.path=='/api/ice/image':return self._bytes(200,'image/jpeg',ice_store.photo_path(identifier,q.get('kind',['roi'])[0]).read_bytes())
+                return self._json(404,{'error':'Unknown camera endpoint'})
+            except ValueError as e:return self._json(400,{'error':str(e)})
+            except (OSError,sqlite3.Error):return self._json(404,{'error':'Camera product unavailable'})
         if u.path == "/api/alerts/following":
             from .alerts import following
             q = parse_qs(u.query)
@@ -179,6 +235,43 @@ class Handler(SimpleHTTPRequestHandler):
                     c.close()
             except FileNotFoundError:
                 return self._json(200, {"requests": []})
+        if u.path == "/api/nature/share":
+            # one folder of the ship's share for the Nature tab's photo browser: ?path=<relative to the share>;
+            # without a path, where the browser opens (the newest leg's Pictures)
+            from .photos import listing, start_path
+            q = parse_qs(u.query)
+            try:
+                rel = q.get("path", [None])[0]
+                start = start_path(Path(self.directory))
+                out = listing(start if rel is None else rel)
+                out["start"] = start
+                return self._json(200, out)
+            except ValueError as e:
+                return self._json(404, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("share listing failed: %s", e)
+                return self._json(503, {"error": "the share is not reachable right now"})
+        if u.path == "/api/nature/share/thumb":
+            # a small JPEG of one photograph on the share, for the browser's grid
+            from .photos import thumb
+            q = parse_qs(u.query)
+            try:
+                data = thumb(q.get("path", [""])[0])
+            except ValueError as e:
+                return self._json(404, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.info("thumbnail failed: %s", e)
+                return self._json(503, {"error": "the photograph could not be read"})
+            return self._bytes(200, "image/jpeg", data)
+        if u.path == "/api/nature/import":
+            # an import of photographs as it stands (?job=<id>), or the imports so far and the licences offered
+            from .photos import LICENCES, job, jobs, public, watches_public
+            q = parse_qs(u.query)
+            jid = q.get("job", [""])[0]
+            if jid:
+                j = job(jid)
+                return self._json(200, public(j)) if j else self._json(404, {"error": "no such import"})
+            return self._json(200, {"jobs": jobs(), "licences": LICENCES, "watches": watches_public()})
         if u.path == "/api/nature/journal":
             # the ship's own observations of nature, newest first, for the Nature tab
             from .nature import entries
@@ -211,8 +304,72 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urlsplit(self.path)
+        if u.path == '/api/usage':
+            from . import usage
+            try:
+                if self.headers.get('Sec-Fetch-Site') == 'cross-site' or self.headers.get('Transfer-Encoding'):
+                    raise ValueError('Invalid request')
+                origin = self.headers.get('Origin')
+                if origin and urlsplit(origin).netloc != self.headers.get('Host'):
+                    raise ValueError('Invalid origin')
+                n = int(self.headers.get('Content-Length', '0'))
+                if not 0 < n <= 32:
+                    raise ValueError('Invalid page')
+                self.connection.settimeout(5)
+                usage.record(self.rfile.read(n).decode('ascii'), usage.client_ip(self.client_address[0], self.headers.get('X-Forwarded-For', '')))
+                return self._json(200, {'ok': True})
+            except (ValueError, UnicodeError):
+                return self._json(400, {'error': 'Invalid page view'})
+            except (OSError, sqlite3.Error):
+                log.warning('Usage count could not be saved')
+                return self._json(503, {'error': 'Usage unavailable'})
+        if u.path in ('/api/nature/upload', '/api/nature/upload/file'):
+            from . import photo_upload
+            try:
+                # No cross-site form uploads; custom header also forces a CORS
+                # preflight from unrelated websites (we grant no CORS access).
+                if self.headers.get('X-Photo-Upload') != '1' or self.headers.get('Sec-Fetch-Site') == 'cross-site':
+                    raise ValueError('Use the photo upload form on this site')
+                origin = self.headers.get('Origin')
+                if origin and urlsplit(origin).netloc != self.headers.get('Host'):
+                    raise ValueError('Upload origin does not match this site')
+                if self.headers.get('Transfer-Encoding'):
+                    raise ValueError('Upload requires a content length')
+                n = int(self.headers.get('Content-Length', '0'))
+                self.connection.settimeout(90)
+                if u.path.endswith('/file'):
+                    q = parse_qs(u.query)
+                    result = photo_upload.receive(self.headers.get('X-Upload-ID', ''), int(q.get('index', ['-1'])[0]), self.rfile, n)
+                else:
+                    if not 0 < n <= 128 * 1024:
+                        raise ValueError('Invalid upload batch size')
+                    result = photo_upload.create(json.loads(self.rfile.read(n)))
+                return self._json(200, result)
+            except (ValueError, UnicodeDecodeError) as e:
+                self.close_connection = True
+                return self._json(400, {'error': str(e)})
+            except OSError:
+                self.close_connection = True
+                return self._json(503, {'error': 'Could not finish writing to the share. Keep this page open and retry.'})
+            except Exception:
+                self.close_connection = True
+                log.exception('photo upload failed')
+                return self._json(500, {'error': 'Upload failed; keep this page open and retry.'})
+        if u.path == "/api/feedback":
+            from .feedback import submit
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 32768:
+                    raise ValueError("Feedback request must be at most 32768 bytes")
+                payload = json.loads(self.rfile.read(n))
+                return self._json(200, submit(payload))
+            except (ValueError, UnicodeDecodeError) as e:
+                return self._json(400, {"error": str(e)})
+            except Exception:
+                log.exception("feedback save failed")
+                return self._json(500, {"error": "Could not save feedback. Please try again."})
         if u.path == "/api/live" and LIVE:
-            # point the listener at Seasave from the page: {"tcp": "10.0.0.22:49161"}
+            # point the listener at Seasave from the page: {"tcp": "10.0.0.22:49161,49162"}, the ports tried in turn
             try:
                 n = int(self.headers.get("Content-Length", "0"))
                 if not 0 <= n <= 4096:
@@ -310,6 +467,37 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("journal write failed: %s", e)
                 return self._json(500, {"error": "the journal could not be written"})
+        if u.path == "/api/nature/import":
+            # a folder of photographs from the share into the journal: {"folder": <path>, "name", "org", "email", "licence",
+            # "clock", "watch": true to keep importing from it}; the import runs on in a thread and the page follows it by its job id
+            from .photos import start
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 256 * 1024:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                return self._json(200, {"ok": True, "job": start(Path(self.directory), payload, str(payload.get("name", ""))[:60])})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("photo import failed to start: %s", e)
+                return self._json(500, {"error": "the import could not be started"})
+        if u.path == "/api/nature/watch":
+            # stop watching a folder: {"path": <the folder>, "stop": true}
+            from .photos import watch_remove, watches_public
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 4096:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(payload, dict) or not payload.get("stop"):
+                    raise ValueError("Bad request")
+                gone = watch_remove(str(payload.get("path", ""))[:400])
+                return self._json(200, {"ok": True, "stopped": gone, "watches": watches_public()})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
         if u.path == "/api/history/flag":
             # the flag on an artifact's card: {"id": ..., "on": true, "token": <chat token>, "name": ...,
             # "title": ..., "page": "artifact/...", "note": ...}; the alerts timer tells the keeper
@@ -385,6 +573,28 @@ class Handler(SimpleHTTPRequestHandler):
         # Both GET and HEAD pass through here. Do not substitute a sentinel
         # filename: that file could actually exist inside the configured root.
         try:
+            path = Path(self.translate_path(self.path))
+            # Bound memory and CPU: legacy whole-cruise fine files stay streamed.
+            # Conditional requests retain the standard handler's validation.
+            if (path.suffix.lower() in (".json", ".geojson") and self._accepts_gzip()
+                    and not self.headers.get("If-Modified-Since")
+                    and not self.headers.get("If-None-Match")):
+                try:
+                    with path.open("rb") as source:
+                        stat = os.fstat(source.fileno())
+                        if 1024 <= stat.st_size <= 8 * 1024 * 1024:
+                            raw = source.read(8 * 1024 * 1024 + 1)
+                            if len(raw) <= 8 * 1024 * 1024:
+                                body = gzip.compress(raw, compresslevel=5, mtime=0)
+                                self.send_response(200)
+                                self.send_header("Content-Type", self.guess_type(str(path)))
+                                self.send_header("Content-Encoding", "gzip")
+                                self.send_header("Content-Length", str(len(body)))
+                                self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+                                self.end_headers()
+                                return io.BytesIO(body)
+                except OSError:
+                    pass
             return super().send_head()
         except ValueError:
             self.send_error(404, "File not found")
@@ -392,11 +602,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         p = self.path.split("?")[0]
-        if p.startswith("/data/") or p.endswith(".json"):
+        if p.endswith((".json", ".geojson")):
+            self.send_header("Vary", "Accept-Encoding")
+        if re.fullmatch(r"/data/track/[0-9a-f]{16,64}\.json", p):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        elif p.startswith("/data/") or p.endswith(".json"):
             self.send_header("Cache-Control", "no-store")            # rebuilt every few minutes
         elif p == "/" or p.endswith(".html"):
             self.send_header("Cache-Control", "no-cache")            # revalidate; carries the asset versions
-        elif p.startswith(("/static/geo/", "/static/tiles/")) or p.endswith("plotly.min.js"):
+        elif p.startswith(("/static/geo/", "/static/tiles/")) or p.endswith(("plotly.min.js", "maplibre-gl.js", "maplibre-gl.css")):
             self.send_header("Cache-Control", "public, max-age=604800")   # big, rarely change, versioned URL
         else:
             self.send_header("Cache-Control", "no-cache")
@@ -510,6 +724,8 @@ def serve(root: Path, port: int, bind: str) -> None:
     CHAT.CREW = CREW
     CHAT.ROOT = root
     CREW.start()
+    from .photos import start_watcher
+    start_watcher(root)                     # the watched folders of the share, looked at every ten minutes
     httpd = ThreadingHTTPServer((bind, port), partial(Handler, directory=str(root)))
     log.info("serving %s on http://%s:%d/", root, bind or "0.0.0.0", port)
     try:

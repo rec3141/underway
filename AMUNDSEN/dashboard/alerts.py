@@ -8,7 +8,9 @@ Canceled), moved (a start time changed). A subscription can also follow
 single operations (the bell beside a row, or a ``t.me/<bot>?start=<row>``
 link) or every operation of one kind (a key ``op:<operation>``, the second
 bell): each such entry carries its own lead time and events, by default a
-15-minute heads-up and every change. Subscriptions live in
+15-minute heads-up and every change. Following ``changes`` (the bell in the
+schedule's heading, or /changes) hears only when future operations are added,
+removed or rescheduled, not completion or status-only updates. Subscriptions live in
 ``db/alerts.json``; what has been sent, the last version of every row seen
 and the Telegram update offset live in ``db/alerts_state.json``.
 
@@ -24,24 +26,23 @@ when that service is down, so an update is never consumed twice. Writers
 of the subscription file take ``db/alerts.lock``.
 
 An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
-else the address in the R scheduler's ``gmail_creds``, which may also carry
-the mail for it; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
+else the SMTP account's own address; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
 FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
-with a note when it recovers. The History artifacts flagged for review from
-their cards (``db/history_flags.json``) go to the same keeper on the next
-run, all in one message; a flag withdrawn before then is dropped unsent.
+with a note when it recovers. The wiki pages flagged for review
+(``db/history_flags.json``) go to the same keeper on the next run, all in one
+message; a flag withdrawn before then is dropped unsent.
 Whoever raised a flag can withdraw it while theirs is the only one; once
-several people have flagged the same artifact only an admin can, an admin
+several people have flagged the same page only an admin can, an admin
 being a chat name listed in ``UNDERWAY_ADMINS`` (comma-separated) or in
-``~/.config/underway/admins.json``, on the device that owns that name in
+``admins.json`` in the config directory, on the device that owns that name in
 the chat.
 
-Telegram needs the bot token in ``UNDERWAY_TELEGRAM_TOKEN`` (or
-``TELEGRAM_KEY``, as in ``~/.config/underway/underway.env``) or in
-``~/.config/underway/telegram.json`` (``{"token": ...}``). Email needs an SMTP
-account in ``~/.config/underway/smtp.json`` (host, port, user, password,
-from, ssl, and reply_to for the address replies should go to). Without one
-the corresponding channel is off and said so on the page.
+Both channels take their account from the environment, which the units load
+from ``underway.env`` (deploy/underway.env.example): Telegram the bot token in
+``TELEGRAM_KEY`` (or ``UNDERWAY_TELEGRAM_TOKEN``), email an SMTP account in
+``SMTP_HOST``, ``SMTP_PORT``, ``SMTP_USER``, ``SMTP_PASSWORD``, ``SMTP_FROM``,
+``SMTP_SSL`` and ``SMTP_REPLY_TO`` (the address replies should go to). Without
+one the corresponding channel is off and said so on the page.
 """
 
 from __future__ import annotations
@@ -58,10 +59,10 @@ from email.message import EmailMessage
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .config import DB_DIR, LOCAL_TZ
+from .config import CONFIG_DIR, DB_DIR, LOCAL_TZ, WEBROOT
 
 log = logging.getLogger(__name__)
-CONF_DIR = Path("~/.config/underway").expanduser()
+CONF_DIR = CONFIG_DIR
 TELEGRAM_TOKEN = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
 EVENTS = ("upcoming", "started", "finished", "moved")
 DEFAULT_EVENTS = ("upcoming", "started", "moved")
@@ -71,10 +72,13 @@ ROW_EVENTS = EVENTS             # … and every change to it
 MOVED_MIN = 15                  # a start that shifts by less is not worth a message
 STATUS_STARTED = ("in progress",)
 STATUS_FINISHED = ("completed", "canceled", "cancelled")
+CHANGE_NOTICE = "the schedule has changed http://10.0.0.2/Schedule.html"
+CHANGES_KEY = "changes"         # the schedule-changes follow, as a bell's key and a /start payload
+CHANGE_EVENTS = ("added", "removed", "moved", "plan_changed")
+MAX_LINES = 25                  # lines in one message; a rewritten schedule says how many more
 TZ = ZoneInfo(LOCAL_TZ)
 TIMEOUT = 15
 STALE_MIN = 30                  # the FULL_CSV normally grows every ten minutes
-WEBROOT = Path(os.environ.get("UNDERWAY_WEBROOT", "/data/underway/www"))
 OPS_EMAIL = os.environ.get("UNDERWAY_OPS_EMAIL", "")
 OPS_TELEGRAM = os.environ.get("TELEGRAM_ID", "")
 FLAGS_PER_HOUR = 10             # review flags one device may raise in an hour …
@@ -143,8 +147,8 @@ def save_state(st: dict) -> None:
 
 # ---------------------------------------------------------------- review flags
 #
-# A flag on a History artifact, raised from its card by anyone with a note;
-# several people may raise their own on the same artifact. The person who
+# A flag on a wiki page or artifact, raised by anyone with a note;
+# several people may raise their own on the same page. The person who
 # raised it withdraws it while theirs is the only one; once several have,
 # only an admin can clear it. An admin is a chat name from ``admins()``
 # presented with the device token that owns that name in the chat. Raises
@@ -181,7 +185,7 @@ def _owner(token: str) -> str:
 
 def admins() -> list[str]:
     """The chat names that may clear anyone's flag: ``UNDERWAY_ADMINS``
-    (comma-separated), else the list in ``~/.config/underway/admins.json``;
+    (comma-separated), else the list in ``admins.json`` in ``CONFIG_DIR``;
     read on every check, so an edit takes effect at once."""
     env = os.environ.get("UNDERWAY_ADMINS", "")
     if env:
@@ -211,7 +215,7 @@ def is_admin(name: str, token: str) -> bool:
 
 
 def flagged(token: str = "", name: str = "") -> dict:
-    """What the page shows: every flagged artifact with who raised it and
+    """What the page shows: every flagged page with who raised it and
     why, whether this device is among them, and whether it is an admin's."""
     me = _owner(token)
     out = []
@@ -225,12 +229,18 @@ def flagged(token: str = "", name: str = "") -> dict:
 
 def set_flag(art_id: str, on: bool, token: str = "", name: str = "", title: str = "", page: str = "", note: str = "",
              now: datetime | None = None) -> dict:
-    """Raise this device's flag on an artifact, or withdraw the flag. Raises
+    """Raise this device's flag on a wiki page, or withdraw the flag. Raises
     ValueError for a bad id, PermissionError when the flag is not this
     device's to withdraw, TooMany past the hour's limit. Returns the flags
     as the page sees them."""
-    art_id = art_id.strip()[:120]
-    if not re.fullmatch(r"[\w.-]+", art_id):
+    art_id = art_id.strip()
+    # Artifact IDs keep their card identity; page IDs include the full wiki route.
+    if art_id.startswith("page:"):
+        slug = art_id[5:]
+        if (not slug or len(slug) > 200 or not re.fullmatch(r"[\w.,/-]+", slug)
+                or any(part in {"", ".", ".."} for part in slug.split("/"))):
+            raise ValueError("that is not a wiki page id")
+    elif len(art_id) > 120 or not re.fullmatch(r"[\w.-]+", art_id):
         raise ValueError("that is not an artifact id")
     if not token:
         raise ValueError("this browser has no device token; reload the page")
@@ -245,11 +255,11 @@ def set_flag(art_id: str, on: bool, token: str = "", name: str = "", title: str 
             since = (now - timedelta(hours=1)).isoformat(timespec="seconds")
             d["raised"] = [r for r in d["raised"] if r["when"] > since]
             if sum(1 for r in d["raised"] if r["owner"] == me) >= FLAGS_PER_HOUR:
-                raise TooMany(f"you have flagged {FLAGS_PER_HOUR} artifacts this hour; try again later")
+                raise TooMany(f"you have flagged {FLAGS_PER_HOUR} pages this hour; try again later")
             if len(d["raised"]) >= FLAGS_PER_HOUR_ALL:
-                raise TooMany(f"{FLAGS_PER_HOUR_ALL} artifacts have been flagged this hour; try again later")
+                raise TooMany(f"{FLAGS_PER_HOUR_ALL} pages have been flagged this hour; try again later")
             if f is None:
-                f = {"id": art_id, "title": title.strip()[:200], "page": re.sub(r"[^\w./-]", "", page)[:200], "raisers": []}
+                f = {"id": art_id, "title": title.strip()[:200], "page": re.sub(r"[^\w.,/-]", "", page)[:200], "raisers": []}
                 d["flags"].append(f)
             when = now.isoformat(timespec="seconds")
             f["raisers"].append({"owner": me, "who": name, "note": note.strip()[:1000], "when": when, "notified": False})
@@ -281,8 +291,8 @@ def flag_notices(tg=None, email=None) -> list[str]:
             when = datetime.fromisoformat(r["when"]).astimezone(TZ).strftime("%Y-%m-%d %H:%M %Z")
             lines.append(f"{r.get('who') or 'someone'} flagged {f.get('title') or f['id']} ({f['id']}) at {when}"
                          + (f": {r['note']}" if r.get("note") else "")
-                         + (f" — http://underway.local:8042/#history/{f['page']}" if f.get("page") else ""))
-        head = f"{len(pending)} history artifact{'s' if len(pending) > 1 else ''} flagged for review"
+                         + (f" — http://underway.local:8042/#wiki/{f.get('page', '')}" if f.get("page") or f["id"] == "page:home" else ""))
+        head = f"{len(pending)} wiki page{'s' if len(pending) > 1 else ''} flagged for review"
         to, cfg, chat = ops_targets()
         ok = False
         try:
@@ -416,6 +426,8 @@ def follow_row(channel: str, to: str, key: str, remove: bool = False, lead_min=R
     key = str(key or "").strip()[:120]
     if not key:
         raise ValueError("no operation given")
+    if key == CHANGES_KEY:
+        return set_changes(channel, to, not remove, name)
     if key.startswith("op:"):                          # a kind: transits are one kind whatever the destination
         key = "op:" + kind_of(key[3:])
     with locked():
@@ -425,7 +437,7 @@ def follow_row(channel: str, to: str, key: str, remove: bool = False, lead_min=R
             if sub is None:
                 return None
             sub.setdefault("rows", {}).pop(key, None)
-            if not sub["rows"] and not sub.get("all") and not sub.get("match"):
+            if _empty(sub):
                 subs.remove(sub); save_subs(subs)
                 return None
         else:
@@ -448,7 +460,13 @@ def following(channel: str, to: str) -> dict:
     sub = _find(load_subs(), channel, to)
     if sub is None:
         return {"rows": [], "all": False, "match": ""}
-    return {"rows": sorted(sub.get("rows", {})), "all": bool(sub.get("all")), "match": sub.get("match", "")}
+    rows = sorted(sub.get("rows", {})) + ([CHANGES_KEY] if sub.get("changes") else [])
+    return {"rows": rows, "all": bool(sub.get("all")), "match": sub.get("match", "")}
+
+
+def _empty(sub: dict) -> bool:
+    """Whether a subscription asks for nothing any more."""
+    return not (sub.get("all") or sub.get("match") or sub.get("rows") or sub.get("whiteboard") or sub.get("changes"))
 
 
 def unsubscribe(token: str) -> dict | None:
@@ -490,10 +508,10 @@ def _whiteboard() -> str:
         return ""
 
 
-def set_whiteboard(channel: str, to: str, on: bool, name: str = "") -> dict | None:
-    """Follow (or stop following) changes to the whiteboard; the general
-    subscription and followed rows are untouched. Returns the subscription,
-    or None once nothing of it is left."""
+def _set_follow(flag: str, channel: str, to: str, on: bool, name: str = "") -> dict | None:
+    """Turn one of a subscription's own follows (``whiteboard``, ``changes``)
+    on or off; the rest of it is untouched. Returns the subscription, or
+    None once nothing of it is left."""
     to = _check_address(channel, to)
     with locked():
         subs = load_subs()
@@ -501,13 +519,24 @@ def set_whiteboard(channel: str, to: str, on: bool, name: str = "") -> dict | No
         if on:
             if sub is None:
                 sub = _new(channel, to); sub.update(name=str(name or "").strip()[:40]); subs.append(sub)
-            sub["whiteboard"] = True
+            sub[flag] = True
         elif sub is not None:
-            sub.pop("whiteboard", None)
-            if not sub.get("all") and not sub.get("match") and not sub.get("rows"):
+            sub.pop(flag, None)
+            if _empty(sub):
                 subs.remove(sub); sub = None
         save_subs(subs)
     return sub
+
+
+def set_whiteboard(channel: str, to: str, on: bool, name: str = "") -> dict | None:
+    """Follow (or stop following) changes to the whiteboard."""
+    return _set_follow("whiteboard", channel, to, on, name)
+
+
+def set_changes(channel: str, to: str, on: bool, name: str = "") -> dict | None:
+    """Follow (or stop following) changes to the schedule: operations added,
+    taken off, moved or canceled, and nothing else."""
+    return _set_follow("changes", channel, to, on, name)
 
 
 def whiteboard_notices(subs: list[dict], state: dict) -> list[tuple[dict, str]]:
@@ -523,7 +552,8 @@ def whiteboard_notices(subs: list[dict], state: dict) -> list[tuple[dict, str]]:
 
 
 def _rows() -> list[dict]:
-    """The current schedule rows with UTC instants and keys."""
+    """The current schedule rows with keys, and UTC instants where the page
+    gives times (a canceled row loses them)."""
     from .calendar import _instants, row_key
     p = DB_DIR / "schedule.json"
     if not p.is_file():
@@ -532,8 +562,7 @@ def _rows() -> list[dict]:
     for r in json.loads(p.read_text()).get("rows", []):
         r = dict(r, **_instants(r))
         r["key"] = row_key(r)
-        if r.get("start_utc"):
-            out.append(r)
+        out.append(r)
     return out
 
 
@@ -549,31 +578,77 @@ def _name(r: dict) -> str:
     return f"{r.get('station') or ''} — {r.get('operation') or ''}".strip(" —")
 
 
+def _at(r: dict) -> str:
+    """A row's times for a message: start–end, or the start alone."""
+    if r.get("end_utc"):
+        return _when(r)
+    return f"{_local(r['start_utc'])} {datetime.fromisoformat(r['start_utc']).astimezone(TZ).strftime('%Z')}"
+
+
 def due_events(rows: list[dict], state: dict, now: datetime) -> list[tuple[str, dict, str]]:
     """(event, row, text) for everything that happened since the last run,
     judged against the last version of each row in ``state['rows']``;
-    updates that record."""
+    updates that record. A row the page lists without times (a canceled one
+    loses them) keeps the times it had. A row new to the page is ``added``
+    (not on the first run, which only records the page); a row that leaves
+    the page before it has started is ``removed``, and one that leaves after
+    it started or finished has scrolled off and is forgotten."""
     out = []
     seen = state["rows"]
+    primed = bool(seen)
+    here = set()
     for r in rows:
         prev = seen.get(r["key"])
+        here.add(r["key"])
+        timed = bool(r.get("start_utc"))
+        if not timed:
+            if not (prev or {}).get("start_utc"):
+                continue
+            r = dict(r, start_utc=prev["start_utc"], end_utc=prev.get("end_utc", ""))
         status = (r.get("status") or "").strip().lower()
         start = datetime.fromisoformat(r["start_utc"])
-        if status not in STATUS_STARTED + STATUS_FINISHED and now < start <= now + timedelta(hours=24):
+        note = f" — {r['comment']}" if r.get("comment") else ""
+        if timed and status not in STATUS_STARTED + STATUS_FINISHED and now < start <= now + timedelta(hours=24):
             mins = int((start - now).total_seconds() // 60)
-            out.append(("upcoming", r, f"Starting in {mins} min: {_name(r)} ({_when(r)})" + (f" — {r['comment']}" if r.get("comment") else "")))
-        if prev is not None:
+            out.append(("upcoming", r, f"Starting in {mins} min: {_name(r)} ({_when(r)})" + note))
+        if prev is None:
+            if primed and timed and status not in STATUS_FINISHED:
+                out.append(("added", r, f"Added: {_name(r)} ({_when(r)})" + note))
+        else:
             pstat = (prev.get("status") or "").strip().lower()
             if status in STATUS_STARTED and pstat not in STATUS_STARTED:
                 out.append(("started", r, f"Now in progress: {_name(r)} ({_when(r)})"))
             if status in STATUS_FINISHED and pstat not in STATUS_FINISHED:
-                out.append(("finished", r, f"{'Canceled' if status.startswith('cancel') else 'Completed'}: {_name(r)}"))
-            if prev.get("start_utc") and prev["start_utc"] != r["start_utc"] and status not in STATUS_FINISHED:
+                out.append(("finished", r, f"{'Canceled' if status.startswith('cancel') else 'Completed'}: {_name(r)}" + note))
+            if timed and prev.get("start_utc") and prev["start_utc"] != r["start_utc"] and status not in STATUS_FINISHED:
                 shift = (start - datetime.fromisoformat(prev["start_utc"])).total_seconds() / 60
                 if abs(shift) >= MOVED_MIN:
                     out.append(("moved", r, f"Moved {'later' if shift > 0 else 'earlier'} by {abs(shift):.0f} min: {_name(r)}, now {_when(r)}"))
-        seen[r["key"]] = {"status": r.get("status") or "", "start_utc": r["start_utc"]}
+            if timed and prev.get("start_utc") and status not in STATUS_STARTED + STATUS_FINISHED and pstat not in STATUS_STARTED + STATUS_FINISHED:
+                shift = abs((start - datetime.fromisoformat(prev['start_utc'])).total_seconds() / 60)
+                changed = prev['start_utc'] != r['start_utc'] or prev.get('end_utc', '') != r.get('end_utc', '')
+                if start > now and changed and shift < MOVED_MIN:
+                    out.append(('plan_changed', dict(r, change_at=now.isoformat()), f"Rescheduled: {_name(r)} ({_when(r)})"))
+        seen[r["key"]] = {"status": r.get("status") or "", "start_utc": r["start_utc"], "end_utc": r.get("end_utc") or "",
+                          "station": r.get("station") or "", "operation": r.get("operation") or ""}
+    if rows:                                    # an empty page is a failed read, not a cleared schedule
+        for k in [k for k in seen if k not in here]:
+            prev = seen.pop(k)
+            pstat = (prev.get("status") or "").strip().lower()
+            if pstat in STATUS_STARTED + STATUS_FINISHED or not prev.get("start_utc") or datetime.fromisoformat(prev["start_utc"]) <= now:
+                continue
+            station, _, operation = k.partition("|")
+            gone = {"key": k, "station": prev.get("station") or station, "operation": prev.get("operation") or operation.split("|")[0],
+                    "start_utc": prev["start_utc"], "end_utc": prev.get("end_utc") or ""}
+            out.append(("removed", gone, f"Taken off the schedule: {_name(gone)} (was {_at(gone)})"))
     return out
+
+
+def _is_change(ev: str, r: dict, now: datetime) -> bool:
+    """Only edits to future operations; status transitions are not plan edits."""
+    return (ev in CHANGE_EVENTS and bool(r.get('start_utc'))
+            and datetime.fromisoformat(r['start_utc']) > now
+            and (r.get('status') or '').strip().lower() not in STATUS_STARTED + STATUS_FINISHED)
 
 
 def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: dict, now: datetime) -> list[tuple[dict, list[str]]]:
@@ -587,23 +662,32 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
         for ev, r, text in events:
             rows_ = sub.get("rows") or {}
             followed = rows_.get(r["key"]) or rows_.get("op:" + kind_of(r.get("operation")))
+            change = bool(sub.get("changes")) and _is_change(ev, r, now)
             if followed is not None:                     # a followed row: its own lead time and events
                 wanted, lead = followed.get("events", ROW_EVENTS), followed.get("lead_min", ROW_LEAD_MIN)
             elif matches(sub, r):
                 wanted, lead = sub.get("events", DEFAULT_EVENTS), sub.get("lead_min", DEFAULT_LEAD_MIN)
+            elif change:
+                wanted, lead = (), 0
             else:
                 continue
-            if ev not in wanted:
+            if ev not in wanted and not change:
                 continue
             if ev == "upcoming":
                 start = datetime.fromisoformat(r["start_utc"])
                 if (start - now).total_seconds() > lead * 60:
                     continue
-            key = f"{r['key']}|{ev}" + (f"|{r['start_utc']}" if ev == "moved" else "")
+            key = f"{r['key']}|{ev}" + (f"|{r['start_utc']}" if ev in CHANGE_EVENTS else "")
+            if ev == 'plan_changed':
+                key += f"|{r.get('end_utc', '')}|{r.get('change_at', '')}"
             if key in mine:
                 continue
             mine[key] = now.isoformat(timespec="seconds")
-            lines.append(text)
+            if change and ev not in wanted:
+                if CHANGE_NOTICE not in lines:
+                    lines.append(CHANGE_NOTICE)
+            else:
+                lines.append(text)
         # forget rows that are long gone so the record stays small
         for k in [k for k, t in mine.items() if (now - datetime.fromisoformat(t)).days > 14]:
             del mine[k]
@@ -615,47 +699,24 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
 # ---------------------------------------------------------------- channels
 
 def telegram_token() -> str:
-    if TELEGRAM_TOKEN:
-        return TELEGRAM_TOKEN
-    p = CONF_DIR / "telegram.json"
-    try:
-        return json.loads(p.read_text()).get("token", "") if p.is_file() else ""
-    except (OSError, ValueError):
-        return ""
+    return TELEGRAM_TOKEN
 
 
 def smtp_config() -> dict | None:
-    """host, port, user, password, from, ssl — from ~/.config/underway/smtp.json."""
-    p = CONF_DIR / "smtp.json"
-    if not p.is_file():
+    """The mail account for alerts, from the ``SMTP_*`` variables; None without
+    a host and a user. ``SMTP_SSL=0`` means STARTTLS on port 587."""
+    e = os.environ
+    if not (e.get("SMTP_HOST") and e.get("SMTP_USER")):
         return None
-    try:
-        c = json.loads(p.read_text())
-        return c if c.get("host") and c.get("user") else None
-    except (OSError, ValueError):
-        return None
-
-
-def gmail_creds() -> dict | None:
-    """The R scheduler's Gmail settings (an R list serialised by jsonlite):
-    the keeper's own account, used only to write to the keeper."""
-    p = CONF_DIR / "gmail_creds"
-    if not p.is_file():
-        return None
-    try:
-        d = json.loads(p.read_text())
-        names = d["attributes"]["names"]["value"]
-        vals = [(v["value"][0] if isinstance(v.get("value"), list) and v["value"] else v.get("value")) for v in d["value"]]
-        c = dict(zip(names, vals))
-        return {"host": c["host"], "port": int(c.get("port") or 465), "user": c["user"], "password": c["password"],
-                "from": c["user"], "ssl": bool(c.get("use_ssl", True))}
-    except (OSError, ValueError, KeyError, TypeError, IndexError):
-        return None
+    return {"host": e["SMTP_HOST"], "port": e.get("SMTP_PORT", ""), "user": e["SMTP_USER"],
+            "password": e.get("SMTP_PASSWORD", ""), "from": e.get("SMTP_FROM", ""),
+            "ssl": e.get("SMTP_SSL", "1").strip().lower() not in ("0", "false", "no"),
+            "reply_to": e.get("SMTP_REPLY_TO", "")}
 
 
 def ops_targets() -> tuple[str, dict | None, str]:
     """(email address, its SMTP settings, Telegram chat) for operations alerts."""
-    cfg = smtp_config() or gmail_creds()
+    cfg = smtp_config()
     to = OPS_EMAIL or (cfg or {}).get("user", "") if not OPS_EMAIL else OPS_EMAIL
     return to, cfg, OPS_TELEGRAM
 
@@ -760,8 +821,13 @@ HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
         "/lead 30\nHow many minutes ahead the heads-up comes.\n\n"
         "/events upcoming, started, finished, moved\nWhich changes you hear about.\n\n"
         "/whiteboard\nThe whiteboard on the schedule page, now and whenever it changes. /whiteboard off stops that.\n\n"
+        "/changes\nOnly when future operations are added, taken off or rescheduled. No completion or status-only notices. /changes off stops that.\n\n"
         "/status\nWhat you are subscribed to.\n\n"
         "/stop\nNo more alerts of any kind.")
+
+
+CHANGES_ON = ("You hear whenever the schedule changes for future operations: added, taken off or rescheduled; no completion or status-only notices; "
+              "one short notice and a link to the schedule, no reminders. /changes off stops that, /status shows everything you follow. /none stops an existing /all subscription.")
 
 
 def handle_telegram(tg: Telegram, wait: int = 0) -> int:
@@ -782,7 +848,10 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
         subs = load_subs()
         mine = next((s for s in subs if s["channel"] == "telegram" and s["to"] == chat), None)
         try:
-            if cmd == "/start" and arg.strip():          # the dashboard's bell: t.me/<bot>?start=<row key>
+            if cmd == "/start" and decode_row(arg.strip()) == CHANGES_KEY:   # the bell in the schedule's heading
+                set_changes("telegram", chat, True, who)
+                reply = CHANGES_ON
+            elif cmd == "/start" and arg.strip():          # the dashboard's bell: t.me/<bot>?start=<row key>
                 key = decode_row(arg.strip())
                 follow_row("telegram", chat, key, name=who)
                 key = "op:" + kind_of(key[3:]) if key.startswith("op:") else key
@@ -804,7 +873,7 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                     subs2 = load_subs(); m2 = _find(subs2, "telegram", chat)
                     if m2:
                         m2.update(all=False, match="")
-                        if not m2.get("rows") and not m2.get("whiteboard"):
+                        if _empty(m2):
                             subs2.remove(m2)
                         save_subs(subs2)
                 reply = "No general subscription now" + (", followed operations stay." if mine and mine.get("rows") else ". /all or a bell on the dashboard to hear about something.")
@@ -815,6 +884,13 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                 else:
                     set_whiteboard("telegram", chat, True, who)
                     reply = "📋 Whiteboard\n" + (_whiteboard() or "(empty)") + "\n\nYou hear whenever it changes. /whiteboard off stops that."
+            elif cmd == "/changes":
+                if arg.strip().lower() in ("off", "stop", "no"):
+                    set_changes("telegram", chat, False)
+                    reply = "No more schedule-change messages."
+                else:
+                    set_changes("telegram", chat, True, who)
+                    reply = CHANGES_ON
             elif cmd == "/lead":
                 subscribe("telegram", chat, (mine or {}).get("match", ""), arg or DEFAULT_LEAD_MIN, (mine or {}).get("events"), who)
                 reply = f"Warning {max(5, min(24 * 60, int(arg or DEFAULT_LEAD_MIN)))} min ahead."
@@ -829,9 +905,10 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                 if not mine:
                     reply = "Not subscribed. /start to subscribe."
                 else:
-                    general = f"{mine.get('match') or ('everything' if mine.get('all') else 'no general subscription')} · {mine.get('lead_min')} min ahead · {', '.join(mine.get('events', []))}"
+                    general = (f"{mine.get('match') or 'everything'} · {mine.get('lead_min')} min ahead · {', '.join(mine.get('events', []))}"
+                               if mine.get("all") or mine.get("match") else "no general subscription")
                     rows = "\n".join(f"• {('every transit' if k == 'op:Transit' else 'every ' + k[3:]) if k.startswith('op:') else k.replace('|', ' — ')} ({v.get('lead_min')} min ahead)" for k, v in (mine.get("rows") or {}).items())
-                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "") + ("\nWhiteboard changes: yes" if mine.get("whiteboard") else "")
+                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "") + ("\nWhiteboard changes: yes" if mine.get("whiteboard") else "") + ("\nSchedule changes: yes" if mine.get("changes") else "")
             else:
                 reply = HELP
         except ValueError as e:
@@ -926,6 +1003,8 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
             failed += 1
             log.warning("alerts: whiteboard %s to %s failed: %s", sub["channel"], sub["to"], e)
     for sub, lines in messages_for(subs, events, state, now):
+        if len(lines) > MAX_LINES:
+            lines = lines[:MAX_LINES] + [f"… and {len(lines) - MAX_LINES} more; the schedule page has them all"]
         body = "\n".join("• " + l for l in lines)
         try:
             if sub["channel"] == "web":
@@ -934,7 +1013,7 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
             elif sub["channel"] == "telegram":
                 if tg is None:
                     raise RuntimeError("telegram not configured")
-                tg.send(sub["to"], "🔔 Amundsen schedule\n" + body)
+                tg.send(sub["to"], CHANGE_NOTICE if lines == [CHANGE_NOTICE] else "🔔 Amundsen schedule\n" + body)
             else:
                 if cfg is None:
                     raise RuntimeError("email not configured")

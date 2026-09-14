@@ -26,7 +26,7 @@ The system dashboard server was restarted to apply this; Ollama Gemma was unload
 
 ## Live camera products
 
-`dashboard/camera_live.py` publishes `/data/underway/www/data/camera-track.json`
+`dashboard/camera_live.py` publishes `/data/underway_server/www/data/camera-track.json`
 atomically, preserving the 2025 archive. Source photos are served through
 `www/photos/2026_LEG_*/` links to the mounted ship archive. Source disconnection,
 partial JPEGs, and unreviewed dimensions must not replace the last good product.

@@ -44,7 +44,7 @@ def atomic_write(path: Path, text: str) -> None:
 
 # ---------------------------------------------------------------- stations
 
-FINE_STEP_S = 30      # the finest window step served ("all points" on the map), for spans up to a week
+FINE_STEP_S = 0       # native observations, without time averaging ("all points")
 
 def read_stations(path: Path | None, leg_id: str) -> list[dict]:
     """CTD logbook rows; tolerant of a missing or partial file, since a leg's
@@ -238,34 +238,37 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
             agg[v.name] = _circular_mean_deg
         else:
             agg[v.name] = "mean"
-    g = df.resample(rule).agg(agg)
-    # A bin is labelled by the mean time of its samples, not the grid edge, so
-    # its mean position sits at the instant it represents (an hour bin labelled
-    # at its start would put a mid-transit position half an hour early and
-    # break the along-track spacing below).
-    tmean = pd.Series(df.index.as_unit("ns").asi8.astype("float64"), index=df.index).resample(rule).mean()
-    # However coarse the time step, the track keeps at least one point every
-    # MAP_KM_STEP km along the way: the first raw record in each distance
-    # bucket joins the time bins, so a transit does not thin to a dotted line
-    # at the long spans.
-    if w.step_s >= 600 and "dist_km" in df.columns:
-        bucket = np.floor(df["dist_km"].ffill() / MAP_KM_STEP)
-        extra = df.loc[bucket.diff().fillna(1) != 0, list(agg.keys())]
-        extra = extra[~extra.index.isin(g.index)]
-        if len(extra):
-            g = pd.concat([g, extra]).sort_index()
-    # An empty bin becomes a null, which breaks the plotted line. One null per
-    # gap is enough for that, so long runs of empty bins (a port call, the
-    # months between seasons) collapse to a single row rather than a grid.
-    empty = g.drop(columns=["leg"]).isna().all(axis=1)
-    keep = ~empty | (empty & ~empty.shift(fill_value=False))
-    g = g[keep]
-    tm = tmean.reindex(g.index)
-    stamped = pd.to_datetime(tm.to_numpy(), unit="ns")
-    if g.index.tz is not None:
-        stamped = stamped.tz_localize("UTC").tz_convert(g.index.tz)
-    g.index = pd.DatetimeIndex(stamped.where(tm.notna().to_numpy(), g.index), name=g.index.name)
-    g = g[~g.index.duplicated(keep="first")].sort_index()
+    if w.step_s == FINE_STEP_S:
+        g = df[list(agg)].copy()
+    else:
+        g = df.resample(rule).agg(agg)
+        # A bin is labelled by the mean time of its samples, not the grid edge, so
+        # its mean position sits at the instant it represents (an hour bin labelled
+        # at its start would put a mid-transit position half an hour early and
+        # break the along-track spacing below).
+        tmean = pd.Series(df.index.as_unit("ns").asi8.astype("float64"), index=df.index).resample(rule).mean()
+        # However coarse the time step, the track keeps at least one point every
+        # MAP_KM_STEP km along the way: the first raw record in each distance
+        # bucket joins the time bins, so a transit does not thin to a dotted line
+        # at the long spans.
+        if w.step_s >= 600 and "dist_km" in df.columns:
+            bucket = np.floor(df["dist_km"].ffill() / MAP_KM_STEP)
+            extra = df.loc[bucket.diff().fillna(1) != 0, list(agg.keys())]
+            extra = extra[~extra.index.isin(g.index)]
+            if len(extra):
+                g = pd.concat([g, extra]).sort_index()
+        # An empty bin becomes a null, which breaks the plotted line. One null per
+        # gap is enough for that, so long runs of empty bins (a port call, the
+        # months between seasons) collapse to a single row rather than a grid.
+        empty = g.drop(columns=["leg"]).isna().all(axis=1)
+        keep = ~empty | (empty & ~empty.shift(fill_value=False))
+        g = g[keep]
+        tm = tmean.reindex(g.index)
+        stamped = pd.to_datetime(tm.to_numpy(), unit="ns")
+        if g.index.tz is not None:
+            stamped = stamped.tz_localize("UTC").tz_convert(g.index.tz)
+        g.index = pd.DatetimeIndex(stamped.where(tm.notna().to_numpy(), g.index), name=g.index.name)
+        g = g[~g.index.duplicated(keep="first")].sort_index()
     g = _break_discontinuities(g)
 
     t0 = g.index.min()
@@ -309,6 +312,7 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         "t": (g.index.as_unit("ms").asi8).tolist(),
         "lat": col(g["lat"], 6), "lon": col(g["lon"], 6),
         "dist_km": col(dist_rel, 3),
+        "dist_origin_km": float(dist.dropna().iloc[0]) if dist.notna().any() else 0.0,
         "leg": [None if (x is None or not np.isfinite(x)) else int(x) for x in g["leg"].to_numpy()],
         "vars": vars_out,
         "pump_low": low,
@@ -417,11 +421,26 @@ def raster_pyramid(tiles: Path) -> dict | None:
             "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
 
 
-def vector_tiles(tiles: Path) -> dict | None:
-    """Describe a coastline vector tile set (ogr2ogr -f MVT, see the README) for
-    the map: zoom range, bounds and layer names from the metadata.json the
-    writer leaves beside the tiles. Like the raster pyramid it lives on local
-    disk and is used when present."""
+NAMES_ATTRIBUTION = "Names: Canadian Geographical Names Database (Open Government Licence – Canada), GeoNames (CC BY 4.0)"
+
+
+def tile_layers(tiles_dir: Path) -> dict:
+    """The map's tile layers found under ``tiles_dir`` (``UNDERWAY_TILES_DIR``):
+    the GEBCO raster pyramid (tools/make_gebco_tiles.sh), the OpenStreetMap
+    coastline and the geographic names (tools/make_names_tiles.py), each None
+    when absent. They live on local disk — too many files for the share or the
+    repository — and the server maps /static/tiles/ onto the directory."""
+    return {"raster": raster_pyramid(tiles_dir / "gebco"),
+            "vector": vector_tiles(tiles_dir / "coast"),
+            "names": vector_tiles(tiles_dir / "names", NAMES_ATTRIBUTION)}
+
+
+def vector_tiles(tiles: Path, attribution: str = "© OpenStreetMap contributors (ODbL)") -> dict | None:
+    """Describe a vector tile set (ogr2ogr -f MVT, see the README) for the
+    map: zoom range, bounds and layer names from the metadata.json the writer
+    leaves beside the tiles. The coastline and the geographic names are both
+    cut this way. Like the raster pyramid they live on local disk and are
+    used when present."""
     meta = tiles / "metadata.json"
     if not meta.is_file():
         return None
@@ -430,7 +449,7 @@ def vector_tiles(tiles: Path) -> dict | None:
     bounds = [float(v) for v in str(m["bounds"]).split(",")] if m.get("bounds") else None
     v = int(meta.stat().st_mtime)
     return {"url": f"static/tiles/{tiles.name}/{{z}}/{{x}}/{{y}}.pbf?v={v}", "minzoom": int(m.get("minzoom", 0)), "maxzoom": int(m.get("maxzoom", 14)),
-            "bounds": bounds, "layers": layers, "attribution": "© OpenStreetMap contributors (ODbL)"}
+            "bounds": bounds, "layers": layers, "attribution": attribution}
 
 
 def _limits(vals: list) -> list | None:
@@ -445,9 +464,17 @@ def _limits(vals: list) -> list | None:
 
 # ---------------------------------------------------------------- build
 
-def build(root: Path, title: str, links: list[dict]) -> dict:
+def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = False) -> dict:
     started = datetime.now(timezone.utc)
+    incoming = None
+    if tracks_only:
+        manifest_path = root / "data" / "manifest.json"
+        if not manifest_path.is_file():
+            raise ValueError("tracks-only build requires the ship manifest")
+        incoming = json.loads(manifest_path.read_text())
     legs = discover()
+    if tracks_only and [leg.id for leg in legs] != [leg["id"] for leg in incoming.get("legs", [])]:
+        raise ValueError("source legs/order do not match the ship manifest")
     if not legs:
         raise SystemExit("no legs found under the data roots")
 
@@ -465,6 +492,11 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         stores.append((leg, st))
     if not stores:
         raise SystemExit("all stores are empty")
+
+    if tracks_only and [leg.id for leg, _ in stores] != [leg["id"] for leg in incoming["legs"]]:
+        for _, st in stores:
+            st.close()
+        raise ValueError("nonempty source legs/order do not match the ship manifest")
 
     keys = list(union_keys)
     want, res, pos_pairs, feats = needed_keys(keys, union_keys)
@@ -547,24 +579,19 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     (root / "data").mkdir(exist_ok=True)
     windows_meta = []
-    # Windows up to a week also come at FINE_STEP_S ("all points" on the
-    # map's track-detail slider), so the span decides the default detail but
-    # not the finest the browser can ask for.
+    # Charts use time windows; native track observations are published once
+    # in bounded, reusable spatial chunks rather than duplicated per window.
     def write_window(w: Window) -> dict:
         fn = f"w-{w.label}.json"
-        kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
-        if kept:
+        kept = None if tracks_only else kept_window(w.label, w.step_s, root / "data" / fn, started)
+        if kept and kept.get("chart_version") == 2:
             log.info("window %-4s kept", w.label)
-            return kept
+            return {k: v for k, v in kept.items() if not k.startswith("fine_")}
         payload = slice_window(a, w, end)
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
-        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"],
+        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"], "chart_version": 2,
                 "start": payload.get("start"), "end": payload.get("end")}
-        if w.step_s > FINE_STEP_S and w.hours <= 24 * 7:
-            fine = slice_window(a, Window(w.label, w.hours, FINE_STEP_S), end)
-            atomic_write(root / "data" / f"w-{w.label}-fine.json", json.dumps(fine, separators=(",", ":")))
-            meta.update(fine_file=f"data/w-{w.label}-fine.json", fine_step_s=FINE_STEP_S, fine_n=fine["n"])
-        log.info("window %-4s %6d points%s", w.label, payload["n"], f" (fine {meta['fine_n']})" if "fine_n" in meta else "")
+        log.info("window %-4s %6d chart points", w.label, payload["n"])
         return meta
     for w in WINDOWS:
         windows_meta.append(write_window(w))
@@ -579,6 +606,32 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         windows_meta.append(write_window(w))
         windows_meta.sort(key=lambda m: m["hours"])
         default_window = "leg"
+
+    from .track import publish_track, prune_track
+    track = publish_track(a.frame, root)
+
+    if tracks_only:
+        # The ship owns casts, calendar, history and the page shell. Only replace
+        # metadata describing the observations regenerated in this staging root.
+        last = a.frame[["lat", "lon"]].dropna()
+        latest = None
+        if not last.empty:
+            lt = last.index[-1]
+            latest = {"time": lt.isoformat(), "lat": float(last["lat"].iloc[-1]),
+                      "lon": float(last["lon"].iloc[-1]), "heading": _latest_heading(a.frame, lt)}
+        incoming.update(
+            windows=windows_meta, default_window=default_window, track=track,
+            generated_utc=started.isoformat(timespec="seconds"),
+            data_range={"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
+            latest=latest,
+            provisional={"from": prov_from.isoformat(), "source": " + ".join(prov_src)} if prov_from is not None else None,
+        )
+        incoming["sources"] = {**incoming.get("sources", {}), "full_csv": acsd_end.isoformat(),
+                               "tsg": tsg.index.max().isoformat() if tsg is not None and len(tsg) else None}
+        atomic_write(root / "data" / "manifest.json", json.dumps(incoming, indent=1))
+        return {"seconds": (datetime.now(timezone.utc) - started).total_seconds(),
+                "unresolved": [r.variable.name for r in res if not r.resolved],
+                "legs": len(stores), "windows": {w["label"]: w["n"] for w in windows_meta}}
 
     # time-aggregated tables for the data tab
     agg_meta = {}
@@ -624,11 +677,12 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
         "generated_utc": started.isoformat(timespec="seconds"),
         "local_tz": LOCAL_TZ, "default_window": default_window,
         "windows": windows_meta,
+        "track": track,
         "legs": [dict(leg.meta(), index=i) for i, (leg, _) in enumerate(stores)],
         "live": next((leg.id for leg, _ in stores if leg.live), None),
         "variables": [{
             "name": r.variable.name, "unit": r.variable.unit, "derived": r.variable.derived,
-            "log_ok": r.variable.log_ok, "circular": r.variable.circular, "tsg": r.variable.tsg, "cmap": r.variable.cmap,
+            "log_ok": r.variable.log_ok, "circular": r.variable.circular, "tsg": r.variable.tsg, "cmap": r.variable.cmap, "reverse": r.variable.reverse,
             "resolved": r.resolved, "source": r.display,
             "coverage": {leg_id: cov[r.variable.name] for leg_id, cov in coverage.items()},
         } for r in res],
@@ -684,22 +738,24 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "app.js", "tabs.js", "chat.js", "camera-track.js", "history.js", "nature.js", "style.css"):
+    for name in ("data.js", "track-data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
-    # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
-    # too many files for the share or the repository — and the server maps
-    # /static/tiles/ onto it; it is used when present
     from .serve import TILES_DIR
-    raster = raster_pyramid(TILES_DIR / "gebco")
-    vector = vector_tiles(TILES_DIR / "coast")
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
-            "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "vector": vector, "low_flow_v": LOW_FLOW_V,
+            "default_window": default_window, "geo_layers": geo_layers, **tile_layers(TILES_DIR), "low_flow_v": LOW_FLOW_V,
             "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
-            "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size)}
+            "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size),
+            "maplibre_version": str((PKG / "static" / "maplibre-gl.js").stat().st_size)}
     env = Environment(loader=FileSystemLoader(str(PKG / "templates")), autoescape=True)
     atomic_write(root / "index.html", env.get_template("index.html.j2").render(site=site, m=manifest))
+    # Keep old immutable chunks for open pages; reclaim only unreferenced
+    # generations after the new index and page have both been published.
+    try:
+        prune_track(root, track)
+    except OSError:
+        log.warning("old track chunks could not be pruned", exc_info=True)
 
     took = (datetime.now(timezone.utc) - started).total_seconds()
     unresolved = [r.variable.name for r in res if not r.resolved]

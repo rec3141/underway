@@ -1,0 +1,9 @@
+# Permit Bubblewrap user namespaces for this service only. Filesystem
+# restrictions remain enforced by Codex and the systemd unit.
+# https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+abi <abi/4.0>,
+include <tunables/global>
+
+profile underway-codex flags=(unconfined) {
+  userns,
+}

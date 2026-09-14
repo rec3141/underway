@@ -9,6 +9,9 @@
     handle_path /underway/* {
         reverse_proxy 127.0.0.1:8042
     }
+    handle /status.html {
+        reverse_proxy 127.0.0.1:8042
+    }
     handle /api/* {
         reverse_proxy 127.0.0.1:5000
     }

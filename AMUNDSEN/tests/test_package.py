@@ -16,7 +16,8 @@ class PackageTests(unittest.TestCase):
     def test_site_assets_are_available(self):
         package = files("dashboard")
         for name in ["templates/index.html.j2", "static/plotly.min.js",
-                     "static/app.js", "static/tabs.js", "static/chat.js", "static/style.css",
+                     "static/app.js", "static/track-data.js", "static/tabs.js", "static/chat.js", "static/style.css",
+                     "static/map.js", "static/maplibre-gl.js", "static/maplibre-gl.css",
                      "static/geo/bathymetry.geojson", "static/geo/coastline.geojson",
                      "static/geo/land.geojson", "static/geo/minor_islands.geojson",
                      "static/geo/glaciated_areas.geojson"]:

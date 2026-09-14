@@ -113,6 +113,7 @@ ACSD_OF = {
     r"^tsg — fluorescence": ("sea/Fluorescence (ug/L)", NUM), r"^tsg — oxygen": ("sea/Oxygene (ml/L)", NUM),
     r"^tsg — ecocdom": ("sea/EcoCdom (mg/m³)", NUM), r"^tsg — sound velocity": ("sea/Sound velocity (m/s)", NUM),
     r"^ctd-rosette — rosette depth": ("ros/Rosette Depth (m)", NUM), r"^500hp — winch cable length": ("500/500HP cable length (m)", NUM),
+    r"^500hp — winch cable speed": ("500/500HP cable rate (m/s)", NUM),
 }
 
 
@@ -137,6 +138,8 @@ def provisional_tail(after: pd.Timestamp, columns: list[str]) -> pd.DataFrame:
             continue
         col = raw[src]
         vals[key] = col.map(conv) if conv is ddm else pd.to_numeric(col.astype(str).str.replace(",", "").str.strip(), errors="coerce")
+        if field == "500/500HP cable rate (m/s)":
+            vals[key] *= 60  # Match the archival m/min column before derivation.
     if vals.empty or not len(vals.columns):
         return pd.DataFrame(columns=columns)
     minute = vals.resample("1min").mean()

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Open Underway</title>
+<style>
+body{font:16px/1.5 system-ui,sans-serif;max-width:38rem;margin:10vh auto;padding:1.5rem;color:#17202a;background:#f3f5f8}
+a{color:#075cad}li{margin:.6rem 0}
+</style>
+<h1>Underway</h1>
+<p id="status" role="status">Checking underway.local…</p>
+<p>If automatic opening is blocked, use either link:</p>
+<ul>
+<li><a href="http://underway.local/">Open underway.local</a></li>
+<li><a href="http://10.0.0.58/underway/">Open by ship-network IP address</a></li>
+</ul>
+<p>Connect to the ship network. Allow local-network access if your browser asks.</p>
+<noscript><p>JavaScript is disabled; choose a link above.</p></noscript>
+<script>
+(() => {
+  const hostname='http://underway.local/', fallback='http://10.0.0.58/underway/';
+  let finished=false;
+  function go(url){
+    if(finished)return;finished=true;clearTimeout(timer);
+    document.getElementById('status').textContent=url===hostname?'Opening Underway…':'Hostname unavailable; opening the ship-network IP address…';
+    location.replace(url);
+  }
+  // A tiny public image can be checked across origins without CORS access.
+  // Probe before navigating: a failed navigation cannot run a fallback script.
+  const probe=new Image(),timer=setTimeout(()=>go(fallback),4000);
+  probe.onload=()=>go(hostname);
+  probe.onerror=()=>go(fallback);
+  probe.src=hostname+'static/geo/sprite.png?launcher='+Date.now();
+})();
+</script>
+</html>

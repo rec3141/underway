@@ -35,7 +35,7 @@
     const onPoint=(d,i)=>openPhoto(matches(d)[i]);
     modes.forEach((name,k)=>UW.registerColour({name,resolved:true,unit:`PC${k+1}`,cmap:'Viridis',onPoint,values:d=>matches(d).map(p=>score(p,k)??null)}));
     UW.registerColour({name:RGB,resolved:true,unit:'RGB',rgb:true,onPoint,values:d=>matches(d).map(p=>p?'rgb('+p.rgb.join(',')+')':'#000000')});
-    UW.registerPanel('Camera · feature PC1 · mean RGB',{group:'Deck',
+    UW.registerPanel('Camera · feature PC1 · mean RGB',{group:'Bridge',
       unit:'PC1',resolved:true,log_ok:false,
       after:'Surprise (−log10 p)',
       layoutRevision:'camera-second-v1',
@@ -66,7 +66,7 @@
         const xs=UW.state.xmode==='time'?d?.t:d?.dist_km;
         const finite=(xs||[]).filter(x=>x!=null);
         const sharedRange=finite.length?[finite[0],finite.at(-1)]:undefined;
-        Plotly.react(plot,[trace],{...UW.THEME,margin:{l:52,r:8,t:6,b:34},showlegend:false,dragmode:'pan',xaxis:{...UW.THEME.xaxis,type:UW.state.xmode==='time'?'date':'linear',range:sharedRange,title:{text:UW.state.xmode==='time'?'UTC':'Distance travelled (km)'}},yaxis:{...UW.THEME.yaxis,title:{text:axisLabel}}},UW.CFG).then(()=>{UW.axisZoom(plot);UW.linkX(plot);plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',ev=>{if(cycle.includes(UW.state.colour))openPhoto(points[ev.points?.[0]?.pointIndex]?.p);});});
+        UW.reactPlot(plot,[trace],{...UW.THEME,margin:{l:52,r:8,t:6,b:34},showlegend:false,dragmode:'pan',xaxis:{...UW.THEME.xaxis,type:UW.state.xmode==='time'?'date':'linear',range:sharedRange,title:{text:UW.state.xmode==='time'?'UTC':'Distance travelled (km)'}},yaxis:{...UW.THEME.yaxis,title:{text:axisLabel}}},UW.CFG).then(()=>{UW.axisZoom(plot);UW.linkX(plot);plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',ev=>{if(cycle.includes(UW.state.colour))openPhoto(points[ev.points?.[0]?.pointIndex]?.p);});});
       }
     });
     let refreshing=false;

@@ -5,11 +5,18 @@
 #
 #   tools/history-pull.sh          pull code, database and files
 #   tools/history-pull.sh status   row counts here and on grid
+#
+# Where the clone is and where it comes from are the installation's settings
+# (ARCTIC_HISTORY_ROOT, ARCTIC_HISTORY_REMOTE as host:path, UNDERWAY_PYTHON in
+# /etc/underway/site.env); cron gives this script no other environment.
 set -euo pipefail
-LOCAL=${ARCTIC_HISTORY_ROOT:-$HOME/Desktop/arctic-history}
-GRID=grid
-REMOTE=/data/dev/arctic-history
-PY=${PY:-/opt/miniforge3/bin/python3}
+SITE=${UNDERWAY_SITE:-/etc/underway/site.env}
+if [[ -r $SITE ]]; then set -a; . "$SITE"; set +a; fi
+LOCAL=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
+ORIGIN=${ARCTIC_HISTORY_REMOTE:-grid:/data/dev/arctic-history}
+GRID=${ORIGIN%%:*}
+REMOTE=${ORIGIN#*:}
+PY=${PY:-${UNDERWAY_PYTHON:-python3}}
 
 case "${1:-pull}" in
   pull)

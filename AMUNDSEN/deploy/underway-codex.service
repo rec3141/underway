@@ -1,0 +1,32 @@
+[Unit]
+Description=Dedicated single-session Codex Underway Telegram bot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=CODEX_HOME=@UNDERWAY_CODEX_HOME@
+Environment=UNDERWAY_CODEX_CWD=@UNDERWAY_CODEX_CWD@
+Environment="UNDERWAY_CODEX_DOWNLOADS=@UNDERWAY_CODEX_DOWNLOADS@"
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard codex-bot
+Restart=always
+RestartSec=10
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=@UNDERWAY_HOME@/db @UNDERWAY_CODEX_HOME@ @UNDERWAY_CODEX_CWD@ /data/dev "@UNDERWAY_CODEX_DOWNLOADS@"
+AppArmorProfile=underway-codex
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -16,13 +16,14 @@
     idx: null, loadedFor: null,
     sel: new Set(store.get("casts.sel", [])),
     mode: store.get("casts.mode", "profiles"),          // single | profiles (Multi) | section
-    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | live (the cast in the water)
+    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | TRS | live (the cast in the water)
     xmode: store.get("casts.xmode", "time"),            // the section's own x axis: time | distance | custom (an order of the user's)
     order: store.get("casts.order", []),                // custom: profile ids in the order they are laid along the section
     variable: store.get("casts.var", "Temperature"),
     bottles: store.get("casts.bottles", false),          // mark the bottle firings on the casts
     smooth: store.get("casts.smooth", true),             // the section smooths the jittery sensors down the profile
     search: "",
+    transects: store.get("casts.transects", []),
   };
   // a profile's variable at a pressure, interpolated between its levels
   const valueAt = (prof, v, pres) => {
@@ -37,8 +38,10 @@
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
-  const castById = (id) => casts.idx?.casts.find((c) => c.id === parentId(id));
-  const dipSel = (towId) => [...casts.sel].filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
+  const allCasts = () => [...(casts.idx?.casts || []), ...casts.transects];
+  const castById = (id) => (id.startsWith("trs:") ? casts.transects : casts.idx?.casts)?.find((c) => c.id === parentId(id));
+  const selectionIds = () => [...new Set([...casts.sel].flatMap((id) => id.startsWith("trs:") ? castById(id)?.members || [] : [id]))];
+  const dipSel = (towId) => selectionIds().filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
   casts.open = new Set(store.get("casts.open", []));
   const castLabel = (c) => c.kind === "LIVE" ? "Live cast" : c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}`
     : `${c.kind === "TM" ? "TM cast" : "Cast"} ${c.cast}${c.station ? " · " + c.station : ""}`;
@@ -53,7 +56,7 @@
       .filter((p) => !picked.size || picked.has(p.index));
   };
 
-  UW.selectedCastKeys = () => new Set([...casts.sel].map(parentId));
+  UW.selectedCastKeys = () => new Set(selectionIds().map(parentId));
   // a station click on the map toggles its cast and opens the Casts tab; a
   // quiet call (the stations table) only makes sure it is selected
   UW.onStationClick = async (key, opts = {}) => {
@@ -76,10 +79,17 @@
   };
   UW.extraMapTraces = () => {
     const out = [];
-    if (!casts.idx || casts.kind === "CTD") return out;
+    if (!casts.idx) return out;
+    for (const c of casts.transects.filter((c) => casts.sel.has(c.id))) {
+      out.push({ type: "scattermap", mode: "lines+markers", name: c.label, showlegend: false,
+        lat: c.track.map((p) => p[0]), lon: c.track.map((p) => p[1]), connectgaps: false,
+        text: c.stations, hoverinfo: "text", customdata: c.track.map(() => c.id),
+        line: { width: 4, color: C.accent2 }, marker: { size: 7, color: C.accent2 } });
+    }
+    if (casts.kind === "CTD") return out;
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
-    const f = UW.currentFilter();
+    const f = UW.spanFilter();
     const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
@@ -102,13 +112,9 @@
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
         text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)} · click to select the tow`),
         marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? C.accent2 : C.ok), symbol: "circle" } });
-      // generous click target for tow starts (drawn beneath the station targets)
-      out.push({ type: "scattermap", mode: "markers", name: "tow hit targets", showlegend: false, hoverinfo: "skip",
-        lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
-        marker: { size: 22, color: "rgba(126,231,135,0.02)" } });
     }
     const sel = orderedSelection().filter((c) => c.lat != null);
-    if (casts.mode === "section" && sel.length > 1) out.push({
+    if (casts.mode === "section" && sel.length > 1 && !casts.transects.some((c) => casts.sel.has(c.id))) out.push({
       type: "scattermap", mode: "lines", name: "section", showlegend: false, hoverinfo: "skip",
       lat: sel.map((c) => c.lat), lon: sel.map((c) => c.lon), line: { width: 2, color: "rgba(255,180,84,.6)" },
     });
@@ -117,11 +123,21 @@
 
   function orderedSelection() {
     const seen = new Set();
-    return [...casts.sel].map(castById).filter((c) => c && !seen.has(c.id) && seen.add(c.id))
+    return selectionIds().map(castById).filter((c) => c && !seen.has(c.id) && seen.add(c.id))
       .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   }
   const isSelected = (c) => casts.sel.has(c.id) || dipSel(c.id).length > 0;
   function toggleCast(id) {
+    const transect = castById(id);
+    if (transect?.kind === "TRS" && !casts.sel.has(id)) {
+      casts.sel.clear();
+      casts.mode = "section"; casts.xmode = "custom"; casts.order = [...transect.members];
+      casts.variable = transect.variable;
+      for (const key of ["mode", "xmode", "order"]) store.set(`casts.${key}`, casts[key]);
+      store.set("casts.var", casts.variable);
+      $("#castxmode .xcycle").textContent = "Custom";
+      for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
+    }
     if (id.includes("#")) {
       // a dip: selecting one turns a whole-tow selection into a dip selection
       const tow = parentId(id);
@@ -153,7 +169,7 @@
   // when it is still available, else Temperature or the first
   function fillCastVars() {
     if (!casts.idx) return;
-    const chosen = [...casts.sel].map(castById).filter(Boolean);
+    const chosen = orderedSelection();
     const vars = chosen.length ? orderVars(new Set(chosen.flatMap((c) => c.vars || []))) : orderVars(casts.idx.variables);
     const sel = $("#castvar"); sel.innerHTML = "";
     for (const v of vars) { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); }
@@ -179,11 +195,13 @@
     if (!casts.idx) return { rows: [], inLegs: [] };
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
-    const inLegs = casts.idx.casts
-      .filter((c) => f.legs.has(c.leg))
+    const inLegs = allCasts()
+      .filter((c) => (c.legs || [c.leg]).some((leg) => f.legs.has(leg)))
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
       .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q));
-    const rows = inLegs.filter((c) => UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
+    const rows = inLegs.filter((c) => c.kind === "TRS"
+      ? c.members.some((id) => { const m = castById(id); return m && (UW.inFilter(m.leg, m.time_end || m.time, f) || UW.inFilter(m.leg, m.time, f)); })
+      : UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
       .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg, depth: c.max_p != null ? Math.round(depthFrom(c.max_p, c.lat)) : null, bottles: c.n_bottles ?? null }));
     const k = casts.sort.key, dir = casts.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : k === "sel" ? (casts.sel.has(r.id) ? 1 : 0) : r[k];
@@ -199,14 +217,14 @@
     }
     const { rows, inLegs, f } = castRows();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
       let html = `<tr class="${whole ? "sel" : part ? "part" : ""}" data-id="${esc(c.id)}">
-        <td class="sel">${isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
-        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${esc(c.cast)}</td>
-        <td>${esc(c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
+        <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="Delete saved transect" aria-label="Delete saved transect">×</button>` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
+        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="Open rosette sheet">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
+        <td title="${esc(c.station || '')}">${esc(c.kind==='TRS' && c.stations?.length ? `${c.stations[0]} → ${c.stations.at(-1)}` : c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
         <td class="mono">${esc(castDate(c))}</td><td class="mono">${c.depth ?? ""}</td><td class="mono">${c.bottles ?? ""}</td><td>${esc(c.legLabel)}</td></tr>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
@@ -225,7 +243,15 @@
       if (e.target.closest(".tog") || e.target.closest("a")) return;
       e.preventDefault(); toggleCast(tr.dataset.id);
     };
-    for (const b of tbl.querySelectorAll("button.tog")) b.onclick = (e) => {
+    for (const b of tbl.querySelectorAll("[data-delete-transect]")) b.onclick = (e) => {
+      e.stopPropagation();
+      const id = b.dataset.deleteTransect;
+      if (!confirm(`Delete saved transect “${castById(id).label}”?`)) return;
+      casts.transects = casts.transects.filter((c) => c.id !== id); casts.sel.delete(id);
+      store.set("casts.transects", casts.transects); store.set("casts.sel", [...casts.sel]);
+      renderCastList(); renderCastPlots(); UW.renderMap();
+    };
+    for (const b of tbl.querySelectorAll("button[data-tow]")) b.onclick = (e) => {
       e.stopPropagation();
       const id = b.dataset.tow; casts.open.has(id) ? casts.open.delete(id) : casts.open.add(id);
       store.set("casts.open", [...casts.open]); renderCastList();
@@ -255,27 +281,29 @@
     if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide tall');
     const vars = chosen.filter((v) => spec.vars[v]);
     const gdEl = $(`#${plotId}`);
-    // each extra axis needs ~64 px of ticks and title: the canvas grows by
+    // each extra axis needs ~48 px of ticks and title: the canvas grows by
     // that much per axis beyond the first at the top and the bottom, so the
     // profile keeps its height; the margins hold the outermost axes
-    const nb = Math.ceil(vars.length / 2), nt = Math.floor(vars.length / 2);
+    const nt = spec.upperAxes ? vars.filter((v) => spec.upperAxes.includes(v)).length : Math.floor(vars.length / 2), nb = vars.length - nt;
     const extra = Math.max(0, nb - 1) + Math.max(0, nt - 1);
-    gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(64))}px)` : "";
-    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / H;
+    gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(48))}px)` : "";
+    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(48) / Math.max(1, H - 2 * fz(52));
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
-    const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(64), b: fz(64) }, showlegend: false };
+    const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(52), b: fz(52) }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
     layout.yaxis = depthAxis(maxD * 1.04, { domain: [y0, y1] });
     const yv = spec.depth.map(yT);
     vars.forEach((v, i) => {
       const ax = i === 0 ? "x" : `x${i + 1}`, key = i === 0 ? "xaxis" : `xaxis${i + 1}`, color = pal(i);
-      const bottom = i % 2 === 0, k = Math.floor(i / 2);
+      const bottom = spec.axisOrderTopDown ? i >= nt : i % 2 === 0;
+      const k = spec.axisOrderTopDown ? (bottom ? i-nt : nt-1-i) : Math.floor(i / 2);
       const unit = spec.units?.[v] ? ` (${spec.units[v]})` : "";
       // each axis carries a baseline in its colour, ticks tight against it and the
       // title tight against the ticks, so the stacked axes read as groups
       layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: fz(12), color }, standoff: 2 }, tickfont: { size: fz(11), color }, ticks: "outside", ticklen: 3, tickcolor: color,
         showline: true, linecolor: color, linewidth: 1.5, showgrid: i === 0, side: bottom ? "bottom" : "top",
-        ...(i === 0 ? { anchor: "y" } : { overlaying: "x", anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) }) };
+        ...(i === 0 ? {} : { overlaying: "x" }),
+        anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) };
       const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v}${dash ? " up" : ""}`, xaxis: ax, yaxis: "y",
         x: spec.vars[v].slice(from, to), y: yv.slice(from, to), customdata: spec.depth.slice(from, to), connectgaps: false, line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
         hovertemplate: `${esc(v)} %{x:.3~f}${esc(unit)}<br>%{customdata:.1f} m<extra>${dash ? "up" : ""}</extra>` });
@@ -292,18 +320,19 @@
       traces.push({ type: "scatter", mode: "markers", xaxis: "x20", yaxis: "y", name: "bottles", x: spec.bottles.map(() => 0.975), y: spec.bottles.map((b) => yT(bottleDepth(b, spec.lat))),
         text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
-    if (!vars.length) { body.innerHTML = '<div class="empty">Tick at least one variable above.</div>'; return; }
-    Plotly.react($(`#${plotId}`), traces, layout, CFG).then((gd) => UW.axisZoom(gd, { x: false }));
+    if (!vars.length) { body.innerHTML = '<div class="empty">Select at least one parameter.</div>'; return; }
+    UW.reactPlot($(`#${plotId}`), traces, layout, CFG, [spec.scope || plotId, casts.dscale]).then((gd) => UW.axisZoom(gd, { x: false }));
     const sub = body.querySelector(`#${plotId}`)?.closest(".castplot")?.querySelector(".now");
     if (sub) sub.textContent = spec.sub || "";
   }
-  const varChips = (names, on, cls) => names.map((c) => `<button type="button" class="chip ${cls} ${on.includes(c) ? "on" : ""}" data-v="${esc(c)}">${esc(c)}</button>`).join("");
+  const varChips = (names, on, cls) => names.map((c) => `<button type="button" class="chip ${cls} ${on.includes(c) ? "on" : ""}" data-v="${esc(c)}" aria-pressed="${on.includes(c)}" title="${on.includes(c) ? 'Hide' : 'Show'} ${esc(c)} axis">${esc(c)}${cls === 'singlevar' ? `<small>${on.includes(c) ? 'On' : 'Off'}</small>` : ''}</button>`).join("");
 
   // ---- live
   async function pollLive() {
     clearTimeout(live.timer);
     if (!liveVisible()) return;
     try { live.data = await getJSON(`api/live?t=${Date.now()}`); } catch { live.data = null; }
+    if (!liveVisible()) return;
     drawLive($("#castplots"));
     live.timer = setTimeout(pollLive, 2000);
   }
@@ -329,7 +358,7 @@
       const stl = box.querySelector("#livesetupstatus"); if (stl) stl.innerHTML = live.statusHtml || "";
       return;
     }
-    box.innerHTML = `<div class="livesetup-title">Live cast</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>Seasave TCP/IP out (host:port) <input name="tcp" value="${esc(d.tcp || "")}" size="18"></label><button type="submit">apply</button>
+    box.innerHTML = `<div class="livesetup-title">Live cast</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>Seasave TCP/IP out (host:port, more ports with commas) <input name="tcp" value="${esc(d.tcp || "")}" size="26"></label><button type="submit">apply</button>
         <span role="alert" id="livecfgerror"></span></form><div id="livedetails">${details}</div>`;
     box.querySelector("form").onsubmit = async (ev) => { ev.preventDefault(); const f = new FormData(ev.target);
       const button = ev.target.querySelector('[type="submit"]'), error = box.querySelector("#livecfgerror");
@@ -358,14 +387,14 @@
     const announced = !!d.fields?.length;                          // Seasave sends its field list when it is really serving
     const state = !d.tcp ? "OFF" : flowing ? "LIVE" : d.tcp_state === "connected" ? (announced ? "CONNECTED" : "PORT OPEN") : "OFFLINE";
     const updated = d.packets && age != null ? `last updated ${age < 60 ? age.toFixed(0) + " s" : (age / 60).toFixed(0) + " min"} ago` : "no data yet";
-    const why = !d.tcp ? "no source set" : state === "PORT OPEN" ? `Seasave at ${d.tcp} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off` : `Seasave at ${d.tcp}: ${d.tcp_state}`;
+    const why = !d.tcp ? "no source set" : state === "PORT OPEN" ? `Seasave at ${d.active || d.tcp} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off` : `Seasave at ${d.active || d.tcp}: ${d.tcp_state}`;
     const feed = `${stampL(Date.now())} ${tzAbbr()} · ${updated} · <span class="livestate ${state.toLowerCase().replace(" ", "-")}" title="${esc(why)}">${state}</span>`;
     const cols = (cast?.columns || d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
     live.statusHtml = `<div class="livestatus"><span class="dot ${flowing ? "on" : ""}"></span><span>${feed}</span>
         ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
         </div>`;
-    st.innerHTML = `<div class="livevars">${varChips(cols, live.vars, "livevar")}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
-    for (const b of st.querySelectorAll(".livevar")) b.onclick = () => { live.vars = live.vars.includes(b.dataset.v) ? live.vars.filter((x) => x !== b.dataset.v) : [...live.vars, b.dataset.v]; store.set("casts.live.vars", live.vars); drawLive(host); };
+    const choices = `<div class="livevars">${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
+    if (st._choices !== choices) { st.innerHTML = choices; st._choices = choices; }
     for (const b of st.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
     liveCfgForm($("#casttable"), d);
     if (!cast || !cast.t.length) {
@@ -384,8 +413,32 @@
       renderProfiles(body, [pseudo]);
       return;
     }
-    drawOverlay(body, "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li],
-      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, live.vars);
+    // Keep the parameter controls and plot node while scans refresh. Their
+    // order and Chart divider follow the same rules as archived Single views.
+    const CHART = '__chart__', saved = store.get('casts.live.order', []);
+    const ordered = [...saved.filter(v => v === CHART || cols.includes(v)), ...cols.filter(v => !saved.includes(v))];
+    if (!ordered.includes(CHART)) {
+      const enabled = ordered.filter(v => live.vars.includes(v));
+      const lower = enabled[Math.floor(enabled.length / 2)];
+      ordered.splice(lower ? ordered.indexOf(lower) : 0, 0, CHART);
+    }
+    const controls = `<div class="single-layout"><div class="single-parameters" aria-label="Parameters above Chart use upper axes; parameters below use lower axes">${ordered.map((v,i) => `<div class="parameter ${v === CHART ? 'chart-divider' : ''}" draggable="true" data-i="${i}">${v === CHART ? '<span class="chip chart-chip">Chart</span>' : varChips([v],live.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${v === CHART ? 'Chart' : esc(v)} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${v === CHART ? 'Chart' : esc(v)} down" ${i === ordered.length-1 ? 'disabled' : ''}>▼</button></div>`).join('')}</div><div id="liveoverlay"></div></div>`;
+    if (body._controls !== controls || !body.querySelector('#liveoverlay')) {
+      body.innerHTML = controls; body._controls = controls;
+      const move = (from,to) => { if(to<0 || to>=ordered.length || from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.live.order',ordered);drawLive(host); };
+      for (const row of body.querySelectorAll('.parameter')) {
+        row.ondragstart = e => e.dataTransfer.setData('text/plain',row.dataset.i);
+        row.ondragover = e => e.preventDefault();
+        row.ondrop = e => {e.preventDefault();move(Number(e.dataTransfer.getData('text/plain')),Number(row.dataset.i));};
+        for (const b of row.querySelectorAll('.nudge')) b.onclick=()=>move(Number(row.dataset.i),Number(row.dataset.i)+Number(b.dataset.d));
+      }
+      for (const b of body.querySelectorAll('.singlevar')) b.onclick=()=>{live.vars=live.vars.includes(b.dataset.v)?live.vars.filter(v=>v!==b.dataset.v):[...live.vars,b.dataset.v];store.set('casts.live.vars',live.vars);drawLive(host);};
+    }
+    drawOverlay(body.querySelector('#liveoverlay'), "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li], scope:[live.which,cast.started],
+      upperAxes: ordered.slice(0,ordered.indexOf(CHART)), axisOrderTopDown:true,
+      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, ordered.filter(v=>v!==CHART&&live.vars.includes(v)));
+    // Overlay has no draggable/minimisable panels, so binding on each poll
+    // only replaces its reset and depth-scale handlers.
     wireCastPanels(host, () => drawLive(host));
   }
 
@@ -394,24 +447,44 @@
     const pick = data.find((d) => d.id === single.id) || data[data.length - 1];
     if (!pick) { host.innerHTML = '<div class="empty">Select a cast from the list or the map.</div>'; return; }
     single.id = pick.id;
+    const sheet = pick.log_url || castById(pick.id)?.log_url;
     const profs = profilesOf(pick);                        // a tow's selected dips, or the one profile
     const prof = profs.find((p) => p.index === single.dip) || profs[0];
     const vars = orderVars(Object.keys(prof.vars));
-    host.innerHTML = `<div class="livebar"><div class="livevars">${varChips(vars, single.vars, "singlevar")}</div>
-      ${data.length > 1 ? `<div class="livevars"><span class="muted">cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
-      ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div><div id="singlebody"></div>`;
+    const CHART = '__chart__';
+    const savedOrder=store.get('casts.single.order',[]),ordered=[...savedOrder.filter(v=>v===CHART||vars.includes(v)),...vars.filter(v=>!savedOrder.includes(v))];
+    if (!ordered.includes(CHART)) {
+      const enabled = ordered.filter(v=>single.vars.includes(v));
+      const firstLower = enabled[Math.floor(enabled.length / 2)];
+      ordered.splice(firstLower ? ordered.indexOf(firstLower) : 0, 0, CHART);
+      store.set('casts.single.order', ordered);
+    }
+    const upperAxes = ordered.slice(0, ordered.indexOf(CHART));
+    host.innerHTML = `<div class="livebar">
+      ${sheet ? `<div><a class="chip" href="${esc(sheet)}" target="_blank" rel="noopener">Rosette sheet ↗</a></div>` : ''}
+      ${data.length > 1 ? `<div class="livevars"><span class="muted">Select Cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
+      ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
+      <div class="single-layout"><div class="single-parameters" aria-label="Parameters above Chart use upper axes; parameters below use lower axes">${ordered.map((v,i)=>`<div class="parameter ${v===CHART?'chart-divider':''}" draggable="true" data-i="${i}">${v===CHART?'<span class="chip chart-chip" title="Move Chart to divide upper and lower axes">Chart</span>':varChips([v],single.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${v===CHART?'Chart':esc(v)} up" ${i===0?'disabled':''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${v===CHART?'Chart':esc(v)} down" ${i===ordered.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div id="singlebody"></div></div>`;
+    const move=(from,to)=>{if(to<0||to>=ordered.length||from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.single.order',ordered);renderSingle(host,data)};
+    let drag=null;
+    for(const row of host.querySelectorAll('.parameter')){
+      row.ondragstart=e=>{drag=+row.dataset.i;e.dataTransfer.setData('text/plain',String(drag))};
+      row.ondragover=e=>e.preventDefault();row.ondrop=e=>{e.preventDefault();if(drag!=null)move(drag,+row.dataset.i);drag=null};
+      for(const b of row.querySelectorAll('.nudge'))b.onclick=()=>move(+row.dataset.i,+row.dataset.i+Number(b.dataset.d));
+    }
     for (const b of host.querySelectorAll(".singlevar")) b.onclick = () => { single.vars = single.vars.includes(b.dataset.v) ? single.vars.filter((x) => x !== b.dataset.v) : [...single.vars, b.dataset.v]; store.set("casts.single.vars", single.vars); renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-id]")) b.onclick = () => { single.id = b.dataset.id; single.dip = null; renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
     const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
     drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? `${castLabel(pick)} · dip #${prof.index + 1}` : castLabel(pick),
       { depth: depths(prof), vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, drawn(prof, v)])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
-        sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, single.vars);
+        scope:[pick.id,single.dip], upperAxes, axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, ordered.filter(v=>v!==CHART&&single.vars.includes(v)));
     wireCastPanels(host, () => renderSingle(host, data));
   }
 
   let plotSeq = 0;
   async function renderCastPlots() {
+    $("#savetransect").disabled = true;
     const seq = ++plotSeq, stamp = UW.M.generated_utc;
     fillCastVars();
     if (casts.kind !== "live") clearTimeout(live.timer);
@@ -459,7 +532,7 @@
   const yT = (d) => d == null ? null : casts.dscale === "sqrt" ? Math.sqrt(Math.max(0, d)) : d;
   const DEPTH_TICKS = [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
   function depthAxis(maxD, extra = {}) {
-    const ax = { ...THEME.yaxis, title: { text: casts.dscale === "sqrt" ? "depth (m, compressed)" : "depth (m)", font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
+    const ax = { ...THEME.yaxis, title: { text: "depth (m)", font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
       autorange: false, range: [yT(maxD), 0], ...extra };
     if (casts.dscale === "sqrt") { const t = DEPTH_TICKS.filter((d) => d <= maxD); ax.tickvals = t.map(yT); ax.ticktext = t.map(String); }
     return ax;
@@ -482,14 +555,18 @@
   function castPanelHtml(id, title, unit, wideable = true, movable = false, depth = true, on = true) {
     return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${on ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
       <div class="head">${movable ? '<span class="handle" title="drag onto another graph to swap places">⋮⋮</span>' : ""}<h3 ${movable ? 'title="click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them"' : ""}>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
-        <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
+        <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the top bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
   function wireCastPanels(host, rerender, vars = []) {
     for (const sec of host.querySelectorAll(".castplot")) {
       const id = sec.dataset.cp, v = sec.dataset.var;
       const rs = sec.querySelector(".reset");
-      if (rs) rs.onclick = () => Plotly.relayout(sec.querySelector(".plot"), { "xaxis.autorange": true, "yaxis.autorange": true });
+      if (rs) rs.onclick = () => {
+        const plot = sec.querySelector('.plot'), reset = {};
+        for (const key of Object.keys(plot._fullLayout || {})) if (/^[xy]axis\d*$/.test(key)) reset[`${key}.autorange`] = key[0]==='y' && plot._fullLayout[key].range[0]>plot._fullLayout[key].range[1] ? 'reversed' : true;
+        Plotly.relayout(plot, reset);
+      };
       if (sec.querySelector(".dscale")) sec.querySelector(".dscale").onclick = () => { casts.dscale = casts.dscale === "sqrt" ? "linear" : "sqrt"; store.set("casts.dscale", casts.dscale); renderCastPlots(); };
       sec.querySelector(".wide")?.addEventListener("click", () => {
         castPanelState.wide.has(id) ? castPanelState.wide.delete(id) : castPanelState.wide.add(id);
@@ -526,15 +603,18 @@
 
   function renderProfiles(host, data) {
     // the legend is a panel like the graphs (movable, minimisable), named LEGEND in the order
-    const all = castOrder([...orderVars(new Set(data.flatMap((d) => Object.keys(d.units)))), LEGEND]);
+    const all = [LEGEND,...castOrder([...orderVars(new Set(data.flatMap((d) => Object.keys(d.units))))]).filter(v=>v!==LEGEND)];
     const vars = all.filter((v) => !castPanelState.min.has(v));
     const minimised = all.filter((v) => castPanelState.min.has(v));
     if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
     const legendHtml = () => castPanelHtml("cp-legend", LEGEND, `${data.length} cast${data.length === 1 ? "" : "s"}`, true, true, false, false)
       .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
       .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
-    host.innerHTML = vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("") +
-      (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "");
+    const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
+      vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("");
+    const rebuilt = host._profileMarkup !== markup || !host.querySelector('.castplot,.castdock');
+    if (rebuilt) { host.innerHTML = markup; host._profileMarkup = markup; }
+    host._profileData = data;
     for (const v of vars) {
       if (v === LEGEND) continue;
       const traces = [];
@@ -547,6 +627,7 @@
             type: "scatter", mode: "lines", name: p.label, x: drawn(p, v), y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
             line: { width: ps.length > 1 ? 1 : 1.6, color: colour },
             opacity: ps.length > 1 ? 0.8 : 1,
+            meta: { castLegend: { id: d.id, label: castLabel(d), date: castDate(d), color: pal(i) } },
             hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{customdata:.0f} m<extra></extra>`,
           });
           const bts = casts.bottles ? (p.bottles || []).filter((b) => b.p != null || b.depth_m != null) : [];
@@ -561,20 +642,20 @@
       const layout = { ...castLayout(), hovermode: "closest",
         xaxis: { ...THEME.xaxis, title: { text: data.find((d) => d.units[v])?.units[v] || "", font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) } },
         yaxis: depthAxis(Math.max(1, ...data.flatMap((d) => profilesOf(d).flatMap((p) => p.vars[v] ? depths(p) : []))) * 1.02) };
-      Plotly.react(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
+      UW.reactPlot(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG, [[...casts.sel].sort(),casts.dscale]).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
     }
-    wireCastPanels(host, () => renderProfiles(host, data), all);
+    if (rebuilt) wireCastPanels(host, () => renderProfiles(host, host._profileData), all);
   }
   const LEGEND = "Legend";
   // the Multi graphs share their depth axis: a zoom or pan of one (or its
   // reset) is applied to the others; the flag keeps the echoes from looping
   let depthSyncing = false;
   function syncDepthAxes(host, gd) {
-    gd.removeAllListeners?.("plotly_relayout");
-    gd.on("plotly_relayout", (ev) => {
+    if (gd._syncDepth) gd.removeListener('plotly_relayout', gd._syncDepth);
+    gd.on("plotly_relayout", gd._syncDepth = (ev) => {
       if (depthSyncing) return;
       let upd = null;
-      if (ev["yaxis.autorange"]) upd = { "yaxis.autorange": true };
+      if (ev["yaxis.autorange"]) upd = { "yaxis.autorange": ev["yaxis.autorange"] };
       else if (ev["yaxis.range[0]"] != null) upd = { "yaxis.range": [ev["yaxis.range[0]"], ev["yaxis.range[1]"]] };
       else if (Array.isArray(ev["yaxis.range"])) upd = { "yaxis.range": ev["yaxis.range"] };
       if (!upd) return;
@@ -654,6 +735,31 @@
     const stationOf = (d) => String(d.station ?? d.parent?.station ?? d.label ?? "");
     if (az) withVar = [...withVar].sort((a, b) => stationOf(a).localeCompare(stationOf(b), undefined, { numeric: true, sensitivity: "base" }) || (a.time || "").localeCompare(b.time || ""));
     if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
+    const save = $("#savetransect");
+    save.disabled = false;
+    save.onclick = () => {
+      const label = prompt("Transect name (saved in this browser)", `Transect ${casts.transects.length + 1}`)?.trim();
+      if (!label) return;
+      const times = withVar.map((d) => d.time).filter(Boolean).sort();
+      const legs = [...new Set(withVar.map((d) => d.parent?.leg || d.leg).filter(Boolean))];
+      const stations = withVar.map((d) => d.station || d.parent?.station || d.label);
+      const uid = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) => n.toString(16).padStart(8, "0")).join("");
+      const transect = { id: `trs:${uid}`, kind: "TRS", cast: "", label,
+        members: withVar.map(profileId), variable: v, legs, leg: legs[0],
+        station: stations.join(" → "), stations, time: times[0], time_end: times.at(-1),
+        track: withVar.map((d) => {
+          const lat = d.lat ?? d.parent?.lat, lon = d.lon ?? d.parent?.lon;
+          return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : [null, null];
+        }) };
+      const next = [...casts.transects, transect];
+      try { localStorage.setItem("uw:casts.transects", JSON.stringify(next)); }
+      catch { alert("This browser could not save the transect. Check available storage and try again."); return; }
+      casts.transects = next;
+      casts.kind = "TRS"; casts.search = ""; $("#castsearch").value = "";
+      store.set("casts.kind", casts.kind);
+      for (const b of $("#castkind").querySelectorAll("button")) b.classList.toggle("on", b.dataset.k === casts.kind);
+      toggleCast(transect.id);
+    };
     // depth grid (metres) shared by every profile
     const maxD = Math.max(...withVar.map((d) => depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
     const step = maxD > 1500 ? 5 : maxD > 400 ? 2 : 1;
@@ -693,8 +799,8 @@
       if (za == null || zb == null) return t < 0.5 ? za : zb;      // no bridging into a gap
       return za + (zb - za) * t;
     }));
-    const xPlot = byTime ? xg.map((t) => new Date(t)) : xg;
-    const xPts = byTime ? xs.map((t) => new Date(t)) : km;          // the same ship-time shift as the heatmap
+    const xPlot = byTime ? xg.map(UW.plotDate) : xg;
+    const xPts = byTime ? xs.map(UW.plotDate) : xs;
     const dense = withVar.length > 24;      // a tow: label only every few dips
     // the legend: a column of chips to the left of the plot, always
     // movable (drag, or ▲ ▼); moving one switches the axis to custom and
@@ -718,10 +824,10 @@
     if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = "Time"; renderCastPlots(); };
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
-        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickfont: { size: fz(12) }, outlinewidth: 0 },
+        colorbar: { title: { text: unit, side: "top" }, thickness: 12, len: .8, tickangle: 0, tickfont: { size: fz(12) }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
-      { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
-        textfont: { size: fz(10), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
+      { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((d, i) => `${i + 1} · ${d.parent?.cast ?? d.cast ?? d.label}`), textposition: "top center",
+        textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
         hovertext: withVar.map((d, i) => `${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
     // echo-sounder bottom where there is one, else the deepest sample; the
@@ -745,7 +851,7 @@
     const layout = { ...castLayout(), margin: { l: fz(54), r: 8, t: fz(18), b: fz(40) },
       xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) }, type: byTime ? "date" : "linear" },
       yaxis: depthAxis(maxD + step) };
-    Plotly.react($("#cs-plot"), traces, layout, CFG).then((gd) => UW.axisZoom(gd));
+    UW.reactPlot($("#cs-plot"), traces, layout, CFG, [[...casts.sel].sort(),casts.dscale,casts.xmode,casts.variable]).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
   }
 
@@ -761,7 +867,9 @@
     if (!XMODES.includes(casts.xmode)) casts.xmode = "time";
     sx.textContent = XWORD[casts.xmode];
     sx.onclick = () => { casts.xmode = XMODES[(XMODES.indexOf(casts.xmode) + 1) % XMODES.length]; store.set("casts.xmode", casts.xmode); sx.textContent = XWORD[casts.xmode]; renderCastPlots(); };
+    if (UW.public && casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // Seasave's feed is aboard only
     for (const b of $("#castkind").querySelectorAll("button")) {
+      if (UW.public && b.dataset.k === "live") { b.hidden = true; continue; }
       b.classList.toggle("on", b.dataset.k === casts.kind);
       // the live view (and the poll that feeds its setup box) is started by the
       // plots renderer, so a change to or from Live redraws the plots too
@@ -864,7 +972,7 @@
       return dayHead(d) + (nDone ? `<tr class="fold"><td colspan="7"><button type="button" class="dayfold-done" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nDone} finished</button></td></tr>` : "") +
         rs.map((r) => schedRow(r, rowKey(r), false).replace("<tr ", isFinished(r) && !open ? "<tr hidden " : "<tr ")).join("");
     }).join("");
-    let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}</h3>` +
+    let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}${changesBell()}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
       (sched ? `<div class="hscroll"><table class="sched">${SCHED_HEAD(false)}${sched}</table></div>` : '<p class="muted">no scheduled operations listed</p>') +
       `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
@@ -886,7 +994,7 @@
   // the columns time · station · operation · alerts · status · dur. · comment
   // and a coloured header row per ship day; the log adds the logged events
   // (their depth in the dur. column) and folds each day's scheduled rows.
-  const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
+  const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">${UW.public ? "" : "alerts"}</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
   // the status in a word: now (in progress), next (up next), later (upcoming), done, canceled, was (scheduled once), logged
   const statusWord = (r, next) => { const st = (r.status || "").trim().toLowerCase();
     return r.former ? ["was", "was scheduled"] : st === "in progress" ? ["now", "now"] : st === "completed" ? ["done", "done"] : /^cancel/.test(st) ? ["canceled", "canceled"] : st === "coming soon" ? ["soon", "soon"] : st && st !== "scheduled" ? ["later", st] : next ? ["next", "next"] : ["later", "later"]; };
@@ -975,13 +1083,23 @@
   // rows followed by email (bells.rows, for the saved address) and in this
   // browser (bells.web, by its own id); a bell lights for either
   const bells = { rows: new Set(), web: new Set(), for: null, webFor: null, pendingRow: null };
+  const alertsCfg = () => UW.public ? {} : (UW.M.alerts || {});   // the alerts service runs aboard: no bells, no form on the web
   const followEmail = () => store.get("alerts.email", "");
   const followed = (key) => bells.rows.has(key) || bells.web.has(key);
   const encodeRow = (key) => btoa(unescape(encodeURIComponent(key))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "").slice(0, 64);
   // two bells: this operation, and every operation of this kind (any station)
-  const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : `follow ${kind}: 15 min heads-up and every change`;
+  const CHANGES_NAME = "changes to the schedule";
+  const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : kind === CHANGES_NAME ? `follow ${kind}: an operation added, taken off, moved or canceled; no reminders` : `follow ${kind}: 15 min heads-up and every change`;
+  const bellKind = (b) => b.dataset.key === "changes" || b.classList.contains("kind") ? b.dataset.name : "this operation";
+  // the bell in the schedule's heading: only when the schedule itself changes
+  function changesBell() {
+    const a = alertsCfg();
+    if (!a.email && !a.telegram_bot && !a.web) return "";
+    const on = followed("changes");
+    return ` <button type="button" class="bell changes ${on ? "on" : ""}" data-key="changes" data-name="${CHANGES_NAME}" title="${esc(bellTitle(CHANGES_NAME, on))}">🔔</button>`;
+  }
   function bellHtml(r) {
-    const a = UW.M.alerts || {};
+    const a = alertsCfg();
     if (!a.email && !a.telegram_bot) return "";
     const key = r.key || `${r.station}|${r.operation}`, on = followed(key);
     const kind = /transit|steam/i.test(r.operation || "") ? "Transit" : (r.operation || "");     // every transit is one kind, whatever the destination
@@ -1032,7 +1150,7 @@
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
     if (channel === "web") { bells.web = new Set(j.rows || []); bells.webFor = to; askNotify(); } else { bells.rows = new Set(j.rows || []); bells.for = to; }
-    for (const b of host.querySelectorAll(".bell")) { const on = followed(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(b.classList.contains("kind") ? b.dataset.name : "this operation", on); }
+    for (const b of host.querySelectorAll(".bell")) { const on = followed(b.dataset.key); b.classList.toggle("on", on); b.title = bellTitle(bellKind(b), on); }
   }
   const followByEmail = (host, key, name, remove) => followVia(host, "email", key, name, remove);
   // a browser that shows alerts in its header bar may as well notify too
@@ -1045,7 +1163,7 @@
       (a.web ? `<button type="button" class="bm-web">${webOn ? "🖥 stop showing" : "🖥 show"} in this browser's header bar</button>` : "") +
       (a.email ? (to ? `<button type="button" class="bm-email">${on ? "✉ stop emailing" : "✉ email"} ${esc(to)}</button>` : `<button type="button" class="bm-email">✉ email me… (enter an address below)</button>`) : "") +
       (a.telegram_bot ? `<a class="bm-tg" href="https://t.me/${esc(a.telegram_bot)}?start=${encodeRow(key)}" target="_blank" rel="noopener">✈ Telegram @${esc(a.telegram_bot)}</a>` : "") +
-      `<div class="bm-note">15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}</div>`;
+      `<div class="bm-note">${key === "changes" ? "a message when future operations are added, taken off or rescheduled; no completion or status-only notices" : `15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}`}</div>`;
     const rect = b.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     m.style.left = `${Math.max(0, rect.left - hostRect.left)}px`; m.style.top = `${rect.bottom - hostRect.top + host.scrollTop + 4}px`;
     host.style.position = host.style.position || "relative";
@@ -1066,7 +1184,7 @@
   // alerts: subscribe here to this browser's header bar or by email, or
   // through the Telegram bot
   function alertsHtml() {
-    const a = UW.M.alerts || {};
+    const a = alertsCfg();
     if (!a.email && !a.telegram_bot && !a.web) return "";
     const saved = store.get("alerts.email", ""), viaWeb = !saved || store.get("alerts.web", false);
     return `<details class="alerts" id="alerts"><summary>🔔 Get alerts for scheduled operations</summary>
@@ -1077,7 +1195,7 @@
         <label>warn <select name="lead_min"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 h</option><option value="120">2 h</option></select> ahead</label>
         <span class="evs"><label><input type="checkbox" name="events" value="upcoming" checked> starting soon</label><label><input type="checkbox" name="events" value="started" checked> started</label><label><input type="checkbox" name="events" value="finished"> finished</label><label><input type="checkbox" name="events" value="moved" checked> time changed</label></span>
         <button type="submit">subscribe</button><span class="muted" id="alertmsg"></span></form>` : ""}
-      ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it.</p>` : ""}
+      ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.</p>` : ""}
       <p class="muted small">Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.</p></details>`;
   }
   function wireAlerts(host) {
@@ -1135,9 +1253,11 @@
   const opColour = (name, fallback) => OP_COLOUR[opKind(name)] || fallback;
   function renderTimeline(host, evs, s, nHidden = 0) {
     const now = Date.now();
-    const shifted = (t) => new Date(t + offsetMs(t));      // the axis reads as ship time
+    const shifted = (t) => UW.plotDate(UW.shipAxis(t));
     const when = (e) => shifted(UW.tms(e.time_utc));
-    const recent = evs;                                   // already the legs and span on display
+    const recent = evs;                                   // retain the selected legs' events outside the visible span
+    const span = UW.spanFilter();
+    const range = isFinite(span.start) ? [shifted(span.start), shifted(span.end)] : undefined;
     const counts = new Map(); for (const e of recent) counts.set(opName(e.activity), (counts.get(opName(e.activity)) || 0) + 1);
     const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 19).map(([t]) => t);
     const typeOf = (e) => top.includes(opName(e.activity)) ? opName(e.activity) : "other";
@@ -1153,10 +1273,10 @@
     // event-log row of the same kind: current ones bright, former ones (off
     // the intranet page now) dimmer
     const f = UW.currentFilter();
-    const rows = scheduledRows(s).map((r) => ({ r, d0: shifted(UW.tms(r.start_utc)), d1: shifted(UW.tms(r.end_utc)) })).filter((b) => b.d1 - offsetMs(b.d1) >= f.start);
+    const rows = scheduledRows(s).filter((r) => UW.tms(r.end_utc) >= f.start).map((r) => ({ r, d0: shifted(UW.tms(r.start_utc)), duration: UW.shipAxis(UW.tms(r.end_utc)) - UW.shipAxis(UW.tms(r.start_utc)) }));
     const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
     const barColour = (b) => opColour(b.r.operation, pal((b.r.operation || "").length));
-    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.d1 - b.d0), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
+    if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.duration), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${stampL(UW.tms(b.r.start_utc))}–${hmL(UW.tms(b.r.end_utc))} ${tzAbbr()}`),
       hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => rgba(barColour(b), b.r.former ? .3 : .8)), line: { color: rows.map(barColour), width: 1 } }, width: .5 });
     host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span · click a point for its log entry`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
@@ -1164,12 +1284,14 @@
     wireEventList(host);
     const layout = { ...castLayout(), margin: { l: fz(130), r: 10, t: fz(28), b: fz(58) }, barmode: "overlay",
       xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: fz(12) } }, tickfont: { size: fz(12) },
-               ...(isFinite(UW.spanFilter().start) ? { range: [shifted(UW.spanFilter().start), shifted(UW.spanFilter().end + 3600e3)], autorange: false } : {}) },   // opens on the span; the log runs on before it
+               range, autorange: !range },   // only the axis is limited to the span; retain the full log
       yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
       annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: fz(11), color: C.now } }] };
-    Plotly.react($("#cal-plot"), traces, layout, CFG).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
+    UW.reactPlot($("#cal-plot"), traces, layout, CFG, `event-span:${span.start}:${span.end}`).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
     wireCastPanels(host, () => renderTimeline(host, evs, s));
+    host.querySelector('[data-cp="cal-plot"] .reset').onclick = () => Plotly.relayout($("#cal-plot"),
+      range ? { "xaxis.range": range, "xaxis.autorange": false } : { "xaxis.autorange": true });
   }
   // Calendar view: a month grid or three days centred on a day, from the
   // Google calendars (imported at build time) and the intranet schedule.
@@ -1359,7 +1481,7 @@
   // one row per CTD cast from the logbook, and one per station the event
   // log records without a cast (kind "event", with what was done there)
   const stn = { sort: store.get("stn.sort", { key: "time", dir: -1 }), search: "" };
-  const STATION_COLS = [["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
+  const STATION_COLS = [["station", "station"], ["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
@@ -1377,7 +1499,7 @@
   function renderStations() {
     const rows = stationRows();
     const arrow = (k) => stn.sort.key === k ? (stn.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
@@ -1456,7 +1578,7 @@
     const stat = ["mean", "min", "max", "n"][tbl.stat];
     const cols = [["t", "time (ship)"], ["leg", "leg"], ["lat", "lat"], ["lon", "lon"], ...d.variables.map((v) => [v, v])];
     const arrow = (k) => tbl.sort.key === k ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l)}${arrow(k)}</th>`).join("");
+    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtTs(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + tbl.hidden, UW.currentFilter(), "tr", cols.length)}${body}</tbody>`;
@@ -1480,6 +1602,9 @@
     saveTSV(`underway_${tbl.rule}_${stat}.tsv`, head, rows.map((r) => [new Date(r.t).toISOString(), r.legLabel, r.lat, r.lon, ...d.variables.map((v) => r[v] ? r[v][tbl.stat] : "")]));
   }
   function wireTable() {
+    const tableSection = $("#underway-table");
+    tableSection.open = store.get("tbl.open", true);
+    tableSection.addEventListener("toggle", () => store.set("tbl.open", tableSection.open));
     for (const b of $("#aggrule").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.r === tbl.rule);
       b.onclick = () => { tbl.rule = b.dataset.r; store.set("tbl.rule", tbl.rule); for (const x of $("#aggrule").querySelectorAll("button")) x.classList.toggle("on", x === b); refreshActiveTab(true); };
@@ -1505,16 +1630,16 @@
   const activeTab = () => [...document.querySelectorAll("#tabs button.on")].find((b) => b.dataset.tab !== "chat")?.dataset.tab;
   async function refreshActiveTab(force = false) {
     const name = activeTab();
-    if (!["casts", "stations", "calendar", "table"].includes(name)) return;
+    if (!["casts", "stations", "calendar", "underway"].includes(name)) return;
     const stamp = UW.M.generated_utc;
-    const key = `${name}:${stamp}:${name === "table" ? tbl.rule : ""}`;
+    const key = `${name}:${stamp}:${name === "underway" ? tbl.rule : ""}`;
     if (!force && refreshedTab === key) return;
     const seq = ++tabSeq;
-    const scope = { casts: "Casts", stations: "Stations", calendar: "Schedule", table: "Table" }[name];
+    const scope = { casts: "Casts", stations: "Stations", calendar: "Schedule", underway: "Table" }[name];
     try {
       if (name === "casts") await ensureCastIndex();
       if (name === "calendar") await ensureCalendar();
-      if (name === "table") await ensureAgg();
+      if (name === "underway") await ensureAgg();
       if (seq !== tabSeq || name !== activeTab() || stamp !== UW.M.generated_utc) return;
       if (name === "casts") {
         renderCastList(); UW.renderMap();
@@ -1522,7 +1647,7 @@
       }
       if (name === "stations") renderStations();
       if (name === "calendar") renderCalendar();
-      if (name === "table") renderTable();
+      if (name === "underway") renderTable();
       if (seq !== tabSeq || stamp !== UW.M.generated_utc) return;
       refreshedTab = key; UW.setLoadError(scope, false);
     } catch {
@@ -1538,5 +1663,5 @@
   };
   wireCasts(); wireStations(); wireCalendar(); wireTable();
   const active = document.querySelector("#tabs button.on")?.dataset.tab;
-  if (active && active !== "underway") UW.onTab(active);
+  if (active) UW.onTab(active);
 })();

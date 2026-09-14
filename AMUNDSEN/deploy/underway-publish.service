@@ -1,0 +1,16 @@
+[Unit]
+Description=Publish the web root to grid, which puts it on the public web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/tools/publish-web.sh push
+TimeoutStartSec=7200
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only

@@ -223,6 +223,123 @@ class RowFollowTests(unittest.TestCase):
         self.assertIn("• CardS-3 — CTD-Rosette (15 min ahead)", tg.sent[1][1])
 
 
+class ChangesTests(unittest.TestCase):
+    """Following ``changes``: an operation added, taken off before it started,
+    moved or canceled, and nothing else."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        self.db = Path(self.tmp.name)
+        p = patch.object(alerts, "DB_DIR", self.db); p.start(); self.addCleanup(p.stop)
+        self.now = datetime(2026, 9, 6, 13, 0, tzinfo=timezone.utc)
+
+    def t(self, m):
+        return (self.now + timedelta(minutes=m)).isoformat(timespec="minutes")
+
+    def test_added_removed_moved_canceled(self):
+        state = alerts.load_state()
+        ctd, net, core = _row("S1", "CTD", self.t(60), self.t(120)), _row("S2", "Net", self.t(180), self.t(240)), _row("S0", "Core", self.t(-120), self.t(-60), status="Completed")
+        self.assertEqual([e for e, _, _ in alerts.due_events([ctd, net, core], state, self.now) if e != "upcoming"], [])   # the first run only records
+        box = _row("S3", "Box Core", self.t(300), self.t(360))
+        moved = dict(ctd, start_utc=self.t(90), end_utc=self.t(150))
+        canceled = {k: v for k, v in net.items() if k not in ("start_utc", "end_utc")} | {"status": "Canceled"}   # the page drops a canceled row's times
+        ev = {(e, r["key"]) for e, r, _ in alerts.due_events([moved, canceled, box], state, self.now) if e != "upcoming"}   # the core has scrolled off
+        self.assertEqual(ev, {("moved", "S1|CTD"), ("finished", "S2|Net"), ("added", "S3|Box Core")})
+        self.assertNotIn("S0|Core", state["rows"])                                                                # forgotten, not reported
+        ev = [(e, r["key"], text) for e, r, text in alerts.due_events([moved, canceled], state, self.now)]
+        self.assertEqual([(e, k) for e, k, _ in ev if e != "upcoming"], [("removed", "S3|Box Core")])
+        self.assertIn("Taken off the schedule: S3 — Box Core", ev[-1][2])
+        self.assertEqual(alerts.due_events([], state, self.now), [])                                               # a failed read removes nothing
+        self.assertIn("S1|CTD", state["rows"])
+
+    def test_changes_only_subscriber(self):
+        state = alerts.load_state()
+        alerts.due_events([_row("S1", "CTD", self.t(20), self.t(80)), _row("S2", "Net", self.t(180), self.t(240))], state, self.now)
+        sub = alerts.set_changes("telegram", "42", True, "Ann")
+        everyone = alerts.subscribe("telegram", "43", "", 30, None)
+        rows = [_row("S1", "CTD", self.t(20), self.t(80), status="In progress"), _row("S2", "Net", self.t(180), self.t(240), status="Completed"),
+                _row("S3", "Box Core", self.t(300), self.t(360))]
+        msgs = {s["to"]: lines for s, lines in alerts.messages_for([sub, everyone], alerts.due_events(rows, state, self.now), state, self.now)}
+        self.assertEqual(msgs["42"], [alerts.CHANGE_NOTICE])   # no heads-up, no start, no completion
+        self.assertTrue(any(l.startswith("Now in progress") for l in msgs["43"]))
+        self.assertFalse(any(l.startswith("Added") for l in msgs["43"]))                        # a general subscription does not hear of additions
+
+    def test_multiple_changes_produce_one_short_notice(self):
+        state = alerts.load_state()
+        sub = alerts.set_changes("telegram", "42", True)
+        rows = [_row("S1", "CTD", self.t(60), self.t(120)), _row("S2", "Net", self.t(180), self.t(240))]
+        events = [("added", r, "Added detailed operation") for r in rows]
+        self.assertEqual(alerts.messages_for([sub], events, state, self.now), [(sub, [alerts.CHANGE_NOTICE])])
+        self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
+
+    def test_changes_ignore_status_transitions_and_past_edits(self):
+        sub = alerts.set_changes('telegram', '42', True)
+        for status in ('In progress', 'Completed', 'Canceled'):
+            state = alerts.load_state()
+            original = _row('S1', 'CTD', self.t(60), self.t(120))
+            alerts.due_events([original], state, self.now)
+            events = alerts.due_events([dict(original, status=status)], state, self.now)
+            self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
+        state = alerts.load_state()
+        alerts.due_events([_row('S1', 'CTD', self.t(-120), self.t(-60))], state, self.now)
+        events = alerts.due_events([_row('S1', 'CTD', self.t(-90), self.t(-30)),
+                                   _row('S2', 'Net', self.t(-180), self.t(-120))], state, self.now)
+        self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
+
+    def test_future_end_time_and_small_start_edits_notify(self):
+        sub = alerts.set_changes('telegram', '42', True)
+        for changed in (_row('S1', 'CTD', self.t(60), self.t(125)),
+                        _row('S1', 'CTD', self.t(65), self.t(125))):
+            state = alerts.load_state()
+            alerts.due_events([_row('S1', 'CTD', self.t(60), self.t(120))], state, self.now)
+            events = alerts.due_events([changed], state, self.now)
+            self.assertEqual(alerts.messages_for([sub], events, state, self.now), [(sub, [alerts.CHANGE_NOTICE])])
+
+    def test_schedule_bot_no_longer_routes_codex(self):
+        from dashboard import telegram_codex
+        tg = FakeTelegram([{'update_id': 1, 'message': {'chat': {'id': 42}, 'text': '/codex main hello'}}])
+        with patch.object(telegram_codex, 'submit') as submit:
+            alerts.handle_telegram(tg)
+            submit.assert_not_called()
+        self.assertNotIn('/codex', alerts.HELP)
+
+    def test_telegram_change_notice_has_no_heading_or_bullets(self):
+        alerts.set_changes("telegram", "42", True)
+        row = _row("S1", "CTD", self.t(60), self.t(120))
+        tg = FakeTelegram()
+        with patch.object(alerts, 'due_events', return_value=[('added', row, 'Detailed operation')]):
+            alerts.run(self.now, tg=tg, email=lambda *args: None)
+        self.assertEqual(tg.sent, [('42', 'the schedule has changed http://10.0.0.2/Schedule.html')])
+
+    def test_following_the_bell_and_telegram(self):
+        alerts.set_whiteboard("email", "ann@example.org", True)
+        alerts.follow_row("email", "ann@example.org", alerts.CHANGES_KEY)
+        self.assertEqual(alerts.following("email", "ann@example.org")["rows"], ["changes"])
+        self.assertIsNotNone(alerts.follow_row("email", "ann@example.org", alerts.CHANGES_KEY, remove=True))   # the whiteboard keeps it
+        self.assertEqual(alerts.following("email", "ann@example.org")["rows"], [])
+        upd = [{"update_id": 1, "message": {"chat": {"id": 42}, "text": "/start " + alerts.encode_row(alerts.CHANGES_KEY)}},
+               {"update_id": 2, "message": {"chat": {"id": 42}, "text": "/status"}},
+               {"update_id": 3, "message": {"chat": {"id": 42}, "text": "/changes off"}}]
+        tg = FakeTelegram(upd)
+        alerts.handle_telegram(tg)
+        self.assertIn("whenever the schedule changes", tg.sent[0][1])
+        self.assertIn("Schedule changes: yes", tg.sent[1][1])
+        self.assertIsNone(alerts._find(alerts.load_subs(), "telegram", "42"))                    # nothing left to follow
+
+
+class SmtpConfigTests(unittest.TestCase):
+    def test_account_from_the_environment(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertIsNone(alerts.smtp_config())
+        with patch.dict("os.environ", {"SMTP_HOST": "smtp.example.org", "SMTP_USER": "keeper@example.org"}, clear=True):
+            c = alerts.smtp_config()
+            self.assertEqual((c["host"], c["user"], c["ssl"], c["from"]), ("smtp.example.org", "keeper@example.org", True, ""))
+            with patch.object(alerts, "OPS_EMAIL", ""):
+                self.assertEqual(alerts.ops_targets()[0], "keeper@example.org")
+        with patch.dict("os.environ", {"SMTP_HOST": "h", "SMTP_USER": "u", "SMTP_SSL": "0", "SMTP_PORT": "587"}, clear=True):
+            c = alerts.smtp_config()
+            self.assertEqual((c["ssl"], c["port"]), (False, "587"))
+
+
 class BotTests(unittest.TestCase):
     def test_timer_leaves_commands_to_a_live_bot(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(alerts, "DB_DIR", Path(tmp)), patch.object(alerts, "WEBROOT", Path(tmp)):
@@ -266,7 +383,7 @@ class OpsTests(unittest.TestCase):
 
 
 class FlagTests(unittest.TestCase):
-    """Review flags on History artifacts: raised with a note by anyone,
+    """Review flags on wiki pages: raised with a note by anyone,
     withdrawn by the raiser alone or an admin, rate limited, reported once."""
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
@@ -296,6 +413,35 @@ class FlagTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             alerts.set_flag("thule-023", True, "", "Ann", now=self.now)
 
+    def test_page_flags_keep_routes_and_ownership(self):
+        for slug in ("explore", "narrative/northwest-passage", "at/76,-78", ""):
+            flag_id = "page:" + (slug or "home")
+            with self.subTest(slug=slug):
+                result = alerts.set_flag(flag_id, True, "tokA", "Ann", "Page title", slug,
+                                         "Please review", self.now)
+                flag = next(f for f in result["flags"] if f["id"] == flag_id)
+                self.assertEqual((flag["page"], flag["title"], flag["mine"]), (slug, "Page title", True))
+                with self.assertRaises(PermissionError):
+                    alerts.set_flag(flag_id, False, "tokB", "Bob", now=self.now)
+        mails = []
+        alerts.flag_notices(None, lambda cfg, to, subject, body: mails.append(body))
+        self.assertIn("#wiki/at/76,-78", mails[0])
+        self.assertIn("#wiki/explore", mails[0])
+        self.assertIn("#wiki/\n", mails[0] + "\n")
+        alerts.set_flag("page:explore", True, "tokB", "Bob", now=self.now)
+        with self.assertRaises(PermissionError):
+            alerts.set_flag("page:explore", False, "tokA", "Ann", now=self.now)
+        result = alerts.set_flag("page:explore", False, "ktok", "Keeper", now=self.now)
+        self.assertNotIn("page:explore", [f["id"] for f in result["flags"]])
+
+    def test_page_ids_reject_invalid_routes_and_truncation(self):
+        for flag_id in ("page:", "page:/explore", "page:explore/", "page:a//b", "page:a/../b",
+                        "page:./explore", "page:explore?x=1", "page:explore#x", "page:" + "a" * 201,
+                        "a" * 121):
+            with self.subTest(flag_id=flag_id), self.assertRaises(ValueError):
+                alerts.set_flag(flag_id, True, "tokA", "Ann", now=self.now)
+        self.assertEqual(alerts.flagged()["flags"], [])
+
     def test_rate_limit(self):
         for i in range(alerts.FLAGS_PER_HOUR):
             alerts.set_flag(f"a-{i}", True, "tokA", "Ann", now=self.now + timedelta(minutes=i))
@@ -317,8 +463,8 @@ class FlagTests(unittest.TestCase):
         self.assertEqual(len(lines), 2)
         self.assertEqual(len(mails), 1)
         self.assertEqual(mails[0][0], "keeper@example.org")
-        self.assertIn("2 history artifacts flagged", mails[0][1])
-        self.assertIn("Ann flagged First (a-1)", mails[0][2]); self.assertIn(": typo", mails[0][2]); self.assertIn("#history/artifact/a-2", mails[0][2])
+        self.assertIn("2 wiki pages flagged", mails[0][1])
+        self.assertIn("Ann flagged First (a-1)", mails[0][2]); self.assertIn(": typo", mails[0][2]); self.assertIn("#wiki/artifact/a-2", mails[0][2])
         self.assertNotIn("Third", mails[0][2])
         self.assertEqual(tg.sent[0][0], "42"); self.assertIn("🚩", tg.sent[0][1])
         self.assertEqual(alerts.flag_notices(tg, lambda *a: mails.append(a)), [])                # not again

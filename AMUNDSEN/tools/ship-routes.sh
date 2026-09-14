@@ -11,7 +11,7 @@
 # Scoped to 10.0.0.0/24 only: UM DNS (10.0.1.x) and the rest of 10/8 keep
 # routing over the VPN, so grid / clusters / arbutus are unaffected.
 GW=192.168.3.1
-WIFI=wlo1
+WIFI=${UNDERWAY_IFACE:-wlo1}
 NETS=(10.0.0.0/26 10.0.0.64/26 10.0.0.128/26 10.0.0.192/26)
 # The VPN also installs /32 host routes (10.0.0.172 has been seen); a /32 beats
 # any /26, so ship hosts that collide must be listed here to get their own /32.

@@ -57,7 +57,7 @@ run "TSG"       "$SRC_DATA/TSG"                  "$DEST/Data/TSG" \
     --include='/*_LEG_*/' --include='/*_LEG_*/tsg_convdata_*.cnv' --exclude='*'
 if [[ $MODE == quick ]]; then echo "$(ts) quick mirror pass complete" | tee -a "$LOG"; exit 0; fi
 run "Rosette"   "$SRC_DATA/Rosette"              "$DEST/Data/Rosette" \
-    --include='*/' --include='Logs/*CTD_logbook.csv' --include='plots/*_raw_data.html' --include='Btl/*.btl' --exclude='*'
+    --include='*/' --include='Logs/*CTD_logbook.csv' --include='Logs/RosetteSheet_*.xlsx' --include='plots/*_raw_data.html' --include='Btl/*.btl' --exclude='*'
 run "CTD cnv"   "$SRC_DATA/external_proprietary/CTD" "$DEST/Data/external_proprietary/CTD" \
     --include='*.cnv' --include='*.CNV' --exclude='*'
 run "MVP"       "$SRC_DATA/MVP"                  "$DEST/Data/MVP" \

@@ -28,5 +28,8 @@ def infer(vector, model):
         result['ice_percent']=sum(scores[k] for k in ICE)
         result['note']='Exploratory teacher-distilled image-area estimates, not scientific concentration.'
         result['tree_spread']=float(values[:,[model['outputs'].index(k) for k in ICE]].sum(axis=1).std())
+    elif model['kind']=='seawater-triage-shadow':
+        result['note']='Uncalibrated seawater eligibility score; shadow-only, never skip classification.'
+        result['route']='review'
     else:raise ValueError('Unknown camera model kind')
     return result

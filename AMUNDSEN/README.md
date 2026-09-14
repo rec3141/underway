@@ -6,9 +6,8 @@ lines — variable name, then instrument — 10-second cadence, ~68 columns).
 
 The page shows a map of the ship's track coloured by any variable, a panel per
 variable, and a "surprise" panel that flags minutes that look unusual against
-the previous 48 hours. A leg list filters what is shown, and the map draws the
-chosen legs whole; a span slider opens the graphs on the last hour up to the
-whole record.
+the previous 48 hours. A span slider reaches from the last hour back across
+every leg on the share, and a leg list filters what is shown.
 
 A Theme picker in the header offers four looks: Claude dark (the default),
 Claude light, and Minimal dark and light, which set bigger type on flat
@@ -46,11 +45,11 @@ dashboard/           the Python package
   serve.py           static server (no-store headers for data files)
   cli.py             `python -m dashboard {legs,build,serve}`
   templates/         index.html.j2
-  static/            app.js, style.css, plotly.min.js, geo/*.geojson
+  static/            app.js, map.js (the map), style.css, plotly.min.js (the charts),
+                     maplibre-gl.js/.css (the map's library), geo/*.geojson
 update_underway_py.sh    systemd-facing wrapper: build into the web root
 pyproject.toml           package metadata; `pip install -e .` gives an `underway` command
 deprecated/              the previous R implementation and its wrappers, kept for reference
-scheduler/               separate tool: event log -> Google Calendar sync (R)
 ```
 
 ## Requirements
@@ -58,8 +57,10 @@ scheduler/               separate tool: event log -> Google Calendar sync (R)
 - Python ≥ 3.11 with `pandas`, `numpy`, `jinja2`, `scipy`, `xlrd` and `openpyxl` — `pip install -e .` from this
   directory installs them and an `underway` console command. `plotly` is not
   needed at run time; its `plotly.min.js` is committed under `static/`
-  (refresh it from a plotly install with the `assets` extra). On the ship
-  workstation the interpreter with the stack is `/opt/miniforge3/bin/python3`.
+  (refresh it from a plotly install with the `assets` extra). The map is drawn
+  by MapLibre GL JS, likewise committed (`static/maplibre-gl.js` and `.css`, the
+  UMD build of the 5.x line, BSD-3-Clause, `maplibre-gl.LICENSE.txt`). An installation
+  names its interpreter as `UNDERWAY_PYTHON` in its site file (see *Taking over*).
 - Optional integrations: `pip install -e '.[chat]'` installs the HTTP client
   for the local AI crew; `pip install -e '.[gcal]'` installs the Google Calendar
   HTTP/signing dependencies. Human chat uses only the standard library. Use
@@ -97,11 +98,12 @@ underway serve --root "$PWD/www" --port 8042
 
 Set `UNDERWAY_DATA_ROOT` and `UNDERWAY_SHARE_ROOT` to the mounted data before
 building. These environment variables work on Windows too; the deployment
-shell scripts and systemd units are specific to the ship's Linux workstation.
+shell scripts and systemd units are for Linux with systemd (see *Taking over*).
 Set `UNDERWAY_TILES_DIR` if using optional raster tiles on another machine.
 The default database directory is beside the source package, and the default
-chat database is `/data/underway/chat/chat.sqlite`, so explicitly set both
-state paths when installing into a shared or read-only Python environment.
+chat database is `$UNDERWAY_HOME/chat/chat.sqlite` (`UNDERWAY_HOME` defaults to
+`/data/underway_server`), so explicitly set both state paths when installing
+into a shared or read-only Python environment.
 
 ### Reaching the dashboard on the ship
 
@@ -130,14 +132,17 @@ minute, and any colliding host can be listed in `SHIP_EXTRA_HOSTS` for its own
 ### Map layers
 
 Besides the track, stations and tow tracks, the map offers an **Event log**
-layer (geolocated entries of the ship's event log, filtered by the shown legs,
-grouped by position so several events at one spot share a marker and
+layer (geolocated entries of the ship's event log, filtered by the shown legs
+and span, grouped by position so several events at one spot share a marker and
 one hover) and a **Places** layer: settlements of Nunavut, the NWT,
 Labrador, the northern shores of Québec/Ontario/Manitoba and all of Greenland,
 from GeoNames (CC BY 4.0), with a curated list of Inuit, Greenlandic and older
 colonial names. Labels thin out with zoom (population 2000+ far out, all when
 close in). Refresh the layer with `tools/make_communities.py` after downloading
 new `CA.zip`/`GL.zip` dumps from geonames.org into `/data/gis/geonames/`.
+A **Names** layer (bays, sounds, straits, islands, capes, lakes, rivers,
+glaciers, mountains) appears as a pill when its tiles exist; see *Geographic
+names* below.
 
 ### Cast cache
 
@@ -149,11 +154,37 @@ are (a stat there costs a round trip). Delete a cache file to force a re-parse.
 
 `build` syncs every leg's store (only new or changed day files are parsed),
 combines the legs, computes derived variables, writes `data/w-*.json` for each
-window plus `data/manifest.json`, copies `static/`, and renders `index.html`.
+window plus `data/manifest.json`, publishes track chunks under `data/track/`,
+copies `static/`, and renders `index.html`.
 Files are written under a temporary name and renamed, so a page polling the
 directory never reads a partial file. A full build of eight legs (2.8 M rows)
 takes about 15 s and 2 GB of memory; a build with nothing new takes a few
-seconds.
+seconds (these timings predate the initial track-chunk publication).
+
+The map loads observations independently of the charts. `manifest.track`
+indexes immutable, content-addressed chunks of at most 2,048 observations at
+1 km, 100 m, 25 m, 5 m, and native resolution. Auto detail follows the map's ground
+scale automatically, never exceeding 1 km spacing. Selection preserves actual
+observations, bends, leg boundaries, and gaps. Native observations farther
+apart than the selected spacing remain gaps in sampling; no points are invented.
+Charts continue to use time-averaged windows. New builds no longer publish
+`w-*-fine.json`, and the browser never requests those legacy files.
+
+Panning and zooming request only chunks overlapping the visible bounds and
+selected time/legs. The loader cancels superseded requests, fetches at most
+four chunks concurrently, and caps each request/render at 50,000 rows. Its
+cache is bounded by 100,000 rows and an estimated 64 MiB. A density message
+asks the viewer to zoom in or shorten the span when that budget is reached;
+the track may be incomplete until then. Colours use the selected span's
+limits, which stay stable when panning. Camera ice observations remain a
+separate time-filtered API and are matched to the loaded track by time/leg.
+
+The Python server negotiates gzip for JSON (static files up to 8 MiB), and
+track chunks use immutable caching. Unreferenced chunks are reclaimed after
+seven days so open pages can finish using an older generation. Other data remains uncached. Track detail
+also works on a static server; configure gzip there separately. Rebuild the
+site to publish the track index and new scripts together, and restart the
+Python page server to enable its compression changes.
 
 Stores live in `AMUNDSEN/db/<leg>.db` by default (`UNDERWAY_DB_DIR` overrides).
 They are derived data: delete them and the next build reloads everything.
@@ -166,13 +197,13 @@ against a local mirror removes all of that:
 
 ```sh
 tools/mirror-share.sh /data/ship          # rsync only what the dashboard reads
-UNDERWAY_LOCAL=1 update_underway_py.sh    # mirror, then build into /data/underway/www
+UNDERWAY_LOCAL=1 update_underway_py.sh    # mirror, then build into $UNDERWAY_HOME/www
 ```
 
 With `UNDERWAY_LOCAL=1` (set as `Environment=` in `underway.service`) the
 wrapper runs the mirror first and builds from it with `UNDERWAY_DATA_ROOT` and
 `UNDERWAY_SHARE_ROOT` pointing into `/data/ship`; the web root moves to local
-disk (`UNDERWAY_WEBROOT`, default `/data/underway/www`) and the server serves
+disk (`UNDERWAY_WEBROOT`, default `$UNDERWAY_HOME/www`) and the server serves
 that. The share is then read by one rsync pass per build and by nothing else,
 and `RequiresMountsFor` is no longer needed. The initial mirror is ~15 GB
 (mostly the per-cast plot HTML); afterwards a pass copies only new files.
@@ -183,25 +214,85 @@ Raster tiles are never written to the share: `make_gebco_tiles.sh` writes to
 
 ## Operation on the ship
 
-The services run from a deploy checkout, `/data/underway/app`, that only
-ever sits on master: `underway-deploy.timer` runs `tools/deploy-pull.sh`
-every five minutes, which fetches, fast-forwards to `origin/master`, and
-restarts the serving processes (`underway-dashboard`, `underway-telegram`)
-when a Python file under `dashboard/` changed; anything else is picked up by
-the next build. A merge to master is live on the ship within minutes, and no
-development checkout is ever what the ship serves. Unit files are the one
-thing the pull cannot install: when `deploy/` changes, copy them to
-`/etc/systemd/system/` and `daemon-reload` by hand (the pull's journal line
-says so). The units keep the ingest stores and build cache outside the
-checkout, in `/data/underway/db` and `/data/underway/cache`
-(`UNDERWAY_DB_DIR`, `UNDERWAY_CACHE_DIR`).
+An installation is one directory, `UNDERWAY_HOME` (`/data/underway_server` on
+the Amundsen's workstation):
 
-Two systemd units do the work (the files are in `/etc/systemd/system/`):
+```
+app/         a clone of this repository on master: what the services run
+db/ cache/   the ingest stores and build cache (UNDERWAY_DB_DIR, UNDERWAY_CACHE_DIR)
+www/         the built site the page server serves (UNDERWAY_WEBROOT)
+chat/        the chat database (UNDERWAY_CHAT_DB)
+camera360/   the daily camera timelapses (UNDERWAY_CAMERA_OUTPUT)
+```
 
-- `underway.timer` → `underway.service` runs `update_underway_py.sh` every
-  10 minutes (`OnCalendar=*:0/10`). The wrapper holds a lock so runs never
-  overlap, and writes straight into the web root.
-- `underway-dashboard.service` runs `python3 -m dashboard serve` on port 8042.
+Everything particular to the machine — that directory, the account the
+services run as, the Python interpreter, the mirror, the arctic-history clone,
+the port and the Wi-Fi interface — is in one file, `/etc/underway/site.env`
+(from `deploy/site.env.example`). The unit files in `deploy/` are templates
+filled in from it by `deploy/install.sh`; the units also read it into their
+environment, and the shell tools source it.
+
+`underway-deploy.timer` runs `tools/deploy-pull.sh` every five minutes, which
+fetches, fast-forwards `app/` to `origin/master`, and restarts the serving
+processes (`underway-dashboard`, `underway-telegram`) when a Python file under
+`dashboard/` changed; anything else is picked up by the next build. A merge to
+master is live on the ship within minutes, and no development checkout is ever
+what the ship serves. Unit files are the one thing the pull cannot install:
+when `deploy/` changes, run `sudo $UNDERWAY_HOME/app/AMUNDSEN/deploy/install.sh`
+(the pull's journal line says so; `deploy/install.sh --check` shows the
+difference first).
+
+The units:
+
+| unit | what it does |
+|---|---|
+| `underway.timer` → `underway.service` | mirror the shares and build the site, every minute (`update_underway_py.sh`; a lock keeps runs from overlapping) |
+| `underway-dashboard.service` | the page server, `python -m dashboard serve` on `UNDERWAY_PORT` (8042) |
+| `underway-deploy.timer` | the pull above |
+| `underway-alerts.timer`, `underway-telegram.service` | schedule alerts by Telegram and email; the Telegram bot |
+| `underway-gcal.timer` | queued Google Calendar items |
+| `underway-satellite.timer` | Sentinel imagery around the ship |
+| `underway-camera.timer`, `underway-camera-sync.timer` | the camera timelapses and their daily copy to the leg's photo folder |
+| `underway-mdns.service` | publishes `underway.local` on the Wi-Fi interface |
+| `ship-routes.timer` | keeps the ship's 10.0.0.x network off the UM VPN (only needed with that VPN) |
+
+The Wiki tab's data is pulled from grid by a line in the service account's
+crontab, clear of the round minutes when the build and the pull run:
+
+```
+3,23,43 * * * * /data/underway_server/app/AMUNDSEN/tools/history-pull.sh >> ~/.local/state/underway/history-pull.log 2>&1
+```
+
+(cron expands no variables: write the installation's own `UNDERWAY_HOME`; the
+script reads the rest from the site file.)
+
+### Taking over
+
+To run the dashboard on another account or another machine:
+
+1. Mount the ship's shares: `sudo tools/ship-smb-setup.sh` (asks for the
+   share password once; see *Mounting*).
+2. Clone the repository as the service account into `UNDERWAY_HOME/app`, and
+   install the packages into the interpreter the services will use:
+   `pip install -e 'app/AMUNDSEN[chat,gcal]'`.
+3. `sudo mkdir /etc/underway && sudo cp app/AMUNDSEN/deploy/site.env.example
+   /etc/underway/site.env`, and edit it: the directory, the account, the
+   interpreter, the Wi-Fi interface (`ip -br addr`), and the camera settings
+   for the current leg.
+4. Put the secrets in the account's `~/.config/underway/` (or
+   `UNDERWAY_CONFIG`), neither of them in git:
+   - `underway.env`, from `deploy/underway.env.example`, mode 600: Telegram,
+     the SMTP account for alerts, the operations address, Copernicus;
+   - `gcal-sa.json`, the Google service account's key.
+   `admins.json` there (a JSON list of chat names that may clear review flags)
+   is optional. Each integration is off, and says so on the page, while its
+   values are missing.
+5. `sudo app/AMUNDSEN/deploy/install.sh --enable` installs the units and starts
+   the build, the page server and the deploy pull; enable the others as their
+   credentials go in (`sudo systemctl enable --now underway-alerts.timer
+   underway-telegram.service ...`).
+6. Caddy on port 80 (`deploy/Caddyfile`) and the mDNS name are what people on
+   the ship type; copy the Caddyfile to `/etc/caddy/Caddyfile` and reload Caddy.
 
 If neither data root is a directory, or they hold no `YYYY_LEG_NN` folders
 with ACSD files, `build` exits with status 2 without touching the web root:
@@ -224,8 +315,8 @@ with a package manager's User-Agent; HTTPS is fine.
 
 ### Mounting
 
-`~/bin/ship-smb-setup` writes the two CIFS entries to `/etc/fstab` and starts
-their automount units; `~/bin/ship-routes on` steers `10.0.0.0/24` to the
+`sudo tools/ship-smb-setup.sh` writes the two CIFS entries to `/etc/fstab` and
+starts their automount units; `sudo tools/ship-routes.sh on` steers `10.0.0.0/24` to the
 local gateway when the UM VPN is up (the VPN pushes `10.0.0.0/25`, which
 swallows the NAS). Do **not** add `x-systemd.idle-timeout` to the mounts: an
 idle unmount stops every unit with `RequiresMountsFor` on that path, and a
@@ -295,8 +386,9 @@ The map stays on the left; the tabs swap the right-hand pane.
 BODC/CEDA) into a shaded-bathymetry Web Mercator tile pyramid. The pyramid on
 the ship is the globe at zooms 0–8 (610 m/px, about what GEBCO's 15" grid
 supports) with the western Arctic and Labrador Sea at zoom 9 on top, built as
-two runs into one directory (`/data/gis/gebco/rerender-world.sh` does both and
-swaps them in):
+two runs into one directory (`tools/rerender-gebco.sh` does both into a
+staging directory and swaps it in; the ship's `/data/gis/gebco/rerender-world.sh`
+is its forerunner):
 
 ```sh
 tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
@@ -308,7 +400,7 @@ tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
 With `LAND` set to the OSM land polygons (see the coastline section below) and
 `LAND_BBOX` to their box, the shore inside that box comes from the polygons
 rather than GEBCO's zero contour, so a strait the polygons keep open stays
-open in the picture; `rerender-world.sh` on the ship sets both.
+open in the picture; `rerender-gebco.sh` passes both through.
 
 When `gebco/` exists under `UNDERWAY_TILES_DIR` the map draws it beneath the
 vector layers instead of the Natural Earth depth bands. The build reads the
@@ -331,8 +423,12 @@ source and GDAL live, and copied to the ship:
 ogr2ogr -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTILINESTRING coast.gpkg coastlines-split-4326/lines.shp -nln coast
 ogr2ogr -update -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTIPOLYGON coast.gpkg land-polygons-split-4326/land_polygons.shp -nln land
 ogr2ogr -f MVT coast coast.gpkg -dsco MINZOOM=0 -dsco MAXZOOM=10 -dsco COMPRESS=NO
-rsync -a coast/ ship:/data/gis/tiles/coast/
 ```
+
+Grid keeps the result as `/data/gis/tiles/coast/`; the ship pulls it (grid
+cannot reach the ship) with `tools/tiles-pull.sh`, which copies every tile
+set grid has, each swapped in whole (`tools/tiles-pull.sh status` lists what
+is on either side).
 
 The shoreline must come from OSM's coastline *lines*, not from the boundary
 of the land polygons: the polygons are shipped split into a grid, and their
@@ -344,10 +440,136 @@ layer as the shoreline and, without the relief raster, the `land` layer as
 land, and fetches neither Natural Earth file. Glaciers and depth bands stay
 Natural Earth.
 
+## Geographic names (optional)
+
+`tools/make_names_tiles.py` cuts the geographic names of the map's box as
+vector tiles: every official name in the Canadian Geographical Names Database
+(Open Government Licence – Canada) and GeoNames' Greenland dump (CC BY 4.0),
+less the settlements (the Places layer has them) and the roads, parks and
+reserves. Each name carries the zoom it first shows at — from CGNDB's
+"relevance at scale" field, with a floor by generic term so a cove never
+shows far out, and by hand for the Greenland names the world knows — and the
+tiles hold one layer per band, so a far-out tile carries a few dozen names
+and a close-in one every name there is. The map draws a symbol layer per
+band, water names in italic (`Open Sans Italic`, served beside the Regular
+glyphs) and land names upright, and MapLibre's collision engine thins the
+rest; the page's own labels sit above them. CGNDB names in an Indigenous
+language show over the English on a second line. The sources are downloaded
+on grid, where GDAL lives, and the tiles copied to the ship like the
+coastline:
+
+```sh
+mkdir -p /data/gis/names/src && cd /data/gis/names/src
+curl -O https://ftp.maps.canada.ca/pub/nrcan_rncan/vector/geobase_cgn_toponyme/prov_csv_eng/cgn_canada_csv_eng.zip
+curl -O https://download.geonames.org/export/dump/GL.zip
+tools/make_names_tiles.py /data/gis/names/src /data/gis/tiles/names     # ~30 s, 34,000 tiles, 140 MB
+```
+
+Then, on the ship, `tools/tiles-pull.sh names` (or plain `tools/tiles-pull.sh`
+for every set grid has).
+
+The build reads the writer's `metadata.json` (`vector_tiles` in `build.py`,
+as for the coast) and the Names pill appears. Known gaps: no names for the
+Alaskan sliver of the box (GeoNames' US dump is large; add it to the script
+if the ship works the Beaufort), and the Greenland labels are GeoNames'
+primary form, often the Danish one (Scoresby Sund) rather than the
+Greenlandic (Kangertittivaq).
+
+The glyphs under `static/geo/glyphs/` are built with `fontnik`
+(`npm install fontnik`, then `fontnik.range({font, start, end})` for the
+four Latin ranges 0–1023) from the Open Sans TTFs in the googlefonts/opensans
+repository.
+
+## Publishing to the public web
+
+`tools/publish-web.sh` puts the dashboard at https://cryomics.org/underway/,
+in two hops, because the ship's firewall lets it reach grid and nothing else:
+
+1. **On the ship** `publish-web.sh push` first runs `publish-sources.sh`.
+   This incrementally mirrors the full current/archived ACSD CSV records,
+   TSG inputs, event logs, Rosette logbooks/bottle files and MVP profiles to
+   `grid:/data/underway_server/source`. CTD CNVs and rendered cast HTML are
+   excluded; TSG CNVs are included because they supply the underway readings.
+   Only the dedicated `source/` mirror is pruned, including excluded files.
+   Recorded live snapshots and the provisional tail go into `source/runtime/`;
+   accounts, subscriptions and credentials are never transferred.
+2. The ship pushes its built site to grid's `www/`, excluding `data/w-*.json`, `data/track/`
+   and the history layer. Grid retains its generated data. Use
+   `publish-web.sh push --dry-run` to preview source and site transfers without
+   rebuilding or deploying; the source destination directories may be created.
+3. **On grid**, each push first fast-forwards the checkout from `origin/master`
+   under the deployment lock. `publish-web.sh rebuild-deploy` stages a `build --tracks-only`
+   from `source/Data`, `source/Share` and the recorded live snapshots. Per-leg
+   stores and analysis caches stay in grid's `db/` and `cache/` for reuse.
+   The build verifies source leg order against the incoming manifest, then
+   generates chart windows and viewport track chunks locally. Immutable chunks
+   and their fingerprint indexes are reused from the previous build; unreferenced
+   chunks expire after seven days. A failed rebuild blocks deployment.
+   Other ship-generated products (casts, schedule and aggregate tables) stay
+   intact. Grid renders its history layer, updates the public manifest and
+   front page, then publishes to DreamHost. The campus-to-web transfer includes
+   all history files unless `UNDERWAY_PUBLISH_MAX_MB` specifies a cap.
+
+Grid needs its own Python environment with the dashboard dependencies. For example:
+
+```sh
+python3 -m venv /data/underway_server/.venv
+/data/underway_server/.venv/bin/pip install -e '/data/dev/underway/AMUNDSEN[cameras]'
+```
+
+`UNDERWAY_PUBLISH_TRACK_PYTHON` overrides that interpreter;
+`UNDERWAY_PUBLISH_SOURCE_REMOTE` overrides the ship's destination and
+`UNDERWAY_PUBLISH_SOURCE_DIR` the corresponding grid directory. Keep the
+source destination a dedicated absolute directory ending in `/source`.
+`UNDERWAY_PUBLISH_STATE_DIR` defaults to the parent of the mirror's `www/`.
+
+Enable five-minute pushes on the ship with `sudo deploy/install.sh` and
+`sudo systemctl enable --now underway-publish.timer`. The first run can ingest
+all source records; subsequent runs reuse stores and rsync only changes.
+Each transfer logs `Total bytes sent` and `Total bytes received` in
+`journalctl -u underway-publish.service`; these are the compressed rsync transfer
+counts (before SSH/network overhead), unlike `Total transferred file size`,
+which counts whole changed files even when only their deltas cross the link.
+
+What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
+photographs and the `/Share` gallery (`/journal/`), and the GEBCO raster
+pyramid. The page's services do not run on the web server: every `api/`
+request there answers 503 with a JSON body, and the published manifest is
+marked `public` and lists no cameras. The page reads that mark
+(`UW.public`) and hides what only runs aboard rather than letting it fail:
+the Photos and Chat tabs and the chat side bar, the Feedback button, the
+Live cast, the schedule's alert bells and form, the wiki's review flags and
+Ask button, the ice-camera panel, the intranet feed, the photos map layer
+and the KMZ drop. The Sources tab says so in place of the intranet links.
+
+The web copy's map draws grid's own tiles, not the ship's: the GEBCO relief,
+the coastline and the geographic names under `UNDERWAY_TILES_DIR` on grid
+(`gebco/`, `coast/`, `names/`; without a `gebco/` there the map falls back
+to Natural Earth's depth bands). `publish-web.sh tiles` copies them to the
+web server by hand the first time (a few hundred thousand small files), and
+after that each deploy re-syncs a set whose directory has changed.
+`tools/rerender-gebco.sh` builds the pyramid on grid as on the ship.
+`publish-web.sh status` says what is where and when; the settings are the
+`UNDERWAY_PUBLISH_*` lines of `site.env`.
+
 ## Front end notes
 
 - Plotly's toolbar is off. Drag pans, the wheel zooms, double-click resets, ⟲
   resets; `log` toggles a log axis on spiky variables.
+- The map (`static/map.js`) is MapLibre, drawn from the trace-shaped layers the
+  page's modules describe (`UW.extraMapTraces` and the layer builders in
+  `app.js`): every trace becomes features of four layers (lines, circles,
+  sprite icons, labels), so a redraw is a `setData` on each and the ship's
+  position one on a one-point source. The basemap style is reloaded only when
+  its id changes (theme, satellite picture, geography, the names layer).
+- The map is drawn as a globe (`projection: globe` in the style), not in Web
+  Mercator: at the ship's latitudes Mercator stretches the map four to eight
+  times. The tiles are still Web Mercator tiles, drawn on the sphere, so
+  nothing exists above 85.05° N and the pole is blank; a true polar
+  projection would mean another library (issue #90). Consequences in the
+  code: a view can be a box to fit (`{bounds}`) rather than a centre and zoom,
+  and the scale bar and the track-detail spacing read the ground distance off
+  the map with `unproject` instead of a Mercator formula.
 - The chosen *Colour by* variable colours the map track and every panel's
   points on one shared scale (5–95 % of what is shown).
 - Panels can be dragged to reorder, expanded (⤢) or minimised (—) to the
@@ -365,8 +587,10 @@ again. Casts, Stations, Schedule, and Table refresh while open; failed tab downl
 retried even if the build timestamp has not changed.
 
 - *Page loads but map is blank*: check `static/geo/*.geojson` served (200) and
-  that the browser has WebGL. The map is Plotly `scattermap` (MapLibre).
-- *"nothing to show"*: all legs unticked, or the ticked legs have no track.
+  that the browser has WebGL. The map is MapLibre (`static/map.js`,
+  `static/maplibre-gl.js`); `window.UW.mapView.map` is the MapLibre map in the
+  browser console.
+- *"nothing to show"*: all legs unticked, or the span holds no data.
 - *Timer runs but nothing changes*: `journalctl -u underway.service`; a lock
   held by a stuck run is `AMUNDSEN/cache/.run.lock`.
 - *Mount points empty after boot*: `systemctl start mnt-ship-Data.automount
@@ -386,12 +610,15 @@ It needs Chromium and Python with Jinja2. Set `PYTHON` to the desired interprete
 
 ```sh
 PYTHON=python3 node tests/refresh-browser.cjs /path/to/chromium
+PYTHON=python3 node tests/track-browser.cjs /path/to/chromium
 ```
 
 This test starts Chromium with its sandbox disabled for compatibility with
 restricted development environments, using a fresh temporary profile and only
 the local test page. It checks initial-load recovery, failed updates, active
 tab refresh, revised cast data, and out-of-order window responses.
+The track check verifies viewport loading, zoom-dependent detail, stale-request
+rejection, and event-log axis bounds without discarding out-of-span events.
 
 ### Wind-direction statistics
 

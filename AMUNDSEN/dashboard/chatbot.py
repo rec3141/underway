@@ -26,15 +26,18 @@ import random
 import re
 import threading
 import time
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+
+from .config import CONFIG_DIR
 
 log = logging.getLogger(__name__)
 
 LLM_URL = os.environ.get("UNDERWAY_LLM_URL", "http://127.0.0.1:11434")
 LLM_MODEL = os.environ.get("UNDERWAY_LLM_MODEL", "gemma4-local")
 LLM_API = os.environ.get("UNDERWAY_LLM_API", "ollama")
-LLM_CONFIG = Path.home() / '.config/underway/chat-model.json'
+LLM_CONFIG = CONFIG_DIR / 'chat-model.json'
 CHIME_MIN_S = 45 * 60          # unprompted remarks at most this often …
 EVENT_MIN_S = 15 * 60          # … except after a notable event
 IDLE_S = 30 * 60               # only while someone has had the page open this recently
@@ -83,7 +86,8 @@ PERSONAS = {
                       "nothing you have bears on a question, say so as yourself, 'I have nothing on that', and then give what you "
                       "know, marked as your own. A sighting a crew member tells you belongs in the ship's journal: repeat it back "
                       "as one line (the subject, the time, the position, the count, who saw it) and ask them to enter it on the "
-                      "Nature tab's Journal form. The schedule is the Cap'n's and the human past is the Librarian's: point people to "
+                      "Nature tab's Journal page, where they can also import their photographs from the ship's share, each placed "
+                      "by its own time and position and captioned. The schedule is the Cap'n's and the human past is the Librarian's: point people to "
                       "@capn or @ada for those.")},
     "ada": {"name": "Ada", "emoji": "📚", "beat": "history", "room": "Library",
             "type": ("INTJ, the Architect, with a restless curiosity: sees the shape of a story at once and the pattern behind "
@@ -184,26 +188,9 @@ def model_status(fresh: bool = False) -> dict:
 
 
 def _ops_telegram() -> tuple[str, str]:
-    """The bot token and the operator's chat id: from the environment, else
-    from ~/.config/underway/underway.env, which the server unit does not load."""
-    token = next((os.environ[k] for k in ("UNDERWAY_TELEGRAM_TOKEN", "TELEGRAM_KEY", "TELEGRAM_BOT_TOKEN") if os.environ.get(k)), "")
-    chat_id = os.environ.get("TELEGRAM_ID", "")
-    env = Path.home() / '.config/underway/underway.env'
-    if (not token or not chat_id) and env.is_file():
-        for line in env.read_text().splitlines():
-            k, _, v = line.partition("=")
-            k, v = k.strip(), v.strip().strip('"').strip("'")
-            if k == "TELEGRAM_KEY" and not token:
-                token = v
-            if k == "TELEGRAM_ID" and not chat_id:
-                chat_id = v
-    if not token:
-        try:
-            from .alerts import telegram_token
-            token = telegram_token()
-        except Exception:                   # noqa: BLE001
-            pass
-    return token, chat_id
+    """The bot token and the operator's chat id, from the environment (underway.env)."""
+    from .alerts import telegram_token
+    return telegram_token(), os.environ.get("TELEGRAM_ID", "")
 
 
 def alert_offline(status: dict, what: str = "the chat crew") -> None:
@@ -622,6 +609,14 @@ def history_lines(root: Path, lat, lon, now: datetime | None = None) -> list[str
     return out
 
 
+def navigation_position(lat, lon):
+    def component(value, positive, negative):
+        minutes=round(abs(float(value))*60,3)
+        degrees=int(minutes//60)
+        return f"{degrees}° {minutes-degrees*60:06.3f}′ {positive if value>=0 else negative}"
+    return component(lat,'N','S')+', '+component(lon,'E','W')
+
+
 def _num(x, nd=2):
     try:
         return f"{float(x):.{nd}f}"
@@ -637,11 +632,14 @@ class Crew:
         self.read = read or chat.context    # (channel) -> the room's recent messages, oldest first
         self._pages: list[dict] = []        # the wiki pages the last context drew on
         self._shelf: list[dict] = []        # the pictures and words behind them, for the chips
-        self.lock = threading.Lock()        # one generation at a time
+        self.lock = threading.RLock()       # one generation, or ordered human turn, at a time
+        self._turn_lock = threading.Lock()
+        self._turns = deque()
+        self._turn_worker = None
         self.last_bot = 0.0
         self.seen_update = None
         self.seen_surprise = None
-        self.pause_file = Path.home() / '.config/underway/chat-paused'
+        self.pause_file = CONFIG_DIR / 'chat-paused'
         self.enabled = os.environ.get("UNDERWAY_LLM", "1") == "1" and not self.pause_file.exists()
 
     # ------------------------------------------------------------ context
@@ -669,7 +667,7 @@ class Crew:
         from zoneinfo import ZoneInfo
         local = datetime.now(ZoneInfo("America/Toronto")).strftime("%Y-%m-%d %H:%M %Z")
         lines.append(f"Now (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} (ship time {local}). Latest data at {end[:16].replace('T', ' ')} UTC"
-                     + (f", position {_num(lat, 3)}, {_num(lon, 3)}" if lat is not None else "") + (f", leg {live}" if live else "") + ".")
+                     + (f", position {navigation_position(lat, lon)}" if lat is not None and lon is not None else "") + (f", leg {live}" if live else "") + ". Use this timestamped position rather than coordinates in earlier messages.")
         if beat == "meta":
             return "\n".join(lines)
         want = {"schedule": [("Air temperature (°C)", 1), ("Relative wind speed (kn)", 0), ("Ship speed (kn)", 1), ("Bottom depth (m)", 0),
@@ -774,10 +772,11 @@ class Crew:
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
         own = self.own_room(handle, channel)
         room = {"ship": "the ship's public room, where you speak only when addressed",
-                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in"}.get(channel,
+                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
+                "deck": "the shared Deck, where Ada, Doc and visiting shipmates can all read and join the conversation"}.get(channel,
                f"the {p['room']}, your own room, where every message is a question put to you and deserves a full "
                f"answer, up to about 500 words, with the pages cited" if own else
-               "a private room with one person; only the two of you see it, and you may speak first")
+               "a private chat with the participants shown in the recent conversation; fellow crew members may also be present")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
                   f"dashboard, read by the scientists aboard, who like a laugh. This is {room}. "
@@ -821,10 +820,11 @@ class Crew:
             return text, []
         return chat.chosen_chips(chat.apply_picks(text, reply), shelf)
 
-    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False, slug: str = "") -> None:
-        """Generate and post one remark in a room; in the crew's room another
-        member sometimes riffs on it, usually Polly (one hop only, so they
-        cannot chain forever)."""
+    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False, slug: str = "", hop: int = 0) -> None:
+        """Generate and post one remark in a room. A member the remark
+        @mentions answers it, and in the crew's room another member
+        sometimes riffs on it, usually Polly; either is one hop only
+        (`hop`), so they cannot chain forever."""
         if not self.enabled:
             return
         from . import chat
@@ -859,13 +859,22 @@ class Crew:
                 log.info("crew %s stayed quiet (%s)", handle, e)
             finally:
                 chat.typing(channel, handle, False)
+        if text and hop == 0:
+            # the members they spoke to by handle answer, where they can be in that room
+            room_bots = chat.bots_in(channel)
+            asked = [h.lower() for h in HANDLE_RX.findall(text)]
+            asked = [h for h in dict.fromkeys(asked) if h in PERSONAS and h != handle and (h in room_bots or channel == "ship")]
+            for other in asked:
+                self._speak(other, f"{p['name']} just said to you in the chat: \"{text}\". Reply to them as yourself.", channel, banter=False, hop=1)
+            if asked:
+                return
         if text and banter and channel == "crew" and random.random() < BANTER_P:
             # the reporting gets reported on: Polly, usually; another now and then
             other = "polly" if handle != "polly" and random.random() < 0.7 else random.choice([h for h in PERSONAS if h not in (handle, "polly")])
             time.sleep(random.uniform(8, 25))
             self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
                                f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
-                        channel, banter=False)
+                        channel, banter=False, hop=1)
 
     # ------------------------------------------------------------ triggers
     def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "") -> None:
@@ -888,10 +897,16 @@ class Crew:
             speakers = handles
         elif channel == "crew":
             speakers = handles or ([random.choice(room_bots)] if room_bots else [])
-        elif channel == "ada" or (channel.startswith("dm:") and room_bots == ["doc"]):
-            h = "ada" if channel == "ada" else "doc"
-            speakers = [h] if h in room_bots else []
-            task = (f"{name} asks in the {PERSONAS[h]['room']}: \"{text}\". Answer fully from {'the record and ' if h == 'doc' else ''}the "
+        elif channel == "ada" or channel == "deck" or (channel.startswith("dm:") and room_bots == ["doc"]):
+            # a reading room: the Library (Ada), the Lab (Doc), or the Deck, where both are and both answer
+            # (or the one asked for by handle), each from their own half
+            if channel == "deck":
+                speakers = [h for h in handles if h in room_bots] or list(room_bots)
+            else:
+                h = "ada" if channel == "ada" else "doc"
+                speakers = [h] if h in room_bots else []
+            where = "on the Deck, where Ada and Doc both are" if channel == "deck" else f"in the {PERSONAS[speakers[0]]['room']}" if speakers else ""
+            task = (f"{name} asks {where}: \"{text}\". Answer fully from the record and the "
                     f"pages you have, citing each you draw on by its number in square brackets after the sentence it supports, never "
                     f"by title; speak of the sources by name, never of 'the wiki' or 'the excerpts'; and where you have nothing, say "
                     f"so as yourself. Where a picture or a quotation on the shelf shows what a paragraph of yours says, end that "
@@ -899,8 +914,40 @@ class Crew:
             long = True
         else:
             speakers = room_bots
-        for h in speakers:
-            threading.Thread(target=self._speak, args=(h, task, channel, text), kwargs={"long": long, "slug": slug}, daemon=True).start()
+        if speakers and self.enabled:
+            with self._turn_lock:
+                self._turns.append((speakers, task, channel, text, long, slug))
+                if self._turn_worker is None:
+                    self._turn_worker = threading.Thread(target=self._drain_turns, daemon=True)
+                    self._turn_worker.start()
+
+    def _drain_turns(self) -> None:
+        """One FIFO worker owns human turns, including all requested speakers.
+
+        Each speaker reads the room after the previous response has been posted.
+        Keep the model lock across the turn so background remarks cannot interrupt
+        it. Multi-speaker turns already schedule the handoff; generated @mentions
+        must not call that speaker a second time.
+        """
+        while True:
+            with self._turn_lock:
+                if not self._turns:
+                    self._turn_worker = None
+                    return
+                speakers, task, channel, query, long, slug = self._turns.popleft()
+            with self.lock:
+                for i, handle in enumerate(speakers):
+                    instruction = task
+                    if i:
+                        instruction += (" Read any earlier answers to this question in RECENT CHAT before replying. "
+                                        "Build on what they said from your own expertise, adding useful details or corrections. "
+                                        "Do not repeat their explanation or restart the answer.")
+                    try:
+                        self._speak(handle, instruction, channel, query, long=long, slug=slug,
+                                    banter=len(speakers) == 1, hop=1 if len(speakers) > 1 else 0)
+                    except Exception:
+                        # Posting/integration failures must not strand queued turns.
+                        log.exception("crew turn failed for %s in %s", handle, channel)
 
     def _events(self) -> str | None:
         """A notable change since the last look, as a short description, or None."""

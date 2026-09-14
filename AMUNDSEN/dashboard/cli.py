@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
 
     b = sub.add_parser("build", help="ingest new files and regenerate the dashboard")
     b.add_argument("--root", required=True, type=Path, help="web root to write into")
+    b.add_argument("--tracks-only", action="store_true", help="rebuild track windows while preserving the ship manifest and page")
     b.add_argument("--title", default=DEFAULT_TITLE)
     b.add_argument("--link", action="append", default=[], metavar="LABEL|URL", help="footer link; repeatable")
 
@@ -43,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("gcal-push", help="push queued Google Calendar items and refresh the feed cache")
     sub.add_parser("alerts", help="send due schedule alerts (email and Telegram)")
     sub.add_parser("telegram-bot", help="answer the Telegram bot's commands as they arrive (runs until stopped)")
+    sub.add_parser("codex-bot", help="run the dedicated single-session Codex Telegram bot")
     st = sub.add_parser("satellite", help="render recent Sentinel imagery around the ship when due")
     st.add_argument("--force", action="store_true", help="render now regardless of age and distance")
     st.add_argument("--backfill", metavar="YYYY-MM-DD", help="fill the archive from this day on: a picture a day per sensor of the box round the ship")
@@ -82,6 +84,11 @@ def main(argv: list[str] | None = None) -> int:
         bot_loop()
         return 0
 
+    if a.cmd == "codex-bot":
+        from .telegram_codex import bot_loop
+        bot_loop()
+        return 0
+
     if a.cmd == "satellite":
         from .satellite import backfill, refresh
         if a.backfill:
@@ -97,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
         if url:
             links.append({"label": label.strip(), "url": url.strip()})
     try:
-        r = build(a.root, a.title, links)
+        r = build(a.root, a.title, links, tracks_only=a.tracks_only)
     except RootsUnavailable as e:
         # exit non-zero so the systemd timer surfaces it instead of quietly
         # republishing an empty dashboard over a good one

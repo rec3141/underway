@@ -1,0 +1,12 @@
+{
+  "root": "/data/underway_server/ice",
+  "source": "/data/ship/Data/Camera_360",
+  "url": "http://127.0.0.1:18043",
+  "model": "gemma-camera",
+  "server_unit": "underway-ice-model.service",
+  "port": 18043,
+  "llama_binary": "/path/to/llama-server",
+  "model_path": "/path/to/gemma-4-26B-A4B-it-QAT-Q4_0.gguf",
+  "projector_path": "/path/to/mmproj-gemma-4-26B-A4B-it-QAT-BF16.gguf",
+  "library_path": ""
+}
