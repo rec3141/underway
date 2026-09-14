@@ -21,4 +21,4 @@ def report():
                         'down': check.get('down', False), 'last_check': check.get('last_check')}
                        for url, check in state.get('checks', {}).items()],
             'events': state.get('events', []), 'pending_email': len(state.get('pending', [])),
-            'views': usage.report()}
+            'views': usage.report(), 'ips': usage.report_ips()}

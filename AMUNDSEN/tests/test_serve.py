@@ -72,11 +72,12 @@ class TileServingTests(unittest.TestCase):
         with patch.object(usage, 'DB_DIR', Path(self.tmp.name) / 'usage'):
             conn = http.client.HTTPConnection('127.0.0.1', self.server.server_port, timeout=3)
             try:
-                conn.request('POST', '/api/usage', body='casts')
+                conn.request('POST', '/api/usage', body='casts', headers={'X-Forwarded-For': '192.0.2.42'})
                 response = conn.getresponse()
                 self.assertEqual(response.status, 200)
                 response.read()
                 self.assertEqual(usage.report()[0]['views'], 1)
+                self.assertEqual(usage.report_ips()['today'], 1)
                 conn.request('POST', '/api/usage', body='casts', headers={'Sec-Fetch-Site': 'cross-site'})
                 response = conn.getresponse()
                 self.assertEqual(response.status, 400)

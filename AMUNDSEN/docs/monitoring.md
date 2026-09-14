@@ -3,9 +3,14 @@
 The browser reports a page view on opening the site and switching main tabs.
 Reloads count as new views; automatic data refreshes do not. Counts are grouped
 by UTC day and main page (including Wiki as one page), retained for 90 days in
-`UNDERWAY_DB_DIR/usage.sqlite`. No cookies, IP addresses, visitor identifiers,
-Wiki slugs, search text or referrers are stored. Counts measure page views, not
-unique people, and can miss browsers that block beacons.
+`UNDERWAY_DB_DIR/usage.sqlite`. Client IP addresses are stored separately by UTC day to count distinct addresses
+for today, the last seven days and the retained 90 days. Only aggregate counts
+are returned on the status page. Counting starts when this feature is deployed;
+older page-view records cannot supply historical IP counts. A shared connection
+may represent several people, and one person may use multiple addresses. No
+cookies, Wiki slugs, search text or referrers are stored. Browsers that block
+usage beacons may be missed. Forwarded addresses are accepted only from the
+loopback reverse proxy; direct clients use their socket address.
 
 Read counts using the service account and its database directory:
 
@@ -50,7 +55,7 @@ configuration and `UNDERWAY_UPTIME_URLS` pointing at the ship-facing site.
 
 The unlinked `/status.html` page reports current checks, pending email notice
 count, the latest 100 outage/recovery events recorded after its installation,
-and daily page-view counts. It refreshes every 30 seconds and marks monitoring
+daily page-view counts, and unique client IP counts. It refreshes every 30 seconds and marks monitoring
 older than three minutes as stale. It is also available at
 `/underway/status.html`; no dashboard navigation link is added. The data response
 is `/status.html?format=json` (or the corresponding prefixed path).

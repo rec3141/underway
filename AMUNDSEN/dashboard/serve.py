@@ -316,7 +316,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if not 0 < n <= 32:
                     raise ValueError('Invalid page')
                 self.connection.settimeout(5)
-                usage.record(self.rfile.read(n).decode('ascii'))
+                usage.record(self.rfile.read(n).decode('ascii'), usage.client_ip(self.client_address[0], self.headers.get('X-Forwarded-For', '')))
                 return self._json(200, {'ok': True})
             except (ValueError, UnicodeError):
                 return self._json(400, {'error': 'Invalid page view'})
