@@ -41,6 +41,7 @@
   --floor: rgba(43,52,65,.92); --floor-line: #3b4658;   /* the seafloor under a section */
   /* the basemap without the relief pyramid */
   --map-bg: #0b1620; --map-land: #2b3441; --map-coast: #8ea3ba; --map-ice: #dfe7ef; --sketch-coast: #3a4a5c;
+  --map-name-water: #9fc4e3; --map-name-land: #e3d9c2; --map-name-halo: rgba(11,22,32,.75);
   --map-bathy: #28556f #234b66 #1d405b #183650 #142d45 #10253a #0d1e30 #0a1828 #081422 #07111d #060e19 #050c15;
   /* the data palette: cast lines, event kinds, history kinds, topics; the
      order matters, the scripts pick by index */
@@ -64,6 +65,7 @@ html[data-theme="claude-light"] {
   --plot-bg: #ffffff; --plot-fg: #3b4754; --plot-grid: #e4e9ef; --plot-line: #c3ccd6; --hover-bg: #ffffff; --plot-legend-bg: rgba(255,255,255,.92);
   --marker: #ffffff; --marker-line: #17202a; --floor: rgba(220,226,233,.95); --floor-line: #9aa7b5;
   --map-bg: #bcd6e8; --map-land: #e8e3d5; --map-coast: #66788c; --map-ice: #ffffff; --sketch-coast: #b7c3cf;
+  --map-name-water: #2b5478; --map-name-land: #4f4331; --map-name-halo: rgba(255,255,255,.65);
   --map-bathy: #d6e8f3 #c6ddec #b7d2e6 #a8c7df #99bcd9 #8ab1d2 #7ba6cc #6d9bc5 #5f90be #5285b7 #457ab0 #386fa9;
   --palette: #0969da #bc4c00 #1a7f37 #cf222e #8250df #9a6700 #0550ae #a40e26 #116329 #7d4e00 #218bff #bf3989;
   color-scheme: light;
@@ -84,6 +86,7 @@ html[data-theme="minimal-dark"] {
   --plot-bg: #000000; --plot-fg: #d6d6d6; --plot-grid: #222222; --plot-line: #444444; --hover-bg: #1a1a1a; --plot-legend-bg: rgba(0,0,0,.88);
   --marker: #ffffff; --marker-line: #000000; --floor: rgba(38,38,38,.95); --floor-line: #555555;
   --map-bg: #0a0a0a; --map-land: #262626; --map-coast: #8c8c8c; --map-ice: #e6e6e6; --sketch-coast: #444444;
+  --map-name-water: #b4b4b4; --map-name-land: #dedede; --map-name-halo: rgba(10,10,10,.75);
   --map-bathy: #1f3a4d #1c3446 #182e3f #152838 #122331 #0f1e2a #0d1a24 #0b161f #09131a #071016 #060d12 #050a0e;
   --palette: #8ab4f8 #f5c26b #81c995 #ff8a80 #c58af9 #fdd663 #a8c7fa #ffb4a8 #6ddf8f #f0b429 #cde3ff #ff8bcb;
   color-scheme: dark;
@@ -100,6 +103,7 @@ html[data-theme="minimal-light"] {
   --plot-bg: #ffffff; --plot-fg: #333333; --plot-grid: #e6e6e6; --plot-line: #bbbbbb; --hover-bg: #ffffff; --plot-legend-bg: rgba(255,255,255,.94);
   --marker: #ffffff; --marker-line: #111111; --floor: rgba(228,228,228,.95); --floor-line: #a0a0a0;
   --map-bg: #c9dcea; --map-land: #ebe8df; --map-coast: #707070; --map-ice: #ffffff; --sketch-coast: #c4c4c4;
+  --map-name-water: #4a6580; --map-name-land: #505050; --map-name-halo: rgba(255,255,255,.65);
   --map-bathy: #dbe9f3 #cddfed #bfd5e7 #b1cbe1 #a3c1db #95b7d5 #87adcf #79a3c9 #6b99c3 #5d8fbd #4f85b7 #417bb1;
   --palette: #0b57d0 #b5430b #146c2e #b3261e #6b3fa0 #7a5b00 #0a4d9c #8f1e1e #0f5a26 #6e4400 #1a73e8 #a8326b;
   color-scheme: light;
@@ -121,6 +125,7 @@ html[data-theme="navigator"] {
   --plot-bg: #ffffff; --plot-fg: #000000; --plot-grid: #c0c0c0; --plot-line: #808080; --hover-bg: #ffffe1; --plot-legend-bg: #c0c0c0;
   --marker: #ffffff; --marker-line: #000000; --floor: #c0c0c0; --floor-line: #808080;
   --map-bg: #b0d0f0; --map-land: #c0c0c0; --map-coast: #000000; --map-ice: #ffffff; --sketch-coast: #808080;
+  --map-name-water: #1a3c6e; --map-name-land: #000000; --map-name-halo: rgba(255,255,255,.55);
   --map-bathy: #d0e4f8 #c0daf4 #b0d0f0 #a0c4ec #90b8e8 #80ace4 #70a0e0 #6094d8 #5088d0 #407cc8 #3070c0 #2064b8;
   --palette: #000080 #a04000 #008000 #ff0000 #800080 #808000 #0000ff #ff8000 #008080 #804000 #4040ff #c000c0;
   --radius: 0;
@@ -147,6 +152,7 @@ html[data-theme="navigator-dark"] {
   --plot-bg: #202020; --plot-fg: #f0f0f0; --plot-grid: #484848; --plot-line: #808080; --hover-bg: #ffffe1; --plot-legend-bg: #3a3a3a;
   --marker: #ffffff; --marker-line: #000000; --floor: #505050; --floor-line: #909090;
   --map-bg: #182838; --map-land: #3a3a3a; --map-coast: #d0d0d0; --map-ice: #e0e0e0; --sketch-coast: #808080;
+  --map-name-water: #a9c9e9; --map-name-land: #ececec; --map-name-halo: rgba(24,40,56,.75);
   --map-bathy: #2a4a6a #274462 #243e5a #213852 #1e324a #1b2c42 #18263a #152032 #121a2a #0f1422 #0c0e1a #090812;
   --palette: #5c8cff #ffb000 #40ff40 #ff5050 #ff80ff #ffff40 #40ffff #ff8040 #40c0c0 #d0a000 #a0c0ff #ff80c0;
   --face: #4a4a4a; --bevel: #707070; --bevel-hi: #9a9a9a; --bevel-lo: #202020; --pressed: #000080; --pressed-fg: #ffffff;

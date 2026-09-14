@@ -140,6 +140,9 @@ from GeoNames (CC BY 4.0), with a curated list of Inuit, Greenlandic and older
 colonial names. Labels thin out with zoom (population 2000+ far out, all when
 close in). Refresh the layer with `tools/make_communities.py` after downloading
 new `CA.zip`/`GL.zip` dumps from geonames.org into `/data/gis/geonames/`.
+A **Names** layer (bays, sounds, straits, islands, capes, lakes, rivers,
+glaciers, mountains) appears as a pill when its tiles exist; see *Geographic
+names* below.
 
 ### Cast cache
 
@@ -419,8 +422,12 @@ source and GDAL live, and copied to the ship:
 ogr2ogr -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTILINESTRING coast.gpkg coastlines-split-4326/lines.shp -nln coast
 ogr2ogr -update -t_srs EPSG:3857 -clipdst <box in metres> -nlt MULTIPOLYGON coast.gpkg land-polygons-split-4326/land_polygons.shp -nln land
 ogr2ogr -f MVT coast coast.gpkg -dsco MINZOOM=0 -dsco MAXZOOM=10 -dsco COMPRESS=NO
-rsync -a coast/ ship:/data/gis/tiles/coast/
 ```
+
+Grid keeps the result as `/data/gis/tiles/coast/`; the ship pulls it (grid
+cannot reach the ship) with `tools/tiles-pull.sh`, which copies every tile
+set grid has, each swapped in whole (`tools/tiles-pull.sh status` lists what
+is on either side).
 
 The shoreline must come from OSM's coastline *lines*, not from the boundary
 of the land polygons: the polygons are shipped split into a grid, and their
@@ -431,6 +438,46 @@ layer names (`vector_tiles` in `build.py`); the map then draws the `coast`
 layer as the shoreline and, without the relief raster, the `land` layer as
 land, and fetches neither Natural Earth file. Glaciers and depth bands stay
 Natural Earth.
+
+## Geographic names (optional)
+
+`tools/make_names_tiles.py` cuts the geographic names of the map's box as
+vector tiles: every official name in the Canadian Geographical Names Database
+(Open Government Licence – Canada) and GeoNames' Greenland dump (CC BY 4.0),
+less the settlements (the Places layer has them) and the roads, parks and
+reserves. Each name carries the zoom it first shows at — from CGNDB's
+"relevance at scale" field, with a floor by generic term so a cove never
+shows far out, and by hand for the Greenland names the world knows — and the
+tiles hold one layer per band, so a far-out tile carries a few dozen names
+and a close-in one every name there is. The map draws a symbol layer per
+band, water names in italic (`Open Sans Italic`, served beside the Regular
+glyphs) and land names upright, and MapLibre's collision engine thins the
+rest; the page's own labels sit above them. CGNDB names in an Indigenous
+language show over the English on a second line. The sources are downloaded
+on grid, where GDAL lives, and the tiles copied to the ship like the
+coastline:
+
+```sh
+mkdir -p /data/gis/names/src && cd /data/gis/names/src
+curl -O https://ftp.maps.canada.ca/pub/nrcan_rncan/vector/geobase_cgn_toponyme/prov_csv_eng/cgn_canada_csv_eng.zip
+curl -O https://download.geonames.org/export/dump/GL.zip
+tools/make_names_tiles.py /data/gis/names/src /data/gis/tiles/names     # ~30 s, 34,000 tiles, 140 MB
+```
+
+Then, on the ship, `tools/tiles-pull.sh names` (or plain `tools/tiles-pull.sh`
+for every set grid has).
+
+The build reads the writer's `metadata.json` (`vector_tiles` in `build.py`,
+as for the coast) and the Names pill appears. Known gaps: no names for the
+Alaskan sliver of the box (GeoNames' US dump is large; add it to the script
+if the ship works the Beaufort), and the Greenland labels are GeoNames'
+primary form, often the Danish one (Scoresby Sund) rather than the
+Greenlandic (Kangertittivaq).
+
+The glyphs under `static/geo/glyphs/` are built with `fontnik`
+(`npm install fontnik`, then `fontnik.range({font, start, end})` for the
+four Latin ranges 0–1023) from the Open Sans TTFs in the googlefonts/opensans
+repository.
 
 ## Publishing to the public web
 
@@ -495,7 +542,15 @@ the share being unreachable, and the published manifest lists no cameras.
   `app.js`): every trace becomes features of four layers (lines, circles,
   sprite icons, labels), so a redraw is a `setData` on each and the ship's
   position one on a one-point source. The basemap style is reloaded only when
-  its id changes (theme, satellite picture, geography).
+  its id changes (theme, satellite picture, geography, the names layer).
+- The map is drawn as a globe (`projection: globe` in the style), not in Web
+  Mercator: at the ship's latitudes Mercator stretches the map four to eight
+  times. The tiles are still Web Mercator tiles, drawn on the sphere, so
+  nothing exists above 85.05° N and the pole is blank; a true polar
+  projection would mean another library (issue #90). Consequences in the
+  code: a view can be a box to fit (`{bounds}`) rather than a centre and zoom,
+  and the scale bar and the track-detail spacing read the ground distance off
+  the map with `unproject` instead of a Mercator formula.
 - The chosen *Colour by* variable colours the map track and every panel's
   points on one shared scale (5–95 % of what is shown).
 - Panels can be dragged to reorder, expanded (⤢) or minimised (—) to the

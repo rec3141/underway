@@ -59,6 +59,9 @@ class TilesTests(unittest.TestCase):
             self.assertEqual((v["minzoom"], v["maxzoom"], v["layers"]), (0, 11, ["land", "coast"]))
             self.assertEqual(v["bounds"], [-150.0, 45.0, -15.0, 86.0])
             self.assertTrue(v["url"].startswith("static/tiles/coast/{z}/{x}/{y}.pbf?v="))
+            self.assertIn("OpenStreetMap", v["attribution"])
+            n = vector_tiles(Path(tmp) / "coast", "Names: CGNDB")
+            self.assertEqual((n["attribution"], n["layers"]), ("Names: CGNDB", ["land", "coast"]))
 
 
 if __name__ == "__main__":

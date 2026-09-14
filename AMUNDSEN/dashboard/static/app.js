@@ -42,6 +42,7 @@
     events: store.get("events", false),                 // event-log entries on the map
     photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
     communities: true,                                  // the settlements with people in them are always on the map
+    names: store.get("names", true),                    // the geographic names: bays, sounds, straits, islands, capes, lakes, rivers (tools/make_names_tiles.py)
     plan: store.get("plan", true),                      // the leg's planned track and stations
     history: store.get("history", false),               // the History tab's artifacts and voyage tracks
     nature: store.get("nature", false),                 // the Nature tab's observations
@@ -94,7 +95,8 @@
     const cs = getComputedStyle(document.documentElement);
     const v = (k) => cs.getPropertyValue("--" + k).trim();
     for (const k of ["bg", "card", "card-2", "line", "fg", "fg-2", "muted", "accent", "on-accent", "accent-2", "warn", "ok", "bad", "now", "purple", "pink", "gold",
-                     "marker", "marker-line", "floor", "floor-line", "map-bg", "map-land", "map-coast", "map-ice", "sketch-coast", "plot-legend-bg"])
+                     "marker", "marker-line", "floor", "floor-line", "map-bg", "map-land", "map-coast", "map-ice", "map-name-water", "map-name-land", "map-name-halo",
+                     "sketch-coast", "plot-legend-bg"])
       C[k.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())] = v(k);
     C.palette = v("palette").split(/\s+/);
     C.bathy = v("map-bathy").split(/\s+/);
@@ -456,7 +458,9 @@
       sel.onchange = () => { state.colour = sel.value; store.set("colour", sel.value); renderControls(); render(); };
     }
 
-    // the map layers: on/off toggles in the bar above the map
+    // the map layers: on/off toggles in the bar above the map; the names pill only when the build found the tiles
+    const namesPill = document.querySelector('#maplayers button[data-layer="names"]');
+    if (namesPill) namesPill.hidden = !SITE.names;
     for (const b of document.querySelectorAll("#maplayers button[data-layer]")) {
       const layer = b.dataset.layer;
       b.classList.toggle("on", !!state[layer]);
@@ -596,7 +600,11 @@
   function mapStyle(sat, near) {
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const relief = !!SITE.raster;
-    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}`,
+    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}|names:${state.names ? 1 : 0}`,
+                    // a globe, not Web Mercator: at the ship's latitudes Mercator stretches the map four to eight
+                    // times, and on the globe distances and areas read true. The tiles are the same Web Mercator
+                    // tiles drawn on the sphere, so nothing exists above 85 N, where that tiling ends.
+                    projection: { type: "globe" },
                     sources: {},
                     sprite: base0 + (SITE.sprite || "static/geo/sprite"),   // squares, triangles, the ship (tools/make_sprite.py); versioned by the build
                     // MapLibre draws labels (and any symbol layer carrying text) only with a glyph source;
@@ -637,34 +645,55 @@
     }
     if (vt) style.layers.push({ id: "coast", type: "line", source: "coast", "source-layer": "coast", paint: { "line-color": C.mapCoast, "line-width": 1 } });
     add("coast", g.coast, { type: "line", paint: { "line-color": C.mapCoast, "line-width": 1 } });
+    // the geographic names (tools/make_names_tiles.py): a tile layer per band, each from the
+    // zoom its names belong at, water in italic and land upright. Placement runs from the top
+    // layer down, so the far-out bands go in last and win the collisions; the page's own
+    // labels (places, stations) sit above all of them.
+    const nt = SITE.names;
+    if (nt && state.names && nt.layers?.length) {
+      style.sources.names = { type: "vector", tiles: [base0 + nt.url], minzoom: nt.minzoom, maxzoom: nt.maxzoom,
+                              ...(nt.bounds ? { bounds: nt.bounds } : {}), attribution: nt.attribution };
+      const bands = nt.layers.map((l) => [l, +l.replace(/\D/g, "")]).sort((a, b) => b[1] - a[1]);
+      for (const [layer, band] of bands) {
+        const size = band <= 2 ? 15 : band <= 3 ? 14 : band <= 4 ? 13 : band <= 6 ? 12 : band <= 8 ? 11 : 10.5;
+        style.layers.push({ id: `names-${layer}`, type: "symbol", source: "names", "source-layer": layer, minzoom: band,
+          layout: { "text-field": ["get", "n"], "text-size": fz(size), "text-max-width": 9, "text-line-height": 1.15, "text-padding": 4,
+                    "text-font": ["case", ["==", ["get", "w"], 1], ["literal", ["Open Sans Italic"]], ["literal", ["Open Sans Regular"]]],
+                    "text-letter-spacing": band <= 3 ? 0.15 : band <= 4 ? 0.08 : 0.02, "text-transform": band <= 3 ? "uppercase" : "none" },
+          paint: { "text-color": ["case", ["==", ["get", "w"], 1], C.mapNameWater, C.mapNameLand],
+                   "text-halo-color": C.mapNameHalo, "text-halo-width": 1.1, "text-halo-blur": 0.4 } });
+      }
+    }
     return style;
   }
 
-  // Web-Mercator zoom that fits a lat/lon box into the map element, minus a margin.
+  // The view that fits a lat/lon box: the box itself, for the map to fit
+  // (on the globe the zoom a box needs is the map's to work out).
   function fitView(lats, lons) {
-    const el = $("#map");
-    const W = Math.max(200, el.clientWidth), H = Math.max(200, el.clientHeight);
     let [lat0, lat1] = minmax(lats), [lon0, lon1] = minmax(lons);
     if (!isFinite(lat0) || !isFinite(lon0)) return { center: { lat: 70, lon: -90 }, zoom: 3 };
     const minSpan = 0.05;                                       // a stationary ship still gets a sensible box
     if (lat1 - lat0 < minSpan) { lat0 -= minSpan / 2; lat1 += minSpan / 2; }
     if (lon1 - lon0 < minSpan) { lon0 -= minSpan / 2; lon1 += minSpan / 2; }
-    const mercY = (lat) => { const r = lat * Math.PI / 180; return Math.log(Math.tan(Math.PI / 4 + r / 2)) / (2 * Math.PI); };
-    const zLon = Math.log2((W / 512) * 360 / (lon1 - lon0));
-    const zLat = Math.log2((H / 512) / (mercY(lat1) - mercY(lat0)));
-    const zoom = Math.min(zLon, zLat) - 0.35;
-    const cLat = Math.atan(Math.sinh(Math.PI * ((mercY(lat0) + mercY(lat1))))) * 180 / Math.PI;
-    return { center: { lat: cLat, lon: (lon0 + lon1) / 2 }, zoom: Math.max(1, Math.min(14, zoom)) };
+    return { bounds: [[lon0, lat0], [lon1, lat1]] };
+  }
+  // metres on the ground per screen pixel at the map's centre, read off the
+  // map itself (the globe has no one scale to compute)
+  function metresPerPixel() {
+    const m = mapView?.map, el = $("#map");
+    if (!m || !el?.offsetHeight) return null;
+    const x = el.clientWidth / 2, y = el.clientHeight / 2;
+    try { return m.unproject([x - 10, y]).distanceTo(m.unproject([x + 10, y])) / 20; } catch { return null; }
   }
 
   // ------------------------------------------------------------ map
   // The scale bar: a 1, 2 or 5 figure of metres or kilometres, as long as it
-  // is at the map's centre latitude and zoom (Web Mercator, 512 px tiles), at
-  // most 120 px wide, placed over the map's bottom-left corner.
+  // is at the map's centre, at most 120 px wide, placed over the map's
+  // bottom-left corner.
   function updateScale() {
     const el = $("#mapscale"), map = $("#map");
-    if (!el || !map || !map.offsetHeight || !state.view?.center) { if (el) el.hidden = true; return; }   // no map shown: no bar
-    const mpp = 40075016.686 * Math.cos(state.view.center.lat * Math.PI / 180) / (512 * Math.pow(2, state.view.zoom));
+    const mpp = metresPerPixel();
+    if (!el || !map || !map.offsetHeight || !(mpp > 0)) { if (el) el.hidden = true; return; }   // no map shown: no bar
     const maxM = 120 * mpp, pow = Math.pow(10, Math.floor(Math.log10(maxM)));
     const len = [5, 2, 1].map((f) => f * pow).find((L) => L <= maxM) || pow;
     el.querySelector(".bar").style.width = `${Math.round(len / mpp)}px`;
@@ -680,7 +709,7 @@
   // Centre the map on a point (a table row, an event) and mark it.
   function focusMap(lat, lon, label, preserveZoom = false) {
     if (lat == null || lon == null) return;
-    const currentZoom = mapView?.getView()?.zoom ?? state.view?.zoom ?? fitView(state.data?.lat || [lat], state.data?.lon || [lon]).zoom;
+    const currentZoom = mapView?.getView()?.zoom ?? state.view?.zoom ?? 6;
     const zoom = preserveZoom ? currentZoom : Math.max(currentZoom, 6);
     state.view = { center: { lat: +lat, lon: +lon }, zoom }; state.fitPending = false;
     state.focus = { lat: +lat, lon: +lon, label: label || "" };
@@ -1039,11 +1068,11 @@
     setLoadError('Track', false);
   }
   function trackSpacing() {
-    const map = mapView?.map;
-    if (!map) return 0.1;
-    // Two screen pixels in Web Mercator, using latitude so Arctic zooms
-    // receive the same ground detail as views farther south.
-    const km = 2 * 40075.016686 * Math.cos(map.getCenter().lat * Math.PI / 180) / (512 * 2 ** map.getZoom());
+    const mpp = metresPerPixel();
+    if (!(mpp > 0)) return 0.1;
+    // two screen pixels of ground at the map's centre, so Arctic zooms
+    // receive the same ground detail as views farther south
+    const km = 2 * mpp / 1000;
     return km >= 0.1 ? 0.1 : km >= 0.025 ? 0.025 : km >= 0.005 ? 0.005 : 0;
   }
   function scheduleTrack() {
@@ -1119,9 +1148,10 @@
     // event-log entries, then the stations (which keep the clicks)
     const f0 = spanFilter();
     const view = (!state.fitPending && state.view) || fitView(overview.lat, overview.lon);
-    labelsAt = labelBuckets(view.zoom);
-    const traces = [...planTraces(view.zoom), ...(window.UW?.extraMapTraces?.() || [])];
-    const placeTr = placeTraces(view.zoom);
+    const zoom = mapView?.zoomFor(view) ?? view.zoom ?? 4;       // a fit's zoom is known only once the map can work it out
+    labelsAt = labelBuckets(zoom);
+    const traces = [...planTraces(zoom), ...(window.UW?.extraMapTraces?.() || [])];
+    const placeTr = placeTraces(zoom);
     const evTraces = eventTraces(f0);
     if (state.track) traces.push({
       type: "scattermap", mode: "lines+markers", name: "track",
@@ -1184,7 +1214,7 @@
     try {
       mapView.draw({ style: mapStyle(sat, near), view, base: traces, live: liveTraces(ship) }).then(() => {
         state.fitPending = false;
-        if (!state.view) state.view = view;
+        if (!state.view) state.view = mapView.getView() || view;   // where a fit landed, as centre and zoom
         updateScale();
         scheduleTrack();
       });
@@ -1581,7 +1611,8 @@
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
       `<p>Times and time axes are ship time (${SITE.local_tz}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}${SITE.vector ? "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers" : "Natural Earth 10 m coastline, land and glaciers"}${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally; Web Mercator.</p>`;
+      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}${SITE.vector ? "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers" : "Natural Earth 10 m coastline, land and glaciers"}${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland)${SITE.names ? "; geographic names from the Canadian Geographical Names Database (Open Government Licence – Canada) and GeoNames (CC BY 4.0), more of them the closer you zoom" : ""}; all served locally. ` +
+      `The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.</p>`;
   }
 
   // ------------------------------------------------------------ data flow

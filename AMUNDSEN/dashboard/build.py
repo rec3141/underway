@@ -421,11 +421,12 @@ def raster_pyramid(tiles: Path) -> dict | None:
             "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
 
 
-def vector_tiles(tiles: Path) -> dict | None:
-    """Describe a coastline vector tile set (ogr2ogr -f MVT, see the README) for
-    the map: zoom range, bounds and layer names from the metadata.json the
-    writer leaves beside the tiles. Like the raster pyramid it lives on local
-    disk and is used when present."""
+def vector_tiles(tiles: Path, attribution: str = "© OpenStreetMap contributors (ODbL)") -> dict | None:
+    """Describe a vector tile set (ogr2ogr -f MVT, see the README) for the
+    map: zoom range, bounds and layer names from the metadata.json the writer
+    leaves beside the tiles. The coastline and the geographic names are both
+    cut this way. Like the raster pyramid they live on local disk and are
+    used when present."""
     meta = tiles / "metadata.json"
     if not meta.is_file():
         return None
@@ -434,7 +435,7 @@ def vector_tiles(tiles: Path) -> dict | None:
     bounds = [float(v) for v in str(m["bounds"]).split(",")] if m.get("bounds") else None
     v = int(meta.stat().st_mtime)
     return {"url": f"static/tiles/{tiles.name}/{{z}}/{{x}}/{{y}}.pbf?v={v}", "minzoom": int(m.get("minzoom", 0)), "maxzoom": int(m.get("maxzoom", 14)),
-            "bounds": bounds, "layers": layers, "attribution": "© OpenStreetMap contributors (ODbL)"}
+            "bounds": bounds, "layers": layers, "attribution": attribution}
 
 
 def _limits(vals: list) -> list | None:
@@ -731,9 +732,10 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     from .serve import TILES_DIR
     raster = raster_pyramid(TILES_DIR / "gebco")
     vector = vector_tiles(TILES_DIR / "coast")
+    names = vector_tiles(TILES_DIR / "names", "Names: Canadian Geographical Names Database (Open Government Licence – Canada), GeoNames (CC BY 4.0)")
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
-            "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "vector": vector, "low_flow_v": LOW_FLOW_V,
+            "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "vector": vector, "names": names, "low_flow_v": LOW_FLOW_V,
             "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size),

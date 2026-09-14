@@ -28,6 +28,8 @@
   const DEFAULT_COLOUR = "#1f77b4";                   // Plotly's first colour, for a trace that names none
   const NULL_COLOUR = "#7d8895";                      // a point whose value is missing on a coloured track
   const PICK_PX = 7;                                  // how near the pointer a point must be to be hovered or clicked
+  const FIT_PAD = 28;                                 // pixels kept clear round a box the view is fitted to
+  const FIT_MAX = 14;                                 // a fit never zooms closer than this
 
   // ---------------------------------------------------------------- colour maps
   // [position, colour] stops shared by the map, the charts and the colour bars.
@@ -173,7 +175,9 @@
       this.tip.className = "maptip"; this.tip.hidden = true;
     }
 
-    // draw: the basemap style (reloaded only when its id changes), the view,
+    // draw: the basemap style (reloaded only when its id changes), the view
+    // ({center, zoom}, or {bounds: [[w, s], [e, n]]} to fit a box: on the
+    // globe the zoom that fits a box is the map's to work out, not ours),
     // and the traces of either group (a group left out keeps what it has)
     draw({ style, view, base, live }) {
       if (!this.map) this.create(style, view);
@@ -186,8 +190,10 @@
 
     create(style, view) {
       this.styleId = style.id;
+      const camera = view?.bounds ? { bounds: view.bounds, fitBoundsOptions: { padding: FIT_PAD, maxZoom: FIT_MAX } }
+        : { center: view ? [view.center.lon, view.center.lat] : [-90, 70], zoom: view ? view.zoom : 3 };
       this.map = new maplibregl.Map({
-        container: this.el, style, center: view ? [view.center.lon, view.center.lat] : [-90, 70], zoom: view ? view.zoom : 3,
+        container: this.el, style, ...camera,
         attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0,
         fadeDuration: 0, renderWorldCopies: true,
       });
@@ -256,9 +262,17 @@
     }
 
     setView(view) {
+      if (view.bounds) { this.map.fitBounds(view.bounds, { padding: FIT_PAD, maxZoom: FIT_MAX, animate: false }); return; }
       const cur = this.getView();
       if (cur && Math.abs(cur.zoom - view.zoom) < 1e-3 && Math.abs(cur.center.lat - view.center.lat) < 1e-6 && Math.abs(cur.center.lon - view.center.lon) < 1e-6) return;
       this.map.jumpTo({ center: [view.center.lon, view.center.lat], zoom: view.zoom });
+    }
+
+    // the zoom a view lands at: its own, or the one that fits its box (null before the map exists)
+    zoomFor(view) {
+      if (view?.zoom != null) return view.zoom;
+      if (!view?.bounds || !this.map) return null;
+      try { return this.map.cameraForBounds(view.bounds, { padding: FIT_PAD, maxZoom: FIT_MAX })?.zoom ?? null; } catch { return null; }
     }
 
     resize() { this.map?.resize(); }
