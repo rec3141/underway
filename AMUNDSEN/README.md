@@ -163,8 +163,8 @@ seconds (these timings predate the initial track-chunk publication).
 
 The map loads observations independently of the charts. `manifest.track`
 indexes immutable, content-addressed chunks of at most 2,048 observations at
-100 m, 25 m, 5 m, and native resolution. Auto detail follows the map's ground
-scale automatically, never exceeding 100 m spacing. Selection preserves actual
+1 km, 100 m, 25 m, 5 m, and native resolution. Auto detail follows the map's ground
+scale automatically, never exceeding 1 km spacing. Selection preserves actual
 observations, bends, leg boundaries, and gaps. Native observations farther
 apart than the selected spacing remain gaps in sampling; no points are invented.
 Charts continue to use time-averaged windows. New builds no longer publish
@@ -496,7 +496,8 @@ in two hops, because the ship's firewall lets it reach grid and nothing else:
    and the history layer. Grid retains its generated data. Use
    `publish-web.sh push --dry-run` to preview source and site transfers without
    rebuilding or deploying; the source destination directories may be created.
-3. **On grid**, `publish-web.sh rebuild-deploy` stages a `build --tracks-only`
+3. **On grid**, each push first fast-forwards the checkout from `origin/master`
+   under the deployment lock. `publish-web.sh rebuild-deploy` stages a `build --tracks-only`
    from `source/Data`, `source/Share` and the recorded live snapshots. Per-leg
    stores and analysis caches stay in grid's `db/` and `cache/` for reuse.
    The build verifies source leg order against the incoming manifest, then
@@ -521,9 +522,13 @@ python3 -m venv /data/underway_server/.venv
 source destination a dedicated absolute directory ending in `/source`.
 `UNDERWAY_PUBLISH_STATE_DIR` defaults to the parent of the mirror's `www/`.
 
-Enable fifteen-minute pushes on the ship with `sudo deploy/install.sh` and
+Enable five-minute pushes on the ship with `sudo deploy/install.sh` and
 `sudo systemctl enable --now underway-publish.timer`. The first run can ingest
 all source records; subsequent runs reuse stores and rsync only changes.
+Each transfer logs `Total bytes sent` and `Total bytes received` in
+`journalctl -u underway-publish.service`; these are the compressed rsync transfer
+counts (before SSH/network overhead), unlike `Total transferred file size`,
+which counts whole changed files even when only their deltas cross the link.
 
 What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
 photographs (`/journal/`) and the raster tiles.

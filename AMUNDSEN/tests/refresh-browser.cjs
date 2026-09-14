@@ -29,7 +29,7 @@ const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc
 function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
-    ...(process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
+    ...(process.env.PHOTO_UI||process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -40,13 +40,16 @@ function manifest() {
   };
 }
 function dataset(p) {
-  if((process.env.NATURE_UI||process.env.WIKI_UI||process.env.UPLOAD_UI||process.env.CHAT_WIKI_UI) && p.startsWith('/data/history/')) {
+  if(process.env.STATUS_UI && p==='/api/alerts/inbox') return {messages:[{t:'2026-09-13T12:00:00Z',text:'Schedule changed: test station'}]};
+  if(process.env.WIKI_LAYER_UI && p==='/data/history/artifacts.json') return {artifacts:[{id:'test',page:'artifact/test',type:'image',title:'Test artifact',lat:76,lon:-78}]};
+  if(process.env.WIKI_LAYER_UI && p==='/data/history/pages/artifact__test.json') return {slug:'artifact/test',ref:'test',kind:'artifact',title:'Test artifact',html:'Test description'};
+  if((process.env.PHOTO_UI||process.env.NATURE_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.UPLOAD_UI||process.env.CHAT_WIKI_UI) && p.startsWith('/data/history/')) {
     if(p.endsWith('/index.json')) return {topics:[],pages:[]};
     if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
     if(p.endsWith('/observations.json')) return {observations:[{id:'seal',subject:'Seal',date:'2020-01-01',lat:76,lon:-78},{id:'rock',subject:'Rock',date:'2020-01-01',lat:77,lon:-79}]};
     return {};
   }
-  if(p==='/api/nature/journal') return {observations:[]};
+  if(p==='/api/nature/journal') return process.env.PHOTO_UI ? {entries:[{id:'photo-a',subject:'Seal',detail:'Wide photo.',observer:'Piper',date:'2026-09-04',artifact_file:'_journal/img/a.svg'},{id:'photo-b',subject:'Rock',detail:'Tall photo.',observer:'Finch',date:'2026-09-03',artifact_file:'_journal/img/b.svg'}]} : {observations:[]};
   if(p==='/data/manifest.json') return manifest();
   if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation],...(process.env.DEPTH_UI?{'Bottom depth (m)':[25,100],'Rosette depth (m)':[25,100]}:{})},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
   if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
@@ -74,6 +77,7 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname.replace(/^\/underway\//,'/'); requests.push(req.url);
+  if(process.env.PHOTO_UI && p.startsWith('/journal/')) {res.setHeader('Content-Type','image/svg+xml');res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="${p.endsWith('a.svg')?1600:600}" height="${p.endsWith('a.svg')?600:1600}"><rect width="100%" height="100%" fill="teal"/></svg>`);return;}
   if(p==='/api/usage' && req.method==='POST') {let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{pageViews.push(body);res.end('{}');});return;}
   if(process.env.UPLOAD_UI && p.startsWith('/api/nature/')) {
     res.setHeader('Content-Type','application/json');
@@ -158,6 +162,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(process.env.TIMEZONE_UI) await call('Emulation.setTimezoneOverride',{timezoneId:process.env.TIMEZONE_UI});
     await call('Page.addScriptToEvaluateOnNewDocument',{source:`
       window.__errors=[];
+      ${process.env.WIKI_LAYER_UI?'localStorage.setItem("uw:history","true");localStorage.setItem("uw:nature","true");':''}
       ${process.env.SUMMARY_UI?'':"localStorage.setItem('uw:panel','{}');"}
       addEventListener('error',e=>window.__errors.push(e.message));
       addEventListener('unhandledrejection',e=>window.__errors.push(String(e.reason)));
@@ -177,6 +182,74 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.PHOTO_UI) {
+      await evaluate('UW.showTab("photos")');
+      await until('document.querySelectorAll(".gallery .gcard").length===2');
+      await evaluate('document.querySelector(".gcard").click()');
+      await until('document.querySelector(".photo-detail img")?.naturalWidth===1600');
+      const fitted = () => evaluate('(()=>{const img=document.querySelector(".photo-detail img"),r=img.getBoundingClientRect();return r.bottom<=innerHeight && r.right<=innerWidth && getComputedStyle(img).objectFit==="contain"})()');
+      assert.equal(await fitted(),true);
+      for (const width of [1440,390]) {
+        await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:false});
+        await evaluate('window.dispatchEvent(new Event("resize"))');
+        assert.equal(await fitted(),true);
+      }
+      if(process.env.UI_SCREENSHOT) {const shot=await call('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
+      await evaluate('window.__otherDialog=document.createElement("dialog");document.body.append(window.__otherDialog);window.__otherDialog.showModal();window.__otherDialog.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true}))');
+      assert.equal(await evaluate('document.querySelector(".photo-detail").dataset.photo'),'photo-a');
+      await evaluate('window.__otherDialog.close();window.__otherDialog.remove()');
+      await evaluate('document.querySelector(".photo-next").click()');
+      await until('document.querySelector(".photo-detail").dataset.photo==="photo-b"');
+      assert.equal(await fitted(),true);
+      await evaluate('document.body.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowLeft",bubbles:true}))');
+      await until('document.querySelector(".photo-detail").dataset.photo==="photo-a"');
+      await evaluate('document.querySelector(".photo-open").click()');
+      await until('document.querySelector(".photo-slideshow[open]")');
+      await evaluate('document.querySelector(".photo-slideshow .photo-next").click()');
+      assert.equal(await evaluate('document.querySelector(".photo-slideshow img").src.endsWith("b.svg")'),true);
+      await evaluate('document.querySelector(".photo-slideshow").dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowLeft",bubbles:true}))');
+      assert.equal(await evaluate('document.querySelector(".photo-slideshow img").src.endsWith("a.svg")'),true);
+      await evaluate('document.querySelector(".photo-slideshow").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');
+      await until('!document.querySelector(".photo-slideshow")');
+      await evaluate('document.querySelector("#histback").click()');
+      await until('document.querySelectorAll(".gallery .gcard").length===2');
+      assert.equal(await evaluate('UW.histShared.slug()'),'journal');
+      await evaluate('UW.histShared.open("observation/photo-b")');
+      await until('document.querySelector(".photo-detail")');
+      await evaluate('document.querySelector(".photo-gallery").click()');
+      await until('document.querySelectorAll(".gallery .gcard").length===2');
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS gallery return, whole-image fit, previous/next and keyboard/fullscreen slideshow');return;
+    }
+    if(process.env.STATUS_UI) {
+      await evaluate('UW.M.calendar.now={in_progress:[]};UW.store.set("sched.mode","hidden");UW.webId();UW.pollInapp()');
+      await until('document.querySelector("#inapp").textContent.includes("Schedule changed")');
+      assert.equal(await evaluate('document.querySelector("#inapp").parentElement.id'),'alert');
+      assert.equal(await evaluate('document.querySelector("#alert").hidden'),false);
+      assert.equal(await evaluate('document.querySelector("#schedrow").hidden'),true);
+      assert.equal(await evaluate('document.querySelector("#schedticker").hidden'),true);
+      await evaluate('document.querySelector("#inapp .clear").click()');
+      assert.equal(await evaluate('document.querySelector("#alert").hidden'),true);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS hidden-schedule inbox alert uses status bar and clears without opening schedule');return;
+    }
+    if(process.env.WIKI_LAYER_UI) {
+      assert.deepEqual(await evaluate('[UW.state.history,UW.state.nature]'),[false,false]);
+      await evaluate('UW.store.set("hist.types",[]);UW.showTab("wiki")');
+      await until('UW.histShared');
+      await evaluate('UW.histShared.open("artifact/test")');
+      await until('document.querySelector(".artmeta .pin[data-type]")');
+      assert.deepEqual(await evaluate('[UW.state.history,UW.state.nature]'),[false,false]);
+      await evaluate('document.querySelector(".artmeta .pin[data-type]").click()');
+      assert.deepEqual(await evaluate('[UW.state.history,UW.state.nature]'),[false,false]);
+      assert.deepEqual(await evaluate('UW.store.get("hist.types")'),[]);
+      await evaluate(`document.querySelector('[data-domain="history"]').click()`);
+      assert.deepEqual(await evaluate('[UW.state.history,UW.state.nature]'),[false,false]);
+      await evaluate(`document.querySelector('#maplayers button[data-layer="history"]').click()`);
+      assert.equal(await evaluate('UW.state.history'),true);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS artifact open, map pin and browsing filter preserve disabled layers; explicit map toggle enables');return;
+    }
     if(process.env.CHAT_WIKI_UI) {
       await evaluate('UW.chatToggle(); document.querySelector("#chatname").value="Taken"; document.querySelector("#chatname").onchange()');
       await until('document.querySelector("#chaterror")?.textContent==="that name is in use"');

@@ -37,7 +37,7 @@
     return false;
   }
   function chooseLevel(track, spacingKm) {
-    const requested = Math.max(0, Math.min(.1, Number.isFinite(spacingKm) ? spacingKm : .1));
+    const requested = Math.max(0, Math.min(1, Number.isFinite(spacingKm) ? spacingKm : 1));
     return (track?.levels || []).filter(l => l.spacing_km >= 0 && l.spacing_km <= requested)
       .sort((a, b) => b.spacing_km - a.spacing_km)[0];
   }

@@ -33,6 +33,18 @@ class TrackTests(unittest.TestCase):
         turn['lat'] = [70, 70, 70, 70.0001, 70.0002]
         self.assertIn(2, _select(turn, .025))
 
+    def test_one_km_level_reduces_points_with_bounded_spacing(self):
+        f = frame(1000)
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = publish_track(f, Path(directory))
+            coarse, finer = manifest['levels'][:2]
+            self.assertEqual(coarse['spacing_km'], 1)
+            self.assertEqual(finer['spacing_km'], .1)
+            self.assertLess(sum(c['n'] for c in coarse['chunks']), sum(c['n'] for c in finer['chunks']))
+        selected = _select(f, 1)
+        distance = np.r_[0, np.cumsum(haversine_km(f.lat.to_numpy()[:-1], f.lon.to_numpy()[:-1], f.lat.to_numpy()[1:], f.lon.to_numpy()[1:]))]
+        self.assertTrue((np.diff(distance[selected]) <= 1.0000001).all())
+
     def test_bounded_chunks_overlap_and_aligned_values(self):
         f = frame()
         with tempfile.TemporaryDirectory() as directory, patch('dashboard.track.CHUNK_ROWS', 8):

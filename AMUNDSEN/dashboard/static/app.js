@@ -985,7 +985,7 @@
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   // Map detail is selected before transfer; charts retain their time bins.
-  const detailLabel = (km) => km ? `${km * 1000} m detail` : 'all points · visible area';
+  const detailLabel = (km) => km >= 1 ? `${km} km detail` : km ? `${km * 1000} m detail` : 'all points · visible area';
   // Chart windows never download the monolithic native track files.
   const windowFile = (w) => w?.file;
   // the ship's position: the intranet live page when it is newer than the
@@ -1069,11 +1069,11 @@
   }
   function trackSpacing() {
     const mpp = metresPerPixel();
-    if (!(mpp > 0)) return 0.1;
+    if (!(mpp > 0)) return 1;
     // two screen pixels of ground at the map's centre, so Arctic zooms
     // receive the same ground detail as views farther south
     const km = 2 * mpp / 1000;
-    return km >= 0.1 ? 0.1 : km >= 0.025 ? 0.025 : km >= 0.005 ? 0.005 : 0;
+    return km >= 1 ? 1 : km >= 0.1 ? 0.1 : km >= 0.025 ? 0.025 : km >= 0.005 ? 0.005 : 0;
   }
   function scheduleTrack() {
     if (!state.track || !mapView?.map || !state.span) return;
@@ -1702,8 +1702,17 @@
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const c = M.calendar || {}, n = c.now;
     const bar = $("#alert");
-    bar.hidden = !n;
+    const hasMessages = !!inapp.msgs.length;
+    bar.hidden = !n && !hasMessages;
     if (bar.hidden) return;
+    const onlyMessages = !n || schedMode() === "hidden";
+    if (onlyMessages) {
+      bar.hidden = !hasMessages;
+      bar.classList.remove("folded"); bar.title = ""; bar.onclick = null;
+      $("#schedrow").hidden = true; $("#schedticker").hidden = true;
+      renderStatus();
+      return;
+    }
     const hm = (t) => t ? new Date(tms(t)).toLocaleTimeString(undefined, { timeZone: SITE.local_tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
     // an operation in progress shows what is left of its slot rather than its times
     const left = (r) => { const m = Math.round((tms(r.end_utc) - Date.now()) / 60000); if (isNaN(m)) return "";
@@ -1721,7 +1730,7 @@
     $("#schedrow").hidden = folded;
     // the fold must not bubble to the bar, whose handler is installed by the re-render
     $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); setSchedMode("ticker"); };
-    bar.onclick = folded ? (ev) => { if (ev.target.closest("a")) return; setSchedMode("hidden"); } : null;
+    bar.onclick = folded ? (ev) => { if (ev.target.closest("a, .inapp")) return; setSchedMode("hidden"); } : null;
     $("#schedticker").hidden = !folded;
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
     const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
@@ -1745,8 +1754,8 @@
   setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
 
   // in-app alerts: this browser's id is its address for the "web" channel;
-  // the timer queues messages for it and the strip above the schedule bar
-  // shows them until cleared (and the browser notifies, when allowed)
+  // the timer queues messages into the existing status bar until cleared
+  // (and the browser notifies, when allowed)
   function webId() {
     let id = store.get("alerts.webid", "");
     if (!id) { id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)); store.set("alerts.webid", id); }
@@ -1757,10 +1766,11 @@
   function renderInapp() {
     const el = $("#inapp");
     el.hidden = !inapp.msgs.length;
-    if (el.hidden) return;
+    if (el.hidden) { el.innerHTML = ""; renderAlert(); return; }
     el.innerHTML = inapp.msgs.map((m) => `<span class="msg">🔔 ${esc(m.text)} <small>${fmtTs(Date.parse(m.t)).slice(11)}</small></span>`).join("") +
       `<button type="button" class="clear" title="clear these">✕</button>`;
-    el.querySelector(".clear").onclick = () => { store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+    el.querySelector(".clear").onclick = (event) => { event.stopPropagation(); store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+    renderAlert();
   }
   async function pollInapp() {
     if (!store.get("alerts.webid", "") || document.hidden) return;

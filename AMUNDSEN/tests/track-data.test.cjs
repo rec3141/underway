@@ -10,9 +10,9 @@ test('wrapped viewports and repeated worlds intersect correctly', () => {
   assert.ok(!intersects([170,0,-170,80], [-10,10,10,20]));
   assert.ok(intersects([-200,0,200,80], [0,10,10,20]));
 });
-test('resolution never exceeds 100m and native selects only native', () => {
+test('resolution never exceeds 1km and native selects only native', () => {
   const track = {levels:[{spacing_km:1},{spacing_km:.1},{spacing_km:.025},{spacing_km:0}]};
-  assert.equal(chooseLevel(track,10).spacing_km,.1);
+  assert.equal(chooseLevel(track,10).spacing_km,1);
   assert.equal(chooseLevel(track,.04).spacing_km,.025);
   assert.equal(chooseLevel(track,0).spacing_km,0);
 });

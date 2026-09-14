@@ -440,6 +440,70 @@
   }
   // a slug's title for the wiki's backlinks: a subject's name, an observation's label
   const titleOf = (s) => s.startsWith("subject/") ? subjectBySlug(s)?.name || "" : s.startsWith("observation/") ? (obsById(s.slice(12))?.label || obsById(s.slice(12))?.subject || "") : "";
+  const galleryPhotos = () => nat.journal.filter(o => o.artifact_file);
+  const galleryPhoto = id => galleryPhotos().find(o => o.id === id);
+  const photoSource = o => o.artifact_file.startsWith('_journal/') ? journalPic(o) : o.artifact_file;
+  const returnToGallery = () => { share.tab = 'gallery'; store.set('nat.jtab', 'gallery'); return H.open('journal'); };
+  function stepPhoto(id, delta) {
+    const photos = galleryPhotos(), at = photos.findIndex(o => o.id === id);
+    return photos.length ? photos[(Math.max(0, at) + delta + photos.length) % photos.length] : null;
+  }
+  function fitPhoto() {
+    const image = document.querySelector('.photo-detail .photo-open');
+    if (!image || !image.offsetParent) return;
+    image.style.height = `${Math.max(120, innerHeight - Math.max(0, image.getBoundingClientRect().top) - 48)}px`;
+  }
+  addEventListener('resize', fitPhoto);
+  addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.target.closest?.('input,textarea,select,[contenteditable=true]')) return;
+    const detail = document.querySelector('.photo-detail');
+    if (!detail || !detail.offsetParent || document.querySelector('dialog[open]')) return;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const photo = stepPhoto(detail.dataset.photo, event.key === 'ArrowLeft' ? -1 : 1);
+      if (photo) H.open(`observation/${photo.id}`);
+    }
+  });
+  function photoSlideshow(id) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'photo-slideshow'; dialog.setAttribute('aria-label', 'Photo slideshow');
+    dialog.innerHTML = '<button type="button" class="photo-close" aria-label="Close slideshow">×</button><button type="button" class="photo-prev" aria-label="Previous photo">‹</button><img alt=""><button type="button" class="photo-next" aria-label="Next photo">›</button><div class="photo-caption" aria-live="polite"></div>';
+    let current = id;
+    const show = delta => {
+      const photo = delta ? stepPhoto(current, delta) : galleryPhoto(current);
+      if (!photo) return;
+      current = photo.id;
+      const img = dialog.querySelector('img'); img.src = photoSource(photo); img.alt = photo.detail || photo.subject || 'Ship photograph';
+      dialog.querySelector('.photo-caption').textContent = `${galleryPhotos().findIndex(o => o.id === current) + 1} / ${galleryPhotos().length} · ${photo.subject || ''}${photo.observer ? ' · ' + photo.observer : ''}`;
+      for (const button of dialog.querySelectorAll('.photo-prev,.photo-next')) button.disabled = galleryPhotos().length < 2;
+    };
+    const close = () => {
+      if (document.fullscreenElement === dialog) document.exitFullscreen().catch(() => {});
+      dialog.close();
+    };
+    dialog.querySelector('.photo-close').onclick = close;
+    dialog.querySelector('.photo-prev').onclick = () => show(-1);
+    dialog.querySelector('.photo-next').onclick = () => show(1);
+    dialog.onkeydown = event => {
+      if (!['ArrowLeft','ArrowRight','Escape'].includes(event.key)) return;
+      event.preventDefault(); event.stopPropagation();
+      if (event.key === 'Escape') close(); else show(event.key === 'ArrowLeft' ? -1 : 1);
+    };
+    dialog.oncancel = event => { event.preventDefault(); close(); };
+    dialog.onclose = () => { dialog.remove(); if (current !== id) H.open(`observation/${current}`); };
+    document.body.append(dialog); show(0); dialog.showModal();
+    dialog.requestFullscreen?.().catch(() => {});
+  }
+  function wirePhotoDetail(el, o) {
+    const figure = el.querySelector('figure');
+    if (!figure) return;
+    figure.classList.add('photo-detail'); figure.dataset.photo = o.id;
+    figure.innerHTML = `<nav class="photo-navigation" aria-label="Gallery navigation"><button type="button" class="photo-gallery">← Gallery</button><span>${galleryPhotos().findIndex(p => p.id === o.id) + 1} / ${galleryPhotos().length}</span><button type="button" class="photo-prev" aria-label="Previous photo" ${galleryPhotos().length < 2 ? 'disabled' : ''}>‹</button><button type="button" class="photo-next" aria-label="Next photo" ${galleryPhotos().length < 2 ? 'disabled' : ''}>›</button></nav><button type="button" class="photo-open" aria-label="Open fullscreen slideshow"><img src="${esc(photoSource(o))}" alt="${esc(o.detail || o.subject || 'Ship photograph')}"></button><figcaption>${esc(o.observer || 'the ship')} · click photo for fullscreen</figcaption>`;
+    figure.querySelector('.photo-gallery').onclick = returnToGallery;
+    for (const [cls, delta] of [['.photo-prev',-1],['.photo-next',1]]) figure.querySelector(cls).onclick = () => { const next = stepPhoto(o.id, delta); if(next) H.open(`observation/${next.id}`); };
+    figure.querySelector('.photo-open').onclick = () => photoSlideshow(o.id);
+    fitPhoto(); requestAnimationFrame(fitPhoto);
+  }
   function renderObservation(el, id) {
     const o = obsById(id);
     if (!o) { el.innerHTML = crumb() + `<div class="empty">That observation is not in this build.</div>`; return; }
@@ -470,6 +534,7 @@
       (art ? `<h3>Evidence</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
       (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
       (s ? `<div class="backlinks"><span class="lbl">Observations</span><a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}">every observation of ${esc(shortName(s))}</a></div>` : "");
+    if (galleryPhoto(o.id)) wirePhotoDetail(el, o);
   }
 
   // ---------------------------------------------------------------- the journal
@@ -800,6 +865,7 @@
   // ---------------------------------------------------------------- wiring
   // what history.js asks of this half: its data, its views, its parts of the shared pages
   UW.natureViews = { ensure, handles, render, vignetteCards, homeExtraHTML, wireHome, exploreExtraHTML, searchExtra, topicExtra,
+    photoBack: () => { const id = H.slug().startsWith('observation/') ? H.slug().slice(12) : null; if (!id || !galleryPhoto(id)) return false; returnToGallery(); return true; },
     toggleMore: (k) => { nat.more[k] = !nat.more[k]; }, mapMenu, domainOptions, titleOf, cited, DOMAINS, available: () => nat.available };
   // the pane may be showing already, drawn before this file loaded: its natural parts arrive with the data
   if (!$("#pane-wiki").hidden || UW.state.nature) ensure().then(() => { if (!$("#pane-wiki").hidden) H.refresh(); else { mapMenu(); if (UW.state.nature) UW.renderMap(); } }).catch(() => {});

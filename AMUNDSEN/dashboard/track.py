@@ -16,7 +16,7 @@ from .derive import MAX_PLAUSIBLE_KN, haversine_km
 
 CACHE_VERSION = 3  # Bump when selection or serialization semantics change.
 CHUNK_ROWS = 2048
-SPACINGS_KM = (0.1, 0.025, 0.005, 0.0)
+SPACINGS_KM = (1.0, 0.1, 0.025, 0.005, 0.0)
 
 
 def _select(frame, spacing):

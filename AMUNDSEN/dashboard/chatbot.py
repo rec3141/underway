@@ -26,6 +26,7 @@ import random
 import re
 import threading
 import time
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -631,7 +632,10 @@ class Crew:
         self.read = read or chat.context    # (channel) -> the room's recent messages, oldest first
         self._pages: list[dict] = []        # the wiki pages the last context drew on
         self._shelf: list[dict] = []        # the pictures and words behind them, for the chips
-        self.lock = threading.Lock()        # one generation at a time
+        self.lock = threading.RLock()       # one generation, or ordered human turn, at a time
+        self._turn_lock = threading.Lock()
+        self._turns = deque()
+        self._turn_worker = None
         self.last_bot = 0.0
         self.seen_update = None
         self.seen_surprise = None
@@ -768,10 +772,11 @@ class Crew:
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
         own = self.own_room(handle, channel)
         room = {"ship": "the ship's public room, where you speak only when addressed",
-                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in"}.get(channel,
+                "crew": "the crew's own room, where the four of you talk among yourselves and with whoever drops in",
+                "deck": "the shared Deck, where Ada, Doc and visiting shipmates can all read and join the conversation"}.get(channel,
                f"the {p['room']}, your own room, where every message is a question put to you and deserves a full "
                f"answer, up to about 500 words, with the pages cited" if own else
-               "a private room with one person; only the two of you see it, and you may speak first")
+               "a private chat with the participants shown in the recent conversation; fellow crew members may also be present")
         system = (f"You are {p['name']}, {p['voice']} Your type is {p['type']}. {p['brief']} The rest of the crew: {others}. "
                   f"You are one of four crew members in the chat of the CCGS Amundsen underway "
                   f"dashboard, read by the scientists aboard, who like a laugh. This is {room}. "
@@ -909,8 +914,40 @@ class Crew:
             long = True
         else:
             speakers = room_bots
-        for h in speakers:
-            threading.Thread(target=self._speak, args=(h, task, channel, text), kwargs={"long": long, "slug": slug}, daemon=True).start()
+        if speakers and self.enabled:
+            with self._turn_lock:
+                self._turns.append((speakers, task, channel, text, long, slug))
+                if self._turn_worker is None:
+                    self._turn_worker = threading.Thread(target=self._drain_turns, daemon=True)
+                    self._turn_worker.start()
+
+    def _drain_turns(self) -> None:
+        """One FIFO worker owns human turns, including all requested speakers.
+
+        Each speaker reads the room after the previous response has been posted.
+        Keep the model lock across the turn so background remarks cannot interrupt
+        it. Multi-speaker turns already schedule the handoff; generated @mentions
+        must not call that speaker a second time.
+        """
+        while True:
+            with self._turn_lock:
+                if not self._turns:
+                    self._turn_worker = None
+                    return
+                speakers, task, channel, query, long, slug = self._turns.popleft()
+            with self.lock:
+                for i, handle in enumerate(speakers):
+                    instruction = task
+                    if i:
+                        instruction += (" Read any earlier answers to this question in RECENT CHAT before replying. "
+                                        "Build on what they said from your own expertise, adding useful details or corrections. "
+                                        "Do not repeat their explanation or restart the answer.")
+                    try:
+                        self._speak(handle, instruction, channel, query, long=long, slug=slug,
+                                    banter=len(speakers) == 1, hop=1 if len(speakers) > 1 else 0)
+                    except Exception:
+                        # Posting/integration failures must not strand queued turns.
+                        log.exception("crew turn failed for %s in %s", handle, channel)
 
     def _events(self) -> str | None:
         """A notable change since the last look, as a short description, or None."""

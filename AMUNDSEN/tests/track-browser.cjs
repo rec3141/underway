@@ -21,7 +21,7 @@ function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
     ...(process.env.UPLOAD_UI||process.env.WIKI_UI?{history:{stamp:'test'}}:{}),
-    track:{levels:[.1,.025,.005,0].map((spacing_km,i)=>({spacing_km,chunks:[{file:`data/track/level-${i}.json`,n:2,start:t,end:t+10000,leg:0,segment:0,bounds:[-78.01,75.99,-77.99,76.01]}]}))},
+    track:{levels:[1,.1,.025,.005,0].map((spacing_km,i)=>({spacing_km,chunks:[{file:`data/track/level-${i}.json`,n:2,start:t,end:t+10000,leg:0,segment:0,bounds:[-78.01,75.99,-77.99,76.01]}]}))},
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`,fine_file:`data/w-${label}-fine.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -114,15 +114,18 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     assert.ok(!requests.some(p=>p.includes('-fine.json')));
     assert.equal(await evaluate('!!document.querySelector("#trackstep, #trackstepsel, .maptrack")'),false);
     console.log('PASS initial map loads viewport track separately from coarse chart data');
+    await evaluate('UW.mapView.map.jumpTo({center:[-78,76],zoom:3})');
+    await until('document.querySelector("#trackstatus")?.textContent.includes("1 km detail")');
+    assert.ok(requests.some(p=>p.includes('level-0.json')));
     await evaluate('UW.mapView.map.jumpTo({center:[-78,76],zoom:8})');
     await until('document.querySelector("#trackstatus")?.textContent.includes("100 m detail")');
     await evaluate('UW.mapView.map.jumpTo({center:[-78,76],zoom:12})');
     await until('document.querySelector("#trackstatus")?.textContent.includes("5 m detail")');
-    assert.ok(requests.some(p=>p.includes('level-2.json')));
+    assert.ok(requests.some(p=>p.includes('level-3.json')));
     const view=await evaluate('({zoom:UW.mapView.map.getZoom(),center:UW.mapView.map.getCenter().toArray()})');
     assert.equal(view.zoom,12); assert.deepEqual(view.center,[-78,76]);
     console.log('PASS automatic zoom changes resolution and preserves map view');
-    hold.add('/data/track/level-3.json');
+    hold.add('/data/track/level-4.json');
     await evaluate('UW.mapView.map.jumpTo({center:[-78,76],zoom:16})');
     for(let i=0;i<100&&!held.length;i++) await wait(50);
     assert.ok(held.length,'native track request held');

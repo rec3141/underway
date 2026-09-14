@@ -19,6 +19,13 @@
   const cachedJSON = window.UWData.generationCache(UW.fetchJSON, () => UW.M.history?.stamp || "");
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
+  // Older builds persisted layers enabled by ordinary Wiki navigation.
+  // Start explicit layer choices once; subsequent visits preserve map toggles.
+  if (store.get("wiki.map-layers.v", 0) < 1) {
+    for (const layer of ["history", "nature"]) { UW.state[layer] = false; store.set(layer, false); }
+    store.set("wiki.map-layers.v", 1);
+  }
+
   // artifact kinds: a colour each, for the map and the chips — an index into
   // the theme's palette, read when used so a theme change recolours them
   const kind = (label, i) => ({ label, get colour() { return C.palette[i]; } });
@@ -1282,11 +1289,10 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     for (const b of document.querySelectorAll("#wikidomains .dom")) { const on = hist.domains.has(b.dataset.domain); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
     const ask = $("#histask"), t = askTarget(); ask.textContent = t.label; ask.title = t.title;
   }
-  // a label switched: the pane lists that domain or not, and on the tab its map layer follows
+  // Browsing domains filters the pane; map layers change only through map controls.
   function setDomain(d, on) {
     on ? hist.domains.add(d) : hist.domains.delete(d);
     store.set("wiki.domains.v2", [...hist.domains]);
-    if (stashed) for(const layer of LAYERS){UW.state[layer]=domainOn(layer);store.set(layer,domainOn(layer));pill(layer,domainOn(layer));}
     ensureAll().then(() => hist.domains.size ? render() : open('')).catch(() => {});
   }
   async function render() {
@@ -1358,13 +1364,13 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     open(s, { pop: true }).then(() => { if (left) backToMap(); });
   });
   function goBack() {
+    if (UW.natureViews?.photoBack?.()) return;
     if (nav.n > 0 && history.state?.hist != null) history.back();
     else { const left = nav.fromMap; nav.fromMap = false; open("").then(() => { if (left) backToMap(); }); }
   }
   function focusPoint(lat, lon, label, type = "", layer = "history") {
     if (lat == null) return;
-    if (!UW.state[layer]) { UW.state[layer] = true; store.set(layer, true); pill(layer, true); renderChips(); }
-    if (type && TYPES[type] && !hist.types.has(type)) { hist.types.add(type); store.set("hist.types", [...hist.types]); renderChips(); }
+    // A pin focuses one item without enabling its entire domain or kind.
     UW.focusMap(+lat, +lon, label || "");
     if (UW.mapMode?.() === "none") UW.setMapMode("half");
   }
@@ -1527,21 +1533,19 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   }
   // On the Wiki tab the map is the wiki's: the ship's own layers step aside
   // and come back when the tab is left; plan and places stay, and the two
-  // past layers follow the labels.
+  // artifact layers retain the user’s explicit map choices.
   const SHIP_LAYERS = ["stations", "events", "track"];             // Photos stays: the ship's own photographs belong to the wiki too
   let stashed = null;
   function historyMap(on) {
     if (on && !stashed) {
-      stashed = { sat: UW.state.sat, satAt: UW.state.satAt, history: UW.state.history, nature: UW.state.nature };
+      stashed = { sat: UW.state.sat, satAt: UW.state.satAt };
       for (const l of SHIP_LAYERS) { stashed[l] = UW.state[l]; UW.state[l] = false; pill(l, false); }
       UW.state.sat = ""; UW.state.satAt = null;
     } else if (!on && stashed) {
       for (const l of SHIP_LAYERS) { UW.state[l] = stashed[l]; pill(l, stashed[l]); }
       UW.state.sat = stashed.sat; UW.state.satAt = stashed.satAt;
-      for (const l of LAYERS) { UW.state[l] = stashed[l]; pill(l, stashed[l]); }
       stashed = null;
     }
-    if (on) for (const l of LAYERS) { UW.state[l] = domainOn(l); pill(l, domainOn(l)); }
     document.body.classList.toggle("tab-wiki", on);
     renderChips();
   }
