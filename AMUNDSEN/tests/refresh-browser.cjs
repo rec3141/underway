@@ -41,13 +41,15 @@ function manifest() {
 }
 function dataset(p) {
   if(process.env.WIKI_FEEDBACK_UI && p.startsWith('/data/history/')) {
-    const topics=[{slug:'inuit-oral-history',title:'Inuit oral history',domain:'history',pages:1,artifacts:2}];
+    const topics=[{slug:'inuit-oral-history',title:'Inuit oral history',domain:'history',pages:1,artifacts:3}];
     const artifacts=['photo-one','photo-two'].map((id,i)=>({id,page:'artifact/'+id,type:'image',title:'Test image '+i,topic:topics[0].slug,url:'wiki-test.png',thumb:'wiki-test.png',lat:76,lon:-78,people:['E-took-a-shoo','Shared name'],credit:'Test credit',date_start:'1900',description:'Picture'}));
+    artifacts.push({id:'place-artifact',page:'artifact/place-artifact',type:'place',title:'Historic camp artifact',topic:topics[0].slug,lat:76,lon:-78,date_start:'1900'});
     const pages=[{slug:'test-narrative',kind:'page',title:'Readable narrative',topic:topics[0].slug,html:'See [inuit-oral-history](topic/inuit-oral-history), [a chosen label](topic/inuit-oral-history), and inuit-oral-history.'},
       ...artifacts.map(a=>({slug:a.page,kind:'artifact',ref:a.id,title:a.title,topic:a.topic,html:'Picture by E-took-a-shoo.'})),
       {slug:'person/etukishook',kind:'person',title:'Etukishook',html:'Biography'}];
     if(p.endsWith('/index.json'))return {topics,pages};
     if(p.endsWith('/artifacts.json'))return {artifacts};
+    if(p.endsWith('/places.json'))return {places:[{name:'Gazetteer camp',page:'place/camp',kind:'camp',topic:topics[0].slug,lat:76,lon:-78}]};
     if(p.endsWith('/people.json'))return {people:[{name:'Etukishook',also:'E-took-a-shoo; Etukishuk',page:'person/etukishook'},{name:'One',also:'Shared name',page:'person/one'},{name:'Two',also:'Shared name',page:'person/two'}]};
     if(p.includes('/pages/'))return pages.find(x=>p.endsWith('/'+x.slug.replaceAll('/','__')+'.json'))||{};
     return {};
@@ -323,9 +325,12 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
       await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
       await until('!document.querySelector(".wiki-image-preview").open');
-      await evaluate('UW.wikiOpen("at/76,-78")');
+      await evaluate('UW.state.history=true;UW.extraMapTraces();UW.onHistoryClick("place-artifact",{lat:76,lon:-78})');
       await until('document.querySelectorAll("#histmain .sitecards .artcard img").length===2');
-      assert.equal(await evaluate('document.querySelectorAll("#histmain .sitecards .artcard").length'),2);
+      assert.equal(await evaluate('document.querySelectorAll("#histmain .sitecards .artcard").length'),3);
+      assert.equal(await evaluate('document.querySelector("#histmain .sitecards .pglink").dataset.slug'),'place/camp');
+      assert.equal(await evaluate('document.querySelector("#histmain h2").textContent.startsWith("Gazetteer camp")'),true);
+      assert.equal(await evaluate('[...document.querySelectorAll("#histmain .sitecards .artcard")].some(a=>a.dataset.slug==="artifact/place-artifact")'),true);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS wiki image modal/Escape, shared-location previews, page flags, readable topic links and person aliases');
       return;
