@@ -556,12 +556,12 @@ def build(root: Path, title: str, links: list[dict]) -> dict:
     def write_window(w: Window) -> dict:
         fn = f"w-{w.label}.json"
         kept = kept_window(w.label, w.step_s, root / "data" / fn, started)
-        if kept and kept.get("chart_version") == 1:
+        if kept and kept.get("chart_version") == 2:
             log.info("window %-4s kept", w.label)
             return {k: v for k, v in kept.items() if not k.startswith("fine_")}
         payload = slice_window(a, w, end)
         atomic_write(root / "data" / fn, json.dumps(payload, separators=(",", ":")))
-        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"], "chart_version": 1,
+        meta = {"label": w.label, "hours": w.hours, "step_s": w.step_s, "file": f"data/{fn}", "n": payload["n"], "chart_version": 2,
                 "start": payload.get("start"), "end": payload.get("end")}
         log.info("window %-4s %6d chart points", w.label, payload["n"])
         return meta

@@ -66,6 +66,7 @@ VARIABLES: tuple[Variable, ...] = (
              (r"^tsg — hull temperature", r"^tsg — .*temperature", r"sea.*surface.*temp", r"hull temperature"), tsg=True),
     Variable("Salinity (PSU)", "PSU",
              (r"^tsg — salinity", r"salinity \(psu\)"), tsg=True),
+    Variable("Excess heat (°C)", "°C", (), derived=True, tsg=True),
     Variable("TSG line warming (°C)", "°C", (), derived=True, tsg=True),
     Variable("TSG flow (V)", "V", (), derived=True, tsg=True),
     Variable("Fluorescence (µg/L)", "µg/L",

@@ -188,6 +188,15 @@ def build_analysis(df: pd.DataFrame, res: list[Resolution], pos_pairs: list[tupl
     for r in res:
         if r.key:
             out[r.variable.name] = df[r.key]
+    out["Excess heat (°C)"] = np.nan
+    if "SST (°C)" in out and "Salinity (PSU)" in out:
+        # UNESCO 1983 freezing point at surface pressure (0 dbar).
+        # Compute on paired raw observations before window aggregation.
+        salinity = out["Salinity (PSU)"]
+        salinity = salinity.where(np.isfinite(salinity) & salinity.between(0, 40))
+        freezing = (-0.0575 + 1.710523e-3 * np.sqrt(salinity) - 2.154996e-4 * salinity) * salinity
+        temperature = out["SST (°C)"]
+        out["Excess heat (°C)"] = (temperature - freezing).where(np.isfinite(temperature))
     # Signed rates from consecutive depth/length observations; never span a
     # logging gap. Both live and archive depths are in metres.
     seconds = df.index.to_series().diff().dt.total_seconds()
