@@ -89,6 +89,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(process.env.TIMEZONE_UI) await call('Emulation.setTimezoneOverride',{timezoneId:process.env.TIMEZONE_UI});
     await call('Page.addScriptToEvaluateOnNewDocument',{source:`
       window.__errors=[];
+      localStorage.setItem("uw:trackKm", "0");
       ${process.env.SUMMARY_UI?'':"localStorage.setItem('uw:panel','{}');"}
       addEventListener('error',e=>window.__errors.push(e.message));
       addEventListener('unhandledrejection',e=>window.__errors.push(String(e.reason)));
@@ -111,6 +112,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.mapView?.map && document.querySelector("#trackstatus")?.textContent.includes("visible track points")');
     assert.ok(requests.some(p=>p.includes('/data/track/')));
     assert.ok(!requests.some(p=>p.includes('-fine.json')));
+    assert.equal(await evaluate('!!document.querySelector("#trackstep, #trackstepsel, .maptrack")'),false);
     console.log('PASS initial map loads viewport track separately from coarse chart data');
     await evaluate('UW.mapView.map.jumpTo({center:[-78,76],zoom:8})');
     await until('document.querySelector("#trackstatus")?.textContent.includes("100 m detail")');

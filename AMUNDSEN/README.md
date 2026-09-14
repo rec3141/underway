@@ -161,7 +161,7 @@ seconds (these timings predate the initial track-chunk publication).
 The map loads observations independently of the charts. `manifest.track`
 indexes immutable, content-addressed chunks of at most 2,048 observations at
 100 m, 25 m, 5 m, and native resolution. Auto detail follows the map's ground
-scale; manual settings never exceed 100 m spacing. Selection preserves actual
+scale automatically, never exceeding 100 m spacing. Selection preserves actual
 observations, bends, leg boundaries, and gaps. Native observations farther
 apart than the selected spacing remain gaps in sampling; no points are invented.
 Charts continue to use time-averaged windows. New builds no longer publish

@@ -30,7 +30,6 @@
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
-  if (store.get("prefs.v", 0) < 6) { store.set("prefs.v", 6); store.set("trackKm", "auto"); }
   const newViewer = store.get('panel',null) === null;
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
@@ -39,7 +38,6 @@
     colour: store.get("colour", "SST (°C)"),
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
-    trackKm: store.get("trackKm", "auto"),              // auto follows map scale; 0 requests native observations
     stations: store.get("stations", true),
     events: store.get("events", false),                 // event-log entries on the map
     photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
@@ -267,7 +265,7 @@
   function setSpan(label) {
     if (label === state.win || !M.windows.some((w) => w.label === label)) return;
     state.win = label; store.set("win", state.win);
-    setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); renderControls(); loadWindow();
+    requestFit(); renderControls(); loadWindow();
   }
   // a table's "show all legs" link
   function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); loadWindow(); }
@@ -430,7 +428,7 @@
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
     $("#spanlabel").textContent = labels[idx]; r.setAttribute("aria-valuetext", labels[idx]);
-    const pick = (label) => { state.win = label; store.set("win", state.win); setTrackDetail(detailFor(currentWindow()?.hours || 1)); requestFit(); loadWindow(); };
+    const pick = (label) => { state.win = label; store.set("win", state.win); requestFit(); loadWindow(); };
     r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; r.setAttribute("aria-valuetext", labels[r.value]); };
     r.onchange = () => pick(labels[r.value]);
     // the same choice as a dropdown, which is what a phone shows instead of the slider
@@ -467,22 +465,6 @@
     }
     renderSatPill();
     $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
-    {
-      const r = $("#trackstep"), out = $("#tracksteplabel"), sel = $('#trackstepsel');
-      sel.innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}">${detailLabel(km)}</option>`).join('');
-      $('#trackticks').innerHTML=TRACK_STEPS.map((km,i)=>`<option value="${i}"></option>`).join('');
-      if (!TRACK_STEPS.includes(state.trackKm)) setTrackDetail('auto');
-      let idx = TRACK_STEPS.indexOf(state.trackKm); if (idx < 0) idx = TRACK_STEPS.length - 1;
-      r.value = idx; out.textContent = detailLabel(TRACK_STEPS[idx]); r.setAttribute("aria-valuetext", out.textContent);
-      sel.value=idx;
-      r.oninput = () => { out.textContent = detailLabel(TRACK_STEPS[r.value]); r.setAttribute("aria-valuetext", out.textContent); };
-      r.onchange = () => {
-        setTrackDetail(TRACK_STEPS[r.value]);
-        resetTrack();
-        renderMap();
-      };
-      sel.onchange=()=>{r.value=sel.value;r.onchange();};
-    }
     $('#mapdetailsopen').onclick=()=>$('#mapdetails').showModal();
     $('#mapdetailsclose').onclick=()=>$('#mapdetails').close();
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
@@ -974,19 +956,9 @@
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   // Map detail is selected before transfer; charts retain their time bins.
-  const TRACK_STEPS = ['auto', 0.1, 0.025, 0.005, 0];
-  const detailFor = () => 'auto';
-  const detailLabel = (km) => km === 'auto' ? 'auto · map scale' : km ? `${km * 1000} m detail` : 'all points · visible area';
-  const currentWindow = () => M.windows.find((x) => x.label === state.win);
+  const detailLabel = (km) => km ? `${km * 1000} m detail` : 'all points · visible area';
   // Chart windows never download the monolithic native track files.
   const windowFile = (w) => w?.file;
-  function setTrackDetail(km) {
-    km = TRACK_STEPS.includes(km) ? km : 'auto';
-    state.trackKm = km; store.set("trackKm", km);
-    const r = $("#trackstep"), out = $("#tracksteplabel");
-    if (r) { const i = TRACK_STEPS.indexOf(km); r.value = i < 0 ? TRACK_STEPS.length - 1 : i; out.textContent = detailLabel(km); r.setAttribute("aria-valuetext", detailLabel(km)); }
-    if($('#trackstepsel') && r)$('#trackstepsel').value=r.value;
-  }
   // the ship's position: the intranet live page when it is newer than the
   // record's last fix, else that fix (with the build's averaged heading)
   function shipNow(d, li) {
@@ -1067,7 +1039,6 @@
     setLoadError('Track', false);
   }
   function trackSpacing() {
-    if (state.trackKm !== 'auto') return state.trackKm;
     const map = mapView?.map;
     if (!map) return 0.1;
     // Two screen pixels in Web Mercator, using latitude so Arctic zooms

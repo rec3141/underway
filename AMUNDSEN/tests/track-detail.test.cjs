@@ -6,21 +6,10 @@ const source = fs.readFileSync(require('node:path').join(__dirname, '../dashboar
 function setup() {
   const context = {state: {}, store: {set() {}}, $: () => null, M: {windows: []}};
   vm.createContext(context);
-  vm.runInContext(source.slice(source.indexOf('  const TRACK_STEPS'), source.indexOf('  // the ship\'s position:')) +
-    '\nthis.api = {detailFor, windowFile, setTrackDetail};', context);
+  vm.runInContext(source.slice(source.indexOf('  const detailLabel'), source.indexOf('  // the ship\'s position:')) +
+    '\nthis.api = {windowFile};', context);
   return context;
 }
-test('all spans default to automatic viewport detail, with no setting coarser than 100 m', () => {
-  const {api, state} = setup();
-  api.setTrackDetail(api.detailFor(24 * 730));
-  assert.equal(state.trackKm, 'auto');
-  for (const km of [0.1, 0.025, 0.005, 0]) {
-    api.setTrackDetail(km);
-    assert.equal(state.trackKm, km);
-  }
-  api.setTrackDetail(20);
-  assert.equal(state.trackKm, 'auto');
-});
 test('charts never download the full fine file, including old manifests', () => {
   const {api} = setup();
   assert.equal(api.windowFile({file: 'coarse', fine_file: 'native'}), 'coarse');

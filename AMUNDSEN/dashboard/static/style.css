@@ -238,17 +238,14 @@ select {
 }
 
 /* span slider */
-.group.span, .group.maptrack { display:inline-flex; flex:0 0 auto; font-size:var(--t-md); gap:10px; background:var(--card-2); border:1px solid var(--line); border-radius:7px; padding:3px 10px 3px 12px; }
-.group.span .lbl, .group.maptrack .lbl { width:6.5em; flex:0 0 6.5em; color:var(--muted); font-size:var(--t-md); }
-.group.span input[type=range], .group.maptrack input[type=range] { width:clamp(120px,16vw,260px); flex:0 0 clamp(120px,16vw,260px); accent-color:var(--accent); cursor:pointer; }
-.group.span output, .group.maptrack output { font-family:var(--mono); font-size:var(--t-md); width:12ch; min-width:12ch; max-width:12ch; flex:0 0 12ch; white-space:nowrap; text-align:left; color:var(--accent); font-weight:600; }
+.group.span { display:inline-flex; flex:0 0 auto; font-size:var(--t-md); gap:10px; background:var(--card-2); border:1px solid var(--line); border-radius:7px; padding:3px 10px 3px 12px; }
+.group.span .lbl { width:6.5em; flex:0 0 6.5em; color:var(--muted); font-size:var(--t-md); }
+.group.span input[type=range] { width:clamp(120px,16vw,260px); flex:0 0 clamp(120px,16vw,260px); accent-color:var(--accent); cursor:pointer; }
+.group.span output { font-family:var(--mono); font-size:var(--t-md); width:12ch; min-width:12ch; max-width:12ch; flex:0 0 12ch; white-space:nowrap; text-align:left; color:var(--accent); font-weight:600; }
 #spansel { display: none; }                          /* the phone's stand-in for the slider */
 .group.xmode { gap: 8px; }
 .group.xmode .lbl { color: var(--muted); font-size: var(--t-md); }
 .group.xmode .xcycle { min-width: 5.5em; }
-/* Track detail beside the time span; both use dropdowns on phones. */
-.maptrack { display:flex; align-items:center; gap:8px; font-size:var(--t-md); color:var(--muted); }
-#trackstepsel { display:none; }
 
 /* leg menu */
 .legmenu { position: relative; }
@@ -412,7 +409,7 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 #mapdetails .map-foot { display:flex; flex-direction:column; gap:10px; padding:0; }
 #mapdetails .map-foot, #mapdetails .map-foot .mono, #mapdetails .map-attrib, #mapdetails .hint { font:var(--t-md)/1.5 var(--font); opacity:1; margin-left:0; overflow-wrap:anywhere; }
 #mapdetails .map-attrib { margin-top:14px; padding:12px 0 0; border-top:1px solid var(--line); }
-.maplayers { order: 0; } #map { order: 1; } .maptrack { order: 2; } .map-foot { order: 4; }   /* the column's order: bars, map, slider, attribution, notes */
+.maplayers { order: 0; } #map { order: 1; } .map-foot { order: 4; }   /* the column's order: bars, map, attribution, notes */
 /* the scale bar, over the map's bottom-left corner; placed by the script, which knows the map's box */
 .mapscale { position: absolute; z-index: 5; display: flex; align-items: center; gap: 6px; pointer-events: none;
   font-size: var(--t-xs); color: var(--map-fg); text-shadow: 0 0 3px var(--map-halo), 0 0 3px var(--map-halo); }
@@ -476,9 +473,6 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
   #spansel { width: 100%; min-width: 0; }
   .group.span .lbl, .group.span output, .group.span input[type=range] { display: none; }
   #spansel { display: inline-block; }
-  .controls .maptrack { flex:1 1 auto; min-width:0; padding:0; border:0; background:transparent; }
-  .maptrack .lbl, .maptrack output, .maptrack input[type=range] { display:none; }
-  #trackstepsel { display:block; width:100%; min-width:0; }
   .plotctl { flex-wrap: nowrap; gap: 6px; }
   .plotctl .group.xmode { flex: 0 0 auto; }
   .plotctl label.select { flex: 1 1 auto; min-width: 0; }
@@ -1022,7 +1016,7 @@ li.spannote { display: block; border-radius: 6px; margin-bottom: 3px; }
 /* the Wiki tab's map: plan, places, history and nature only; the ship's controls step aside */
 body.tab-wiki #maplayers button[data-layer="stations"],
 body.tab-wiki #maplayers button[data-layer="events"], body.tab-wiki #maplayers button[data-layer="track"],
-body.tab-wiki #satpill, body.tab-wiki #satnav, body.tab-wiki .mapcolour, body.tab-wiki .maptrack,
+body.tab-wiki #satpill, body.tab-wiki #satnav, body.tab-wiki .mapcolour,
 body.tab-wiki .top .controls, body.tab-wiki .pickhint { display: none !important; }
 body.tab-wiki #maplayers button[data-layer="history"], body.tab-wiki #maplayers button[data-layer="nature"] { display: inline-block; }
 /* the crew's model light: green when a model is loaded, grey when the crew are offline */
