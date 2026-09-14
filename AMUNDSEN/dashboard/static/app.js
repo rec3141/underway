@@ -1419,6 +1419,7 @@
         const value=document.createElement('b');value.textContent=preview?.text??(/^(Rosette depth|Cable length)/.test(name)&&latestValue!=null?`${Math.round(latestValue)} m`:fmtVal(latestValue,VAR[name]?.unit));
         const arrow=document.createElement('span');arrow.className='chart-state';arrow.textContent=open?'▲':'▼';arrow.setAttribute('aria-hidden','true');chip.append(arrow,label,value);
         chip.title = `${spec?.label||name}: ${open?'minimise':'restore'}`;
+        if (name === 'Excess heat (°C)') chip.title += '; water temperature minus the salinity-based freezing point at surface pressure (0 dbar)';
       }
     }
     const saved = store.get("cards.order", []);
@@ -1615,6 +1616,7 @@
     $("#notes").innerHTML =
       `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
       `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
+      `<p><b>Excess heat (°C)</b>: SST minus the UNESCO 1983 seawater freezing point at surface pressure (0 dbar), calculated from paired temperature and salinity observations. Positive values are above freezing; negative values are below. Missing inputs or salinity outside 0–40 PSU leave gaps. The freezing-point fit is validated over 4–40 PSU; lower salinities use an extrapolation toward freshwater.</p>` +
       `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
       `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
       `the per-leg columns show where a source column exists.</p>` +
