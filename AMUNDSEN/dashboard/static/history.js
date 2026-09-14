@@ -1150,11 +1150,12 @@
     const [lat, lon] = hist.slug.slice(3).split(",").map(Number);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) { el.innerHTML = crumb() + `<div class="empty">That is not a place on the map.</div>`; return; }
     const items = (hist.sites || siteItems()).get(siteKey(lat, lon)) || [];
-    const place = items.find((x) => x.kind === "place")?.p;
+    const place = items.find((x) => x.p)?.p;
     const byPage = new Map();                                        // a track called here more than once: one chip, every visit
     for (const x of items) {
-      const slug = x.kind === "place" ? x.p.page : x.a.page;
-      if (!byPage.has(slug)) byPage.set(slug, { kind: x.kind, title: x.kind === "place" ? x.p.name : x.a.title, slug, artifact: x.a, visits: [], note: x.kind === "place" ? [x.p.kind, x.p.note].filter(Boolean).join(" · ") : x.kind === "track" ? "" : fmtDate(x.a) });
+      // Place artifacts carry `a`; gazetteer entries carry `p`. Both have kind "place".
+      const slug = x.p ? x.p.page : x.a.page;
+      if (!byPage.has(slug)) byPage.set(slug, { kind: x.kind, title: x.p ? x.p.name : x.a.title, slug, artifact: x.a, visits: [], note: x.p ? [x.p.kind, x.p.note].filter(Boolean).join(" · ") : x.kind === "track" ? "" : fmtDate(x.a) });
       if (x.w) byPage.get(slug).visits.push([dateLabel(x.w.date || ""), x.w.note].filter(Boolean).join(": "));
     }
     const order = { place: 0, track: 1 };
