@@ -30,6 +30,9 @@ echo "$changed" | sed 's/^/  /'
 if grep -q '^AMUNDSEN/dashboard/.*\.py$' <<<"$changed"; then
   echo "deploy: restarting the serving processes"
   systemctl restart underway-dashboard underway-telegram
+  if systemctl is-enabled --quiet underway-codex.service; then
+    systemctl restart underway-codex.service
+  fi
 fi
 if grep -q '^AMUNDSEN/deploy/' <<<"$changed"; then
   echo "deploy: unit files changed; install them: sudo $APP/AMUNDSEN/deploy/install.sh"

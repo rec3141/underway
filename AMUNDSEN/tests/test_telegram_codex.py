@@ -1,6 +1,7 @@
 """Codex routing and persistence, without contacting Telegram or a model."""
 import json
 import os
+import sqlite3
 from pathlib import Path
 import tempfile
 import unittest
@@ -26,23 +27,25 @@ class CodexTests(unittest.TestCase):
         for msg in (self.message('/codex test hello', **{'from': {'id': 7}}),
                     self.message('/codex test hello', chat={'id': -42, 'type': 'group'})):
             self.assertIn('only', c.submit(msg, 1, None))
-        self.assertFalse((self.root / 'telegram_codex.sqlite').exists())
+        self.assertFalse((self.root / 'codex_bot.sqlite').exists())
 
     def test_reply_and_resume_alias_and_deduplication(self):
-        msg = self.message('/codex heat', reply_to_message={'text': 'Explain the freezing point'})
+        msg = self.message('Explain this', reply_to_message={'text': 'Explain the freezing point'})
         self.assertIn('queued', c.submit(msg, 1, None))
         c.submit(msg, 1, None)
-        c.submit(self.message('/codex heat expand on that'), 2, None)
+        c.submit(self.message('expand on that'), 2, None)
         with c.connect() as db:
             jobs = db.execute('SELECT * FROM jobs ORDER BY id').fetchall()
         self.assertEqual(len(jobs), 2)
-        self.assertEqual(jobs[0]['prompt'], 'Explain the freezing point')
+        self.assertIn('Explain the freezing point', jobs[0]['prompt'])
+        self.assertIn('Explain this', jobs[0]['prompt'])
         self.assertEqual(jobs[1]['name'], jobs[0]['name'])
+        self.assertEqual(jobs[1]['name'], 'main')
 
     def test_validation_and_context(self):
-        for text in ('/codex', '/codex ../bad hello', '/codex heat'):
+        for text in ('', '/start', '/help'):
             self.assertEqual(c.submit(self.message(text), 1, None), c.USAGE)
-        c.submit(self.message('/codex heat explain this', reply_to_message={'caption': 'SST -1 C'}), 2, None)
+        c.submit(self.message('explain this', reply_to_message={'caption': 'SST -1 C'}), 2, None)
         with c.connect() as db:
             prompt = db.execute('SELECT prompt FROM jobs').fetchone()[0]
         self.assertIn('SST -1 C', prompt)
@@ -69,6 +72,40 @@ print(json.dumps({'type':'turn.completed'}), flush=True)
         self.assertIn('resume', args)
         self.assertIn('12345678-1234-1234-1234-123456789abc', args)
         self.assertEqual((self.root / 'prompt.txt').read_text(), 'Hello')
+        self.assertIn('sandbox_workspace_write.network_access=true', args)
+        self.assertEqual(args[args.index('-C') + 1], str(self.root))
+        self.assertIn('sandbox_workspace_write.writable_roots=' + json.dumps([str(self.root / '.git')]), args)
+
+    def test_migrate_latest_session_without_old_updates_or_jobs(self):
+        with sqlite3.connect(self.root / 'telegram_codex.sqlite') as db:
+            db.executescript('''CREATE TABLE sessions(chat TEXT, name TEXT, thread TEXT);
+                CREATE TABLE jobs(id INTEGER, chat TEXT, name TEXT);
+                INSERT INTO sessions VALUES ('42', 'old', 'thread-old'), ('42', 'latest', 'thread-latest');
+                INSERT INTO jobs VALUES (100, '42', 'old'), (200, '42', 'latest');''')
+        c.submit(self.message('continue'), 1, None)
+        with c.connect() as db:
+            self.assertEqual(tuple(db.execute('SELECT name, thread FROM sessions').fetchone()), ('main', 'thread-latest'))
+            self.assertEqual(db.execute('SELECT count(*) FROM jobs').fetchone()[0], 1)
+
+    def test_separate_persistent_offset_and_duplicate_delivery(self):
+        class Telegram:
+            sent = []
+            def updates(inner, offset, wait):
+                return [u for u in [{'update_id': 1, 'message': self.message('hello')}] if u['update_id'] >= offset]
+            def send(inner, chat, text): inner.sent.append(text)
+        tg = Telegram()
+        self.assertEqual(c.handle(tg), 1)
+        self.assertEqual(c.handle(tg), 0)
+        with c.connect() as db:
+            self.assertEqual(db.execute("SELECT value FROM metadata WHERE key='offset'").fetchone()[0], '2')
+        self.assertFalse((self.root / 'alerts_state.json').exists())
+
+    def test_dedicated_token(self):
+        from dashboard import alerts
+        with patch.dict(os.environ, {'TELEGRAM_KEY_CODEX': 'new-token'}), patch.object(alerts, 'Telegram') as tg:
+            tg.return_value.updates.side_effect = KeyboardInterrupt
+            with self.assertRaises(KeyboardInterrupt): c.bot_loop()
+            tg.assert_called_once_with('new-token')
 
     def test_long_replies_split_and_persist(self):
         c.submit(self.message('/codex heat hello'), 1, None)
