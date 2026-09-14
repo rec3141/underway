@@ -56,6 +56,7 @@
     const f = t1 > t0 ? (t - t0) / (t1 - t0) : 0, a = rgbOf(c0), b = rgbOf(c1);
     return `rgb(${a.map((x, j) => Math.round(x + (b[j] - x) * f)).join(",")})`;
   }
+  UW.colourAt = colourAt;
   UW.cmap = (name, reverse = false) => (reverse ? reversed(cmap(name)) : cmap(name));
 
   // ---------------------------------------------------------------- traces -> features

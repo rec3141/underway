@@ -17,8 +17,9 @@
   $("#feedback-open").onclick = () => {
     if (saved) { message.value = ""; saved = false; context = null; }
     if (!context || !message.value.trim()) {
+      const tab = $("#tabs button.on")?.dataset.tab || "underway";
       context = {url: location.href, title: document.title,
-        tab: $("#tabs button.on")?.dataset.tab || "underway", wiki: UW.wikiContext?.() || "",
+        tab, wiki: tab === "wiki" ? UW.wikiContext?.() || "" : "",
         window: UW.state.win, hiddenLegs: [...UW.state.hidden], colour: UW.state.colour,
         mapView: UW.state.view, viewport: {width: innerWidth, height: innerHeight},
         generated: UW.M.generated_utc};

@@ -7,6 +7,19 @@
   const compactSurface=[['water',['whitecap','small waves','calm water','water (unspecified)']],['new ice',['grease ice','nilas']],['broken ice',['icy bits','brash ice']],['ice floe',['thin ice floe','thick ice floe']]];
   const surfaceValue=(p,name)=>p.ice==null?null:p.surface?.[name]??(types.includes(name)?p.types?.[types.indexOf(name)]??null:name==='water (unspecified)'?(p.status==='filtered'?100:0):p.status==='filtered'?0:null);
   const groupedSurface=(p,keys)=>{const values=keys.map(k=>surfaceValue(p,k)).filter(v=>v!=null);return values.length?values.reduce((a,b)=>a+b,0):null;};
+  function centeredMeans(rows){
+    const groups=new Map(),means=new Map();
+    for(const p of rows){if(!groups.has(p.leg))groups.set(p.leg,[]);groups.get(p.leg).push(p)}
+    for(const group of groups.values()){
+      let left=0,right=0,sum=0,count=0;
+      for(const p of group){
+        while(right<group.length&&group[right].time<=p.time+1800000){const v=group[right++].ice;if(v!=null){sum+=v;count++}}
+        while(left<right&&group[left].time<p.time-1800000){const v=group[left++].ice;if(v!=null){sum-=v;count--}}
+        means.set(p.id,p.ice==null||!count?null:sum/count);
+      }
+    }
+    return means;
+  }
   function recenterPhoto(p){
     const d=U.state.data;if(!d?.lat)return;
     const leg=U.M.legs.find(l=>l.id===p.leg)?.index;
@@ -61,6 +74,29 @@
       return {p,x};
     }).filter(r=>r.x!=null);
   }
+  function meanTraces(base,meta,values,valid,c){
+    const means=centeredMeans(photos),groups=new Map(),stops=U.cmap(c.variable?.cmap,!!c.variable?.reverse);
+    const [lo,hi]=c.limits||[0,1];
+    const colour=i=>{
+      if(!valid[i])return {key:'missing',color:'#7d8895'};
+      if(c.variable?.rgb){
+        const color=values[i],rgb=color.startsWith('#')?[1,3,5].map(k=>parseInt(color.slice(k,k+2),16)):color.match(/[\d.]+/g)?.slice(0,3).map(Number);
+        return {key:rgb?.map(v=>Math.min(3,Math.floor(v/64))).join(':')||color,color};
+      }
+      const bin=Math.round(Math.max(0,Math.min(1,(values[i]-lo)/(hi-lo||1)))*63);
+      return {key:String(bin),color:U.colourAt(stops,bin/63)};
+    };
+    // Plotly lines take one colour per trace. Group disjoint segments into
+    // bounded colour bins so a full leg does not create a trace per photo.
+    for(let i=1;i<meta.length;i++){
+      const a=meta[i-1],b=meta[i],ya=means.get(a.id),yb=means.get(b.id);
+      if(ya==null||yb==null||a.leg!==b.leg||b.time-a.time>600000)continue;
+      const {key,color}=colour(i-1);
+      if(!groups.has(key))groups.set(key,{...base,name:'1 h centered mean',mode:'lines',x:[],y:[],customdata:[],line:{color,width:3},hovertemplate:'%{y:.1f}% · 1 h centered mean<br>%{x}<extra></extra>'});
+      const trace=groups.get(key);trace.x.push(base.x[i-1],base.x[i],null);trace.y.push(ya,yb,null);trace.customdata.push(a,b,null);
+    }
+    return [...groups.values()];
+  }
   function concentrationTraces(base,meta){
     const d=U.state.data,c=U.colourData(),legs=new Map(),legIds=new Map(U.M.legs.map(l=>[l.id,l.index]));
     for(let i=0;i<(d?.t.length||0);i++){const leg=d.leg[i];if(!legs.has(leg))legs.set(leg,[]);legs.get(leg).push({time:d.t[i],i})}
@@ -71,7 +107,8 @@
     const valid=values.map((v,i)=>(c.variable?.rgb?typeof v==='string':Number.isFinite(v))&&!(indices[i]!=null&&c.low?.[indices[i]]));
     return [
       {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?v:null),marker:{size:6,color:values.map((v,i)=>valid[i]?v:c.variable?.rgb?'#7d8895':0),colorscale:U.cmap(c.variable?.cmap),reversescale:!!c.variable?.reverse,cmin:c.variable?.rgb?undefined:c.limits?.[0],cmax:c.variable?.rgb?undefined:c.limits?.[1],showscale:false}},
-      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?null:v),marker:{size:6,color:'#7d8895'}}
+      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?null:v),marker:{size:6,color:'#7d8895'}},
+      ...meanTraces(base,meta,values,valid,c)
     ];
   }
   // Slice buttons occupy the same plotting rectangle as the other charts.
