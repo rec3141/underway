@@ -800,6 +800,7 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
 
 
 HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
+        "/codex <session> <message>\nOperator only: start or resume a Codex session. Reply to a message with /codex <session> to pass that text.\n\n"
         "/all\nEvery operation on the schedule.\n\n"
         "/only CardS-3, CTD\nOnly the operations whose station or name contains one of these words.\n\n"
         "/none\nNo general alerts. Operations you follow through a bell on the dashboard stay.\n\n"
@@ -833,7 +834,10 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
         subs = load_subs()
         mine = next((s for s in subs if s["channel"] == "telegram" and s["to"] == chat), None)
         try:
-            if cmd == "/start" and decode_row(arg.strip()) == CHANGES_KEY:   # the bell in the schedule's heading
+            if cmd == "/codex":
+                from .telegram_codex import submit
+                reply = submit(msg, u['update_id'], tg)
+            elif cmd == "/start" and decode_row(arg.strip()) == CHANGES_KEY:   # the bell in the schedule's heading
                 set_changes("telegram", chat, True, who)
                 reply = CHANGES_ON
             elif cmd == "/start" and arg.strip():          # the dashboard's bell: t.me/<bot>?start=<row key>
@@ -927,6 +931,8 @@ def bot_loop() -> None:
         log.warning("telegram bot: no token; nothing to do")
         return
     tg = Telegram(token)
+    from .telegram_codex import start
+    start(tg)
     alive = DB_DIR / "telegram_bot.alive"
     log.info("telegram bot: @%s answering", tg.me())
     while True:

@@ -13,6 +13,7 @@ Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
 Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
 Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
 Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
+Environment=CODEX_HOME=@UNDERWAY_CODEX_HOME@
 EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
 ExecStart=@UNDERWAY_PYTHON@ -m dashboard telegram-bot
 Restart=always
@@ -23,6 +24,7 @@ PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=full
 ReadWritePaths=@UNDERWAY_HOME@
+ReadWritePaths=-@UNDERWAY_CODEX_HOME@
 StandardOutput=journal
 StandardError=journal
 
