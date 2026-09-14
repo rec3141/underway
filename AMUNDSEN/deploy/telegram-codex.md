@@ -13,8 +13,10 @@ use, the most recently used legacy Codex session for that user is retained.
 Old bot update IDs and pending jobs are never imported or replayed.
 
 The CLI runs as the service account with `workspace-write`, network access,
-and no interactive approvals. Its working directory and writable workspace
-are `UNDERWAY_CODEX_CWD` in `site.env`, default `/data/dev/underway`.
+and no interactive approvals. Its working directory is `UNDERWAY_CODEX_CWD`
+in `site.env`, default `/data/dev/underway`. All of `/data/dev` and the account's
+Downloads folder are writable. Set `UNDERWAY_CODEX_DOWNLOADS` in `site.env`
+for a nonstandard Downloads location; both sandbox layers use that path.
 GitHub operations use that account's Git/SSH credentials and permissions.
 The workspace's `.git` directory is explicitly writable for pulls and merges.
 The deployment checkout stays read-only to this service. The queue directory

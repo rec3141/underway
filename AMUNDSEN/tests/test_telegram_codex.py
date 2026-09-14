@@ -74,7 +74,10 @@ print(json.dumps({'type':'turn.completed'}), flush=True)
         self.assertEqual((self.root / 'prompt.txt').read_text(), 'Hello')
         self.assertIn('sandbox_workspace_write.network_access=true', args)
         self.assertEqual(args[args.index('-C') + 1], str(self.root))
-        self.assertIn('sandbox_workspace_write.writable_roots=' + json.dumps([str(self.root / '.git')]), args)
+        roots = json.loads(next(a.split('=', 1)[1] for a in args if a.startswith('sandbox_workspace_write.writable_roots=')))
+        self.assertIn('/data/dev', roots)
+        self.assertIn(str(Path(os.environ.get('UNDERWAY_CODEX_DOWNLOADS') or Path.home() / 'Downloads')), roots)
+        self.assertIn(str(self.root / '.git'), roots)
 
     def test_migrate_latest_session_without_old_updates_or_jobs(self):
         with sqlite3.connect(self.root / 'telegram_codex.sqlite') as db:
