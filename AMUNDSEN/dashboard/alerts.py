@@ -28,11 +28,11 @@ of the subscription file take ``db/alerts.lock``.
 An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
 else the SMTP account's own address; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
 FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
-with a note when it recovers. The History artifacts flagged for review from
-their cards (``db/history_flags.json``) go to the same keeper on the next
-run, all in one message; a flag withdrawn before then is dropped unsent.
+with a note when it recovers. The wiki pages flagged for review
+(``db/history_flags.json``) go to the same keeper on the next run, all in one
+message; a flag withdrawn before then is dropped unsent.
 Whoever raised a flag can withdraw it while theirs is the only one; once
-several people have flagged the same artifact only an admin can, an admin
+several people have flagged the same page only an admin can, an admin
 being a chat name listed in ``UNDERWAY_ADMINS`` (comma-separated) or in
 ``admins.json`` in the config directory, on the device that owns that name in
 the chat.
@@ -147,8 +147,8 @@ def save_state(st: dict) -> None:
 
 # ---------------------------------------------------------------- review flags
 #
-# A flag on a History artifact, raised from its card by anyone with a note;
-# several people may raise their own on the same artifact. The person who
+# A flag on a wiki page or artifact, raised by anyone with a note;
+# several people may raise their own on the same page. The person who
 # raised it withdraws it while theirs is the only one; once several have,
 # only an admin can clear it. An admin is a chat name from ``admins()``
 # presented with the device token that owns that name in the chat. Raises
@@ -215,7 +215,7 @@ def is_admin(name: str, token: str) -> bool:
 
 
 def flagged(token: str = "", name: str = "") -> dict:
-    """What the page shows: every flagged artifact with who raised it and
+    """What the page shows: every flagged page with who raised it and
     why, whether this device is among them, and whether it is an admin's."""
     me = _owner(token)
     out = []
@@ -229,12 +229,18 @@ def flagged(token: str = "", name: str = "") -> dict:
 
 def set_flag(art_id: str, on: bool, token: str = "", name: str = "", title: str = "", page: str = "", note: str = "",
              now: datetime | None = None) -> dict:
-    """Raise this device's flag on an artifact, or withdraw the flag. Raises
+    """Raise this device's flag on a wiki page, or withdraw the flag. Raises
     ValueError for a bad id, PermissionError when the flag is not this
     device's to withdraw, TooMany past the hour's limit. Returns the flags
     as the page sees them."""
-    art_id = art_id.strip()[:120]
-    if not re.fullmatch(r"[\w.-]+", art_id):
+    art_id = art_id.strip()
+    # Artifact IDs keep their card identity; page IDs include the full wiki route.
+    if art_id.startswith("page:"):
+        slug = art_id[5:]
+        if (not slug or len(slug) > 200 or not re.fullmatch(r"[\w.,/-]+", slug)
+                or any(part in {"", ".", ".."} for part in slug.split("/"))):
+            raise ValueError("that is not a wiki page id")
+    elif len(art_id) > 120 or not re.fullmatch(r"[\w.-]+", art_id):
         raise ValueError("that is not an artifact id")
     if not token:
         raise ValueError("this browser has no device token; reload the page")
@@ -249,11 +255,11 @@ def set_flag(art_id: str, on: bool, token: str = "", name: str = "", title: str 
             since = (now - timedelta(hours=1)).isoformat(timespec="seconds")
             d["raised"] = [r for r in d["raised"] if r["when"] > since]
             if sum(1 for r in d["raised"] if r["owner"] == me) >= FLAGS_PER_HOUR:
-                raise TooMany(f"you have flagged {FLAGS_PER_HOUR} artifacts this hour; try again later")
+                raise TooMany(f"you have flagged {FLAGS_PER_HOUR} pages this hour; try again later")
             if len(d["raised"]) >= FLAGS_PER_HOUR_ALL:
-                raise TooMany(f"{FLAGS_PER_HOUR_ALL} artifacts have been flagged this hour; try again later")
+                raise TooMany(f"{FLAGS_PER_HOUR_ALL} pages have been flagged this hour; try again later")
             if f is None:
-                f = {"id": art_id, "title": title.strip()[:200], "page": re.sub(r"[^\w./-]", "", page)[:200], "raisers": []}
+                f = {"id": art_id, "title": title.strip()[:200], "page": re.sub(r"[^\w.,/-]", "", page)[:200], "raisers": []}
                 d["flags"].append(f)
             when = now.isoformat(timespec="seconds")
             f["raisers"].append({"owner": me, "who": name, "note": note.strip()[:1000], "when": when, "notified": False})
@@ -285,8 +291,8 @@ def flag_notices(tg=None, email=None) -> list[str]:
             when = datetime.fromisoformat(r["when"]).astimezone(TZ).strftime("%Y-%m-%d %H:%M %Z")
             lines.append(f"{r.get('who') or 'someone'} flagged {f.get('title') or f['id']} ({f['id']}) at {when}"
                          + (f": {r['note']}" if r.get("note") else "")
-                         + (f" — http://underway.local:8042/#history/{f['page']}" if f.get("page") else ""))
-        head = f"{len(pending)} history artifact{'s' if len(pending) > 1 else ''} flagged for review"
+                         + (f" — http://underway.local:8042/#wiki/{f.get('page', '')}" if f.get("page") or f["id"] == "page:home" else ""))
+        head = f"{len(pending)} wiki page{'s' if len(pending) > 1 else ''} flagged for review"
         to, cfg, chat = ops_targets()
         ok = False
         try:

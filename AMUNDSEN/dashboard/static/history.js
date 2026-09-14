@@ -132,7 +132,7 @@
   }
   // both halves: the natural half's files come through nature.js, once it has loaded
   const ensureAll = () => Promise.all([ensure(), UW.natureViews?.ensure?.() ?? null]).then(([ok]) => ok);
-  // the review flags: raised on an artifact's card by anyone, with a note,
+  // Review flags are raised on wiki pages or artifact cards with a note,
   // and kept on the server so every browser shows the same ones; the alerts
   // timer reports them to the keeper. Whoever raised a flag withdraws it
   // while theirs is the only one; once several people have, only an admin.
@@ -141,7 +141,7 @@
     hist.flags = new Map((r?.flags || []).map((f) => [f.id, f])); hist.admin = !!r?.admin;
     for (const el of document.querySelectorAll("#pane-wiki .flag[data-flag]")) {
       const f = hist.flags.get(el.dataset.flag);
-      el.classList.toggle("on", !!f); el.title = flagTitle(f); el.textContent = flagText(f);
+      el.classList.toggle("on", !!f); el.title = flagTitle(f); el.setAttribute("aria-label", flagTitle(f)); el.textContent = flagText(f);
     }
   }
   async function loadFlags() {
@@ -151,14 +151,15 @@
   }
   const flagText = (f) => "⚑" + (f && f.raisers.length > 1 ? f.raisers.length : "");
   function flagTitle(f) {
-    if (!f) return "Flag this item for content review. For interface problems, use Feedback at the bottom of the page.";
+    if (!f) return "Flag this item for content review. For interface problems, use Feedback in the header.";
     const by = f.raisers.map((r) => (r.who || "someone") + (r.note ? ": " + r.note : "")).join("; ");
     const can = hist.admin || (f.mine && f.raisers.length === 1);
     return `Flagged for review by ${by} · ${can ? "click to withdraw" : f.mine ? "only an admin can withdraw it now" : "click to add your own flag"}`;
   }
-  const flagMark = (a) => { const f = hist.flags.get(a.id); return `<span class="flag ${f ? "on" : ""}" role="button" tabindex="0" data-flag="${esc(a.id)}" title="${esc(flagTitle(f))}">${flagText(f)}</span>`; };
+  const flagPages = new Map();
+  const flagMark = (a) => { const f = hist.flags.get(a.id); return `<span class="flag ${f ? "on" : ""}" role="button" tabindex="0" data-flag="${esc(a.id)}" aria-label="${esc(flagTitle(f))}" title="${esc(flagTitle(f))}">${flagText(f)}</span>`; };
   async function toggleFlag(id) {
-    const a = artifactById(id); if (!a) return;
+    const a = artifactById(id) || flagPages.get(id); if (!a) return;
     const f = hist.flags.get(id), { token, name } = me();
     let on, note = "";
     if (!f || !(hist.admin || f.mine)) {                      // not flagged, or flagged by others: add this device's flag
@@ -579,6 +580,16 @@
     nature: "what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal",
   };
   async function renderMain() {
+    await renderMainBody();
+    if (!hist.index || UW.public || (hist.slug.startsWith('artifact/') && artifactById(hist.slug.slice(9)))) return;
+    const el = $('#histmain'), heading = el.querySelector('h2');
+    const target = {id: 'page:' + (hist.slug || 'home'), page: hist.slug, title: heading?.textContent.trim() || 'Wiki'};
+    flagPages.set(target.id, target);
+    if (flagPages.size > 256) flagPages.delete(flagPages.keys().next().value);
+    if (heading) heading.insertAdjacentHTML('beforeend', flagMark(target));
+    else el.insertAdjacentHTML('afterbegin', '<div class="wiki-page-flag">' + flagMark(target) + '</div>');
+  }
+  async function renderMainBody() {
     ns = NS.wiki;
     const el = $("#histmain");
     el.scrollTop = 0;                                              // a new view opens at its top
@@ -798,9 +809,15 @@
     const rows = pairs.filter(([, v]) => v).map(([l, v]) => `<div class="fact">${l ? `<span class="lbl">${esc(l)}</span>` : ""}<span>${l === "source" ? v : esc(v)}</span></div>`);
     return rows.length ? `<div class="artfacts">${rows.join("")}</div>` : "";
   }
+  function personByName(name) {
+    const exact = hist.people.find(p => p.name === name); if (exact) return exact;
+    const key = name.trim().toLocaleLowerCase();
+    const matches = hist.people.filter(p => (p.also || '').split(';').some(a => a.trim().toLocaleLowerCase() === key));
+    return matches.length === 1 ? matches[0] : null;
+  }
   function peopleStrip(names) {
     if (!names?.length) return "";
-    const one = (n) => { const p = hist.people.find((x) => x.name === n); return p ? `<a class="chip small" href="#wiki/${esc(p.page)}" data-slug="${esc(p.page)}">${esc(n)}</a>` : `<span class="chip small wanted" title="no page yet">${esc(n)}</span>`; };
+    const one = (n) => { const p = personByName(n); return p ? `<a class="chip small" href="#wiki/${esc(p.page)}" data-slug="${esc(p.page)}">${esc(n)}</a>` : `<span class="chip small wanted" title="no page yet">${esc(n)}</span>`; };
     return `<div class="artpeople"><span class="lbl">People</span>${names.map(one).join("")}</div>`;
   }
 
@@ -851,8 +868,14 @@
     const pageOf = (tok) => {
       if (tok === self) return null;
       const p = hist.index.pages.find((x) => x.slug === tok); if (p) return p;
-      const a = artifactById(tok); return a ? { slug: a.page, title: a.title } : null;
+      const a = artifactById(tok); if (a) return {slug: a.page, title: a.title};
+      const t = topicOf(tok.replace(/^topic\//, '')); return t ? {slug: 'topic/' + t.slug, title: t.title} : null;
     };
+    for (const link of root.querySelectorAll('a[data-slug]')) {
+      const slug = link.dataset.slug, label = link.textContent.trim();
+      const target = pageOf(slug);
+      if (target && !link.children.length && (label === slug || label === slug.split('/').at(-1))) link.textContent = target.title;
+    }
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.parentElement.closest("a, code, .wanted") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const texts = []; for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n);
     for (const node of texts) {
@@ -878,7 +901,7 @@
     // bears the name: on their page "Isachsen" is the man, not the station
     const surnames = new Map();
     for (const n of people || []) {
-      const p = hist.people.find((x) => x.name === n); if (!p) continue;
+      const p = personByName(n); if (!p) continue;
       const last = n.split(/\s+/).pop();
       if (last.length >= 4 && people.filter((m) => m.split(/\s+/).pop() === last).length === 1) surnames.set(last, { name: last, slug: p.page, kind: "person" });
     }
@@ -1131,7 +1154,7 @@
     const byPage = new Map();                                        // a track called here more than once: one chip, every visit
     for (const x of items) {
       const slug = x.kind === "place" ? x.p.page : x.a.page;
-      if (!byPage.has(slug)) byPage.set(slug, { kind: x.kind, title: x.kind === "place" ? x.p.name : x.a.title, slug, visits: [], note: x.kind === "place" ? [x.p.kind, x.p.note].filter(Boolean).join(" · ") : x.kind === "track" ? "" : fmtDate(x.a) });
+      if (!byPage.has(slug)) byPage.set(slug, { kind: x.kind, title: x.kind === "place" ? x.p.name : x.a.title, slug, artifact: x.a, visits: [], note: x.kind === "place" ? [x.p.kind, x.p.note].filter(Boolean).join(" · ") : x.kind === "track" ? "" : fmtDate(x.a) });
       if (x.w) byPage.get(slug).visits.push([dateLabel(x.w.date || ""), x.w.note].filter(Boolean).join(": "));
     }
     const order = { place: 0, track: 1 };
@@ -1139,7 +1162,9 @@
     const title = place ? esc(place.name) : "This spot";
     el.innerHTML = crumb(here(title, hist.slug)) + `<h2>${title} <span class="muted">${coordLink(lat, lon, place?.name || "")}</span></h2>` +
       `<p class="lead">${chips.length} things on the map share this spot. Pick one.</p>` +
-      `<div class="pagelist">${chips.map((c) => pageLink({ slug: c.slug, kind: c.kind, title: c.title, summary: c.visits.length ? c.visits.join(" · ") : c.note })).join("")}</div>`;
+      `<div class="artgrid sitecards">${chips.map(c => c.artifact
+        ? `<div>${artifactCard(c.artifact)}${c.visits.length ? `<p class="sitevisits">${esc(c.visits.join(' · '))}</p>` : ''}</div>`
+        : pageLink({slug:c.slug,kind:c.kind,title:c.title,summary:c.note})).join('')}</div>`;
     focusPoint(lat, lon, place?.name || "");
     el.scrollTop = 0;
   }
@@ -1374,7 +1399,25 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
       focusPoint(mid[1], mid[0], a.title);
     } else focusPoint(a.lat, a.lon, a.title);
   }
+  let imagePreview;
+  function previewImage(link) {
+    if (!imagePreview) {
+      imagePreview = document.createElement('dialog'); imagePreview.className = 'wiki-image-preview';
+      imagePreview.setAttribute('aria-labelledby', 'wiki-image-title');
+      imagePreview.innerHTML = '<div class="preview-head"><h2 id="wiki-image-title"></h2><button type="button">Close ✕</button></div><a class="preview-image" target="_blank" rel="noopener"><img alt=""></a><p></p><a class="preview-original" target="_blank" rel="noopener">Open original in new tab ↗</a>';
+      imagePreview.querySelector('button').onclick = () => imagePreview.close();
+      document.body.append(imagePreview);
+    }
+    const image = link.querySelector('img'), title = image.alt || $('#histmain h2')?.textContent || 'Image preview';
+    imagePreview.querySelector('h2').textContent = title;
+    for (const a of imagePreview.querySelectorAll('a')) a.href = link.href;
+    const large = imagePreview.querySelector('img'); large.src = image.currentSrc || image.src; large.alt = title;
+    imagePreview.querySelector('p').textContent = link.closest('figure')?.querySelector('figcaption')?.textContent || '';
+    imagePreview.showModal();
+  }
   document.addEventListener("click", (e) => {
+    const picture = e.target.closest('#pane-wiki figure a[target="_blank"]');
+    if (picture?.querySelector('img') && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) { e.preventDefault(); previewImage(picture); return; }
     const flag = e.target.closest(".histpane .flag[data-flag]");
     if (flag) { e.preventDefault(); e.stopPropagation(); toggleFlag(flag.dataset.flag); return; }
     const kw = e.target.closest('.histpane a[href^="#kw-"]');

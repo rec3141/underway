@@ -383,7 +383,7 @@ class OpsTests(unittest.TestCase):
 
 
 class FlagTests(unittest.TestCase):
-    """Review flags on History artifacts: raised with a note by anyone,
+    """Review flags on wiki pages: raised with a note by anyone,
     withdrawn by the raiser alone or an admin, rate limited, reported once."""
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
@@ -413,6 +413,35 @@ class FlagTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             alerts.set_flag("thule-023", True, "", "Ann", now=self.now)
 
+    def test_page_flags_keep_routes_and_ownership(self):
+        for slug in ("explore", "narrative/northwest-passage", "at/76,-78", ""):
+            flag_id = "page:" + (slug or "home")
+            with self.subTest(slug=slug):
+                result = alerts.set_flag(flag_id, True, "tokA", "Ann", "Page title", slug,
+                                         "Please review", self.now)
+                flag = next(f for f in result["flags"] if f["id"] == flag_id)
+                self.assertEqual((flag["page"], flag["title"], flag["mine"]), (slug, "Page title", True))
+                with self.assertRaises(PermissionError):
+                    alerts.set_flag(flag_id, False, "tokB", "Bob", now=self.now)
+        mails = []
+        alerts.flag_notices(None, lambda cfg, to, subject, body: mails.append(body))
+        self.assertIn("#wiki/at/76,-78", mails[0])
+        self.assertIn("#wiki/explore", mails[0])
+        self.assertIn("#wiki/\n", mails[0] + "\n")
+        alerts.set_flag("page:explore", True, "tokB", "Bob", now=self.now)
+        with self.assertRaises(PermissionError):
+            alerts.set_flag("page:explore", False, "tokA", "Ann", now=self.now)
+        result = alerts.set_flag("page:explore", False, "ktok", "Keeper", now=self.now)
+        self.assertNotIn("page:explore", [f["id"] for f in result["flags"]])
+
+    def test_page_ids_reject_invalid_routes_and_truncation(self):
+        for flag_id in ("page:", "page:/explore", "page:explore/", "page:a//b", "page:a/../b",
+                        "page:./explore", "page:explore?x=1", "page:explore#x", "page:" + "a" * 201,
+                        "a" * 121):
+            with self.subTest(flag_id=flag_id), self.assertRaises(ValueError):
+                alerts.set_flag(flag_id, True, "tokA", "Ann", now=self.now)
+        self.assertEqual(alerts.flagged()["flags"], [])
+
     def test_rate_limit(self):
         for i in range(alerts.FLAGS_PER_HOUR):
             alerts.set_flag(f"a-{i}", True, "tokA", "Ann", now=self.now + timedelta(minutes=i))
@@ -434,8 +463,8 @@ class FlagTests(unittest.TestCase):
         self.assertEqual(len(lines), 2)
         self.assertEqual(len(mails), 1)
         self.assertEqual(mails[0][0], "keeper@example.org")
-        self.assertIn("2 history artifacts flagged", mails[0][1])
-        self.assertIn("Ann flagged First (a-1)", mails[0][2]); self.assertIn(": typo", mails[0][2]); self.assertIn("#history/artifact/a-2", mails[0][2])
+        self.assertIn("2 wiki pages flagged", mails[0][1])
+        self.assertIn("Ann flagged First (a-1)", mails[0][2]); self.assertIn(": typo", mails[0][2]); self.assertIn("#wiki/artifact/a-2", mails[0][2])
         self.assertNotIn("Third", mails[0][2])
         self.assertEqual(tg.sent[0][0], "42"); self.assertIn("🚩", tg.sent[0][1])
         self.assertEqual(alerts.flag_notices(tg, lambda *a: mails.append(a)), [])                # not again

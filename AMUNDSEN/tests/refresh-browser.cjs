@@ -13,7 +13,7 @@ const chrome = process.argv[2];
 if (!chrome) throw Error('Pass the Chromium executable path');
 const wait = ms => new Promise(r => setTimeout(r,ms));
 let generation=1;
-let rejectFeedback=true; const feedbackRows=[];
+let rejectFeedback=true; const feedbackRows=[], wikiFlags=[];
 let rejectLiveConfig=true;
 const uploadBatches=[], uploadFiles=[]; let rejectUpload=true;
 let importRequests=0, importJob=null, finishImport=false;
@@ -29,7 +29,7 @@ const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc
 function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
-    ...(process.env.UPLOAD_UI||process.env.WIKI_UI?{history:{stamp:'test'}}:{}),
+    ...(process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.WIKI_FEEDBACK_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...((process.env.DEPTH_UI||process.env.UNDERWAY_UI)?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -40,6 +40,19 @@ function manifest() {
   };
 }
 function dataset(p) {
+  if(process.env.WIKI_FEEDBACK_UI && p.startsWith('/data/history/')) {
+    const topics=[{slug:'inuit-oral-history',title:'Inuit oral history',domain:'history',pages:1,artifacts:2}];
+    const artifacts=['photo-one','photo-two'].map((id,i)=>({id,page:'artifact/'+id,type:'image',title:'Test image '+i,topic:topics[0].slug,url:'wiki-test.png',thumb:'wiki-test.png',lat:76,lon:-78,people:['E-took-a-shoo','Shared name'],credit:'Test credit',date_start:'1900',description:'Picture'}));
+    const pages=[{slug:'test-narrative',kind:'page',title:'Readable narrative',topic:topics[0].slug,html:'See [inuit-oral-history](topic/inuit-oral-history), [a chosen label](topic/inuit-oral-history), and inuit-oral-history.'},
+      ...artifacts.map(a=>({slug:a.page,kind:'artifact',ref:a.id,title:a.title,topic:a.topic,html:'Picture by E-took-a-shoo.'})),
+      {slug:'person/etukishook',kind:'person',title:'Etukishook',html:'Biography'}];
+    if(p.endsWith('/index.json'))return {topics,pages};
+    if(p.endsWith('/artifacts.json'))return {artifacts};
+    if(p.endsWith('/people.json'))return {people:[{name:'Etukishook',also:'E-took-a-shoo; Etukishuk',page:'person/etukishook'},{name:'One',also:'Shared name',page:'person/one'},{name:'Two',also:'Shared name',page:'person/two'}]};
+    if(p.includes('/pages/'))return pages.find(x=>p.endsWith('/'+x.slug.replaceAll('/','__')+'.json'))||{};
+    return {};
+  }
+
   if((process.env.NATURE_UI||process.env.WIKI_UI||process.env.UPLOAD_UI) && p.startsWith('/data/history/')) {
     if(p.endsWith('/index.json')) return {topics:[],pages:[]};
     if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
@@ -74,6 +87,12 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname.replace(/^\/underway\//,'/'); requests.push(req.url);
+
+  if(process.env.WIKI_FEEDBACK_UI && p==='/wiki-test.png'){res.setHeader('Content-Type','image/svg+xml');res.end('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="teal"/></svg>');return;}
+  if(process.env.WIKI_FEEDBACK_UI && p==='/api/history/flags'){res.end(JSON.stringify({flags:wikiFlags}));return;}
+  if(process.env.WIKI_FEEDBACK_UI && p==='/api/history/flag'){
+    let body='';req.on('data',d=>body+=d);req.on('end',()=>{const row=JSON.parse(body);wikiFlags.push({...row,mine:true,raisers:[{who:row.name,note:row.note}]});res.end(JSON.stringify({flags:wikiFlags}));});return;
+  }
   if(p==='/api/usage' && req.method==='POST') {let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{pageViews.push(body);res.end('{}');});return;}
   if(process.env.UPLOAD_UI && p.startsWith('/api/nature/')) {
     res.setHeader('Content-Type','application/json');
@@ -172,6 +191,42 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+
+    if(process.env.WIKI_FEEDBACK_UI){
+      await evaluate('UW.store.set("chat.token","test-token");UW.showTab("wiki");UW.wikiOpen("test-narrative")');
+      await until('document.querySelector("#histmain .wiki")?.textContent.includes("See")');
+      assert.equal(await evaluate('[...document.querySelectorAll("#histmain .wiki a")].filter(a=>a.dataset.slug==="topic/inuit-oral-history").length'),3);
+      assert.deepEqual(await evaluate('[...document.querySelectorAll("#histmain .wiki a")].map(a=>a.textContent)'),['Inuit oral history','a chosen label','Inuit oral history']);
+      await evaluate('window.prompt=()=>"Review this narrative";document.querySelector("#histmain h2 .flag").click()');
+      await until('document.querySelector("#histmain h2 .flag")?.classList.contains("on")');
+      assert.equal(wikiFlags[0].id,'page:test-narrative');
+      assert.equal(wikiFlags[0].page,'test-narrative');
+      await evaluate('UW.wikiOpen("explore")');
+      await until('document.querySelector("#histmain h2 .flag")?.dataset.flag==="page:explore"');
+      await evaluate('document.querySelector("#histmain h2 .flag").click()');
+      await until('document.querySelector("#histmain h2 .flag")?.classList.contains("on")');
+      assert.equal(wikiFlags[1].page,'explore');
+      await evaluate('UW.wikiOpen("artifact/photo-one")');
+      await until('document.querySelector("#histmain figure img")?.naturalWidth===1600');
+      assert.equal(await evaluate('document.querySelector(".artpeople a")?.dataset.slug'),'person/etukishook');
+      assert.equal(await evaluate('document.querySelector(".artpeople .wanted")?.textContent'),'Shared name');
+      assert.equal(await evaluate('document.querySelector("#histmain .artmeta .flag")?.dataset.flag'),'photo-one');
+      await evaluate('document.querySelector("#histmain figure img").click()');
+      await until('document.querySelector(".wiki-image-preview")?.open');
+      assert.equal(await evaluate('document.querySelector(".wiki-image-preview .preview-original").target'),'_blank');
+      assert.equal(await evaluate('document.querySelector(".wiki-image-preview p").textContent'),'Test credit');
+      assert.equal(await evaluate('(()=>{const r=document.querySelector(".wiki-image-preview").getBoundingClientRect();return r.width<=innerWidth&&r.height<=innerHeight})()'),true);
+      if(process.env.UI_SCREENSHOT){const shot=await call('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
+      await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+      await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+      await until('!document.querySelector(".wiki-image-preview").open');
+      await evaluate('UW.wikiOpen("at/76,-78")');
+      await until('document.querySelectorAll("#histmain .sitecards .artcard img").length===2');
+      assert.equal(await evaluate('document.querySelectorAll("#histmain .sitecards .artcard").length'),2);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS wiki image modal/Escape, shared-location previews, page flags, readable topic links and person aliases');
+      return;
+    }
     if(process.env.UNDERWAY_UI) {
       await until('document.querySelector("#aggtable tbody tr")');
       await evaluate('UW.setMapMode("half")');
@@ -669,6 +724,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       return;
     }
     if (process.env.FEEDBACK_UI) {
+      await evaluate(`UW.wikiContext=()=>"observation/muskox-and-caribou-038"`);
       await evaluate(`document.querySelector('#feedback-open').click();
         document.querySelector('#feedback-message').value='Map points disappear when clicked';
         document.querySelector('#feedback-form').requestSubmit();`);
@@ -679,11 +735,22 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await until('document.querySelector("#feedback-status").textContent.includes("saved")');
       assert.equal(feedbackRows.length,1);
       assert.equal(feedbackRows[0].context.tab,'underway');
+      assert.equal(feedbackRows[0].context.wiki,'');
+      assert.equal(await evaluate('document.querySelector("#feedback-page").textContent'),'underway · 1h');
       assert.equal(feedbackRows[0].context.viewport.width,390);
       assert.equal(feedbackRows[0].message,'Map points disappear when clicked');
       await evaluate('document.querySelector("#feedback-close").click(); document.querySelector("#feedback-open").click()');
       assert.equal(await evaluate('document.querySelector("#feedback-message").value'),'');
       assert.equal(await evaluate('document.activeElement.id'),'feedback-message');
+      await evaluate(`document.querySelector('#feedback-close').click();
+        document.querySelector('#tabs button.on').classList.remove('on');
+        document.querySelector('#tabs [data-tab="wiki"]').classList.add('on');
+        document.querySelector('#feedback-open').click()`);
+      assert.equal(await evaluate('document.querySelector("#feedback-page").textContent'),'wiki · observation/muskox-and-caribou-038');
+      await evaluate(`document.querySelector('#feedback-message').value='Feedback about this article';document.querySelector('#feedback-form').requestSubmit()`);
+      await until('document.querySelector("#feedback-status").textContent.includes("saved")');
+      assert.equal(feedbackRows[1].context.tab,'wiki');
+      assert.equal(feedbackRows[1].context.wiki,'observation/muskox-and-caribou-038');
       if (process.env.UI_SCREENSHOT) {
         const shot=await call('Page.captureScreenshot',{format:'png'});
         fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));

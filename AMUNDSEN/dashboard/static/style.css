@@ -1504,3 +1504,16 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
   .mobile-nav:last-child .mobile-nav-items { left:auto; right:0; }
   .top #tabs .mobile-nav-items button { display:block; width:100%; text-align:left; margin:2px 0; }
 }
+
+/* Wiki pictures enlarge within the page before opening their source file. */
+.wiki-image-preview { width:min(1200px,calc(100vw - 24px)); max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); box-sizing:border-box; padding:16px; border:1px solid var(--line); border-radius:var(--radius); background:var(--card); color:var(--fg); overflow:auto; }
+.wiki-image-preview::backdrop { background:rgba(0,0,0,.7); }
+.wiki-image-preview .preview-head { display:flex; gap:12px; align-items:center; }
+.wiki-image-preview h2 { flex:1; margin:0 0 12px; font-size:var(--t-lg); }
+.wiki-image-preview .preview-image { display:block; }
+.wiki-image-preview img { display:block; width:100%; height:auto; max-height:calc(100dvh - 210px); object-fit:contain; }
+.wiki-image-preview p { margin:8px 0; }
+.sitecards > div { min-width:0; }
+.sitecards .artcard { display:block; }
+.sitevisits { font-size:var(--t-sm); color:var(--muted); }
+#histmain h2 > .flag { margin-left:12px; font-size:var(--t-md); opacity:1; }
