@@ -1,10 +1,10 @@
 [Unit]
-Description=Publish the web root to the public web every fifteen minutes
+Description=Publish the web root to the public web every five minutes
 
 [Timer]
 OnBootSec=5min
-OnUnitActiveSec=15min
-AccuracySec=1min
+OnCalendar=*-*-* *:0/5:00
+AccuracySec=30s
 Unit=underway-publish.service
 
 [Install]

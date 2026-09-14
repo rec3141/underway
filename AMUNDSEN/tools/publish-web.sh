@@ -42,7 +42,7 @@ SOURCE=${UNDERWAY_PUBLISH_SOURCE_DIR:-$GRID_HOME/source}
 TRACK_PY=${UNDERWAY_PUBLISH_TRACK_PYTHON:-$GRID_HOME/.venv/bin/python}
 HIST=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
 PY=${UNDERWAY_PYTHON:-$HIST/.route-venv/bin/python}
-RSYNC="rsync -az --partial --timeout=120 --info=stats1"
+RSYNC="rsync -az --partial --timeout=120 --stats"
 DRY_ARGS=()
 if [[ ${2:-} == --dry-run && ${1:-} == push ]]; then
   DRY_ARGS=(--dry-run)
@@ -50,7 +50,7 @@ if [[ ${2:-} == --dry-run && ${1:-} == push ]]; then
 elif [[ $# -gt 1 ]]; then
   echo 'Only push accepts --dry-run' >&2; exit 2
 fi
-stats() { grep -E "Number of (regular files transferred|created|deleted)|Total transferred|Total file size" || true; }
+stats() { grep -E "Number of (regular files transferred|created|deleted)|Total transferred|Total file size|Total bytes (sent|received)" || true; }
 
 rebuild_tracks() {
   [[ -f $MIRROR/data/manifest.json && -f $MIRROR/index.html ]] || { echo 'No incoming ship manifest/index' >&2; return 1; }
@@ -194,8 +194,11 @@ case "${1:-}" in
     $RSYNC --delete --exclude 'data/history/' --exclude 'data/w-*.json' --exclude 'data/track/' --exclude '.htaccess' --exclude 'api-off.json' --exclude '.published' \
       --filter='P data/**' --exclude '*.tmp' --exclude '*.part' "$WEBROOT/" "$REMOTE/" | stats
     if [[ ${#DRY_ARGS[@]} -gt 0 ]]; then echo "Dry run complete; grid rebuild/deploy skipped"; exit 0; fi
-    echo "== grid rebuilds and deploys"
-    printf -v command 'UNDERWAY_PUBLISH_MIRROR=%q %q rebuild-deploy' "${REMOTE#*:}" "$REMOTE_APP/tools/publish-web.sh"
+    echo "== grid pulls master, rebuilds and deploys"
+    # Keep grid's renderer current on the same cadence as its data. The lock
+    # prevents replacing code during a running grid build/deployment.
+    printf -v command 'flock -w 120 %q git -C %q pull --ff-only origin master && UNDERWAY_PUBLISH_MIRROR=%q %q rebuild-deploy' \
+      "${REMOTE#*:}/../.publish.lock" "${REMOTE_APP%/*}" "${REMOTE#*:}" "$REMOTE_APP/tools/publish-web.sh"
     ssh "${REMOTE%%:*}" "$command"
     ;;
   history) history_layer ;;
