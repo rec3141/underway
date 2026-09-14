@@ -196,8 +196,9 @@ case "${1:-}" in
     if [[ ${#DRY_ARGS[@]} -gt 0 ]]; then echo "Dry run complete; grid rebuild/deploy skipped"; exit 0; fi
     echo "== grid pulls master, rebuilds and deploys"
     # Keep grid's renderer current on the same cadence as its data. The lock
-    # prevents replacing code during a running grid build/deployment.
-    printf -v command 'flock -w 120 %q git -C %q pull --ff-only origin master && UNDERWAY_PUBLISH_MIRROR=%q %q rebuild-deploy' \
+    # prevents replacing code during a running grid build/deployment. Allow
+    # a cold archive rebuild to finish when a scheduled push follows a manual one.
+    printf -v command 'flock -w 600 %q git -C %q pull --ff-only origin master && UNDERWAY_PUBLISH_MIRROR=%q %q rebuild-deploy' \
       "${REMOTE#*:}/../.publish.lock" "${REMOTE_APP%/*}" "${REMOTE#*:}" "$REMOTE_APP/tools/publish-web.sh"
     ssh "${REMOTE%%:*}" "$command"
     ;;
