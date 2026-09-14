@@ -12,6 +12,7 @@ EnvironmentFile=@UNDERWAY_SITE@
 Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
 Environment=CODEX_HOME=@UNDERWAY_CODEX_HOME@
 Environment=UNDERWAY_CODEX_CWD=@UNDERWAY_CODEX_CWD@
+Environment="UNDERWAY_CODEX_DOWNLOADS=@UNDERWAY_CODEX_DOWNLOADS@"
 EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
 ExecStart=@UNDERWAY_PYTHON@ -m dashboard codex-bot
 Restart=always
@@ -21,7 +22,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=strict
-ReadWritePaths=@UNDERWAY_HOME@/db @UNDERWAY_CODEX_HOME@ @UNDERWAY_CODEX_CWD@
+ReadWritePaths=@UNDERWAY_HOME@/db @UNDERWAY_CODEX_HOME@ @UNDERWAY_CODEX_CWD@ /data/dev "@UNDERWAY_CODEX_DOWNLOADS@"
 AppArmorProfile=underway-codex
 UMask=0077
 StandardOutput=journal

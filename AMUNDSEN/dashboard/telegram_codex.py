@@ -83,9 +83,10 @@ def submit(msg, update_id, tg):
 def command(thread=None):
     binary = os.environ.get('UNDERWAY_CODEX_BIN') or shutil.which('codex') or str(Path.home() / '.local/bin/codex')
     cwd = Path(os.environ.get('UNDERWAY_CODEX_CWD') or '/data/dev/underway')
+    downloads = Path(os.environ.get('UNDERWAY_CODEX_DOWNLOADS') or Path.home() / 'Downloads')
     args = [binary, 'exec', '-C', str(cwd), '-s', 'workspace-write', '-c', 'approval_policy="never"',
             '-c', 'sandbox_workspace_write.network_access=true',
-            '-c', 'sandbox_workspace_write.writable_roots=' + json.dumps([str(cwd / '.git')])]
+            '-c', 'sandbox_workspace_write.writable_roots=' + json.dumps(['/data/dev', str(downloads), str(cwd / '.git')])]
     if thread:
         args += ['resume', thread]
     return args + ['--json', '-']
