@@ -1602,6 +1602,9 @@
     saveTSV(`underway_${tbl.rule}_${stat}.tsv`, head, rows.map((r) => [new Date(r.t).toISOString(), r.legLabel, r.lat, r.lon, ...d.variables.map((v) => r[v] ? r[v][tbl.stat] : "")]));
   }
   function wireTable() {
+    const tableSection = $("#underway-table");
+    tableSection.open = store.get("tbl.open", true);
+    tableSection.addEventListener("toggle", () => store.set("tbl.open", tableSection.open));
     for (const b of $("#aggrule").querySelectorAll("button")) {
       b.classList.toggle("on", b.dataset.r === tbl.rule);
       b.onclick = () => { tbl.rule = b.dataset.r; store.set("tbl.rule", tbl.rule); for (const x of $("#aggrule").querySelectorAll("button")) x.classList.toggle("on", x === b); refreshActiveTab(true); };

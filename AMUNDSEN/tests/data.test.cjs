@@ -87,3 +87,16 @@ test('timeout also bounds reading the response body and is cleared', async () =>
   await assert.rejects(result,/timeout/);
   assert.equal(signal.aborted,true); assert.equal(cleared,true);
 });
+
+
+test('shared axis overrides a hidden plot range while preserving its vertical zoom', async () => {
+  const {EventEmitter} = require('node:events');
+  const draw = api().plotState({react:async(gd,data,layout)=>{gd._fullLayout=layout;return gd;}});
+  const gd = new EventEmitter(), layout = {xaxis:{range:[0,100]},yaxis:{range:[0,10]}};
+  await draw(gd,[],layout,{},'underway');
+  gd._fullLayout.xaxis.range=[20,30];gd._fullLayout.yaxis.range=[2,4];
+  gd.emit('plotly_relayout',{'xaxis.range':[20,30],'yaxis.range':[2,4]});
+  await draw(gd,[],layout,{},'underway',{xaxis:{range:[60,80],autorange:false}});
+  assert.deepEqual(gd._fullLayout.xaxis.range,[60,80]);
+  assert.deepEqual(Array.from(gd._fullLayout.yaxis.range),[2,4]);
+});

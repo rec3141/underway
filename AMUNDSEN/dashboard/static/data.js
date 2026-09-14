@@ -38,7 +38,7 @@
     let revision = 0;
     const axes = (layout) => Object.keys(layout).filter(k => /^[xy]axis\d*$/.test(k));
     const identity = (key, axis) => JSON.stringify([key[0], axis.title?.text || key, axis.type || 'linear']);
-    return async (gd, data, layout, config, scope) => {
+    return async (gd, data, layout, config, scope, axisOverrides = {}) => {
       let saved = scopes.get(scope);
       if (!saved) {
         saved = new Map(); scopes.set(scope, saved);
@@ -51,6 +51,7 @@
         next[key] = { ...layout[key], uirevision: revision };
         const range = saved.get(identity(key, next[key]));
         if (range) { next[key].range = [...range]; next[key].autorange = false; }
+        Object.assign(next[key], axisOverrides[key]);
       }
       if (gd._rememberAxes) gd.removeListener('plotly_relayout', gd._rememberAxes);
       const plot = await Plotly.react(gd, data, next, config);

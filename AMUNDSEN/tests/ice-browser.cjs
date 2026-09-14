@@ -4,7 +4,7 @@ const root=path.resolve(__dirname,'../dashboard/static'),profile=fs.mkdtempSync(
 const html=`<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/ice.css"><div id="panels" style="width:800px"></div><script src="/plotly.min.js"></script><script>
 window.errors=[];onerror=(m)=>errors.push(m);onunhandledrejection=e=>errors.push(String(e.reason));
 const interval=window.setInterval;window.setInterval=(fn,ms)=>{if(ms===60000)window.refreshIce=fn;return interval(fn,ms)};
-const t=Date.now(),specs=new Map();window.specs=specs;window.UW={state:{data:{t:[t-120000,t],leg:[0,0],dist_km:[0,1]},xmode:'time'},M:{legs:[{id:'test',index:0}]},THEME:{},CFG:{displayModeBar:false},shipAxis:t=>t,plotDate:t=>new Date(t).toISOString().slice(0,-1),fmtTs:t=>new Date(t).toISOString(),spanFilter:()=>({start:t-3600000,end:t+60000}),inFilter:()=>true,axisZoom:()=>{},reactPlot:(...args)=>Plotly.react(...args),linkX:()=>{},selectColour:name=>window.selectedColour=name,registerColour:s=>{(window.colours??=new Map()).set(s.name,s);if(s.sizes)window.colour=s},fetchJSON:async()=>({photos:[{id:'a'.repeat(20),time:t-120000,leg:'test',status:'filtered',ice:0,rgb:[12,34,56],types:[0,0,0,0,0,0]},{id:'b'.repeat(20),time:t-60000,leg:'test',status:'gemma',ice:60,types:[0,0,0,20,40,0]},{id:'c'.repeat(20),time:t,leg:'test',status:'pending',ice:null,types:null}]}),registerPanel:(name,s)=>{let el=document.createElement('section');el.innerHTML='<h3></h3><span class="now"></span><div class="plot" style="height:220px"></div>';document.querySelector('#panels').append(el);specs.set(name,{s,el})},refreshExtraData:()=>{for(const {s,el} of specs.values())s.render(el,el.querySelector('.plot'))}};
+const t=Date.now(),specs=new Map();window.specs=specs;window.UW={state:{data:{t:[t-120000,t],leg:[0,0],dist_km:[0,1]},xmode:'time'},M:{legs:[{id:'test',index:0}],data_range:{start:new Date(t-7200000).toISOString()}},currentFilter:()=>({start:-Infinity,end:t+60000}),legsStart:()=>t-7200000,chartMargin:()=>({l:90*(UW.fz?.(1)||1),r:8,t:6,b:34*(UW.fz?.(1)||1)}),THEME:{},CFG:{displayModeBar:false},shipAxis:t=>t,plotDate:t=>new Date(t).toISOString().slice(0,-1),fmtTs:t=>new Date(t).toISOString(),spanFilter:()=>({start:t-3600000,end:t+60000}),inFilter:()=>true,axisZoom:()=>{},reactPlot:(...args)=>Plotly.react(...args),linkX:()=>{},selectColour:name=>window.selectedColour=name,registerColour:s=>{(window.colours??=new Map()).set(s.name,s);if(s.sizes)window.colour=s},fetchJSON:async url=>(window.lastIceURL=url,{photos:[{id:'a'.repeat(20),time:t-120000,leg:'test',status:'filtered',ice:0,rgb:[12,34,56],types:[0,0,0,0,0,0]},{id:'b'.repeat(20),time:t-60000,leg:'test',status:'gemma',ice:60,types:[0,0,0,20,40,0]},{id:'c'.repeat(20),time:t,leg:'test',status:'pending',ice:null,types:null}]}),registerPanel:(name,s)=>{let el=document.createElement('section');el.innerHTML='<h3></h3><span class="now"></span><div class="plot" style="height:220px"></div>';document.querySelector('#panels').append(el);specs.set(name,{s,el})},refreshExtraData:()=>{for(const {s,el} of specs.values())s.render(el,el.querySelector('.plot'))}};
 UW.state.colour='SST (°C)';UW.state.data.vars={'SST (°C)':[1,3],'Bottom depth (m)':[10,100]};UW.state.data.limits={'SST (°C)':[0,5],'Bottom depth (m)':[0,200]};
 UW.cmap=name=>name||'Viridis';
 UW.colourData=(d=UW.state.data)=>{const custom=window.colours?.get(UW.state.colour),variable=custom||{cmap:'Viridis',reverse:UW.state.colour==='Bottom depth (m)'};return {variable,custom:!!custom,values:custom?custom.values(d):d.vars[UW.state.colour]||[],limits:d.limits?.[UW.state.colour]||[0,100],low:d.pump_low}};
@@ -21,37 +21,38 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const call=(method,params={})=>new Promise(r=>{const n=++id;pending.set(n,r);ws.send(JSON.stringify({id:n,method,params}))});const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.result.exceptionDetails)throw Error(JSON.stringify(r.result.exceptionDetails));return r.result.result.value};
  await call('Page.navigate',{url:'http://127.0.0.1:'+server.address().port});
  for(let i=0;i<100;i++){if(await evaluate('Boolean(window.specs&&[...specs.values()][0]?.el.querySelector(".plot").data)'))break;await wait(100)}
+ assert.equal(await evaluate(`(()=>{const p=[...specs.values()][4].el.querySelector('.plot'),l=p.querySelector('.ice-slices');return l.offsetParent===p})()`),true);
  assert.equal(await evaluate('specs.size'),5);assert.deepEqual(await evaluate('errors'),[]);
  assert.deepEqual(await evaluate('[...specs.values()].map(p=>p.s.group)'),Array(5).fill('Ice camera'));
  assert.deepEqual(await evaluate('[...specs.values()].map(p=>p.s.label)'),['Concentration','Ice composition','Surface types','ROI','Slices']);
  const concentration='[...specs.values()][0].el.querySelector(".plot").data';
- const meanBefore=await evaluate(`${concentration}.find(t=>t.name==='1 h centered mean')`);
- assert.deepEqual(await evaluate(`${concentration}[1].marker.color`),[1,1,3]);
- assert.equal(await evaluate(`${concentration}[1].marker.cmax`),5);
+ assert.equal(await evaluate(`${concentration}.every(t=>t.mode==='markers'&&t.marker.size===6)`),true);
+ assert.equal(await evaluate('Number(new URL(lastIceURL,location.href).searchParams.get("start"))'),await evaluate('(t-7200000)/1000'));
+ assert.deepEqual(await evaluate(`${concentration}[0].marker.color`),[1,1,3]);
+ assert.equal(await evaluate(`${concentration}[0].marker.cmax`),5);
  await evaluate('UW.selectColour("Bottom depth (m)")');
- assert.deepEqual(await evaluate(`${concentration}[1].marker.color`),[10,10,100]);
- assert.equal(await evaluate(`${concentration}[1].marker.reversescale`),true);
- assert.equal(await evaluate(`${concentration}[1].marker.cmax`),200);
+ assert.deepEqual(await evaluate(`${concentration}[0].marker.color`),[10,10,100]);
+ assert.equal(await evaluate(`${concentration}[0].marker.reversescale`),true);
+ assert.equal(await evaluate(`${concentration}[0].marker.cmax`),200);
  await evaluate('UW.selectColour("Camera · slice mean RGB")');
- assert.deepEqual(await evaluate(`${concentration}[1].marker.color`),['rgb(12,34,56)','#000000','#000000']);
+ assert.deepEqual(await evaluate(`${concentration}[0].marker.color`),['rgb(12,34,56)','#000000','#000000']);
  await evaluate('UW.selectColour("Camera · ice concentration")');
- assert.deepEqual(await evaluate(`${concentration}[1].marker.color`),[0,60,0]);
- assert.deepEqual(await evaluate(`${concentration}.find(t=>t.name==='1 h centered mean')`),meanBefore);
+ assert.deepEqual(await evaluate(`${concentration}[0].marker.color`),[0,60,0]);
  await evaluate('UW.state.data.vars["SST (°C)"]=[null,3];UW.selectColour("SST (°C)")');
- assert.deepEqual(await evaluate(`${concentration}[2].y`),[0,60,null]);
- assert.equal(await evaluate(`${concentration}[2].marker.color`),'#7d8895');
+ assert.deepEqual(await evaluate(`${concentration}[1].y`),[0,60,null]);
+ assert.equal(await evaluate(`${concentration}[1].marker.color`),'#7d8895');
  await evaluate('UW.state.data.vars["SST (°C)"]=[1,3];UW.state.data.pump_low=[true,false];UW.refreshExtraData()');
- assert.deepEqual(await evaluate(`${concentration}[2].y`),[0,60,null]);
+ assert.deepEqual(await evaluate(`${concentration}[1].y`),[0,60,null]);
  await evaluate('delete UW.state.data.pump_low;UW.refreshExtraData()');
- console.log('PASS selected numeric/RGB colours, reversed limits, missing/low-flow gray points, unchanged running mean');
- assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].y'),['water','new ice','broken ice','ice floe']);
- assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z'),[[100,0,null],[0,0,null],[0,60,null],[0,0,null]]);
+ console.log('PASS selected numeric/RGB colours, reversed limits, missing/low-flow gray points, larger markers without lines');
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].y'),['ice floe','broken ice','new ice','water']);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z'),[[0,0,null],[0,60,null],[0,0,null],[100,0,null]]);
  await evaluate(`(async()=>{const original=UW.fetchJSON;UW.fetchJSON=async()=>{const data=await original();data.photos[1].surface={'whitecap':5,'small waves':10,'calm water':25,'unknown':17};return data};await refreshIce()})()`);
- assert.equal(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z[0][1]'),40);
+ assert.equal(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z[3][1]'),40);
  await evaluate('[...specs.values()][2].el.classList.add("wide");UW.refreshExtraData()');
- assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].y'),['whitecaps','small waves','calm','grease','nilas','bits','brash','thin','thick']);
- assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z.slice(0,3).map(row=>row[1])'),[5,10,25]);
- assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z[1]'),[100,10,null]);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].y'),['thick','thin','brash','bits','nilas','grease','calm','small waves','whitecaps']);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z.slice(-3).map(row=>row[1])'),[25,10,5]);
+ assert.deepEqual(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].z[7]'),[100,10,null]);
  assert.equal(await evaluate('(()=>{const r=[...specs.values()][2].el.querySelector(".plot")._fullLayout.yaxis.range;return r[0]>r[1]})()'),true);
  await evaluate('[...specs.values()][2].el.classList.remove("wide");UW.refreshExtraData()');
  assert.equal(await evaluate('[...specs.values()][2].el.querySelector(".plot").data[0].y.length'),4);
@@ -65,8 +66,6 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").textContent.includes("No camera products")'),false);
  assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").layout.xaxis.title.text'),'ship time (EDT)');
  assert.deepEqual(await evaluate('[...specs.values()][0].el.querySelector(".plot").data[0].y'),[0,60,null]);
- assert.deepEqual(await evaluate('[...specs.values()][0].el.querySelector(".plot").data.at(-1).y'),[30,30,null]);
- assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").data.at(-1).name'),'1 h centered mean');
  assert.equal(await evaluate('[...specs.values()][1].el.querySelector(".plot").data[4].name'),'thin ice floe');
  assert.deepEqual(await evaluate('[...specs.values()][1].el.querySelector(".plot").data[4].y'),[0,0,null]);
  await evaluate('document.querySelector(".ice-image-button").click()');assert.equal(await evaluate('document.querySelector("dialog").open'),true);
@@ -89,17 +88,13 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate(`document.querySelectorAll('.ice-time-pointer:not([hidden])').length>=4`),true);
  assert.equal(await evaluate(`(()=>{for(const plot of document.querySelectorAll('#panels .plot')){const line=plot.querySelector('.ice-time-pointer'),y=plot._fullLayout?.yaxis;if(!y||!line||line.hidden)continue;const svg=plot.querySelector('.svg-container').getBoundingClientRect(),rect=plot.getBoundingClientRect();if(Math.abs(parseFloat(line.style.top)-(svg.top-rect.top+y._offset))>1||Math.abs(parseFloat(line.style.height)-y._length)>1)return false}return true})()`),true);
  assert.deepEqual(await evaluate('errors'),[]);console.log('PASS shared cursor from a non-camera dataset reaches other charts and slices');
- await evaluate(`(async()=>{UW.fetchJSON=async()=>({photos:[
- {id:'d',leg:'test',time:t-3600000,ice:100,status:'gemma'},
- {id:'e',leg:'test',time:t-1800000,ice:0,status:'filtered'},
- {id:'f',leg:'test',time:t,ice:60,status:'gemma'},
- {id:'g',leg:'other',time:t,ice:100,status:'gemma'},
- {id:'h',leg:'test',time:t+1800000,ice:30,status:'gemma'},
- {id:'i',leg:'test',time:t+1800001,ice:100,status:'gemma'},
- {id:'j',leg:'test',time:t+2400000,ice:null,status:'pending'}]});await refreshIce()})()`);
- assert.equal(await evaluate(`(()=>{const trace=[...specs.values()][0].el.querySelector('.plot').data.at(-1);return trace.y[trace.customdata.findIndex(p=>p.id==='f')]})()`),30);
- assert.equal(await evaluate(`(()=>{const trace=[...specs.values()][0].el.querySelector('.plot').data.at(-1);return trace.y[trace.customdata.findIndex(p=>p.id==='g')]})()`),100);
- console.log('PASS centered hour includes endpoints and zeros, excludes outside samples and separates legs');
+ const geometry=await evaluate(`[...specs.values()].filter((_,i)=>i!==3).map(({el})=>{const p=el.querySelector('.plot'),a=p._fullLayout.xaxis;return [a._offset,a._length]})`);
+ assert(geometry.every(g=>JSON.stringify(g)===JSON.stringify(geometry[0])));
+ await evaluate(`(async()=>{await Plotly.relayout([...specs.values()][4].el.querySelector('.plot'),{'xaxis.range':[UW.plotDate(t-150000),UW.plotDate(t-30000)],'xaxis.autorange':false})})()`);
+ assert.equal(await evaluate(`document.querySelectorAll('.ice-slice').length`),2);
+ assert.equal(await evaluate(`(()=>{const plot=[...specs.values()][4].el.querySelector('.plot'),layer=plot.querySelector('.ice-slices');return parseFloat(layer.style.left)===plot._fullLayout.xaxis._offset&&parseFloat(layer.style.width)===plot._fullLayout.xaxis._length})()`),true);
+ assert.equal(await evaluate(`[...specs.values()][0].el.querySelector('.plot').data[0].customdata[0].time<t-90000`),true);
+ console.log('PASS aligned camera axes, slice rebinning on zoom, full camera history outside selected span');
  await evaluate(`new Promise(resolve=>{const link=document.createElement('link');link.rel='stylesheet';link.href='/style.css';link.onload=resolve;document.head.append(link)})`);
  for(const theme of ['navigator','navigator-dark']){
    await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)};UW.spanFilter=()=>({start:t-3600000,end:t+3600000});UW.refreshExtraData()`);
@@ -113,4 +108,8 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate('focusArgs[0]'),70);
  assert.equal(await evaluate('[...specs.values()][0].el.querySelector(".plot").layout.xaxis.tickangle'),0);
  console.log('PASS slice selection recenters against coarsely binned navigation without changing zoom');
+ await evaluate(`UW.state.xmode='distance';UW.refreshExtraData()`);
+ assert.deepEqual(await evaluate(`[...specs.values()][0].el.querySelector('.plot').data[0].x`),[0,0.5,1]);
+ assert.deepEqual(await evaluate(`[...specs.values()].filter((_,i)=>i!==3).map(({el})=>el.querySelector('.plot')._fullLayout.xaxis.range)`),Array(4).fill([0,1]));
+ console.log('PASS camera distance axes align and interpolate between navigation bins');
 }finally{ws?.close();child?.kill();server.closeAllConnections();server.close()}})().catch(e=>{console.error(e);process.exitCode=1});

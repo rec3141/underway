@@ -32,7 +32,7 @@ function manifest() {
     ...(process.env.PHOTO_UI||process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
-    variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
+    variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...((process.env.DEPTH_UI||process.env.UNDERWAY_UI)?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
     surprise:{scales:[],note:''},stations:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
     data_range:{start:new Date(t-10000).toISOString(),end:new Date(t+10000).toISOString()},
     latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json'},
@@ -51,7 +51,7 @@ function dataset(p) {
   }
   if(p==='/api/nature/journal') return process.env.PHOTO_UI ? {entries:[{id:'photo-a',subject:'Seal',detail:'Wide photo.',observer:'Piper',date:'2026-09-04',artifact_file:'_journal/img/a.svg'},{id:'photo-b',subject:'Rock',detail:'Tall photo.',observer:'Finch',date:'2026-09-03',artifact_file:'_journal/img/b.svg'}]} : {observations:[]};
   if(p==='/data/manifest.json') return manifest();
-  if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation],...(process.env.DEPTH_UI?{'Bottom depth (m)':[25,100],'Rosette depth (m)':[25,100]}:{})},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
+  if(p.startsWith('/data/w-')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation],...((process.env.DEPTH_UI||process.env.UNDERWAY_UI)?{'Bottom depth (m)':[25,100],'Rosette depth (m)':[25,100]}:{})},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
   if(p==='/data/calendar.json') return {events:[pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
   if(p.startsWith('/data/agg-')) return {variables:['SST (°C)'],rows:[{t,leg:0,lat:76,lon:-78,'SST (°C)':[generation,generation,generation,2]}]};
   const cast={id:`${leg}:CTD_001`,leg,kind:'CTD',cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78,p:[1,2],units:{Temperature:'°C'},vars:{Temperature:[generation,generation]}};
@@ -273,6 +273,56 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await until('location.hash==="#wiki/kind/event" && UW.mapMode()==="half" && !document.querySelector("#pane-wiki").hidden');
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS wiki map links expose selected entry from fullscreen map with wiki active or inactive');
+      return;
+    }
+    if(process.env.UNDERWAY_UI) {
+      await until('document.querySelector("#aggtable tbody tr")');
+      await evaluate('UW.setMapMode("half")');
+      for (const width of [320,390,768,1100]) {
+        await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<=640});
+        await wait(150);
+        assert.equal(await evaluate('document.querySelector("main > .map").getBoundingClientRect().bottom <= document.querySelector("main > .side").getBoundingClientRect().top'), true);
+      }
+      console.log('PASS map above Underway panes at 320/390/768/1100px');
+      await evaluate('document.querySelector("#underway-table > summary").click()');
+      await until('localStorage.getItem("uw:tbl.open") === "false"');
+      assert.equal(await evaluate('document.querySelector("#underway-table").open'),false);
+      await evaluate('window.__beforeUnderwayReload=true');
+      await call('Page.reload');
+      await until('!window.__beforeUnderwayReload && window.UW?.state.data?.vars["Bottom depth (m)"] && document.querySelector("#aggtable tbody tr")');
+      assert.equal(await evaluate('document.querySelector("#underway-table").open'),false);
+      await call('Page.bringToFront');
+      await evaluate('document.querySelector("#underway-table > summary").focus()');
+      await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});
+      await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+      await until('localStorage.getItem("uw:tbl.open") === "true"');
+      assert.equal(await evaluate('document.querySelector("#underway-table").open'),true);
+      console.log('PASS table collapse persists across reload and Enter expands');
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      await evaluate('UW.showTab("underway");UW.selectColour("Bottom depth (m)")');
+      const bottom = `document.querySelector('[data-name="Bottom depth (m)"] .plot')`;
+      const rosette = `document.querySelector('[data-name="Rosette depth (m)"] .plot')`;
+      await evaluate(`document.querySelector('[data-name="Bottom depth (m)"]').scrollIntoView()`);
+      await until(`!!${bottom}?._fullLayout`);
+      await evaluate(`document.querySelector('[data-name="Rosette depth (m)"] .min')?.click()`);
+      const zoom = ['2026-09-04T12:00:01','2026-09-04T12:00:05'];
+      await evaluate(`Plotly.relayout(${bottom},{"xaxis.range":${JSON.stringify(zoom)},"xaxis.autorange":false})`);
+      await wait(100);
+      await evaluate(`document.getElementById('c-Rosette_depth_m_').click()`);
+      await until(`${rosette}?._fullLayout && ${rosette}._fullLayout.xaxis.range[0] === ${JSON.stringify(zoom[0])}`);
+      assert.deepEqual(await evaluate(`${rosette}._fullLayout.xaxis.range`),zoom);
+      await evaluate(`document.querySelector('[data-name="Rosette depth (m)"] .min').click()`);
+      const nextZoom = ['2026-09-04T12:00:02','2026-09-04T12:00:04'];
+      await evaluate(`Plotly.relayout(${bottom},{"xaxis.range":${JSON.stringify(nextZoom)},"xaxis.autorange":false})`);
+      await wait(100);
+      await evaluate(`document.getElementById('c-Rosette_depth_m_').click()`);
+      await until(`${rosette}?._fullLayout && ${rosette}._fullLayout.xaxis.range[0] === ${JSON.stringify(nextZoom[0])}`);
+      assert.deepEqual(await evaluate(`${rosette}._fullLayout.xaxis.range`),nextZoom);
+      await evaluate('document.querySelector("#span").value="1";document.querySelector("#span").dispatchEvent(new Event("change"))');
+      await until('UW.state.win === "3h"');
+      await until(`${rosette}._fullLayout.xaxis.range[0] !== ${JSON.stringify(nextZoom[0])}`);
+      assert.deepEqual(await evaluate(`${rosette}._fullLayout.xaxis.range`),await evaluate(`${bottom}._fullLayout.xaxis.range`));
+      console.log('PASS restored panels inherit custom x-axis immediately and refresh it after minimize; span resets shared range');
       return;
     }
     if(process.env.HEADER_UI) {

@@ -162,6 +162,26 @@
   }
   const OURS = new Set(GROUPS.flatMap((g) => KINDS.map((k) => lid(g, k))));
 
+  let imageProtocolId = 0;
+  async function textureImage(url, limit, signal) {
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(`Map image request failed: ${response.status}`);
+    const bitmap = await createImageBitmap(await response.blob());
+    try {
+      signal.throwIfAborted();
+      const scale = Math.min(1, limit / Math.max(bitmap.width, bitmap.height));
+      if (scale === 1) return { data: bitmap };
+      const data = await createImageBitmap(bitmap, {
+        resizeWidth: Math.max(1, Math.floor(bitmap.width * scale)),
+        resizeHeight: Math.max(1, Math.floor(bitmap.height * scale)),
+        resizeQuality: "high",
+      });
+      bitmap.close();
+      if (signal.aborted) { data.close(); signal.throwIfAborted(); }
+      return { data };
+    } catch (error) { bitmap.close(); throw error; }
+  }
+
   // ---------------------------------------------------------------- the view
   class MapView {
     constructor(el, handlers = {}) {
@@ -190,10 +210,17 @@
 
     create(style, view) {
       this.styleId = style.id;
+      this.imageProtocol = `uw-image-${++imageProtocolId}`;
+      maplibregl.addProtocol(this.imageProtocol, async (request, controller) => {
+        const canvas = this.map?.getCanvas();
+        const gl = canvas?.getContext("webgl2") || canvas?.getContext("webgl");
+        const limit = gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : 2048;
+        return textureImage(decodeURIComponent(request.url.split("://")[1]), limit, controller.signal);
+      });
       const camera = view?.bounds ? { bounds: view.bounds, fitBoundsOptions: { padding: FIT_PAD, maxZoom: FIT_MAX } }
         : { center: view ? [view.center.lon, view.center.lat] : [-90, 70], zoom: view ? view.zoom : 3 };
       this.map = new maplibregl.Map({
-        container: this.el, style, ...camera,
+        container: this.el, style: this.imageStyle(style), ...camera,
         attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0,
         fadeDuration: 0, renderWorldCopies: true,
       });
@@ -203,6 +230,7 @@
       this._styled = false;
       this.map.on("style.load", () => { this._styled = true; this.ensureOverlay(); });
       this.map.on("styledata", () => this.ensureOverlay());
+      this.map.on("remove", () => maplibregl.removeProtocol(this.imageProtocol));
       this.map.on("error", (e) => console.warn("map:", e?.error?.message || e));
       this.map.on("mousemove", (e) => {
         this._at = e.point;
@@ -222,12 +250,21 @@
     // ride along on top (transformStyle) so they are never dropped and re-added
     setStyle(style) {
       this.styleId = style.id;
-      this.map.setStyle(style, { diff: true, transformStyle: (prev, next) => {
+      this.map.setStyle(this.imageStyle(style), { diff: true, transformStyle: (prev, next) => {
         if (!prev) return next;
         const sources = { ...next.sources }, layers = [...next.layers];
         for (const l of prev.layers || []) if (OURS.has(l.id)) { layers.push(l); sources[l.source] = prev.sources[l.source]; }
         return { ...next, sources, layers };
       } });
+    }
+
+    // Satellite pictures can exceed a mobile GPU's texture size. Keep their
+    // bounds and source resolution, fitting only the decoded display texture.
+    imageStyle(style) {
+      const sources = Object.fromEntries(Object.entries(style.sources).map(([id, source]) => [id,
+        source.type === "image" && source.url && typeof createImageBitmap === "function"
+          ? { ...source, url: `${this.imageProtocol}://${encodeURIComponent(source.url)}` } : source]));
+      return { ...style, sources };
     }
 
     // our sources and layers, above the basemap: added when missing (the
