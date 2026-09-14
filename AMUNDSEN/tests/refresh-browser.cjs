@@ -29,7 +29,7 @@ const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc
 function manifest() {
   return {
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
-    ...(process.env.UPLOAD_UI||process.env.WIKI_UI?{history:{stamp:'test'}}:{}),
+    ...(process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -40,7 +40,7 @@ function manifest() {
   };
 }
 function dataset(p) {
-  if((process.env.NATURE_UI||process.env.WIKI_UI||process.env.UPLOAD_UI) && p.startsWith('/data/history/')) {
+  if((process.env.NATURE_UI||process.env.WIKI_UI||process.env.UPLOAD_UI||process.env.CHAT_WIKI_UI) && p.startsWith('/data/history/')) {
     if(p.endsWith('/index.json')) return {topics:[],pages:[]};
     if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
     if(p.endsWith('/observations.json')) return {observations:[{id:'seal',subject:'Seal',date:'2020-01-01',lat:76,lon:-78},{id:'rock',subject:'Rock',date:'2020-01-01',lat:77,lon:-79}]};
@@ -95,6 +95,11 @@ const server=http.createServer((req,res)=>{
         else {const spec=JSON.parse(Buffer.concat(chunks));uploadBatches.push(spec);res.end(JSON.stringify({id:'test-batch',path:spec.parent+'/batch'}));}
       });return;
     }
+  }
+  if(p==='/api/chat' && process.env.CHAT_WIKI_UI) {
+    const q=new URL(req.url,'http://localhost').searchParams;
+    res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({messages:[],online:[],crew:[],typing:[],error:q.get('name')==='Taken'?'that name is in use':''}));return;
   }
   if(p==='/api/chat' && process.env.TRANSECT_UI) {
     const since=Number(new URL(req.url,'http://localhost').searchParams.get('since')||0);
@@ -172,6 +177,31 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.CHAT_WIKI_UI) {
+      await evaluate('UW.chatToggle(); document.querySelector("#chatname").value="Taken"; document.querySelector("#chatname").onchange()');
+      await until('document.querySelector("#chaterror")?.textContent==="that name is in use"');
+      assert.equal(await evaluate('document.querySelector("#chatname").getAttribute("aria-invalid")'), 'true');
+      assert.equal(await evaluate('document.querySelector("#chatwho").textContent.includes("that name is in use")'), false);
+      for (const width of [1400,390]) {
+        await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<=640});
+        await wait(100);
+        const boxes=await evaluate('(()=>{const e=document.querySelector("#chaterror").getBoundingClientRect(),f=document.querySelector("#chatform").getBoundingClientRect();return {bottom:e.bottom,top:e.top,formTop:f.top}})()');
+        assert.ok(boxes.top>=0 && boxes.bottom<=844 && Math.abs(boxes.formTop-boxes.bottom)<20,JSON.stringify(boxes));
+      }
+      await evaluate('document.querySelector("#chatname").value="Available"; document.querySelector("#chatname").onchange()');
+      await until('document.querySelector("#chaterror").hidden && document.querySelector("#chatname").getAttribute("aria-invalid")==="false"');
+      console.log('PASS name conflict appears by chat composer at desktop/mobile sizes and clears after correction');
+      await evaluate('UW.chatToggle(); UW.showTab("wiki")');
+      await until('document.querySelector("#histask").textContent==="Ask a Q"');
+      await evaluate('UW.setMapMode("full"); UW.historyOpen("kind/people", {fromMap:true})');
+      await until('location.hash==="#wiki/kind/people" && UW.mapMode()==="half"');
+      assert.equal(await evaluate('document.querySelector("#pane-wiki").hidden'),false);
+      await evaluate('UW.showTab("underway"); UW.setMapMode("full"); UW.historyOpen("kind/event", {fromMap:true})');
+      await until('location.hash==="#wiki/kind/event" && UW.mapMode()==="half" && !document.querySelector("#pane-wiki").hidden');
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS wiki map links expose selected entry from fullscreen map with wiki active or inactive');
+      return;
+    }
     if(process.env.HEADER_UI) {
       assert.match(rendered.stdout, /id="histask"[^>]*>Ask a Q<\/button>/);
       await evaluate(`document.querySelector('#schedlinks').innerHTML='<a class="bigcal" href="#">GCal</a><a class="bigcal" href="#">ICS</a>';document.querySelector('#schedcols').innerHTML='<div class="scol">Previous</div><div class="scol">Now</div><div class="scol">Next</div>';document.querySelector('#schedrow').hidden=false;`);
@@ -349,14 +379,41 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       generation=4;await poll();
       await until('!!document.querySelector("#cp-Temperature")?._fullLayout');
       assert.notDeepEqual(await evaluate('document.querySelector("#cp-Temperature")._fullLayout.xaxis.range'),[2.2,2.8]);
+      await evaluate(`window.__exportSource=JSON.stringify(document.querySelector('#cp-Temperature').data);window.__download=[];HTMLAnchorElement.prototype.click=function(){window.__download.push({url:this.href,name:this.download})};document.querySelector('#cp-Temperature').closest('.castplot').querySelector('.plot-export').click()`);
+      await until('!!document.querySelector(".export-canvas")?.data && !document.querySelector("[data-format=svg]").disabled');
+      assert.equal(await evaluate('document.querySelector(".export-canvas").layout.showlegend'),true);
+      assert.equal(await evaluate('document.querySelector(".export-canvas").data.filter(t=>t.showlegend).length'),1);
+      await evaluate('document.querySelector("[data-format=svg]").click()');
+      await until('window.__download.length===1');
+      assert.equal(await evaluate(`(async()=>{const svg=await (await fetch(window.__download[0].url)).text();return svg.includes(document.querySelector('#cp-Temperature').data[0].meta.castLegend.label)})()`),true);
+      assert.equal(await evaluate('JSON.stringify(document.querySelector("#cp-Temperature").data)===window.__exportSource'),true);
+      await evaluate('document.querySelector(".export-close").click()');
+      console.log('PASS Multi SVG export includes cast legend without changing the original plot');
       await evaluate('document.querySelector("#castmode [data-m=single]").click();document.querySelector("#castkind [data-k=live]").click()');
       await until('!!document.querySelector("#live-plot")?._fullLayout');
+      assert.equal(await evaluate('!!document.querySelector("#livebody .single-parameters .chart-divider")'),true);
+      await evaluate('window.__livePlotNode=document.querySelector("#live-plot");window.__liveParameterNode=document.querySelector("#livebody .single-parameters")');
       await evaluate('Plotly.relayout(document.querySelector("#live-plot"),{"xaxis.range":[3.2,3.8],"xaxis.autorange":false,"yaxis.range":[30,20],"yaxis.autorange":false})');
       await wait(2500);
       assert.deepEqual(await evaluate('document.querySelector("#live-plot")._fullLayout.xaxis.range'),[3.2,3.8]);
       assert.deepEqual(await evaluate('document.querySelector("#live-plot")._fullLayout.yaxis.range'),[30,20]);
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS Multi refresh/reset and Live polling retain custom axes');
+      assert.equal(await evaluate('document.querySelector("#live-plot")===window.__livePlotNode && document.querySelector("#livebody .single-parameters")===window.__liveParameterNode'),true);
+      await evaluate('document.querySelector("#castmode [data-m=profiles]").click()');
+      await until('!!document.querySelector("#cp-temperature")?._fullLayout');
+      await evaluate('window.__liveMultiNode=document.querySelector("#cp-temperature");document.querySelector("#cp-temperature").closest(".castplot").querySelector(".wide").click()');
+      await until('document.querySelector("#cp-temperature").closest(".castplot").classList.contains("wide")');
+      await evaluate('window.__liveMultiNode=document.querySelector("#cp-temperature")');
+      await wait(2500);
+      assert.equal(await evaluate('document.querySelector("#cp-temperature")===window.__liveMultiNode'),true);
+      await evaluate('document.querySelector("#cp-temperature").closest(".castplot").querySelector(".min").click()');
+      assert.equal(await evaluate('document.querySelector("#livebody").firstElementChild.classList.contains("castdock")'),true);
+      await wait(2500);
+      assert.equal(await evaluate('!!document.querySelector("#livebody .castdock [data-var=temperature]") && !document.querySelector("#cp-temperature")'),true);
+      await evaluate('document.querySelector("#livebody .castdock [data-var=temperature]").click()');
+      await until('!!document.querySelector("#cp-temperature")?._fullLayout');
+      assert.equal(await evaluate('document.querySelector("#cp-temperature").data[0].meta.castLegend.label'), 'Live cast');
+      console.log('PASS Multi refresh/reset, stable Live controls, top minimized chips and polling retain custom axes');
       return;
     }
     if(process.env.TIMEZONE_UI) {
@@ -386,7 +443,9 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelector("#castlist").scrollHeight > document.querySelector("#castlist").clientHeight'),true);
       await evaluate(`document.querySelector('#casttable tr[data-id="${leg}:CTD_001"]').click(); document.querySelector('#casttable tr[data-id="${leg}:CTD_002"]').click(); document.querySelector('#castmode [data-m=section]').click()`);
       await until('document.querySelector("#cs-plot")?.data && !document.querySelector("#savetransect").disabled');
-      assert.equal(await evaluate('document.querySelector("#cs-plot")._fullData[0].colorbar.tickangle'),180);
+      assert.equal(await evaluate('document.querySelector("#cs-plot")._fullData[0].colorbar.tickangle'),0);
+      assert.equal(await evaluate('document.querySelector("#cs-plot")._fullData[0].colorbar.title.side'), 'top');
+      assert.deepEqual(await evaluate('document.querySelector("#cs-plot").data[1].text'), ['1 · 1', '2 · 2']);
       assert.equal(await evaluate('document.querySelector("#cs-plot").layout.yaxis.title.text'),'depth (m)');
       await evaluate('document.querySelector(".sectionwrap .dscale").click()');
       await until('document.querySelector("#cs-plot")?.layout.yaxis.ticktext');
@@ -403,8 +462,9 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="Shelf <transect>")'),false);
       await evaluate('document.querySelector("#casttable tr[data-id]").click()');
       await until('document.querySelector("#cs-plot")?.data');
+      await evaluate('window.__transectBeforeReload=true');
       await call('Page.reload');
-      await until('window.UW && window.UW.state.raw');
+      await until('!window.__transectBeforeReload && window.UW && window.UW.state.raw');
       await evaluate('UW.showTab("casts")');
       await until('document.querySelector("#casttable tr.sel") && document.querySelector("#cs-plot")?.data');
       assert.equal(await evaluate('document.querySelectorAll(".castlegend .lbl").length'),2);

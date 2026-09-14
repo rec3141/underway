@@ -17,6 +17,14 @@
   const el = $("#chat"), log = $("#chatlog"), who = $("#chatwho"), unread = $("#chatunread"), dot = $("#chatdot");
   const nameIn = $("#chatname"), textIn = $("#chattext"), emojiBtn = $("#chatemoji"), pick = $("#emojipick"), typing = $("#chattyping"), crewEl = $("#chatcrew");
   const roomsEl = $("#chatrooms"), pickerEl = $("#chatpicker");
+  const formError = document.createElement("div");
+  formError.id = "chaterror"; formError.hidden = true; formError.setAttribute("role", "alert");
+  $("#chatform").before(formError);
+  nameIn.setAttribute("aria-describedby", "chaterror");
+  function showFormError(message, nameError = false) {
+    formError.textContent = message; formError.hidden = !message;
+    nameIn.setAttribute("aria-invalid", String(!!message && nameError));
+  }
   const EMOJI = ["🙂", "😎", "🤓", "🥶", "🧊", "🐧", "🐻‍❄️", "🦭", "🐋", "🐟", "🦑", "🐙", "🦀", "🌊", "⚓", "🚢", "🛶", "🧭", "🔭", "🧪", "🧬", "☕", "🍩", "🎣", "🌌", "❄️", "🌬️", "⛈️", "🛰️", "🐾"];
   // the device's token: the first device to use a name owns it
   let token = store.get("chat.token", "");
@@ -172,12 +180,12 @@
   async function poll() {
     try {
       const present = st.open && !document.hidden;
-      const room = st.room;
+      const room = st.room, name = st.myName;
       const since = st.lastId[room] || 0;
       const r = await fetch(`api/chat?channel=${encodeURIComponent(room)}&since=${since}&name=${encodeURIComponent(st.myName)}&token=${encodeURIComponent(token)}&leave=${present ? 0 : 1}&emoji=${encodeURIComponent(st.myEmoji)}&t=${Date.now()}`, { cache: "no-store" });
       if (!r.ok) throw new Error(r.status);
       const j = await r.json();
-      if (room !== st.room) return;                            // the room changed while this was in flight
+      if (room !== st.room || name !== st.myName) return;     // ignore a previous room or name response
       if (j.temporary && st.dmStart !== j.history_start) {
         log.replaceChildren(); st.lastId[room] = 0; st.dmStart = j.history_start;
         if (since && j.history_start) { clearTimeout(st.timer); st.timer = setTimeout(poll, 0); return; }
@@ -188,14 +196,12 @@
       for (const rm of st.rooms) st.latest[rm.channel] = rm.latest || 0;
       append(j.messages || [], room);
       const others = st.online.filter((n) => n.name !== st.myName);
-      if (st.error) { who.textContent = st.error; who.classList.add("warn"); }
-      else {
-        who.classList.remove("warn");
-        who.textContent = isDM(room) ? (dmWith(room, "doc") ? "the Lab: ask Doc about the living things, the ice, the water and the sky" : st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
-          : room === "ada" ? "the Library: ask Ada about the region's past"
-          : room === "deck" ? "the Deck: Ada and Doc together, the history and the nature"
-          : st.online.length ? `${st.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
-      }
+      showFormError(st.error, true);
+      who.classList.remove("warn");
+      who.textContent = isDM(room) ? (dmWith(room, "doc") ? "the Lab: ask Doc about the living things, the ice, the water and the sky" : st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
+        : room === "ada" ? "the Library: ask Ada about the region's past"
+        : room === "deck" ? "the Deck: Ada and Doc together, the history and the nature"
+        : st.online.length ? `${st.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
       who.title = st.online.map((n) => n.name).join(", ");
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
       const noai = st.noai && room === "ship";
@@ -268,6 +274,7 @@
     if (st.myName && next !== st.myName) {            // let the old name go so another device may take it
       try { await fetch("api/chat/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: st.myName, token }) }); } catch {}
     }
+    st.error = ""; showFormError("");
     st.myName = next; store.set("chat.name", st.myName); poll();
   };
   pick.innerHTML = EMOJI.map((e) => `<button type="button">${e}</button>`).join("");
@@ -277,14 +284,14 @@
     ev.preventDefault();
     const text = textIn.value.trim(); if (!text) return;
     if (!st.myName) { nameIn.focus(); nameIn.placeholder = "name first"; return; }
-    if (st.error) { nameIn.focus(); return; }
+    if (st.error) { showFormError(st.error, true); nameIn.focus(); return; }
     textIn.disabled = true;
     try {
       const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room };
       if (st.room === "ada" || st.roomBots.length) body.slug = window.UW?.wikiContext?.() || "";   // the wiki page being read, as context for whoever answers
       const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); who.textContent = j.error || "not sent"; }
-    } catch { who.textContent = "offline"; }
+      if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); showFormError(j.error || "not sent", /name/i.test(j.error || "")); }
+    } catch { showFormError("Message not sent: offline"); }
     textIn.disabled = false; textIn.focus();
   };
   document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });

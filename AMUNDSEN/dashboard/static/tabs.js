@@ -281,15 +281,15 @@
     if (!body.querySelector(`#${plotId}`)) body.innerHTML = castPanelHtml(plotId, title, "", false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide tall');
     const vars = chosen.filter((v) => spec.vars[v]);
     const gdEl = $(`#${plotId}`);
-    // each extra axis needs ~64 px of ticks and title: the canvas grows by
+    // each extra axis needs ~48 px of ticks and title: the canvas grows by
     // that much per axis beyond the first at the top and the bottom, so the
     // profile keeps its height; the margins hold the outermost axes
     const nt = spec.upperAxes ? vars.filter((v) => spec.upperAxes.includes(v)).length : Math.floor(vars.length / 2), nb = vars.length - nt;
     const extra = Math.max(0, nb - 1) + Math.max(0, nt - 1);
-    gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(64))}px)` : "";
-    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(64) / Math.max(1, H - 2 * fz(64));
+    gdEl.style.height = extra ? `calc(var(--tallh) + ${Math.round(extra * fz(48))}px)` : "";
+    const H = Math.max(360, gdEl.clientHeight || 500), step = fz(48) / Math.max(1, H - 2 * fz(52));
     const y0 = step * Math.max(0, nb - 1), y1 = 1 - step * Math.max(0, nt - 1);
-    const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(64), b: fz(64) }, showlegend: false };
+    const traces = [], layout = { ...castLayout(), hovermode: "closest", margin: { l: fz(56), r: 16, t: fz(52), b: fz(52) }, showlegend: false };
     const maxD = Math.max(1, ...spec.depth.filter((x) => x != null));
     layout.yaxis = depthAxis(maxD * 1.04, { domain: [y0, y1] });
     const yv = spec.depth.map(yT);
@@ -332,6 +332,7 @@
     clearTimeout(live.timer);
     if (!liveVisible()) return;
     try { live.data = await getJSON(`api/live?t=${Date.now()}`); } catch { live.data = null; }
+    if (!liveVisible()) return;
     drawLive($("#castplots"));
     live.timer = setTimeout(pollLive, 2000);
   }
@@ -392,8 +393,8 @@
     live.statusHtml = `<div class="livestatus"><span class="dot ${flowing ? "on" : ""}"></span><span>${feed}</span>
         ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
         </div>`;
-    st.innerHTML = `<div class="livevars">${varChips(cols, live.vars, "livevar")}${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
-    for (const b of st.querySelectorAll(".livevar")) b.onclick = () => { live.vars = live.vars.includes(b.dataset.v) ? live.vars.filter((x) => x !== b.dataset.v) : [...live.vars, b.dataset.v]; store.set("casts.live.vars", live.vars); drawLive(host); };
+    const choices = `<div class="livevars">${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
+    if (st._choices !== choices) { st.innerHTML = choices; st._choices = choices; }
     for (const b of st.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
     liveCfgForm($("#casttable"), d);
     if (!cast || !cast.t.length) {
@@ -412,8 +413,32 @@
       renderProfiles(body, [pseudo]);
       return;
     }
-    drawOverlay(body, "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li], scope:[live.which,cast.started],
-      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, live.vars);
+    // Keep the parameter controls and plot node while scans refresh. Their
+    // order and Chart divider follow the same rules as archived Single views.
+    const CHART = '__chart__', saved = store.get('casts.live.order', []);
+    const ordered = [...saved.filter(v => v === CHART || cols.includes(v)), ...cols.filter(v => !saved.includes(v))];
+    if (!ordered.includes(CHART)) {
+      const enabled = ordered.filter(v => live.vars.includes(v));
+      const lower = enabled[Math.floor(enabled.length / 2)];
+      ordered.splice(lower ? ordered.indexOf(lower) : 0, 0, CHART);
+    }
+    const controls = `<div class="single-layout"><div class="single-parameters" aria-label="Parameters above Chart use upper axes; parameters below use lower axes">${ordered.map((v,i) => `<div class="parameter ${v === CHART ? 'chart-divider' : ''}" draggable="true" data-i="${i}">${v === CHART ? '<span class="chip chart-chip">Chart</span>' : varChips([v],live.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${v === CHART ? 'Chart' : esc(v)} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${v === CHART ? 'Chart' : esc(v)} down" ${i === ordered.length-1 ? 'disabled' : ''}>▼</button></div>`).join('')}</div><div id="liveoverlay"></div></div>`;
+    if (body._controls !== controls || !body.querySelector('#liveoverlay')) {
+      body.innerHTML = controls; body._controls = controls;
+      const move = (from,to) => { if(to<0 || to>=ordered.length || from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.live.order',ordered);drawLive(host); };
+      for (const row of body.querySelectorAll('.parameter')) {
+        row.ondragstart = e => e.dataTransfer.setData('text/plain',row.dataset.i);
+        row.ondragover = e => e.preventDefault();
+        row.ondrop = e => {e.preventDefault();move(Number(e.dataTransfer.getData('text/plain')),Number(row.dataset.i));};
+        for (const b of row.querySelectorAll('.nudge')) b.onclick=()=>move(Number(row.dataset.i),Number(row.dataset.i)+Number(b.dataset.d));
+      }
+      for (const b of body.querySelectorAll('.singlevar')) b.onclick=()=>{live.vars=live.vars.includes(b.dataset.v)?live.vars.filter(v=>v!==b.dataset.v):[...live.vars,b.dataset.v];store.set('casts.live.vars',live.vars);drawLive(host);};
+    }
+    drawOverlay(body.querySelector('#liveoverlay'), "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li], scope:[live.which,cast.started],
+      upperAxes: ordered.slice(0,ordered.indexOf(CHART)), axisOrderTopDown:true,
+      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, ordered.filter(v=>v!==CHART&&live.vars.includes(v)));
+    // Overlay has no draggable/minimisable panels, so binding on each poll
+    // only replaces its reset and depth-scale handlers.
     wireCastPanels(host, () => drawLive(host));
   }
 
@@ -530,7 +555,7 @@
   function castPanelHtml(id, title, unit, wideable = true, movable = false, depth = true, on = true) {
     return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${on ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
       <div class="head">${movable ? '<span class="handle" title="drag onto another graph to swap places">⋮⋮</span>' : ""}<h3 ${movable ? 'title="click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them"' : ""}>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
-        <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the bottom bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
+        <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the top bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
   function wireCastPanels(host, rerender, vars = []) {
@@ -585,8 +610,11 @@
     const legendHtml = () => castPanelHtml("cp-legend", LEGEND, `${data.length} cast${data.length === 1 ? "" : "s"}`, true, true, false, false)
       .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
       .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
-    host.innerHTML = vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("") +
-      (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "");
+    const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
+      vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("");
+    const rebuilt = host._profileMarkup !== markup || !host.querySelector('.castplot,.castdock');
+    if (rebuilt) { host.innerHTML = markup; host._profileMarkup = markup; }
+    host._profileData = data;
     for (const v of vars) {
       if (v === LEGEND) continue;
       const traces = [];
@@ -599,6 +627,7 @@
             type: "scatter", mode: "lines", name: p.label, x: drawn(p, v), y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
             line: { width: ps.length > 1 ? 1 : 1.6, color: colour },
             opacity: ps.length > 1 ? 0.8 : 1,
+            meta: { castLegend: { id: d.id, label: castLabel(d), date: castDate(d), color: pal(i) } },
             hovertemplate: `${esc(p.label)}<br>%{x:.3~f} ${esc(d.units[v] || "")} at %{customdata:.0f} m<extra></extra>`,
           });
           const bts = casts.bottles ? (p.bottles || []).filter((b) => b.p != null || b.depth_m != null) : [];
@@ -615,7 +644,7 @@
         yaxis: depthAxis(Math.max(1, ...data.flatMap((d) => profilesOf(d).flatMap((p) => p.vars[v] ? depths(p) : []))) * 1.02) };
       UW.reactPlot(host.querySelector(`#cp-${v.replace(/\W+/g, "_")}`), traces, layout, CFG, [[...casts.sel].sort(),casts.dscale]).then((gd) => { UW.axisZoom(gd); syncDepthAxes(host, gd); });
     }
-    wireCastPanels(host, () => renderProfiles(host, data), all);
+    if (rebuilt) wireCastPanels(host, () => renderProfiles(host, host._profileData), all);
   }
   const LEGEND = "Legend";
   // the Multi graphs share their depth axis: a zoom or pan of one (or its
@@ -795,9 +824,9 @@
     if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = "Time"; renderCastPlots(); };
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
-        colorbar: { title: { text: unit, side: "right" }, thickness: 12, len: .8, tickangle: 180, tickfont: { size: fz(12) }, outlinewidth: 0 },
+        colorbar: { title: { text: unit, side: "top" }, thickness: 12, len: .8, tickangle: 0, tickfont: { size: fz(12) }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
-      { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((_, i) => String(i + 1)), textposition: "top center",
+      { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((d, i) => `${i + 1} · ${d.parent?.cast ?? d.cast ?? d.label}`), textposition: "top center",
         textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
         hovertext: withVar.map((d, i) => `${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];

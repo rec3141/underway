@@ -5,6 +5,28 @@
   function previewLegend(){if(legendCanvas){const {width,height}=dimensions();UWMapLegend.render(legendCanvas,width,height,legend);}}
   const scaleInput = () => dialog.querySelector('input[type=range]');
   const dimensions = () => ({width:Math.max(1,preview.clientWidth),height:Math.max(1,preview.clientHeight)});
+  function includeCastLegend(data, layout) {
+    const casts = new Map();
+    for (const trace of data) {
+      const entry = trace.meta?.castLegend;
+      if (entry) casts.set(entry.id, entry);
+    }
+    if (!casts.size) return;
+    const escape = text => String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // The on-page legend is a separate panel and may be minimized. Use the
+    // plotted casts' metadata so both PNG and SVG always carry its key.
+    for (const trace of data) trace.showlegend = false;
+    for (const entry of casts.values()) data.push({type:'scatter',mode:'lines',x:[0],y:[0],
+      visible:'legendonly',showlegend:true,name:[entry.label,entry.date].filter(Boolean).map(escape).join('<br>'),
+      line:{color:entry.color,width:2},legendgroup:entry.id,hoverinfo:'skip'});
+    layout.showlegend = true;
+    layout.legend = {orientation:'v',x:1.02,y:1,xanchor:'left',yanchor:'top',font:{size:11},traceorder:'normal'};
+    layout.margin = {...layout.margin,r:230};
+    // Keep every entry in the exported image rather than hiding a long key
+    // behind Plotly's legend scrollbar. The preview itself can scroll.
+    preview.style.width = `${Math.max(preview.clientWidth,600)}px`;
+    preview.style.height = `${Math.max(preview.clientHeight,casts.size*36+(layout.margin.t||0)+(layout.margin.b||0)+30)}px`;
+  }
   function resolution() {
     const {width,height}=dimensions(), scale=Number(scaleInput().value);
     dialog.querySelector('output').textContent=`${scale}× · ${Math.round(width*scale)} × ${Math.round(height*scale)} px`;
@@ -95,6 +117,7 @@
         await mapIdle(mapPreview);
       }else{
       const layout=structuredClone(plot.layout),data=structuredClone(plot.data);
+      includeCastLegend(data,layout);
       for(const key of Object.keys(plot._fullLayout||{}))if(/^[xy]axis\d*$/.test(key)){
         const axis=plot._fullLayout[key];layout[key]={...layout[key],range:[...axis.range],autorange:false};
       }

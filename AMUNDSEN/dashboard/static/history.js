@@ -1318,6 +1318,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
       nav.n++; nav.fromMap = !!opts.fromMap;
       try { history.pushState({ hist: slug, n: nav.n, ...(opts.fromMap ? { fromMap: true } : {}) }, "", `#wiki/${slug}`); } catch {}
     }
+    if (!opts.quiet && UW.mapMode?.() === "full") UW.setMapMode("half");
     if (!opts.quiet && $("#pane-wiki").hidden) UW.showTab("wiki");
     const done = render();
     if (opts.fromMap) done.then(() => holdAtTop($("#pane-wiki")));

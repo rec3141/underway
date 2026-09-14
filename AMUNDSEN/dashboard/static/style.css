@@ -220,7 +220,7 @@ a:hover { text-decoration: underline; }
 .themepick { flex: 0 0 auto; margin-left: auto; align-self: center; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: var(--t-md); }
 .themepick .group { gap: 6px; }
 footer .themepick { justify-content: flex-end; margin: 10px 0 0; }        /* a phone's place for it: the very foot of the page */
-.top .pickhint.phone { order: 3; flex: 1 0 100%; margin-bottom: -4px; }   /* the hint on its own line */
+.top .controls .pickhint.phone { flex: 0 1 auto; margin: 0; line-height: 1.2; }
 .top .pickhint.inline { display: none; }
 .top .controls { order: 3; flex: 1 0 100%; }
 .live { color: var(--ok); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; }
@@ -472,8 +472,9 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
   table.sched .status.s-logged { background: var(--accent); } table.sched .status.s-now { background: var(--ok); } table.sched .status.s-next { background: var(--accent-2); }
   table.sched .status.s-later { background: var(--muted); } table.sched .status.s-soon { background: var(--warn); } table.sched .status.s-done { background: var(--tag-2); border: 1px solid var(--line); }
   table.sched .status.s-canceled { background: var(--bad); } table.sched .status.s-was { background: transparent; border: 1px dashed var(--muted); }
-  /* legs, span, x-axis and colour on one row: the span as a dropdown, the labels gone; the hint above */
+  /* The selection hint shares the row with the leg and span controls. */
   .controls { width: 100%; gap: 6px; flex-wrap: nowrap; }
+  .top .controls .pickhint.phone { max-width: 110px; font-size: var(--t-sm); }
   .legmenu { flex: 0 0 auto; }
   .group.span { flex: 1 1 auto; width: auto; min-width: 0; padding: 0; background: transparent; border: 0; }   /* the span dropdown shrinks rather than falling off the row */
   #spansel { width: 100%; min-width: 0; }
@@ -636,10 +637,11 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 .castlist .name { font-weight: 600; }
 .castlist .when, .castlist .depth, .castlist .leg { color: var(--muted); font-family: var(--mono); font-size: var(--t-sm); white-space: nowrap; }
 .castlist .more { color: var(--muted); justify-content: center; grid-template-columns: 1fr; text-align: center; }
-.castplots { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.castplots { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; }
 .castplots .empty { grid-column: 1 / -1; padding: 40px 20px; text-align: center; color: var(--muted); background: var(--card); border: 1px dashed var(--line); border-radius: var(--radius); }
 /* cast figures share the underway panel frame (.panel) */
-.castplot .plot { height: 300px; }
+.castplot:not(.wide):not(.tall):not(.legendpanel) { width: 100%; max-width: 420px; }
+.castplot:not(.wide):not(.tall) .plot { height: auto; aspect-ratio: 1 / 1.618; }
 .castplot.wide .plot { height: 460px; }
 .castplot .head .now { color: var(--muted); font-family: var(--font); font-size: var(--t-sm); }
 .castlegend { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--t-md); color: var(--fg); }
@@ -1421,7 +1423,7 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
   .histtools > .chip, .histtools .domset .chip { margin:0; padding-inline:5px; }
   .top #tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; }
 }
-.single-layout { display:grid; grid-column:1 / -1; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:10px; width:100%; align-items:start; }
+.single-layout { --tallh: clamp(520px, 74vh, 820px); display:grid; grid-column:1 / -1; grid-template-columns:minmax(140px,210px) minmax(0,calc(var(--tallh) / 1.618 + 24px)); gap:10px; width:100%; align-items:start; justify-content:start; }
 .single-parameters { display:flex; flex-direction:column; gap:6px; }
 .single-parameters .parameter { display:flex; gap:3px; align-items:center; }
 .single-parameters .singlevar { display:flex; align-items:center; justify-content:space-between; gap:6px; flex:1; min-width:0; white-space:normal; text-align:left; }
@@ -1445,7 +1447,7 @@ html[data-theme^="navigator"] .group.span { border: 2px inset var(--bevel); back
 @media(max-width:540px) { .plot-export-controls { flex-basis:120px; } .plot-export-body { gap:8px; } }
 .plot-export-dialog .export-status { min-height:1.5em; }
 .plot-export-dialog .export-status:empty { visibility:hidden; }
-#castplots .single-layout #singlebody { grid-column:2; grid-row:1; min-width:0; }
+#castplots .single-layout :is(#singlebody, #liveoverlay) { grid-column:2; grid-row:1; min-width:0; }
 #castplots .single-layout .castplot.tall { width:100%; }
 @media(max-width:480px){.single-layout{grid-template-columns:minmax(100px,32%) minmax(0,1fr)}}
 #feedback-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; background: var(--card); color: var(--fg); }
@@ -1501,3 +1503,6 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
   .mobile-nav:last-child .mobile-nav-items { left:auto; right:0; }
   .top #tabs .mobile-nav-items button { display:block; width:100%; text-align:left; margin:2px 0; }
 }
+
+#chaterror { flex: 0 0 auto; margin: 0; padding: 8px 10px; color: var(--warn); background: var(--card-2); font-size: var(--t-md); }
+#chatname[aria-invalid="true"] { border-color: var(--warn); }
