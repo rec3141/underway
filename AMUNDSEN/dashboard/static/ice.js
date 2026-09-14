@@ -7,19 +7,6 @@
   const compactSurface=[['water',['whitecap','small waves','calm water','water (unspecified)']],['new ice',['grease ice','nilas']],['broken ice',['icy bits','brash ice']],['ice floe',['thin ice floe','thick ice floe']]];
   const surfaceValue=(p,name)=>p.ice==null?null:p.surface?.[name]??(types.includes(name)?p.types?.[types.indexOf(name)]??null:name==='water (unspecified)'?(p.status==='filtered'?100:0):p.status==='filtered'?0:null);
   const groupedSurface=(p,keys)=>{const values=keys.map(k=>surfaceValue(p,k)).filter(v=>v!=null);return values.length?values.reduce((a,b)=>a+b,0):null;};
-  function centeredMeans(rows){
-    const groups=new Map(),means=new Map();
-    for(const p of rows){if(!groups.has(p.leg))groups.set(p.leg,[]);groups.get(p.leg).push(p)}
-    for(const group of groups.values()){
-      let left=0,right=0,sum=0,count=0;
-      for(const p of group){
-        while(right<group.length&&group[right].time<=p.time+1800000){const v=group[right++].ice;if(v!=null){sum+=v;count++}}
-        while(left<right&&group[left].time<p.time-1800000){const v=group[left++].ice;if(v!=null){sum-=v;count--}}
-        means.set(p.id,p.ice==null||!count?null:sum/count);
-      }
-    }
-    return means;
-  }
   function recenterPhoto(p){
     const d=U.state.data;if(!d?.lat)return;
     const leg=U.M.legs.find(l=>l.id===p.leg)?.index;
@@ -32,7 +19,7 @@
   const panelColour=i=>i===0?concentrationColour:i>=3?sliceColour:colour;
   let photos=[],chosen=null,lastKey='',busy=false,matchedData=null,matched=[],error='';
   const image=(p,kind)=>`api/ice/image?id=${encodeURIComponent(p.id)}&kind=${kind}`;
-  const visible=()=>photos.filter(p=>U.inFilter(p.leg,p.time,U.spanFilter()));
+  const visible=()=>photos.filter(p=>U.inFilter(p.leg,p.time,U.currentFilter()));
   const dominant=p=>p.types?.indexOf(Math.max(...p.types));
   const labels=['Concentration','Ice composition','Surface types','ROI','Slices'];
   const latest=()=>visible().filter(p=>p.ice!=null).at(-1);
@@ -54,7 +41,26 @@
   U.registerColour({name:colour,resolved:true,unit:'ice type',rgb:true,sizes:d=>matches(d).map(p=>p?.ice==null?3:4+8*p.ice/100),onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>!p||p.ice==null?'#000000':p.ice===0?'#8b9bb0':palette[dominant(p)])});
   U.registerColour({name:concentrationColour,resolved:true,unit:'%',cmap:'Viridis',onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>p?.ice??null)});
   U.registerColour({name:sliceColour,resolved:true,unit:'RGB',rgb:true,onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>p?.rgb?'rgb('+p.rgb.join(',')+')':'#000000')});
-  function xpoints(rows){const d=U.state.data;if(U.state.xmode==='time')return rows.map(p=>({p,x:U.shipAxis(p.time)}));const legs=new Map();for(let i=0;i<(d?.t.length||0);i++){if(d.dist_km[i]==null)continue;const leg=U.M.legs.find(l=>l.index===d.leg[i])?.id;if(!legs.has(leg))legs.set(leg,[]);legs.get(leg).push({time:d.t[i],x:d.dist_km[i]})}return rows.map(p=>{const n=nearest(legs.get(p.leg)||[],p.time);return {p,x:n&&Math.abs(n.time-p.time)<=120000?n.x:null}}).filter(r=>r.x!=null)}
+  function xpoints(rows){
+    const d=U.state.data;if(U.state.xmode==='time')return rows.map(p=>({p,x:U.shipAxis(p.time)}));
+    const legs=new Map();
+    for(let i=0;i<(d?.t.length||0);i++){
+      if(d.dist_km[i]==null)continue;
+      const leg=U.M.legs.find(l=>l.index===d.leg[i])?.id;
+      if(!legs.has(leg))legs.set(leg,[]);
+      legs.get(leg).push({time:d.t[i],x:d.dist_km[i]});
+    }
+    return rows.map(p=>{
+      const nav=legs.get(p.leg)||[];let lo=0,hi=nav.length;
+      while(lo<hi){const mid=(lo+hi)>>1;if(nav[mid].time<p.time)lo=mid+1;else hi=mid}
+      const before=nav[lo-1],after=nav[lo];let x=null;
+      // Camera times fall between the chart's navigation bins. Interpolate
+      // distance within the same leg without extending its recorded track.
+      if(before&&after)x=before.x+(after.x-before.x)*(p.time-before.time)/(after.time-before.time);
+      else {const edge=after||before;if(edge&&Math.abs(edge.time-p.time)<=120000)x=edge.x}
+      return {p,x};
+    }).filter(r=>r.x!=null);
+  }
   function concentrationTraces(base,meta){
     const d=U.state.data,c=U.colourData(),legs=new Map(),legIds=new Map(U.M.legs.map(l=>[l.id,l.index]));
     for(let i=0;i<(d?.t.length||0);i++){const leg=d.leg[i];if(!legs.has(leg))legs.set(leg,[]);legs.get(leg).push({time:d.t[i],i})}
@@ -64,30 +70,43 @@
     const values=c.custom?U.colourData(sampled).values:indices.map(i=>i==null?null:c.values[i]);
     const valid=values.map((v,i)=>(c.variable?.rgb?typeof v==='string':Number.isFinite(v))&&!(indices[i]!=null&&c.low?.[indices[i]]));
     return [
-      {...base,mode:'lines',hoverinfo:'skip',hovertemplate:null,line:{color:'rgba(160,180,200,.45)',width:1}},
-      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?v:null),marker:{size:3.5,color:values.map((v,i)=>valid[i]?v:c.variable?.rgb?'#7d8895':0),colorscale:U.cmap(c.variable?.cmap),reversescale:!!c.variable?.reverse,cmin:c.variable?.rgb?undefined:c.limits?.[0],cmax:c.variable?.rgb?undefined:c.limits?.[1],showscale:false}},
-      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?null:v),marker:{size:3.5,color:'#7d8895'}}
+      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?v:null),marker:{size:6,color:values.map((v,i)=>valid[i]?v:c.variable?.rgb?'#7d8895':0),colorscale:U.cmap(c.variable?.cmap),reversescale:!!c.variable?.reverse,cmin:c.variable?.rgb?undefined:c.limits?.[0],cmax:c.variable?.rgb?undefined:c.limits?.[1],showscale:false}},
+      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?null:v),marker:{size:6,color:'#7d8895'}}
     ];
+  }
+  // Slice buttons occupy the same plotting rectangle as the other charts.
+  // Rebin on pan and resize so image requests stay bounded by screen width.
+  function paintSlices(plot,points){
+    const axis=plot._fullLayout?.xaxis,y=plot._fullLayout?.yaxis;if(!axis||!y)return;
+    plot.style.position='relative';
+    let layer=plot.querySelector(':scope > .ice-slices');
+    if(!layer){layer=document.createElement('div');layer.className='ice-slices';plot.append(layer)}
+    layer.style.cssText=`position:absolute;left:${axis._offset}px;top:${y._offset}px;width:${axis._length}px;height:${y._length}px;overflow:hidden;pointer-events:none`;
+    const bins=Math.max(1,Math.floor(axis._length/4)),selected=new Map();
+    for(const r of points){if(r.p.status==='pending')continue;const x=U.state.xmode==='time'?U.plotDate(+r.x):r.x,pixel=axis.d2p(x),bin=Math.floor(pixel/axis._length*bins);if(bin>=0&&bin<bins&&!selected.has(bin))selected.set(bin,r.p)}
+    const signature=JSON.stringify([bins,[...selected].map(([bin,p])=>[bin,p.id])]);if(layer.dataset.signature===signature)return;layer.dataset.signature=signature;layer.replaceChildren();
+    for(const [bin,p] of selected){const b=document.createElement('button');b.className='ice-slice';b.style.cssText=`position:absolute;left:${bin/bins*100}%;width:${100/bins}%;height:100%;padding:0;border:0;overflow:hidden;pointer-events:auto`;b.title=`${U.fmtTs(p.time)} · ${p.status}`;const im=document.createElement('img');im.loading='lazy';im.src=image(p,'slice');im.alt=b.title;im.style.cssText='width:100%;height:100%';b.append(im);b.onclick=()=>choose(p);layer.append(b)}
   }
   function render(mode,el,plot){
     const rows=visible();el.querySelector('h3').textContent=labels[mode];el.querySelector('.now').textContent=latest()?`${latest().ice}%`:'';
     for(const node of [...plot.childNodes])if(node.nodeType===Node.TEXT_NODE)node.remove();
-    if(!rows.length){if(plot.data)Plotly.purge(plot);plot.replaceChildren();plot.textContent=error||'No camera products in this time span';return}
+    if(!rows.length){if(plot.data)Plotly.purge(plot);plot.replaceChildren();plot.textContent=error||'No camera products for the selected legs';return}
     if(mode===3){if(plot.data)Plotly.purge(plot);plot.replaceChildren();plot.classList.add('ice-roi');plot.tabIndex=0;const p=rows.find(p=>p.id===chosen?.id)||rows.filter(p=>p.status!=='pending').at(-1);if(!p){plot.textContent='Awaiting classification';return}const bar=document.createElement('div');for(const [s,n] of [['←',-1],['→',1]]){const b=document.createElement('button');b.textContent=s;b.onclick=()=>{chosen=p;step(n)};bar.append(b)}const note=document.createElement('span');note.textContent=` ${U.fmtTs(p.time)} · ${p.status} · ${p.ice}%`;bar.append(note);const b=document.createElement('button');b.className='ice-image-button';const im=document.createElement('img');im.src=image(p,'roi');im.alt='Selected camera ROI';b.append(im);b.onclick=()=>{choose(p);popup.showModal()};plot.append(bar,b);return}
     const points=xpoints(rows);if(!points.length){plot.textContent='No matching navigation distance';return}
-    if(mode===4){if(plot.data)Plotly.purge(plot);plot.replaceChildren();plot.style.position='relative';const bounds=U.spanFilter(),timeMode=U.state.xmode==='time';const lo=timeMode?+U.shipAxis(bounds.start):Number(points[0].x),hi=timeMode?+U.shipAxis(bounds.end):Number(points.at(-1).x),bins=Math.max(1,Math.floor(plot.clientWidth/4)),selected=new Map();plot._iceRange=[lo,hi];for(const r of points){if(r.p.status==='pending')continue;const bin=Math.floor((Number(r.x)-lo)/(hi-lo||1)*bins);if(bin>=0&&bin<bins&&!selected.has(bin))selected.set(bin,r)}for(const [bin,{p}] of selected){const b=document.createElement('button');b.className='ice-slice';b.style.cssText=`position:absolute;left:${bin/bins*100}%;width:${100/bins}%;height:90%;padding:0;border:0;overflow:hidden`;b.title=`${U.fmtTs(p.time)} · ${p.status}`;const im=document.createElement('img');im.loading='lazy';im.src=image(p,'slice');im.alt=b.title;im.style.cssText='width:100%;height:100%';b.append(im);b.onclick=()=>choose(p);plot.append(b)}selectedCursor();return}
     // Explicit nulls at long gaps: no interpolation over unavailable photos.
     const expanded=[];for(const r of points){const prev=expanded.at(-1);if(prev&&r.p.time-prev.p.time>600000)expanded.push({x:r.x,p:{time:r.p.time,ice:null,types:null,status:'gap'}});expanded.push(r)}
     const xx=expanded.map(r=>U.state.xmode==='time'?U.plotDate(+r.x):r.x),meta=expanded.map(r=>r.p),trace=(y,name,color)=>({type:'scatter',mode:'lines+markers',x:xx,y,name,connectgaps:false,customdata:meta,marker:{size:3,color},line:{color,width:2},hovertemplate:'%{y}%<br>%{customdata.status}<extra>'+name+'</extra>'});
-    const surface=el.classList.contains('wide')?detailedSurface:compactSurface;
-    let traces=mode===0?concentrationTraces(trace(meta.map(p=>p.ice),'Total ice','#5cc8ff'),meta):mode===1?typeOrder.map(k=>({...trace(meta.map(p=>p.types?.[k]??null),types[k],palette[k]),type:'bar',width:U.state.xmode==='time'?120000:undefined})):[{type:'heatmap',x:xx,y:surface.map(([name])=>name),z:surface.map(([,keys])=>meta.map(p=>groupedSurface(p,keys))),zmin:0,zmax:100,colorscale:'Viridis',customdata:surface.map(()=>meta),hovertemplate:'%{y}: %{z}%<extra></extra>',hoverongaps:false,showscale:false}];
-    if(mode===0){const means=centeredMeans(photos);traces.push({...trace(meta.map(p=>means.get(p.id)??null),'1 h centered mean','#ffb454'),mode:'lines',line:{color:'#ffb454',width:3}})}
+    const surface=[...(el.classList.contains('wide')?detailedSurface:compactSurface)].reverse();
+    let traces=mode===4?[{type:'scatter',mode:'markers',x:points.map(r=>U.state.xmode==='time'?U.plotDate(+r.x):r.x),y:points.map(()=>50),marker:{opacity:0},hoverinfo:'skip'}]:mode===0?concentrationTraces(trace(meta.map(p=>p.ice),'Total ice','#5cc8ff'),meta):mode===1?typeOrder.map(k=>({...trace(meta.map(p=>p.types?.[k]??null),types[k],palette[k]),type:'bar',width:U.state.xmode==='time'?120000:undefined})):[{type:'heatmap',x:xx,y:surface.map(([name])=>name),z:surface.map(([,keys])=>meta.map(p=>groupedSurface(p,keys))),zmin:0,zmax:100,colorscale:'Viridis',customdata:surface.map(()=>meta),hovertemplate:'%{y}: %{z}%<extra></extra>',hoverongaps:false,showscale:false}];
     const span=U.spanFilter(),range=U.state.xmode==='time'?[U.plotDate(+U.shipAxis(span.start)),U.plotDate(+U.shipAxis(span.end+60000))]:[points[0].x,points.at(-1).x];
     if(mode===1&&!el.querySelector('.ice-type-legend')){const legend=document.createElement('div');legend.className='ice-type-legend';typeOrder.forEach(i=>{const label=document.createElement('span');label.textContent=types[i];label.style.borderLeft='8px solid '+palette[i];legend.append(label)});plot.after(legend)}
     const fz=U.fz||((n)=>n);
-U.reactPlot(plot,traces,{...U.THEME,margin:{l:fz(mode===2?105:52),r:8,t:fz(6),b:fz(34)},barmode:'stack',showlegend:false,hovermode:'closest',hoverdistance:14,xaxis:{...U.THEME.xaxis,type:U.state.xmode==='time'?'date':'linear',range,autorange:false,title:{text:U.state.xmode==='time'?`ship time (${U.tzAbbr?.()||'local'})`:'distance along track (km)',font:{size:fz(12)},standoff:4},tickfont:{size:fz(12)},hoverformat:U.state.xmode==='time'?'%Y-%m-%d %H:%M:%S':'.1f',ticksuffix:U.state.xmode==='time'?'':' km',nticks:Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))),tickangle:0,automargin:true},yaxis:{...U.THEME.yaxis,automargin:true,...(mode===2?{autorange:'reversed',categoryorder:'array',categoryarray:surface.map(([name])=>name)}:{}),range:mode===2?undefined:[0,100],title:{text:mode===2?'':'%',font:{size:fz(12)},standoff:2},tickfont:{size:fz(12)}}},U.CFG,mode===2?surface.map(([name])=>name):'').then(()=>{U.axisZoom(plot);U.linkX(plot);plot.removeAllListeners?.('plotly_afterplot');plot.on('plotly_afterplot',()=>pointAt(cursor));selectedCursor();plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',e=>{const p=e.points?.[0]?.customdata;if(p?.id){choose(p)}})});
+U.reactPlot(plot,traces,{...U.THEME,margin:U.chartMargin(),barmode:'stack',showlegend:false,hovermode:'closest',hoverdistance:14,xaxis:{...U.THEME.xaxis,type:U.state.xmode==='time'?'date':'linear',range,autorange:false,title:{text:U.state.xmode==='time'?`ship time (${U.tzAbbr?.()||'local'})`:'distance along track (km)',font:{size:fz(12)},standoff:4},tickfont:{size:fz(12)},hoverformat:U.state.xmode==='time'?'%Y-%m-%d %H:%M:%S':'.1f',ticksuffix:U.state.xmode==='time'?'':' km',nticks:Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))),tickangle:0,automargin:true},yaxis:{...U.THEME.yaxis,automargin:false,...(mode===4?{visible:false,fixedrange:true}:{}),...(mode===2?{autorange:'reversed',categoryorder:'array',categoryarray:surface.map(([name])=>name)}:{}),range:mode===2?undefined:[0,100],title:{text:mode===2?'':'%',font:{size:fz(12)},standoff:2},tickfont:{size:fz(12)}}},U.CFG,mode===2?surface.map(([name])=>name):'').then(()=>{U.axisZoom(plot);U.linkX(plot);plot.removeAllListeners?.('plotly_afterplot');plot.on('plotly_afterplot',()=>{if(mode===4)paintSlices(plot,points);pointAt(cursor)});if(mode===4)paintSlices(plot,points);selectedCursor();plot.removeAllListeners?.('plotly_click');plot.on('plotly_click',e=>{const p=e.points?.[0]?.customdata;if(p?.id){choose(p)}})});
   }
   names.forEach((name,i)=>U.registerPanel(name,{group:'Ice camera',updated:()=>visible().at(-1)?.time,label:labels[i],chip:()=>chip(i),groupSummary:()=>{const rows=visible();return `${rows.filter(p=>p.status==='pending').length}/${rows.length} pending`},unit:'%',resolved:true,log_ok:false,colours:[panelColour(i)],after:i?names[i-1]:'Surprise (−log10 p)',description:'Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.',onTitle:()=>U.selectColour(panelColour(i)),render:(el,plot)=>render(i,el,plot)}));
-  async function refresh(){if(busy||document.hidden||!document.querySelector('#panels')?.offsetParent)return;const f=U.spanFilter();if(!Number.isFinite(f?.start)||!Number.isFinite(f?.end))return;const key=`${f.start}:${f.end}`;busy=true;try{const collected=new Map();for(let start=f.start-1800000;start<=f.end+1800000;start+=31*86400000){const end=Math.min(f.end+1800000,start+31*86400000),payload=await U.fetchJSON(`api/ice/track?start=${start/1000}&end=${end/1000}`);for(const p of payload.photos)collected.set(p.id,p);const current=U.spanFilter();if(`${current.start}:${current.end}`!==key)return}photos=[...collected.values()].sort((a,b)=>a.time-b.time);error='';lastKey=key;matchedData=null;U.refreshExtraData()}catch(e){error='Camera unavailable; keeping previous results';console.warn(error,e)}finally{busy=false}}
-  setInterval(()=>{const f=U.spanFilter();if(`${f?.start}:${f?.end}`!==lastKey)refresh()},1500);setInterval(refresh,60000);refresh();
+  function cameraFilter(){
+    return {...U.currentFilter(),start:Math.max(U.legsStart(),Date.parse(U.M.data_range.start))};
+  }
+  async function refresh(){if(busy||document.hidden||!document.querySelector('#panels')?.offsetParent)return;const f=cameraFilter();if(!Number.isFinite(f?.start)||!Number.isFinite(f?.end))return;const key=`${f.start}:${f.end}`;busy=true;try{const collected=new Map();for(let start=f.start;start<=f.end+60000;start+=31*86400000){const end=Math.min(f.end+60000,start+31*86400000),payload=await U.fetchJSON(`api/ice/track?start=${start/1000}&end=${end/1000}`);for(const p of payload.photos)collected.set(p.id,p);const current=cameraFilter();if(`${current.start}:${current.end}`!==key)return}photos=[...collected.values()].sort((a,b)=>a.time-b.time);error='';lastKey=key;matchedData=null;U.refreshExtraData()}catch(e){error='Camera unavailable; keeping previous results';console.warn(error,e)}finally{busy=false}}
+  setInterval(()=>{const f=cameraFilter();if(`${f?.start}:${f?.end}`!==lastKey)refresh()},1500);setInterval(refresh,60000);refresh();
 })();

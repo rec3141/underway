@@ -143,7 +143,7 @@
     const pane = gd.closest('.pane')?.id || '';
     const name = gd.id || gd.closest('[data-name]')?.dataset.name || '';
     const filter = pane === 'pane-underway' ? [state.win, state.xmode, [...state.hidden].sort()] : pane === 'pane-wiki' ? [location.hash] : [];
-    return rememberPlot(gd, data, layout, config, JSON.stringify([pane, name, filter, context])).then(plot=>{window.UWPlotExport?.attach(plot);return plot;});
+    return rememberPlot(gd, data, layout, config, JSON.stringify([pane, name, filter, context]), pane === 'pane-underway' ? {xaxis: sharedXAxis()} : {}).then(plot=>{window.UWPlotExport?.attach(plot);return plot;});
   }
 
   // Shift+scroll zooms the x axis alone, Ctrl+scroll the y axis alone, about
@@ -1432,21 +1432,31 @@
 
   // The underway panels share one x-axis: a zoom, pan or reset on any of
   // them (drag, shift-scroll, the ⟲ button) is applied to the others.
-  let xSyncing = false;
+  let xSyncing = false, sharedX = null, sharedXFilter = '';
+  const xFilterKey = () => JSON.stringify([state.win, state.xmode, [...state.hidden].sort()]);
+  function sharedXAxis() {
+    if (sharedXFilter !== xFilterKey()) { sharedX = null; sharedXFilter = xFilterKey(); }
+    const range = sharedX || (state.data && spanRange(state.data));
+    return range ? {range: [...range], autorange: false} : {};
+  }
+  const chartMargin = () => ({l: fz(90), r: 8, t: fz(6), b: fz(34)});
   function linkX(plot) {
-    if (plot._xLinked) return;
-    plot._xLinked = true;
-    plot.on("plotly_relayout", (ev) => {
+    if (plot._xLinked) plot.removeListener("plotly_relayout", plot._xLinked);
+    plot._xLinked = (ev) => {
       if (xSyncing) return;
       const upd = {};
       if (ev["xaxis.autorange"]) upd["xaxis.autorange"] = true;
       else if (ev["xaxis.range"]) { upd["xaxis.range"] = ev["xaxis.range"].slice(); upd["xaxis.autorange"] = false; }
       else if (ev["xaxis.range[0]"] != null) { upd["xaxis.range"] = [ev["xaxis.range[0]"], ev["xaxis.range[1]"]]; upd["xaxis.autorange"] = false; }
       else return;
+      sharedXFilter = xFilterKey();
+      sharedX = (upd["xaxis.range"] || plot._fullLayout?.xaxis?.range)?.slice() || null;
+      if (sharedX) { upd["xaxis.range"] = [...sharedX]; upd["xaxis.autorange"] = false; }
       const others = [...document.querySelectorAll("#panels .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
       xSyncing = true;
       Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { xSyncing = false; });
-    });
+    };
+    plot.on("plotly_relayout", plot._xLinked);
   }
   // The y-range of a TSG variable comes from the bins with the intake pump
   // running: a stopped pump reads the stagnant line (fresh, warm, near 0 V
@@ -1533,9 +1543,9 @@
     }
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
-    const xr = spanRange(d);                                           // the span: the axis opens on it, the data run on before it
+    const xr = sharedXAxis().range;                                  // new and restored panels inherit the shared view
     const layout = {
-      ...THEME, margin: { l: fz(52), r: 8, t: fz(6), b: fz(34) }, showlegend: false, hovermode: "closest", hoverdistance: 14,
+      ...THEME, margin: chartMargin(), showlegend: false, hovermode: "closest", hoverdistance: 14,
       dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
       uirevision: uirev,
       xaxis: { ...THEME.xaxis, title: { text: xTitle(), font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) },
@@ -1545,7 +1555,7 @@
                ticksuffix: state.xmode === "time" ? "" : " km",
                nticks: Math.max(2,Math.floor((plot.clientWidth||300)/fz(100))), tickangle: 0, automargin:true },
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
-               type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
+               automargin: false, type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
     if (!useLog && !v.circular) {
       const r = pumpedRange(name, y, d);
@@ -1848,7 +1858,7 @@
       }
       layoutPanels(); renderPanel(name);
     },
-    linkX,
+    linkX, sharedXAxis, chartMargin,
     registerColour(spec) { extraColours.set(spec.name, spec); renderControls(); if (state.colour === spec.name) render(); },
     selectColour(name) { state.colour=name; store.set('colour',name); renderControls(); render(); },
   });
