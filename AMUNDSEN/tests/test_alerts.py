@@ -271,6 +271,37 @@ class ChangesTests(unittest.TestCase):
         self.assertEqual(alerts.messages_for([sub], events, state, self.now), [(sub, [alerts.CHANGE_NOTICE])])
         self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
 
+    def test_changes_ignore_status_transitions_and_past_edits(self):
+        sub = alerts.set_changes('telegram', '42', True)
+        for status in ('In progress', 'Completed', 'Canceled'):
+            state = alerts.load_state()
+            original = _row('S1', 'CTD', self.t(60), self.t(120))
+            alerts.due_events([original], state, self.now)
+            events = alerts.due_events([dict(original, status=status)], state, self.now)
+            self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
+        state = alerts.load_state()
+        alerts.due_events([_row('S1', 'CTD', self.t(-120), self.t(-60))], state, self.now)
+        events = alerts.due_events([_row('S1', 'CTD', self.t(-90), self.t(-30)),
+                                   _row('S2', 'Net', self.t(-180), self.t(-120))], state, self.now)
+        self.assertEqual(alerts.messages_for([sub], events, state, self.now), [])
+
+    def test_future_end_time_and_small_start_edits_notify(self):
+        sub = alerts.set_changes('telegram', '42', True)
+        for changed in (_row('S1', 'CTD', self.t(60), self.t(125)),
+                        _row('S1', 'CTD', self.t(65), self.t(125))):
+            state = alerts.load_state()
+            alerts.due_events([_row('S1', 'CTD', self.t(60), self.t(120))], state, self.now)
+            events = alerts.due_events([changed], state, self.now)
+            self.assertEqual(alerts.messages_for([sub], events, state, self.now), [(sub, [alerts.CHANGE_NOTICE])])
+
+    def test_schedule_bot_no_longer_routes_codex(self):
+        from dashboard import telegram_codex
+        tg = FakeTelegram([{'update_id': 1, 'message': {'chat': {'id': 42}, 'text': '/codex main hello'}}])
+        with patch.object(telegram_codex, 'submit') as submit:
+            alerts.handle_telegram(tg)
+            submit.assert_not_called()
+        self.assertNotIn('/codex', alerts.HELP)
+
     def test_telegram_change_notice_has_no_heading_or_bullets(self):
         alerts.set_changes("telegram", "42", True)
         row = _row("S1", "CTD", self.t(60), self.t(120))

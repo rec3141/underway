@@ -9,8 +9,8 @@ single operations (the bell beside a row, or a ``t.me/<bot>?start=<row>``
 link) or every operation of one kind (a key ``op:<operation>``, the second
 bell): each such entry carries its own lead time and events, by default a
 15-minute heads-up and every change. Following ``changes`` (the bell in the
-schedule's heading, or /changes) hears only when the schedule itself changes:
-an operation added, taken off before it started, moved or canceled. Subscriptions live in
+schedule's heading, or /changes) hears only when future operations are added,
+removed or rescheduled, not completion or status-only updates. Subscriptions live in
 ``db/alerts.json``; what has been sent, the last version of every row seen
 and the Telegram update offset live in ``db/alerts_state.json``.
 
@@ -74,7 +74,7 @@ STATUS_STARTED = ("in progress",)
 STATUS_FINISHED = ("completed", "canceled", "cancelled")
 CHANGE_NOTICE = "the schedule has changed http://10.0.0.2/Schedule.html"
 CHANGES_KEY = "changes"         # the schedule-changes follow, as a bell's key and a /start payload
-CHANGE_EVENTS = ("added", "removed", "moved")   # … and a cancellation, which is a "finished" event
+CHANGE_EVENTS = ("added", "removed", "moved", "plan_changed")
 MAX_LINES = 25                  # lines in one message; a rewritten schedule says how many more
 TZ = ZoneInfo(LOCAL_TZ)
 TIMEOUT = 15
@@ -618,6 +618,11 @@ def due_events(rows: list[dict], state: dict, now: datetime) -> list[tuple[str, 
                 shift = (start - datetime.fromisoformat(prev["start_utc"])).total_seconds() / 60
                 if abs(shift) >= MOVED_MIN:
                     out.append(("moved", r, f"Moved {'later' if shift > 0 else 'earlier'} by {abs(shift):.0f} min: {_name(r)}, now {_when(r)}"))
+            if timed and prev.get("start_utc") and status not in STATUS_STARTED + STATUS_FINISHED and pstat not in STATUS_STARTED + STATUS_FINISHED:
+                shift = abs((start - datetime.fromisoformat(prev['start_utc'])).total_seconds() / 60)
+                changed = prev['start_utc'] != r['start_utc'] or prev.get('end_utc', '') != r.get('end_utc', '')
+                if start > now and changed and shift < MOVED_MIN:
+                    out.append(('plan_changed', dict(r, change_at=now.isoformat()), f"Rescheduled: {_name(r)} ({_when(r)})"))
         seen[r["key"]] = {"status": r.get("status") or "", "start_utc": r["start_utc"], "end_utc": r.get("end_utc") or "",
                           "station": r.get("station") or "", "operation": r.get("operation") or ""}
     if rows:                                    # an empty page is a failed read, not a cleared schedule
@@ -633,9 +638,11 @@ def due_events(rows: list[dict], state: dict, now: datetime) -> list[tuple[str, 
     return out
 
 
-def _is_change(ev: str, r: dict) -> bool:
-    """Whether an event changes the schedule itself (what ``changes`` follows)."""
-    return ev in CHANGE_EVENTS or (ev == "finished" and (r.get("status") or "").strip().lower().startswith("cancel"))
+def _is_change(ev: str, r: dict, now: datetime) -> bool:
+    """Only edits to future operations; status transitions are not plan edits."""
+    return (ev in CHANGE_EVENTS and bool(r.get('start_utc'))
+            and datetime.fromisoformat(r['start_utc']) > now
+            and (r.get('status') or '').strip().lower() not in STATUS_STARTED + STATUS_FINISHED)
 
 
 def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: dict, now: datetime) -> list[tuple[dict, list[str]]]:
@@ -649,7 +656,7 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
         for ev, r, text in events:
             rows_ = sub.get("rows") or {}
             followed = rows_.get(r["key"]) or rows_.get("op:" + kind_of(r.get("operation")))
-            change = bool(sub.get("changes")) and _is_change(ev, r)
+            change = bool(sub.get("changes")) and _is_change(ev, r, now)
             if followed is not None:                     # a followed row: its own lead time and events
                 wanted, lead = followed.get("events", ROW_EVENTS), followed.get("lead_min", ROW_LEAD_MIN)
             elif matches(sub, r):
@@ -665,6 +672,8 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
                 if (start - now).total_seconds() > lead * 60:
                     continue
             key = f"{r['key']}|{ev}" + (f"|{r['start_utc']}" if ev in CHANGE_EVENTS else "")
+            if ev == 'plan_changed':
+                key += f"|{r.get('end_utc', '')}|{r.get('change_at', '')}"
             if key in mine:
                 continue
             mine[key] = now.isoformat(timespec="seconds")
@@ -800,19 +809,18 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
 
 
 HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
-        "/codex <session> <message>\nOperator only: start or resume a Codex session. Reply to a message with /codex <session> to pass that text.\n\n"
         "/all\nEvery operation on the schedule.\n\n"
         "/only CardS-3, CTD\nOnly the operations whose station or name contains one of these words.\n\n"
         "/none\nNo general alerts. Operations you follow through a bell on the dashboard stay.\n\n"
         "/lead 30\nHow many minutes ahead the heads-up comes.\n\n"
         "/events upcoming, started, finished, moved\nWhich changes you hear about.\n\n"
         "/whiteboard\nThe whiteboard on the schedule page, now and whenever it changes. /whiteboard off stops that.\n\n"
-        "/changes\nOnly when the schedule changes: an operation added, taken off, moved or canceled. No reminders. /changes off stops that.\n\n"
+        "/changes\nOnly when future operations are added, taken off or rescheduled. No completion or status-only notices. /changes off stops that.\n\n"
         "/status\nWhat you are subscribed to.\n\n"
         "/stop\nNo more alerts of any kind.")
 
 
-CHANGES_ON = ("You hear whenever the schedule changes: an operation added, taken off, moved or canceled; "
+CHANGES_ON = ("You hear whenever the schedule changes for future operations: added, taken off or rescheduled; no completion or status-only notices; "
               "one short notice and a link to the schedule, no reminders. /changes off stops that, /status shows everything you follow. /none stops an existing /all subscription.")
 
 
@@ -834,10 +842,7 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
         subs = load_subs()
         mine = next((s for s in subs if s["channel"] == "telegram" and s["to"] == chat), None)
         try:
-            if cmd == "/codex":
-                from .telegram_codex import submit
-                reply = submit(msg, u['update_id'], tg)
-            elif cmd == "/start" and decode_row(arg.strip()) == CHANGES_KEY:   # the bell in the schedule's heading
+            if cmd == "/start" and decode_row(arg.strip()) == CHANGES_KEY:   # the bell in the schedule's heading
                 set_changes("telegram", chat, True, who)
                 reply = CHANGES_ON
             elif cmd == "/start" and arg.strip():          # the dashboard's bell: t.me/<bot>?start=<row key>
@@ -931,8 +936,6 @@ def bot_loop() -> None:
         log.warning("telegram bot: no token; nothing to do")
         return
     tg = Telegram(token)
-    from .telegram_codex import start
-    start(tg)
     alive = DB_DIR / "telegram_bot.alive"
     log.info("telegram bot: @%s answering", tg.me())
     while True:

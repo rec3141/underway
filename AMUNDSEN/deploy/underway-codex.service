@@ -1,5 +1,5 @@
 [Unit]
-Description=Answer the underway dashboard's Telegram bot
+Description=Dedicated single-session Codex Underway Telegram bot
 Wants=network-online.target
 After=network-online.target
 
@@ -10,19 +10,20 @@ Group=@UNDERWAY_GROUP@
 WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
 EnvironmentFile=@UNDERWAY_SITE@
 Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
-Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
-Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
-Environment=UNDERWAY_CHAT_DB=@UNDERWAY_HOME@/chat/chat.sqlite
+Environment=CODEX_HOME=@UNDERWAY_CODEX_HOME@
+Environment=UNDERWAY_CODEX_CWD=@UNDERWAY_CODEX_CWD@
 EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
-ExecStart=@UNDERWAY_PYTHON@ -m dashboard telegram-bot
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard codex-bot
 Restart=always
 RestartSec=10
 Nice=10
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
-ProtectSystem=full
-ReadWritePaths=@UNDERWAY_HOME@
+ProtectSystem=strict
+ReadWritePaths=@UNDERWAY_HOME@/db @UNDERWAY_CODEX_HOME@ @UNDERWAY_CODEX_CWD@
+AppArmorProfile=underway-codex
+UMask=0077
 StandardOutput=journal
 StandardError=journal
 

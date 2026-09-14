@@ -1163,7 +1163,7 @@
       (a.web ? `<button type="button" class="bm-web">${webOn ? "🖥 stop showing" : "🖥 show"} in this browser's header bar</button>` : "") +
       (a.email ? (to ? `<button type="button" class="bm-email">${on ? "✉ stop emailing" : "✉ email"} ${esc(to)}</button>` : `<button type="button" class="bm-email">✉ email me… (enter an address below)</button>`) : "") +
       (a.telegram_bot ? `<a class="bm-tg" href="https://t.me/${esc(a.telegram_bot)}?start=${encodeRow(key)}" target="_blank" rel="noopener">✈ Telegram @${esc(a.telegram_bot)}</a>` : "") +
-      `<div class="bm-note">${key === "changes" ? "a message whenever an operation is added, taken off, moved or canceled; no reminders" : `15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}`}</div>`;
+      `<div class="bm-note">${key === "changes" ? "a message when future operations are added, taken off or rescheduled; no completion or status-only notices" : `15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}`}</div>`;
     const rect = b.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     m.style.left = `${Math.max(0, rect.left - hostRect.left)}px`; m.style.top = `${rect.bottom - hostRect.top + host.scrollTop + 4}px`;
     host.style.position = host.style.position || "relative";

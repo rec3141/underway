@@ -31,6 +31,7 @@ user_home=$(getent passwd "$UNDERWAY_USER" | cut -d: -f6)
 UNDERWAY_GROUP=$(id -gn "$UNDERWAY_USER")
 UNDERWAY_CONFIG=${UNDERWAY_CONFIG:-$user_home/.config/underway}
 UNDERWAY_CODEX_HOME=${UNDERWAY_CODEX_HOME:-$user_home/.codex}
+UNDERWAY_CODEX_CWD=${UNDERWAY_CODEX_CWD:-/data/dev/underway}
 UNDERWAY_MIRROR=${UNDERWAY_MIRROR:-/data/ship}
 UNDERWAY_TILES_DIR=${UNDERWAY_TILES_DIR:-/data/gis/tiles}
 ARCTIC_HISTORY_ROOT=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
@@ -51,6 +52,7 @@ render() {
             -e "s|@UNDERWAY_PYTHON@|$UNDERWAY_PYTHON|g" \
             -e "s|@UNDERWAY_CONFIG@|$UNDERWAY_CONFIG|g" \
             -e "s|@UNDERWAY_CODEX_HOME@|$UNDERWAY_CODEX_HOME|g" \
+            -e "s|@UNDERWAY_CODEX_CWD@|$UNDERWAY_CODEX_CWD|g" \
             -e "s|@UNDERWAY_MIRROR@|$UNDERWAY_MIRROR|g" \
             -e "s|@ARCTIC_HISTORY_ROOT@|$ARCTIC_HISTORY_ROOT|g" \
             -e "s|@UNDERWAY_PORT@|$UNDERWAY_PORT|g" \
@@ -86,6 +88,11 @@ fi
 for d in db cache www chat camera360; do
   install -d -o "$UNDERWAY_USER" -g "$UNDERWAY_GROUP" "$UNDERWAY_HOME/$d"
 done
+
+if command -v apparmor_parser >/dev/null && [[ -d /sys/kernel/security/apparmor ]]; then
+  install -m 644 "$HERE/underway-codex.apparmor" /etc/apparmor.d/underway-codex
+  apparmor_parser -r /etc/apparmor.d/underway-codex
+fi
 
 for name in "${changed[@]}"; do
   render "$HERE/$name" > "$UNITDIR/$name.tmp"

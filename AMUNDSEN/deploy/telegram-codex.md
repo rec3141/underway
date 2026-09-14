@@ -1,37 +1,38 @@
-# Telegram Codex sessions
+# Dedicated Codex Telegram bot
 
-In a private chat with the bot, send `/codex ice explain this code` to start
-the named session `ice`. Send `/codex ice <another request>` to resume it.
-Alternatively, reply to a text message or caption with `/codex ice`; the
-quoted text becomes the prompt. Extra text after the session name becomes
-the request alongside that quote. Ordinary messages never go to Codex.
+`underway-codex.service` uses `TELEGRAM_KEY_CODEX` from `underway.env`.
+The schedule bot keeps its original token and no longer runs Codex.
+Send ordinary text to the Codex bot: no command or session name is needed.
+Every message resumes the same persistent session; replies include quoted
+text or captions. `/start` and `/help` show these instructions.
 
-Only the numeric user ID in `UNDERWAY_CODEX_TELEGRAM_ID` (or `TELEGRAM_ID`
-when unset) can use this command, and only in that user's private chat.
-Names are case-sensitive and contain up to 64 letters, numbers, hyphens
-or underscores, starting with a letter or number.
+Only the private user ID in `UNDERWAY_CODEX_TELEGRAM_ID`, falling back to
+`TELEGRAM_ID`, can use Codex. Jobs, delivery progress, a separate Telegram
+update offset, and the session ID live in `db/codex_bot.sqlite`. On first
+use, the most recently used legacy Codex session for that user is retained.
+Old bot update IDs and pending jobs are never imported or replayed.
 
-Install and authenticate the Codex CLI as the Telegram service account.
-The service uses that account's `.codex` directory for credentials and
-session history. `deploy/install.sh` grants it write access to that directory
-even though the rest of the home directory remains read-only. Set
-`UNDERWAY_CODEX_HOME` in `site.env` before running the installer if the
-account uses a different directory.
+The CLI runs as the service account with `workspace-write`, network access,
+and no interactive approvals. Its working directory and writable workspace
+are `UNDERWAY_CODEX_CWD` in `site.env`, default `/data/dev/underway`.
+GitHub operations use that account's Git/SSH credentials and permissions.
+The workspace's `.git` directory is explicitly writable for pulls and merges.
+The deployment checkout stays read-only to this service. The queue directory
+and `UNDERWAY_CODEX_HOME` (default the account's `.codex`) remain writable
+for persistent state. The rest of the filesystem is read-only through systemd.
 
-Optional settings in `underway.env` are `UNDERWAY_CODEX_BIN` (CLI path),
-`UNDERWAY_CODEX_CWD` (workspace, default: the running repository), and
-`UNDERWAY_CODEX_TIMEOUT` (seconds per request, default: 1800). Codex runs
-with the `workspace-write` sandbox and no interactive approvals. Additional
-workspace paths must also be writable under the systemd service's policy.
+On Ubuntu, `deploy/install.sh` installs the service-specific AppArmor profile
+that permits user namespaces, allowing Bubblewrap to construct its sandbox
+without disabling the system-wide namespace restriction. Codex's filesystem
+sandbox and systemd's write restrictions remain enabled.
 
-Jobs and the mapping from Telegram session names to Codex thread IDs live
-in `db/telegram_codex.sqlite`. Requests run serially in the background;
-subscription commands remain available. Queued requests and completed
-answers waiting for delivery survive bot restarts. An interrupted request
-is reported rather than replayed automatically, since it may already have
-changed files. The same name resumes its saved Codex thread. Names created
-here are bot aliases, not a search over sessions from other Codex clients.
+Install and authenticate the Codex CLI as the service account, add the new
+bot token, then run `sudo deploy/install.sh` and
+`sudo systemctl enable --now underway-codex.service`.
+Optional `underway.env` settings are `UNDERWAY_CODEX_BIN` and
+`UNDERWAY_CODEX_TIMEOUT` (seconds, default 1800).
 
-After deploying, run `sudo deploy/install.sh` to update the Telegram unit.
-Answers return to the same private Telegram chat. Long answers are split
-into messages; an answer beyond 24,000 characters keeps its final portion.
+Jobs run serially. Queued requests and completed answers survive restarts;
+interrupted requests are reported rather than replayed, since they may have
+already changed files. Long answers are split into Telegram messages, retaining
+the last 24,000 characters if necessary.
