@@ -3,6 +3,7 @@
   "use strict";
   const $ = s => document.querySelector(s), UW = window.UW;
   const dialog = $("#feedback-dialog"), form = $("#feedback-form");
+  if (UW?.public) { $("#feedback-open").hidden = true; return; }   // saved on the ship's server only
   const message = $("#feedback-message"), name = $("#feedback-name");
   const status = $("#feedback-status"), send = $("#feedback-send"), close = $("#feedback-close");
   let context, submission, sending = false, saved = false;

@@ -421,6 +421,20 @@ def raster_pyramid(tiles: Path) -> dict | None:
             "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
 
 
+NAMES_ATTRIBUTION = "Names: Canadian Geographical Names Database (Open Government Licence – Canada), GeoNames (CC BY 4.0)"
+
+
+def tile_layers(tiles_dir: Path) -> dict:
+    """The map's tile layers found under ``tiles_dir`` (``UNDERWAY_TILES_DIR``):
+    the GEBCO raster pyramid (tools/make_gebco_tiles.sh), the OpenStreetMap
+    coastline and the geographic names (tools/make_names_tiles.py), each None
+    when absent. They live on local disk — too many files for the share or the
+    repository — and the server maps /static/tiles/ onto the directory."""
+    return {"raster": raster_pyramid(tiles_dir / "gebco"),
+            "vector": vector_tiles(tiles_dir / "coast"),
+            "names": vector_tiles(tiles_dir / "names", NAMES_ATTRIBUTION)}
+
+
 def vector_tiles(tiles: Path, attribution: str = "© OpenStreetMap contributors (ODbL)") -> dict | None:
     """Describe a vector tile set (ogr2ogr -f MVT, see the README) for the
     map: zoom range, bounds and layer names from the metadata.json the writer
@@ -726,16 +740,10 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     h = hashlib.sha1()
     for name in ("data.js", "track-data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
-    # a raster tile pyramid (tools/make_gebco_tiles.sh) lives on local disk —
-    # too many files for the share or the repository — and the server maps
-    # /static/tiles/ onto it; it is used when present
     from .serve import TILES_DIR
-    raster = raster_pyramid(TILES_DIR / "gebco")
-    vector = vector_tiles(TILES_DIR / "coast")
-    names = vector_tiles(TILES_DIR / "names", "Names: Canadian Geographical Names Database (Open Government Licence – Canada), GeoNames (CC BY 4.0)")
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
             "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
-            "default_window": default_window, "geo_layers": geo_layers, "raster": raster, "vector": vector, "names": names, "low_flow_v": LOW_FLOW_V,
+            "default_window": default_window, "geo_layers": geo_layers, **tile_layers(TILES_DIR), "low_flow_v": LOW_FLOW_V,
             "sprite": f"static/geo/sprite-{sprite_version}" if sprite_version else "static/geo/sprite",
             "asset_version": h.hexdigest()[:10],
             "plotly_version": str((PKG / "static" / "plotly.min.js").stat().st_size),

@@ -10,6 +10,11 @@
 
   const SITE = window.__SITE__;
   let M = window.__MANIFEST__;
+  // the web copy (tools/publish-web.sh marks its manifest public): the page
+  // stands on its published files alone, and what only runs aboard (the chat,
+  // the photo uploads and /Share gallery, the live feeds, alerts, feedback,
+  // the plan drop) is hidden rather than left to fail against api/
+  const PUBLIC = !!M?.public;
   const $ = (s) => document.querySelector(s);
   const { fetchJSON } = window.UWData;
   const loadErrors = new Set();
@@ -461,6 +466,9 @@
     // the map layers: on/off toggles in the bar above the map; the names pill only when the build found the tiles
     const namesPill = document.querySelector('#maplayers button[data-layer="names"]');
     if (namesPill) namesPill.hidden = !SITE.names;
+    // the pictures stay aboard (the cameras, the /Share photographs): no pill on the web
+    const photosPill = document.querySelector('#maplayers button[data-layer="photos"]');
+    if (photosPill && PUBLIC) { photosPill.hidden = true; state.photos = false; }
     for (const b of document.querySelectorAll("#maplayers button[data-layer]")) {
       const layer = b.dataset.layer;
       b.classList.toggle("on", !!state[layer]);
@@ -1773,7 +1781,7 @@
     renderAlert();
   }
   async function pollInapp() {
-    if (!store.get("alerts.webid", "") || document.hidden) return;
+    if (PUBLIC || !store.get("alerts.webid", "") || document.hidden) return;
     try {
       const j = await fetchJSON(`api/alerts/inbox?to=${encodeURIComponent(webId())}&since=${encodeURIComponent(store.get("alerts.seen", ""))}&t=${Date.now()}`);
       const have = new Set(inapp.msgs.map((m) => m.t + m.text));
@@ -1798,6 +1806,7 @@
   };
   function showTab(name, { pop = false } = {}) {
     if(name==='table')name='underway'; // old bookmarks and saved tab choices
+    if (PUBLIC && name === "photos") name = "wiki";                    // the /Share gallery is aboard only; the wiki stands
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
     if (name === "map") { window.UW?.cycleMap?.(); return; }           // nor this: the map cycler sits among the tabs
     if (name === "history" || name === "nature") name = "wiki";        // the two past tabs are one wiki; a remembered or linked name opens it
@@ -1817,7 +1826,7 @@
     store.set("tab", name);
     if (usageTab !== name) {
       usageTab = name;
-      try { navigator.sendBeacon?.("api/usage", name); } catch {}
+      if (!PUBLIC) try { navigator.sendBeacon?.("api/usage", name); } catch {}
     }
     window.UW?.onTab?.(name);
     if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);
@@ -1830,7 +1839,7 @@
 
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
-    state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
+    state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError, public: PUBLIC,
     fmtTs, tzAbbr, shipAxis, plotDate, offsetMs, fmtVal, dms, legById, minmax, store,
     renderMap, showTab, focusMap, requestFit, axisZoom, reactPlot, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
@@ -1888,7 +1897,13 @@
     const resizeMap = () => {mapView?.resize();renderMapLegend();};
     window.addEventListener("resize", resizeMap);
     new ResizeObserver(resizeMap).observe($("#map"));
-    wirePlanDrop(); renderPlanPills();
+    if (PUBLIC) {
+      // the web copy: the tabs and buttons for what runs only aboard go
+      for (const sel of ['#tabs button[data-tab="photos"]', "#tabchat", "#feedback-open"]) { const b = $(sel); if (b) b.hidden = true; }
+      const plan = document.querySelector('#maplayers button[data-layer="plan"]');
+      if (plan) plan.title = "the leg's planned cruise track and stations from the expedition's KMZ";
+    } else wirePlanDrop();
+    renderPlanPills();
     document.addEventListener("click", (e) => { for (const m of document.querySelectorAll("details.legmenu[open]")) if (!m.contains(e.target)) m.open = false; });   // a click outside closes the legs menu and the map's kind menus
   })();
 })();

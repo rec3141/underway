@@ -386,8 +386,9 @@ The map stays on the left; the tabs swap the right-hand pane.
 BODC/CEDA) into a shaded-bathymetry Web Mercator tile pyramid. The pyramid on
 the ship is the globe at zooms 0–8 (610 m/px, about what GEBCO's 15" grid
 supports) with the western Arctic and Labrador Sea at zoom 9 on top, built as
-two runs into one directory (`/data/gis/gebco/rerender-world.sh` does both and
-swaps them in):
+two runs into one directory (`tools/rerender-gebco.sh` does both into a
+staging directory and swaps it in; the ship's `/data/gis/gebco/rerender-world.sh`
+is its forerunner):
 
 ```sh
 tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
@@ -399,7 +400,7 @@ tools/make_gebco_tiles.sh gebco_2024_sub_ice_topo_geotiff.zip \
 With `LAND` set to the OSM land polygons (see the coastline section below) and
 `LAND_BBOX` to their box, the shore inside that box comes from the polygons
 rather than GEBCO's zero contour, so a strait the polygons keep open stays
-open in the picture; `rerender-world.sh` on the ship sets both.
+open in the picture; `rerender-gebco.sh` passes both through.
 
 When `gebco/` exists under `UNDERWAY_TILES_DIR` the map draws it beneath the
 vector layers instead of the Natural Earth depth bands. The build reads the
@@ -531,10 +532,23 @@ counts (before SSH/network overhead), unlike `Total transferred file size`,
 which counts whole changed files even when only their deltas cross the link.
 
 What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
-photographs (`/journal/`) and the raster tiles.
-The page's services do not run on the web server: every `api/` request there
-answers 503 with a JSON body, which the page already handles as it handles
-the share being unreachable, and the published manifest lists no cameras.
+photographs and the `/Share` gallery (`/journal/`), and the GEBCO raster
+pyramid. The page's services do not run on the web server: every `api/`
+request there answers 503 with a JSON body, and the published manifest is
+marked `public` and lists no cameras. The page reads that mark
+(`UW.public`) and hides what only runs aboard rather than letting it fail:
+the Photos and Chat tabs and the chat side bar, the Feedback button, the
+Live cast, the schedule's alert bells and form, the wiki's review flags and
+Ask button, the ice-camera panel, the intranet feed, the photos map layer
+and the KMZ drop. The Sources tab says so in place of the intranet links.
+
+The web copy's map draws grid's own tiles, not the ship's: the GEBCO relief,
+the coastline and the geographic names under `UNDERWAY_TILES_DIR` on grid
+(`gebco/`, `coast/`, `names/`; without a `gebco/` there the map falls back
+to Natural Earth's depth bands). `publish-web.sh tiles` copies them to the
+web server by hand the first time (a few hundred thousand small files), and
+after that each deploy re-syncs a set whose directory has changed.
+`tools/rerender-gebco.sh` builds the pyramid on grid as on the ship.
 `publish-web.sh status` says what is where and when; the settings are the
 `UNDERWAY_PUBLISH_*` lines of `site.env`.
 

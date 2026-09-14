@@ -152,6 +152,7 @@
     }
   }
   async function loadFlags() {
+    if (UW.public) return;                                    // the flags live on the ship's server
     const { token, name } = me();
     try { const r = await fetch(`/api/history/flags?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}`, { cache: "no-store" }); if (r.ok) takeFlags(await r.json()); }
     catch { /* the flags are a convenience; the page stands without them */ }
@@ -163,7 +164,7 @@
     const can = hist.admin || (f.mine && f.raisers.length === 1);
     return `Flagged for review by ${by} · ${can ? "click to withdraw" : f.mine ? "only an admin can withdraw it now" : "click to add your own flag"}`;
   }
-  const flagMark = (a) => { const f = hist.flags.get(a.id); return `<span class="flag ${f ? "on" : ""}" role="button" tabindex="0" data-flag="${esc(a.id)}" title="${esc(flagTitle(f))}">${flagText(f)}</span>`; };
+  const flagMark = (a) => { if (UW.public) return ""; const f = hist.flags.get(a.id); return `<span class="flag ${f ? "on" : ""}" role="button" tabindex="0" data-flag="${esc(a.id)}" title="${esc(flagTitle(f))}">${flagText(f)}</span>`; };
   async function toggleFlag(id) {
     const a = artifactById(id); if (!a) return;
     const f = hist.flags.get(id), { token, name } = me();
@@ -1239,7 +1240,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   }
   // the kinds as a dropdown's groups, the one open selected; the ship's own photographs sit
   // with the images and the observations with the events, whatever the labels
-  const MENU_EXTRA = { image: [["journal", "/Share Photos"]], event: [["record", "Observations"]] };
+  const MENU_EXTRA = { ...(UW.public ? {} : { image: [["journal", "/Share Photos"]] }), event: [["record", "Observations"]] };   // the /Share gallery stays aboard
   function kindOptions(cur) {
     const opt = (slug, label) => `<option value="${slug}" ${cur === slug ? "selected" : ""}>${esc(label)}</option>`;
     return GROUPS.map((g) => {
@@ -1287,7 +1288,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     $("#histback").disabled = !hist.slug && nav.n === 0;
     $("#histback").title = nav.fromMap ? "back to the map" : "back to the view before";
     for (const b of document.querySelectorAll("#wikidomains .dom")) { const on = hist.domains.has(b.dataset.domain); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
-    const ask = $("#histask"), t = askTarget(); ask.textContent = t.label; ask.title = t.title;
+    const ask = $("#histask"), t = askTarget(); ask.textContent = t.label; ask.title = t.title; ask.hidden = !!UW.public;   // the crew answer in the chat, aboard
   }
   // Browsing domains filters the pane; map layers change only through map controls.
   function setDomain(d, on) {

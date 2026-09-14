@@ -15,6 +15,7 @@
   const store = window.UW?.store || { get: (k, d) => { try { const v = localStorage.getItem("uw." + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem("uw." + k, JSON.stringify(v)); } catch {} } };
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const el = $("#chat"), log = $("#chatlog"), who = $("#chatwho"), unread = $("#chatunread"), dot = $("#chatdot");
+  if (window.UW?.public) { el.remove(); return; }            // the chat runs aboard only: the web copy has no side bar
   const nameIn = $("#chatname"), textIn = $("#chattext"), emojiBtn = $("#chatemoji"), pick = $("#emojipick"), typing = $("#chattyping"), crewEl = $("#chatcrew");
   const roomsEl = $("#chatrooms"), pickerEl = $("#chatpicker");
   const formError = document.createElement("div");

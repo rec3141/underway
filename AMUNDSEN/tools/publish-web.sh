@@ -5,16 +5,19 @@
 # is only what it pulled from grid, and the plates are already here) and
 # copies the light parts to the web server: the page, its data, the wiki with its thumbnails and the
 # pictures under a size cap. What stays behind: the shipboard cameras
-# (/camera/), the nature journal's photographs (/journal/), the raster tiles,
-# and every picture over the cap. The page's own services (chat, uploads, the
-# live feed, alerts) do not run on the web server: every api/ call answers
-# 503 with a JSON body, which is what the page already handles when the
-# ship's share is down.
+# (/camera/), the nature journal's photographs (/journal/), and every picture
+# over the cap. The page's own services (chat, uploads, the live feed,
+# alerts) do not run on the web server: every api/ call answers 503 with a
+# JSON body, and the page, seeing the manifest's public mark, hides what
+# they serve. The map's tiles are grid's own (UNDERWAY_TILES_DIR: the GEBCO
+# relief, the coastline, the geographic names): `tiles` copies them to the
+# web server once, and deploy keeps them current after that.
 #
 #   tools/publish-web.sh push      on the ship: www -> grid, then grid deploys
 #   tools/publish-web.sh deploy    on grid: the history layer, the assets, then mirror -> web server
 #   tools/publish-web.sh history   on grid: only the history layer, from grid's database
 #   tools/publish-web.sh static    on grid: only the page's assets, from this checkout
+#   tools/publish-web.sh tiles     on grid: the map's tiles -> web server (the first time by hand: it is big)
 #   tools/publish-web.sh status    what is where, and when
 #
 # Settings, from /etc/underway/site.env or the environment:
@@ -41,6 +44,7 @@ GRID_HOME=${UNDERWAY_PUBLISH_STATE_DIR:-${MIRROR%/*}}
 SOURCE=${UNDERWAY_PUBLISH_SOURCE_DIR:-$GRID_HOME/source}
 TRACK_PY=${UNDERWAY_PUBLISH_TRACK_PYTHON:-$GRID_HOME/.venv/bin/python}
 HIST=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
+TILES=${UNDERWAY_TILES_DIR:-/data/gis/tiles}
 PY=${UNDERWAY_PYTHON:-$HIST/.route-venv/bin/python}
 RSYNC="rsync -az --partial --timeout=120 --stats"
 DRY_ARGS=()
@@ -124,6 +128,7 @@ DirectoryIndex index.html
 Options -Indexes
 AddType application/json .json
 AddType application/geo+json .geojson
+AddType application/x-protobuf .pbf
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE application/json application/geo+json
 </IfModule>
@@ -170,6 +175,12 @@ p.with_suffix('.json.tmp').replace(p)
 if index.is_file():
     site = json.loads(re.search(r'window\.__SITE__ = (.*);', index.read_text()).group(1))
     site['default_window'] = m['default_window']
+    # the map's tiles are grid's, not the ship's: the relief, the coastline
+    # and the names that publish-web.sh tiles puts on the web server; without
+    # a GEBCO pyramid here the web copy draws Natural Earth's depth bands
+    from dashboard.build import tile_layers
+    from dashboard.serve import TILES_DIR
+    site.update(tile_layers(TILES_DIR))
     assets = sorted(f for f in (index.parent / 'static').glob('*') if f.suffix in ('.js', '.css'))
     if assets:
         digest = hashlib.sha1()
@@ -181,6 +192,24 @@ if index.is_file():
     index.with_suffix('.html.tmp').write_text(html)
     index.with_suffix('.html.tmp').replace(index)
 PYEOF
+}
+
+TILE_SETS="gebco coast names"
+tiles_stamp() { for d in $TILE_SETS; do [[ -d $TILES/$d ]] && printf '%s %s\n' "$d" "$(stat -L -c %Y "$TILES/$d")"; done; true; }
+publish_tiles() {
+  # the map's tiles, as the page references them: a few hundred thousand
+  # small files, so only when a set has changed since the last copy
+  local stamp=$GRID_HOME/.tiles-published now
+  now=$(tiles_stamp)
+  if [[ -z $now ]]; then echo "no map tiles under $TILES" >&2; return 0; fi
+  if [[ ${1:-} != force && -f $stamp && $(cat "$stamp") == "$now" ]]; then return 0; fi
+  ssh "${TARGET%%:*}" "mkdir -p ${TARGET#*:}/static/tiles"
+  for d in $TILE_SETS; do
+    [[ -d $TILES/$d ]] || continue
+    echo "== tiles: $TILES/$d -> $TARGET/static/tiles/$d"
+    $RSYNC --delete --exclude '*.tmp' "$TILES/$d/" "$TARGET/static/tiles/$d/" | stats
+  done
+  printf '%s\n' "$now" > "$stamp"
 }
 
 case "${1:-}" in
@@ -204,6 +233,7 @@ case "${1:-}" in
     ;;
   history) history_layer ;;
   static) static_assets ;;
+  tiles) mkdir -p "$GRID_HOME"; publish_tiles force ;;
   rebuild) rebuild_tracks ;;
   deploy|rebuild-deploy)
     mkdir -p "$GRID_HOME"
@@ -216,6 +246,9 @@ case "${1:-}" in
     static_assets
     web_files
     public_manifest
+    # the tiles, once `tiles` has put them there by hand (the first copy is too
+    # long for a scheduled deploy): after that a changed set follows
+    [[ -f $GRID_HOME/.tiles-published ]] && publish_tiles
     echo "== $MIRROR -> $TARGET (no cameras, journal photographs or tiles)"
     # two passes: the page and its data, then the history's files (whole unless
     # a cap is set: an index of ten thousand artifacts is bigger than a picture)

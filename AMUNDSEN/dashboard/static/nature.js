@@ -109,6 +109,7 @@
   const domainOfObs = (o) => o.domain || subjectOf(o.subject)?.domain || "";
   // the journal's lines, as observations, until grid has ingested them
   async function loadJournal() {
+    if (UW.public) return;                                    // the journal's lines and pictures stay aboard
     try {
       const r = await fetch("api/nature/journal", { cache: "no-store" });
       if (!r.ok) return;
@@ -644,6 +645,7 @@
   const journalPic = (o) => "journal/" + o.artifact_file.replace(/^_journal\/img\//, "");
   // the page: Gallery (the journal's pictures, newest first, each a card to its page) | Submit (the import, and one line by hand)
   function journalHTML(brief) {
+    if (UW.public) return brief ? "" : `<section class="journal card"><h3>/Share Photos</h3><p class="muted">The ship's photographs and journal are kept aboard and are not part of the web copy.</p></section>`;
     if (brief) {
       const lines = nat.journal.slice(0, 5);
       const list = lines.length ? lines.map(jentry).join("") + (nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;

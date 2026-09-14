@@ -2,7 +2,7 @@
 // chart-backed data; the server still records these snapshots for history.
 (() => {
   const UW = window.UW;
-  if (!UW?.registerPanel) return;
+  if (!UW?.registerPanel || UW.public) return;                     // the intranet feed is reachable aboard only
   let latest = null;
   // "76° 24.9565' N" -> 76.4159; "89° 12.6412' W" -> -89.2107
   const ddm = (s) => { const m = /(\d+)\D+([\d.]+)'?\s*([NSEW])/.exec(s || ""); if (!m) return null; const v = +m[1] + +m[2] / 60; return /[SW]/.test(m[3]) ? -v : v; };

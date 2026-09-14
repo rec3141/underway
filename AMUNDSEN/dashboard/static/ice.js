@@ -1,6 +1,6 @@
 /* Released camera products only. Browser never starts models or walks the share. */
 (() => {
-  const U=window.UW;if(!U?.registerPanel)return;
+  const U=window.UW;if(!U?.registerPanel||U.public)return; // the camera products come through api/ice, aboard only
   const types=['grease ice','nilas','thin ice floe','icy bits','brash ice','thick ice floe'],palette=['#7ee787','#57c9bd','#78baff','#e3b341','#ff9e72','#d2a8ff'];
   const typeOrder=[0,1,3,4,2,5]; // Display order only; preserve the API's class indices.
   const detailedSurface=[['whitecaps',['whitecap']],['small waves',['small waves','water (unspecified)']],['calm',['calm water']],['grease',['grease ice']],['nilas',['nilas']],['bits',['icy bits']],['brash',['brash ice']],['thin',['thin ice floe']],['thick',['thick ice floe']]];

@@ -867,7 +867,9 @@
     if (!XMODES.includes(casts.xmode)) casts.xmode = "time";
     sx.textContent = XWORD[casts.xmode];
     sx.onclick = () => { casts.xmode = XMODES[(XMODES.indexOf(casts.xmode) + 1) % XMODES.length]; store.set("casts.xmode", casts.xmode); sx.textContent = XWORD[casts.xmode]; renderCastPlots(); };
+    if (UW.public && casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // Seasave's feed is aboard only
     for (const b of $("#castkind").querySelectorAll("button")) {
+      if (UW.public && b.dataset.k === "live") { b.hidden = true; continue; }
       b.classList.toggle("on", b.dataset.k === casts.kind);
       // the live view (and the poll that feeds its setup box) is started by the
       // plots renderer, so a change to or from Live redraws the plots too
@@ -992,7 +994,7 @@
   // the columns time · station · operation · alerts · status · dur. · comment
   // and a coloured header row per ship day; the log adds the logged events
   // (their depth in the dur. column) and folds each day's scheduled rows.
-  const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">alerts</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
+  const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">${UW.public ? "" : "alerts"}</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
   // the status in a word: now (in progress), next (up next), later (upcoming), done, canceled, was (scheduled once), logged
   const statusWord = (r, next) => { const st = (r.status || "").trim().toLowerCase();
     return r.former ? ["was", "was scheduled"] : st === "in progress" ? ["now", "now"] : st === "completed" ? ["done", "done"] : /^cancel/.test(st) ? ["canceled", "canceled"] : st === "coming soon" ? ["soon", "soon"] : st && st !== "scheduled" ? ["later", st] : next ? ["next", "next"] : ["later", "later"]; };
@@ -1081,6 +1083,7 @@
   // rows followed by email (bells.rows, for the saved address) and in this
   // browser (bells.web, by its own id); a bell lights for either
   const bells = { rows: new Set(), web: new Set(), for: null, webFor: null, pendingRow: null };
+  const alertsCfg = () => UW.public ? {} : (UW.M.alerts || {});   // the alerts service runs aboard: no bells, no form on the web
   const followEmail = () => store.get("alerts.email", "");
   const followed = (key) => bells.rows.has(key) || bells.web.has(key);
   const encodeRow = (key) => btoa(unescape(encodeURIComponent(key))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "").slice(0, 64);
@@ -1090,13 +1093,13 @@
   const bellKind = (b) => b.dataset.key === "changes" || b.classList.contains("kind") ? b.dataset.name : "this operation";
   // the bell in the schedule's heading: only when the schedule itself changes
   function changesBell() {
-    const a = UW.M.alerts || {};
+    const a = alertsCfg();
     if (!a.email && !a.telegram_bot && !a.web) return "";
     const on = followed("changes");
     return ` <button type="button" class="bell changes ${on ? "on" : ""}" data-key="changes" data-name="${CHANGES_NAME}" title="${esc(bellTitle(CHANGES_NAME, on))}">🔔</button>`;
   }
   function bellHtml(r) {
-    const a = UW.M.alerts || {};
+    const a = alertsCfg();
     if (!a.email && !a.telegram_bot) return "";
     const key = r.key || `${r.station}|${r.operation}`, on = followed(key);
     const kind = /transit|steam/i.test(r.operation || "") ? "Transit" : (r.operation || "");     // every transit is one kind, whatever the destination
@@ -1181,7 +1184,7 @@
   // alerts: subscribe here to this browser's header bar or by email, or
   // through the Telegram bot
   function alertsHtml() {
-    const a = UW.M.alerts || {};
+    const a = alertsCfg();
     if (!a.email && !a.telegram_bot && !a.web) return "";
     const saved = store.get("alerts.email", ""), viaWeb = !saved || store.get("alerts.web", false);
     return `<details class="alerts" id="alerts"><summary>🔔 Get alerts for scheduled operations</summary>
