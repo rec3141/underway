@@ -31,7 +31,7 @@ class CodexTests(unittest.TestCase):
 
     def test_reply_and_resume_alias_and_deduplication(self):
         msg = self.message('Explain this', reply_to_message={'text': 'Explain the freezing point'})
-        self.assertIn('queued', c.submit(msg, 1, None))
+        self.assertIsNone(c.submit(msg, 1, None))
         c.submit(msg, 1, None)
         c.submit(self.message('expand on that'), 2, None)
         with c.connect() as db:
@@ -96,6 +96,7 @@ print(json.dumps({'type':'turn.completed'}), flush=True)
         tg = Telegram()
         self.assertEqual(c.handle(tg), 1)
         self.assertEqual(c.handle(tg), 0)
+        self.assertEqual(tg.sent, [])
         with c.connect() as db:
             self.assertEqual(db.execute("SELECT value FROM metadata WHERE key='offset'").fetchone()[0], '2')
         self.assertFalse((self.root / 'alerts_state.json').exists())
@@ -116,6 +117,7 @@ print(json.dumps({'type':'turn.completed'}), flush=True)
             result = db.execute('SELECT * FROM jobs').fetchone()
         replies = json.loads(result['replies'])
         self.assertEqual(len(replies), 3)
+        self.assertEqual(''.join(replies), '\U0001f30a' * 5000)
         self.assertTrue(all(len(s.encode('utf-16-le')) // 2 < 4096 for s in replies))
 
 

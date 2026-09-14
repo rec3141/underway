@@ -71,13 +71,13 @@ def submit(msg, update_id, tg):
             if previous:
                 db.execute('INSERT INTO sessions VALUES (?, ?, ?)', (chat, name, previous[0]))
         if db.execute('SELECT 1 FROM jobs WHERE id=?', (update_id,)).fetchone():
-            return 'Codex: this message was already queued.'
+            return None
         if db.execute("SELECT count(*) FROM jobs WHERE status IN ('queued', 'running')").fetchone()[0] >= 20:
             return 'Codex has 20 pending messages. Please try again after they finish.'
         db.execute('INSERT INTO jobs(id, chat, name, prompt) VALUES (?, ?, ?, ?)',
                    (update_id, chat, name, prompt))
     start(tg)
-    return 'Codex: queued. I will reply here when it finishes.'
+    return None
 
 
 def command(thread=None):
@@ -146,9 +146,8 @@ def execute(job):
 
 
 def finish(db, job, answer):
-    prefix = 'Codex\n'
     # 1,800 code points also fit Telegram's limit when every character is astral.
-    chunks = [prefix + answer[i:i + 1800] for i in range(0, len(answer), 1800)]
+    chunks = [answer[i:i + 1800] for i in range(0, len(answer), 1800)]
     db.execute("UPDATE jobs SET status='done', replies=? WHERE id=?", (json.dumps(chunks), job['id']))
 
 
