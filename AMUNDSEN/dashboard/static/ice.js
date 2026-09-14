@@ -55,6 +55,20 @@
   U.registerColour({name:concentrationColour,resolved:true,unit:'%',cmap:'Viridis',onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>p?.ice??null)});
   U.registerColour({name:sliceColour,resolved:true,unit:'RGB',rgb:true,onPoint:(d,i)=>choose(matches(d)[i]),values:d=>matches(d).map(p=>p?.rgb?'rgb('+p.rgb.join(',')+')':'#000000')});
   function xpoints(rows){const d=U.state.data;if(U.state.xmode==='time')return rows.map(p=>({p,x:U.shipAxis(p.time)}));const legs=new Map();for(let i=0;i<(d?.t.length||0);i++){if(d.dist_km[i]==null)continue;const leg=U.M.legs.find(l=>l.index===d.leg[i])?.id;if(!legs.has(leg))legs.set(leg,[]);legs.get(leg).push({time:d.t[i],x:d.dist_km[i]})}return rows.map(p=>{const n=nearest(legs.get(p.leg)||[],p.time);return {p,x:n&&Math.abs(n.time-p.time)<=120000?n.x:null}}).filter(r=>r.x!=null)}
+  function concentrationTraces(base,meta){
+    const d=U.state.data,c=U.colourData(),legs=new Map(),legIds=new Map(U.M.legs.map(l=>[l.id,l.index]));
+    for(let i=0;i<(d?.t.length||0);i++){const leg=d.leg[i];if(!legs.has(leg))legs.set(leg,[]);legs.get(leg).push({time:d.t[i],i})}
+    const indices=meta.map(p=>{const row=nearest(legs.get(legIds.get(p.leg))||[],p.time);return row&&Math.abs(row.time-p.time)<=Math.max(120000,(d?.step_s||60)*1000)?row.i:null});
+    // Camera colour providers sample the actual image time, even in coarse windows.
+    const sampled={t:meta.map(p=>p.time),leg:meta.map(p=>legIds.get(p.leg)),vars:{},limits:{[U.state.colour]:c.limits}};
+    const values=c.custom?U.colourData(sampled).values:indices.map(i=>i==null?null:c.values[i]);
+    const valid=values.map((v,i)=>(c.variable?.rgb?typeof v==='string':Number.isFinite(v))&&!(indices[i]!=null&&c.low?.[indices[i]]));
+    return [
+      {...base,mode:'lines',hoverinfo:'skip',hovertemplate:null,line:{color:'rgba(160,180,200,.45)',width:1}},
+      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?v:null),marker:{size:3.5,color:values.map((v,i)=>valid[i]?v:c.variable?.rgb?'#7d8895':0),colorscale:U.cmap(c.variable?.cmap),reversescale:!!c.variable?.reverse,cmin:c.variable?.rgb?undefined:c.limits?.[0],cmax:c.variable?.rgb?undefined:c.limits?.[1],showscale:false}},
+      {...base,mode:'markers',y:base.y.map((v,i)=>valid[i]?null:v),marker:{size:3.5,color:'#7d8895'}}
+    ];
+  }
   function render(mode,el,plot){
     const rows=visible();el.querySelector('h3').textContent=labels[mode];el.querySelector('.now').textContent=latest()?`${latest().ice}%`:'';
     for(const node of [...plot.childNodes])if(node.nodeType===Node.TEXT_NODE)node.remove();
@@ -66,7 +80,7 @@
     const expanded=[];for(const r of points){const prev=expanded.at(-1);if(prev&&r.p.time-prev.p.time>600000)expanded.push({x:r.x,p:{time:r.p.time,ice:null,types:null,status:'gap'}});expanded.push(r)}
     const xx=expanded.map(r=>U.state.xmode==='time'?U.plotDate(+r.x):r.x),meta=expanded.map(r=>r.p),trace=(y,name,color)=>({type:'scatter',mode:'lines+markers',x:xx,y,name,connectgaps:false,customdata:meta,marker:{size:3,color},line:{color,width:2},hovertemplate:'%{y}%<br>%{customdata.status}<extra>'+name+'</extra>'});
     const surface=el.classList.contains('wide')?detailedSurface:compactSurface;
-    let traces=mode===0?[trace(meta.map(p=>p.ice),'Total ice','#5cc8ff')]:mode===1?typeOrder.map(k=>({...trace(meta.map(p=>p.types?.[k]??null),types[k],palette[k]),type:'bar',width:U.state.xmode==='time'?120000:undefined})):[{type:'heatmap',x:xx,y:surface.map(([name])=>name),z:surface.map(([,keys])=>meta.map(p=>groupedSurface(p,keys))),zmin:0,zmax:100,colorscale:'Viridis',customdata:surface.map(()=>meta),hovertemplate:'%{y}: %{z}%<extra></extra>',hoverongaps:false,showscale:false}];
+    let traces=mode===0?concentrationTraces(trace(meta.map(p=>p.ice),'Total ice','#5cc8ff'),meta):mode===1?typeOrder.map(k=>({...trace(meta.map(p=>p.types?.[k]??null),types[k],palette[k]),type:'bar',width:U.state.xmode==='time'?120000:undefined})):[{type:'heatmap',x:xx,y:surface.map(([name])=>name),z:surface.map(([,keys])=>meta.map(p=>groupedSurface(p,keys))),zmin:0,zmax:100,colorscale:'Viridis',customdata:surface.map(()=>meta),hovertemplate:'%{y}: %{z}%<extra></extra>',hoverongaps:false,showscale:false}];
     if(mode===0){const means=centeredMeans(photos);traces.push({...trace(meta.map(p=>means.get(p.id)??null),'1 h centered mean','#ffb454'),mode:'lines',line:{color:'#ffb454',width:3}})}
     const span=U.spanFilter(),range=U.state.xmode==='time'?[U.plotDate(+U.shipAxis(span.start)),U.plotDate(+U.shipAxis(span.end+60000))]:[points[0].x,points.at(-1).x];
     if(mode===1&&!el.querySelector('.ice-type-legend')){const legend=document.createElement('div');legend.className='ice-type-legend';typeOrder.forEach(i=>{const label=document.createElement('span');label.textContent=types[i];label.style.borderLeft='8px solid '+palette[i];legend.append(label)});plot.after(legend)}

@@ -350,6 +350,13 @@
     const thr = SITE.low_flow_v ?? 0.5;
     return flow.map((f) => f != null && f < thr);
   }
+  function colourData(d = state.data) {
+    const custom = extraColours.get(state.colour), variable = VAR[state.colour] || custom;
+    const values = d ? custom?.values(d) || d.vars[state.colour] || [] : [];
+    return { variable, values, custom: !!custom,
+             limits: d?.limits?.[state.colour] || (variable?.rgb ? null : minmax(values)),
+             low: d && variable?.tsg ? pumpLow(d) : null };
+  }
   // colour limits as the build computes them; the TSG variables' from the
   // bins with the intake pump running (see pumpedRange)
   function quantileLimits(vals, low) {
@@ -1821,7 +1828,7 @@
   // hooks for tabs.js
   window.UW = Object.assign(window.UW || {}, {
     state, SITE, THEME, C, fz, themeName, applyTheme, CFG, fetchJSON, setLoadError,
-    fmtTs, tzAbbr, shipAxis, plotDate, offsetMs, fmtVal, dms, legById, minmax, store,
+    fmtTs, tzAbbr, shipAxis, plotDate, offsetMs, fmtVal, dms, legById, minmax, store, colourData,
     renderMap, showTab, focusMap, requestFit, axisZoom, reactPlot, currentFilter, spanFilter, legsStart, inFilter, tms, setSpan, showAllLegs, webId, pollInapp, plansShown, toast,
     refreshExtraData() {                  // new camera data: its panel; everything only when it colours the rest
       layoutPanels();
