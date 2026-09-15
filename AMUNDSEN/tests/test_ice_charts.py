@@ -77,26 +77,39 @@ class IceCodeTests(unittest.TestCase):
 
     def test_daily_discovery_accepts_only_the_named_product(self):
         html = b'<a href="/prods/WIS36C/20260914180000_WIS36C_0014221325.gif">chart</a>'
-        url, day, valid = ic._daily_source("WIS36C", html)
+        directory = b'<a href="20260914180000_WIS36C_0014221326.pdf">PDF</a>'
+        url, day, valid = ic._daily_source("WIS36C", html, directory)
         self.assertEqual(day, "2026-09-14")
         self.assertEqual(valid, "2026-09-14T18:00:00Z")
-        self.assertEqual(url, "https://ice-glaces.ec.gc.ca/prods/WIS36C/20260914180000_WIS36C_0014221325.gif")
+        self.assertEqual(url, "https://ice-glaces.ec.gc.ca/prods/WIS36C/20260914180000_WIS36C_0014221326.pdf")
         with self.assertRaisesRegex(ValueError, "Unsupported"):
-            ic._daily_source("WIS99C", html)
+            ic._daily_source("WIS99C", html, directory)
         with self.assertRaisesRegex(ValueError, "does not currently advertise"):
-            ic._daily_source("WIS36C", b'<a href="/prods/WIS35C/20260914180000_WIS35C_1.gif">other</a>')
+            other = b'<a href="/prods/WIS35C/20260914180000_WIS35C_1.gif">other</a>'
+            ic._daily_source("WIS36C", other, directory)
+        with self.assertRaisesRegex(ValueError, "georeferenced PDF"):
+            ic._daily_source("WIS36C", html, b'<a href="older.pdf">old</a>')
+
+    def test_daily_pdf_neatline_bounds(self):
+        info = {"metadata": {"": {"NEATLINE": "POLYGON ((-2 9,-2 -4,7 -4,7 9,-2 9))"}}}
+        self.assertEqual(ic._neatline_bounds(info), (-2, -4, 7, 9))
+        with self.assertRaisesRegex(ValueError, "neatline"):
+            ic._neatline_bounds({})
 
     def test_daily_import_writes_image_and_metadata_atomically(self):
         advertised = {"product": "WIS36C", "date": "2026-09-14", "region": "Eureka (daily raster)",
-                      "valid_time": "2026-09-14T18:00:00Z", "source_url": "https://example.test/chart.gif"}
+                      "valid_time": "2026-09-14T18:00:00Z", "source_url": "https://example.test/chart.pdf"}
         png = b"\x89PNG\r\n\x1a\nchart"
+        coordinates = [[-112, 84], [-48, 84], [-48, 72], [-112, 72]]
         with tempfile.TemporaryDirectory() as directory, patch.object(ic, "DB_DIR", Path(directory)), \
                 patch.object(ic, "available_daily", return_value=advertised), \
-                patch.object(ic, "_download", return_value=b"GIF89a"), \
-                patch.object(ic, "_warp_daily", return_value=png):
+                patch.object(ic, "_download", return_value=b"%PDF-"), \
+                patch.object(ic, "_warp_daily", return_value=(png, coordinates, [3600, 3619])):
             entry = ic.import_daily_chart()
             self.assertEqual(entry["kind"], "raster")
             self.assertTrue(entry["ship_area"])
+            self.assertEqual(entry["coordinates"], coordinates)
+            self.assertEqual(entry["image_size"], [3600, 3619])
             self.assertEqual((ic.chart_dir() / f'{entry["id"]}.png').read_bytes(), png)
             self.assertEqual(json.loads((ic.chart_dir() / f'{entry["id"]}.raster.json').read_text())["product"], "WIS36C")
 

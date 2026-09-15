@@ -29,6 +29,7 @@ from .config import DB_DIR
 log = logging.getLogger(__name__)
 SOURCE = "https://ice-glaces.ec.gc.ca/prods/sigrids/"
 PRODUCT_SOURCE = "https://ice-glaces.ec.gc.ca/cgi-bin/getprod.pl?lang=en&prodid={product}&wrap=1"
+PRODUCT_DIRECTORY = "https://ice-glaces.ec.gc.ca/prods/{product}/"
 SEED_DIR = Path(__file__).with_name("ice_assets")
 ATTRIBUTION = "Canadian Ice Service / ECCC"
 LICENCE = "https://open.canada.ca/en/open-government-licence-canada"
@@ -38,18 +39,7 @@ MAX_EXPANDED = 256 * 1024 * 1024
 DAILY_PRODUCTS = {
     "WIS36C": {
         "region": "Eureka (daily raster)",
-        "source_size": (1589, 2068),
-        "crop": (393, 0, 1196, 1517),
-        "size": (1800, 1567),
-        "extent": (-12508221.81, 12374473.546, -5254319.663, 18689398.359),
-        "coordinates": [[-112.3632683, 83.8883493], [-47.2003566, 83.8883493],
-                        [-47.2003566, 73.6469559], [-112.3632683, 73.6469559]],
-        # Pixel locations of Alert, Eureka, and Resolute in the cropped chart,
-        # paired with their WGS84 positions. These fixed chart control points
-        # define the daily product's Lambert map frame.
-        "control_points": [(907, 115, -62.3481, 82.5018),
-                           (488, 641, -85.8119, 79.9947),
-                           (200, 1473, -94.8297, 74.6973)],
+        "width": 3600,
     },
 }
 CODES = ("CT", "CA", "CB", "CC", "SA", "SB", "SC", "FA", "FB", "FC", "CN", "CD", "CF")
@@ -160,92 +150,101 @@ def available() -> list[dict]:
     return sorted(rows, key=lambda row: (row["date"], row["region"]), reverse=True)
 
 
-def _daily_source(product: str, html: bytes) -> tuple[str, str, str]:
-    """Return the current GIF URL, valid date and time for a known product."""
+def _daily_source(product: str, html: bytes, directory_html: bytes) -> tuple[str, str, str]:
+    """Return the vector PDF matching the product page's current chart."""
     if product not in DAILY_PRODUCTS:
         raise ValueError(f"Unsupported daily chart product {product}")
-    name = re.search(rf'/prods/{re.escape(product)}/(\d{{14}}_{re.escape(product)}_\d+\.gif)',
-                     html.decode("utf-8", "replace"))
-    if not name:
+    advertised = re.search(rf'/prods/{re.escape(product)}/(\d{{14}})_{re.escape(product)}_\d+\.gif',
+                           html.decode("utf-8", "replace"))
+    if not advertised:
         raise ValueError(f"CIS does not currently advertise a {product} daily chart")
-    stamp = name.group(1)[:14]
+    stamp = advertised.group(1)
+    pdf = re.search(rf'href="({stamp}_{re.escape(product)}_\d+\.pdf)"',
+                    directory_html.decode("utf-8", "replace"), re.IGNORECASE)
+    if not pdf:
+        raise ValueError(f"CIS does not provide a georeferenced PDF for the current {product} chart")
     valid = datetime.strptime(stamp, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
-    return f"https://ice-glaces.ec.gc.ca/prods/{product}/{name.group(1)}", valid.date().isoformat(), valid.isoformat().replace("+00:00", "Z")
+    return (PRODUCT_DIRECTORY.format(product=product) + pdf.group(1), valid.date().isoformat(),
+            valid.isoformat().replace("+00:00", "Z"))
 
 
 def available_daily(product: str = "WIS36C") -> dict:
     """Describe the latest daily raster advertised for the ship's chart area."""
     page = PRODUCT_SOURCE.format(product=product)
-    url, day, valid_time = _daily_source(product, _download(page, 2 * 1024 * 1024))
+    directory = PRODUCT_DIRECTORY.format(product=product)
+    url, day, valid_time = _daily_source(product, _download(page, 2 * 1024 * 1024),
+                                         _download(directory, 2 * 1024 * 1024))
     return {"product": product, "date": day, "region": DAILY_PRODUCTS[product]["region"],
             "valid_time": valid_time, "source_url": url}
 
 
-def _projected_control_points(product: str) -> list[tuple[int, int, float, float]]:
-    if not shutil.which("cs2cs"):
-        raise ValueError("Daily chart conversion requires the PROJ cs2cs command")
-    spec = DAILY_PRODUCTS[product]
-    command = ["cs2cs", "+proj=longlat", "+datum=WGS84", "+to", "+proj=lcc", "+lat_1=49",
-               "+lat_2=77", "+lon_0=-100", "+datum=NAD27", "+units=m"]
-    source = "".join(f"{lon} {lat}\n" for _, _, lon, lat in spec["control_points"])
-    result = subprocess.run(command, input=source, text=True, capture_output=True, check=True)
-    projected = []
-    for control, line in zip(spec["control_points"], result.stdout.splitlines(), strict=True):
-        values = line.split()
-        projected.append((control[0], control[1], float(values[0]), float(values[1])))
-    return projected
+def _neatline_bounds(info: dict) -> tuple[float, float, float, float]:
+    """Read the projected map frame bounds embedded by ArcGIS in a chart PDF."""
+    neatline = info.get("metadata", {}).get("", {}).get("NEATLINE", "")
+    numbers = [float(value) for value in re.findall(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][-+]?\d+)?", neatline)]
+    if len(numbers) < 8 or len(numbers) % 2:
+        raise ValueError("Daily chart PDF does not contain a usable map neatline")
+    xs, ys = numbers[::2], numbers[1::2]
+    bounds = min(xs), min(ys), max(xs), max(ys)
+    if not all(math.isfinite(value) for value in bounds) or bounds[0] >= bounds[2] or bounds[1] >= bounds[3]:
+        raise ValueError("Daily chart PDF contains an invalid map neatline")
+    return bounds
 
 
-def _warp_daily(product: str, image: bytes) -> bytes:
-    """Crop the fixed chart frame and warp its Lambert image into Web Mercator."""
+def _warp_daily(product: str, document: bytes) -> tuple[bytes, list[list[float]], list[int]]:
+    """Render and warp the PDF's embedded map frame into Web Mercator."""
     required = [name for name in ("gdal_translate", "gdalwarp", "gdalinfo") if not shutil.which(name)]
     if required:
         raise ValueError("Daily chart conversion requires GDAL commands: " + ", ".join(required))
-    if not image.startswith((b"GIF87a", b"GIF89a")):
-        raise ValueError("Daily chart download is not a GIF image")
+    if not document.startswith(b"%PDF-"):
+        raise ValueError("Daily chart download is not a PDF document")
     spec = DAILY_PRODUCTS[product]
     with tempfile.TemporaryDirectory() as directory:
         folder = Path(directory)
-        source = folder / "source.gif"
-        rgb = folder / "rgb.tif"
-        controlled = folder / "controlled.tif"
+        source = folder / "source.pdf"
+        cropped = folder / "cropped.tif"
         warped = folder / "warped.tif"
         output = folder / "chart.png"
-        source.write_bytes(image)
-        info = subprocess.run(["gdalinfo", "-json", str(source)], text=True, capture_output=True, check=True)
-        if tuple(json.loads(info.stdout)["size"]) != spec["source_size"]:
-            raise ValueError("Daily chart dimensions changed; control points must be checked")
-        crop = [str(value) for value in spec["crop"]]
-        subprocess.run(["gdal_translate", "-q", "-of", "GTiff", "-expand", "rgb", "-srcwin", *crop,
-                        str(source), str(rgb)], check=True, capture_output=True)
-        command = ["gdal_translate", "-q", "-of", "GTiff"]
-        for x, y, east, north in _projected_control_points(product):
-            command.extend(["-gcp", str(x), str(y), str(east), str(north)])
-        command.extend(["-a_srs", "+proj=lcc +lat_1=49 +lat_2=77 +lon_0=-100 +datum=NAD27 +units=m",
-                        str(rgb), str(controlled)])
-        subprocess.run(command, check=True, capture_output=True)
-        extent = [str(value) for value in spec["extent"]]
-        size = [str(value) for value in spec["size"]]
-        subprocess.run(["gdalwarp", "-q", "-overwrite", "-order", "1", "-t_srs", "EPSG:3857",
-                        "-te", *extent, "-ts", *size, "-dstalpha", "-r", "near", "-of", "GTiff",
-                        str(controlled), str(warped)], check=True, capture_output=True)
+        source.write_bytes(document)
+        info_result = subprocess.run(["gdalinfo", "--config", "GDAL_PDF_DPI", "600", "-json", str(source)],
+                                     text=True, capture_output=True, check=True)
+        info = json.loads(info_result.stdout)
+        projection = info.get("coordinateSystem", {}).get("wkt", "")
+        if info.get("driverShortName") != "PDF" or "Polar Stereographic" not in projection:
+            raise ValueError("Daily chart PDF does not contain the expected projected map")
+        xmin, ymin, xmax, ymax = _neatline_bounds(info)
+        subprocess.run(["gdal_translate", "-q", "--config", "GDAL_PDF_DPI", "600", "-projwin",
+                        str(xmin), str(ymax), str(xmax), str(ymin), str(source), str(cropped)],
+                       check=True, capture_output=True)
+        subprocess.run(["gdalwarp", "-q", "-overwrite", "-t_srs", "EPSG:3857", "-dstalpha",
+                        "-r", "bilinear", "-ts", str(spec["width"]), "0", str(cropped), str(warped)],
+                       check=True, capture_output=True)
         subprocess.run(["gdal_translate", "-q", "-of", "PNG", str(warped), str(output)],
                        check=True, capture_output=True)
         data = output.read_bytes()
+        warped_info = json.loads(subprocess.run(["gdalinfo", "-json", str(warped)], text=True,
+                                                capture_output=True, check=True).stdout)
+        image_size = [int(value) for value in warped_info["size"]]
+        ring = warped_info["wgs84Extent"]["coordinates"][0]
+        if len(ring) < 4:
+            raise ValueError("GDAL did not report the warped daily chart extent")
+        coordinates = [[float(value) for value in point] for point in (ring[0], ring[3], ring[2], ring[1])]
     if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > MAX_BYTES:
         raise ValueError("GDAL did not produce a valid daily chart PNG")
-    return data
+    if not all(len(point) == 2 and -180 <= point[0] <= 180 and -90 <= point[1] <= 90
+               and all(math.isfinite(value) for value in point) for point in coordinates):
+        raise ValueError("GDAL reported an invalid daily chart extent")
+    return data, coordinates, image_size
 
 
 def import_daily_chart(product: str = "WIS36C") -> dict:
     """Download and atomically cache the latest daily chart for a fixed product."""
     advertised = available_daily(product)
-    image = _download(advertised["source_url"])
-    png = _warp_daily(product, image)
-    spec = DAILY_PRODUCTS[product]
+    document = _download(advertised["source_url"])
+    png, coordinates, image_size = _warp_daily(product, document)
     slug = re.sub(r"[^a-z0-9]+", "-", advertised["region"].lower()).strip("-")
     entry = {"id": f"{slug}-{advertised['date']}", "kind": "raster", **advertised,
-             "coordinates": spec["coordinates"], "image_size": list(spec["size"]),
+             "coordinates": coordinates, "image_size": image_size,
              "attribution": ATTRIBUTION, "licence_url": LICENCE, "ship_area": True,
              "imported_at": datetime.now(timezone.utc).isoformat()}
     _atomic_write(chart_dir() / f"{entry['id']}.png", png)

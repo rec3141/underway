@@ -145,7 +145,7 @@
       if (chart.kind === 'raster') {
         if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'image', url: collection.url, coordinates: chart.coordinates});
         if (!m.getLayer(RASTER)) m.addLayer({id: RASTER, type: 'raster', source: SOURCE,
-          paint: {'raster-opacity': opacity, 'raster-fade-duration': 0, 'raster-resampling': 'nearest'}}, before);
+          paint: {'raster-opacity': opacity, 'raster-fade-duration': 0, 'raster-resampling': 'linear'}}, before);
       } else {
         if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'geojson', data: collection, tolerance: .1, attribution: chart.attribution || 'Canadian Ice Service / ECCC'});
         if (!m.getLayer(FILL)) m.addLayer({id: FILL, type: 'fill', source: SOURCE, paint: {
