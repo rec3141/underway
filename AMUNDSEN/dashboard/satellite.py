@@ -11,7 +11,9 @@ request at 2500 pixels a side, so the region is fetched as ``TILES`` tiles
 and stitched into one WebP. Each sensor comes again as a ``near`` picture,
 ``s1near`` and ``s2near``: a 240 by 160 km box round the ship at 50 m a
 pixel, drawn over the region picture, and taken afresh once the ship has
-moved ``NEAR_MOVE_KM`` from its centre.
+moved ``NEAR_MOVE_KM`` from its centre. ``s1north`` is a fixed 240 km square
+at 40 m a pixel over northern Eureka Sound and Nansen Sound. It is drawn with
+the other Sentinel-1 details and refreshed when a new radar scene arrives.
 
 ``refresh()`` renders a sensor again once its picture is older than its
 ``max_age_h``; the timer runs it every half hour. The results live in
@@ -66,11 +68,16 @@ SENSORS = {
            "processing": {"backCoeff": "GAMMA0_ELLIPSOID"}, "label": "Sentinel-1 radar"},
     "s2": {"type": "sentinel-2-l2a", "days": 7, "max_age_h": 6.0, "filter": {"mosaickingOrder": "leastCC", "maxCloudCoverage": 40},
            "processing": {}, "label": "Sentinel-2 optical"},
-    # the radar again at close to its native resolution, in a box that follows
-    # the ship (a new one once it has moved NEAR_MOVE_KM); drawn over the region
+    # The radar again at close to its native resolution: one box follows the
+    # ship, and one fixed box covers the channels immediately north of it.
     "s1near": {"type": "sentinel-1-grd", "days": 2, "max_age_h": 3.0, "filter": {"mosaickingOrder": "mostRecent"},
                "processing": {"backCoeff": "GAMMA0_ELLIPSOID"}, "label": "Sentinel-1 radar, 50 m near the ship",
-               "near": True, "box_km": (240.0, 160.0), "ground_m_per_px": 50.0},
+               "near": True, "overlay": "s1", "box_km": (240.0, 160.0), "ground_m_per_px": 50.0},
+    "s1north": {"type": "sentinel-1-grd", "days": 2, "max_age_h": 3.0, "filter": {"mosaickingOrder": "mostRecent"},
+                "processing": {"backCoeff": "GAMMA0_ELLIPSOID"},
+                "label": "Sentinel-1 radar, 40 m Nansen and northern Eureka Sound",
+                "near": True, "fixed": True, "overlay": "s1", "centre": (80.8, -89.0),
+                "box_km": (240.0, 240.0), "ground_m_per_px": 40.0, "webp_quality": 95},
     # the optical the same way: the least cloudy week in the box at 50 m
     "s2near": {"type": "sentinel-2-l2a", "days": 7, "max_age_h": 6.0, "filter": {"mosaickingOrder": "leastCC", "maxCloudCoverage": 40},
                "processing": {}, "label": "Sentinel-2 optical, 50 m near the ship",
@@ -78,6 +85,7 @@ SENSORS = {
 }
 NEAR_MOVE_KM = 40.0
 EVALSCRIPTS["s1near"] = EVALSCRIPTS["s1"]
+EVALSCRIPTS["s1north"] = EVALSCRIPTS["s1"]
 EVALSCRIPTS["s2near"] = EVALSCRIPTS["s2"]
 
 
@@ -203,7 +211,8 @@ def render_tile(tok: str, kind: str, bbox: list[float], size: tuple[int, int], e
     return r.content, float(r.headers.get("x-processingunits-spent") or 0)
 
 
-def render(tok: str, kind: str, bbox: list[float], end: datetime, m_per_px: float = MERC_M_PER_PX) -> tuple[bytes, float, tuple[int, int]]:
+def render(tok: str, kind: str, bbox: list[float], end: datetime, m_per_px: float = MERC_M_PER_PX,
+           quality: int = WEBP_QUALITY) -> tuple[bytes, float, tuple[int, int]]:
     """The whole box for ``kind`` as one WebP (tiles fetched and stitched),
     the processing units it cost, and its size in pixels."""
     import io
@@ -211,13 +220,13 @@ def render(tok: str, kind: str, bbox: list[float], end: datetime, m_per_px: floa
     size = region_size(bbox, m_per_px)
     out = Image.new("RGBA", size, (0, 0, 0, 0))
     cost = 0.0
-    grid = (1 if size[0] <= 2500 else 2, 1 if size[1] <= 2500 else 2)
+    grid = (math.ceil(size[0] / 2500), math.ceil(size[1] / 2500))
     for tb, tsize, offset in tiles(bbox, size, grid):
         png, c = render_tile(tok, kind, tb, tsize, end)
         cost += c
         out.paste(Image.open(io.BytesIO(png)).convert("RGBA"), offset)
     buf = io.BytesIO()
-    out.save(buf, format="WEBP", quality=WEBP_QUALITY, method=4)
+    out.save(buf, format="WEBP", quality=quality, method=4)
     return buf.getvalue(), cost, size
 
 
@@ -251,13 +260,14 @@ def due(info: dict, now: datetime, kinds=tuple(SENSORS), ship: tuple[float, floa
     for k in kinds:
         sp = SENSORS[k]
         cur = (info.get("images") or {}).get(k)
-        if sp.get("near") and ship is None:
+        if sp.get("near") and not sp.get("fixed") and ship is None:
             continue                                     # no fix yet: nothing to centre on
         if not cur or (not sp.get("near") and cur.get("region") != list(REGION)):
             out.append(k); continue
         try:
             age = (now - datetime.fromisoformat(cur["fetched"])).total_seconds() / 3600
-            moved = distance_km(ship[0], ship[1], cur["centre"][0], cur["centre"][1]) if sp.get("near") else 0.0
+            moved = (distance_km(ship[0], ship[1], cur["centre"][0], cur["centre"][1])
+                     if sp.get("near") and not sp.get("fixed") else 0.0)
         except (KeyError, ValueError, TypeError, IndexError):
             out.append(k); continue
         if age >= sp["max_age_h"] or moved >= NEAR_MOVE_KM:
@@ -297,7 +307,7 @@ def _refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSO
     info = load_info()
     info.setdefault("images", {})
     ship = ship_position()
-    wanted = [k for k in kinds if not (SENSORS[k].get("near") and ship is None)] if force else due(info, now, kinds, ship)
+    wanted = [k for k in kinds if not (SENSORS[k].get("near") and not SENSORS[k].get("fixed") and ship is None)] if force else due(info, now, kinds, ship)
     if not wanted:
         return info
     sat_dir().mkdir(parents=True, exist_ok=True)
@@ -311,9 +321,11 @@ def _refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSO
         sp = SENSORS[k]
         try:
             if sp.get("near"):
-                bbox = box_around(ship[0], ship[1], sp["box_km"])
-                m_per_px = sp["ground_m_per_px"] / math.cos(math.radians(ship[0]))
+                centre = sp.get("centre") or ship
+                bbox = box_around(centre[0], centre[1], sp["box_km"])
+                m_per_px = sp["ground_m_per_px"] / math.cos(math.radians(centre[0]))
             else:
+                centre = None
                 bbox, m_per_px = region_bbox(), MERC_M_PER_PX
             # the catalog is free and a render costs processing units: a
             # picture is bought only when the newest scene in the box is not
@@ -321,14 +333,15 @@ def _refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSO
             scene = newest_scene(tok, k, bbox, now - timedelta(days=sp["days"]), now)
             cur = info["images"].get(k) or {}
             if not force and cur:
-                moved = distance_km(ship[0], ship[1], cur["centre"][0], cur["centre"][1]) if sp.get("near") and cur.get("centre") else 0.0
+                moved = (distance_km(ship[0], ship[1], cur["centre"][0], cur["centre"][1])
+                         if sp.get("near") and not sp.get("fixed") and cur.get("centre") else 0.0)
                 if scene is None:
                     log.info("satellite: %s kept: the catalog did not answer, the picture stays", k)
                     continue
                 if scene == cur.get("scene") and moved < NEAR_MOVE_KM:
                     log.info("satellite: %s unchanged (newest scene %s); not rendered", k, scene)
                     continue
-            data, cost, size = render(tok, k, bbox, now, m_per_px)
+            data, cost, size = render(tok, k, bbox, now, m_per_px, sp.get("webp_quality", WEBP_QUALITY))
             # Preserve the currently displayed near box before replacing it,
             # including caches created before near-image archiving existed.
             previous = info.get("images", {}).get(k)
@@ -340,9 +353,13 @@ def _refresh(force: bool = False, now: datetime | None = None, kinds=tuple(SENSO
             tmp = sat_dir() / f"{k}.webp.tmp"
             tmp.write_bytes(data)
             os.replace(tmp, sat_dir() / f"{k}.webp")
-            info["images"][k] = {"file": f"{k}.webp", "label": sp["label"], "corners": corners(bbox), "region": None if sp.get("near") else list(REGION),
-                                 "centre": list(ship) if sp.get("near") else None, "size": list(size), "fetched": now.isoformat(timespec="seconds"), "scene": scene,
-                                 "days": sp["days"], "bytes": len(data), "cost_pu": cost}
+            info["images"][k] = {"file": f"{k}.webp", "label": sp["label"], "corners": corners(bbox),
+                                 "region": None if sp.get("near") else list(REGION),
+                                 "centre": list(centre) if centre else None, "size": list(size),
+                                 "fetched": now.isoformat(timespec="seconds"), "scene": scene,
+                                 "days": sp["days"], "bytes": len(data), "cost_pu": cost,
+                                 **({"overlay": sp["overlay"], "ground_m_per_px": sp["ground_m_per_px"]}
+                                    if sp.get("overlay") else {})}
             info["cost_pu_total"] = round(float(info.get("cost_pu_total") or 0) + cost, 2)
             archive(info, k, data, scene, now, metadata=info["images"][k])
             log.info("satellite: %s rendered (%dx%d, %d kB, newest scene %s, %.1f PU)", k, size[0], size[1], len(data) // 1024, scene, cost)

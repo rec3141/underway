@@ -531,6 +531,8 @@
   // the satellite pill cycles off → Sentinel-1 → Sentinel-2 → off through
   // the pictures the build has published (a sensor without one is skipped)
   const satImages = () => M?.satellite?.images || {};
+  const satDetailKeys = (kind) => Object.entries(satImages())
+    .filter(([key, im]) => key === kind + 'near' || im.overlay === kind).map(([key]) => key);
   // the pictures of the shown sensor, oldest first: the archive, which ends
   // with the current picture (a region picture shares the current one's
   // corners; a backfilled box round the ship carries its own)
@@ -539,14 +541,16 @@
     const arch = (M?.satellite?.archive || {})[state.sat] || [];
     const rows = arch.map((e) => ({ url: e.url, scene: e.scene, corners: e.corners || im.corners, label: im.label }));
     if (!rows.length || rows[rows.length - 1].scene !== (im.scene || im.fetched)) rows.push({ url: im.url, scene: im.scene || im.fetched, corners: im.corners, label: im.label });
-    const near = (M?.satellite?.archive || {})[state.sat+'near'] || [];
+    const detailKeys = satDetailKeys(state.sat);
+    const near = detailKeys.flatMap((key) => (M?.satellite?.archive || {})[key] || []);
     const detailed = near.filter(e=>e.corners).map(e=>{
       const background=rows.filter(r=>Date.parse(r.scene)<=Date.parse(e.scene)).at(-1);
-      return {...(background||e),scene:e.scene,key:e.url,near:e,label:e.label||'50 m near-ship image'};
+      return {...(background||e),scene:e.scene,key:e.url,near:e,details:[e],label:e.label||'high-resolution radar image'};
     });
     // Each moved high-resolution box is independently browsable, even when
     // its newest satellite scene is unchanged. Never borrow today's bounds.
-    const current={...rows.at(-1),key:'latest',near:satImages()[state.sat+'near']||null};
+    const details = detailKeys.map((key) => satImages()[key]).filter(Boolean);
+    const current={...rows.at(-1),key:'latest',near:details[0]||null,details};
     return [...rows.slice(0,-1),...detailed].sort((a,b)=>Date.parse(a.scene)-Date.parse(b.scene)).concat(current);
   }
   // the picture on the map: the one stepped back to, else the newest
@@ -615,10 +619,11 @@
   // pictures go in too, under the coastline, so the shore stays legible over
   // them. The style's id names everything in it: the map takes a new style
   // only when the id changes, and MapLibre applies that as a diff.
-  function mapStyle(sat, near) {
+  function mapStyle(sat, details = []) {
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const relief = !!SITE.raster;
-    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${near?.url || ""}|names:${state.names ? 1 : 0}`,
+    const detailStamp = details.map((im) => im.url).join('|');
+    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${detailStamp}|names:${state.names ? 1 : 0}`,
                     // a globe, not Web Mercator: at the ship's latitudes Mercator stretches the map four to eight
                     // times, and on the globe distances and areas read true. The tiles are the same Web Mercator
                     // tiles drawn on the sphere, so nothing exists above 85 N, where that tiling ends.
@@ -660,7 +665,8 @@
       add("islands", g.isl, { type: "fill", paint: { "fill-color": C.mapLand } });
     }
     add("ice", g.glac, { type: "fill", paint: { "fill-color": C.mapIce, "fill-opacity": relief ? .35 : .9 } });
-    for (const [id, im, op] of [["sat", sat, .95], ["satnear", near, 1]]) {
+    const overlays = [["sat", sat, .95], ...details.map((im, i) => [i ? `satdetail${i}` : "satnear", im, 1])];
+    for (const [id, im, op] of overlays) {
       if (!im) continue;
       style.sources[id] = { type: "image", url: new URL(im.url, location.href).href, coordinates: im.corners };
       style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": op } });
@@ -1224,10 +1230,10 @@
                 color: st.map((s) => selected.has(stKey(s)) ? C.accent2 : s.kind === "event" ? C.ok : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
-    // the satellite picture under the track, and the same sensor at 50 m in
-    // a box round the ship over it: both go into the style with the basemap
+    // The regional satellite picture sits under the track; its high-resolution
+    // ship-following and fixed-area details sit over it in the same style.
     const sat = (state.sat && satPicture()) || null;
-    const near = sat?.near || null;
+    const details = sat?.details || (sat?.near ? [sat.near] : []);
     mapData = d;
     if (!mapView) {
       mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(); }, onZoom: onMapZoom,
@@ -1236,7 +1242,7 @@
       $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
     }
     try {
-      mapView.draw({ style: mapStyle(sat, near), view, base: traces, live: liveTraces(ship) }).then(() => {
+      mapView.draw({ style: mapStyle(sat, details), view, base: traces, live: liveTraces(ship) }).then(() => {
         state.fitPending = false;
         if (!state.view) state.view = mapView.getView() || view;   // where a fit landed, as centre and zoom
         updateScale();
@@ -1263,7 +1269,7 @@
       (state.track ? `<span id="trackstatus" role="status">${esc(trackStatus || 'Loading visible track…')}</span>` : '') +
       (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
-      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${near ? ` · 50 m box near the ship from ${fmtTs(Date.parse(near.scene || near.fetched)).slice(11)}` : ""} · Copernicus Sentinel data</span>` : "") +
+      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${details.length ? ` · ${details.map((im) => esc(im.label || 'high-resolution detail')).join(' + ')}` : ""} · Copernicus Sentinel data</span>` : "") +
       plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
       `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
   }
