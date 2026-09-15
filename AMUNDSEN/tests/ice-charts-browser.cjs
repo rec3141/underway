@@ -17,7 +17,11 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const until=async(fn)=>{for(let i=0;i<120;i++){if(fn())return;await wait(50)}throw Error('Condition timed out')};
  const view=new UW.MapView(document.querySelector('#map'),{onEmptyClick:e=>UW.iceCharts.click(e),onClick:()=>result.trackClick=true});
- const style={version:8,id:'first',sources:{},layers:[{id:'background',type:'background',paint:{'background-color':'#19374b'}}]};
+ const style={version:8,id:'first',sources:{land:{type:'geojson',data:'/geo/land.geojson'},coast:{type:'geojson',data:'/geo/coastline.geojson'}},layers:[
+  {id:'background',type:'background',paint:{'background-color':'#19374b'}},
+  {id:'land',type:'fill',source:'land',paint:{'fill-color':'#aeb99d'}},
+  {id:'coast',type:'line',source:'coast',paint:{'line-color':'#101820','line-width':1.5}}
+ ]};
  await view.draw({style,view:{center:{lon:-85,lat:75},zoom:3},base:[],live:[]});
  view.map.on('error',e=>errors.push(e.error.message));
  const manifest={charts:[{id:'old',date:'2026-09-07',region:'Eastern Arctic',url:'/chart-old',source_url:'https://ice-glaces.ec.gc.ca/prods/sigrids/',attribution:'Canadian Ice Service / ECCC'},{id:'new',date:'2026-09-14',region:'Eastern Arctic',url:'/chart-new'}]};
@@ -30,7 +34,7 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  document.querySelector('.icechart-detail button').click();
  const slider=document.querySelector('#icechart-opacity');slider.value='65';slider.dispatchEvent(new Event('input'));
  result.opacity=view.map.getPaintProperty('cis-ice-fill','fill-opacity');
- view.setStyle({...style,id:'second',layers:[{id:'background',type:'background',paint:{'background-color':'#244355'}}]});
+ view.setStyle({...style,id:'second',layers:[{id:'background',type:'background',paint:{'background-color':'#244355'}},...style.layers.slice(1)]});
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));
  result.layerRestored=true;
  view.setTraces('base',[{lat:[75],lon:[-85],mode:'markers',marker:{size:12,color:'#fff'},customdata:'station'}]);
@@ -57,14 +61,21 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  UW.iceCharts.refresh(manifest,view,'2026-09-10');
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));await wait(100);view.map.fire('click',{point:pt});
  result.egg=document.querySelector('.icechart-egg-total').textContent;
+ const raster={charts:[{id:'eureka-daily-raster-2026-09-14',kind:'raster',date:'2026-09-14',valid_time:'2026-09-14T18:00:00Z',region:'Eureka (daily raster)',ship_area:true,url:'/chart-raster.png',coordinates:[[-112.36,83.88],[-47.20,83.88],[-47.20,73.65],[-112.36,73.65]]}]};
+ UW.iceCharts.refresh(raster,view,'2026-09-15T03:22:00Z');
+ await until(()=>view.map.getLayer('cis-ice-raster')&&view.map.isSourceLoaded('cis-ice-chart'));
+ result.raster=view.map.getSource('cis-ice-chart').type==='image'&&document.querySelector('#icechart-status').textContent.includes('Daily raster analysis');
+ result.rasterClick=UW.iceCharts.click({point:pt});
  window.done=true;
 })().catch(e=>{errors.push(e.stack);window.done=true});
 </script></html>`;
 const server=http.createServer((req,res)=>{
+ if(req.url==='/chart-raster.png'){res.setHeader('Content-Type','image/png');res.end(fs.readFileSync(path.join(__dirname,'../dashboard/ice_assets/eureka-daily-raster-2026-09-14.png')));return;}
  if(req.url==='/chart-slow'){setTimeout(()=>{res.setHeader('Content-Type','application/json');res.end(JSON.stringify(fixture))},250);return;}
  if(req.url.startsWith('/chart')){if(req.url==='/chart-fail'){res.writeHead(503);res.end();return;}res.setHeader('Content-Type','application/json');res.end(JSON.stringify(fixture));return;}
  if(req.url==='/'){res.setHeader('Content-Type','text/html');res.end(html);return;}
  if(['/map.js','/maplibre-gl.js','/ice-charts.js','/ice-charts.css','/style.css'].includes(req.url)){res.setHeader('Content-Type',req.url.endsWith('.css')?'text/css':'text/javascript');res.end(fs.readFileSync(path.join(assets,req.url.slice(1))));return;}
+ if(req.url.startsWith('/geo/')){res.setHeader('Content-Type','application/geo+json');res.end(fs.readFileSync(path.join(assets,req.url)));return;}
  res.writeHead(404);res.end();
 });
 const profile=fs.mkdtempSync(path.join(os.tmpdir(),'underway-sat-browser-'));
@@ -91,7 +102,8 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
  assert.equal(result.off,true);assert.equal(result.cancelled,true);assert.equal(result.raceCleared,true);assert.equal(result.retried,true);
  assert.equal(result.futureHidden,true);assert.equal(result.empty,true);assert.equal(result.escaped,true);
  assert.equal(result.egg,'10');assert.equal(result.trackClick,true);assert.equal(result.opacity,.65);
+ assert.equal(result.raster,true);assert.equal(result.rasterClick,false);
  const screenshot=await call('Page.captureScreenshot',{format:'png'});
  fs.writeFileSync('/tmp/underway-cis-ice-browser.png',Buffer.from(screenshot.result.data,'base64'));
- console.log('PASS CIS chart date selection, actual MapLibre polygons, popup, style change, toggle, failure/retry and no-cache states',result);
+ console.log('PASS CIS vector and raster charts, date selection, popup, style change, toggle, failure/retry and no-cache states',result);
 }finally{ws?.close();child?.kill();server.closeAllConnections();server.close();clearTimeout(watchdog);}})().catch(e=>{console.error(e);process.exitCode=1});

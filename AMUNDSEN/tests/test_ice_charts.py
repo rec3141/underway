@@ -75,6 +75,31 @@ class IceCodeTests(unittest.TestCase):
         self.assertEqual(rows[0]["valid_time"], "2026-09-07T18:00:00Z")
         self.assertTrue(rows[0]["source_url"].startswith(ic.SOURCE))
 
+    def test_daily_discovery_accepts_only_the_named_product(self):
+        html = b'<a href="/prods/WIS36C/20260914180000_WIS36C_0014221325.gif">chart</a>'
+        url, day, valid = ic._daily_source("WIS36C", html)
+        self.assertEqual(day, "2026-09-14")
+        self.assertEqual(valid, "2026-09-14T18:00:00Z")
+        self.assertEqual(url, "https://ice-glaces.ec.gc.ca/prods/WIS36C/20260914180000_WIS36C_0014221325.gif")
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            ic._daily_source("WIS99C", html)
+        with self.assertRaisesRegex(ValueError, "does not currently advertise"):
+            ic._daily_source("WIS36C", b'<a href="/prods/WIS35C/20260914180000_WIS35C_1.gif">other</a>')
+
+    def test_daily_import_writes_image_and_metadata_atomically(self):
+        advertised = {"product": "WIS36C", "date": "2026-09-14", "region": "Eureka (daily raster)",
+                      "valid_time": "2026-09-14T18:00:00Z", "source_url": "https://example.test/chart.gif"}
+        png = b"\x89PNG\r\n\x1a\nchart"
+        with tempfile.TemporaryDirectory() as directory, patch.object(ic, "DB_DIR", Path(directory)), \
+                patch.object(ic, "available_daily", return_value=advertised), \
+                patch.object(ic, "_download", return_value=b"GIF89a"), \
+                patch.object(ic, "_warp_daily", return_value=png):
+            entry = ic.import_daily_chart()
+            self.assertEqual(entry["kind"], "raster")
+            self.assertTrue(entry["ship_area"])
+            self.assertEqual((ic.chart_dir() / f'{entry["id"]}.png').read_bytes(), png)
+            self.assertEqual(json.loads((ic.chart_dir() / f'{entry["id"]}.raster.json').read_text())["product"], "WIS36C")
+
 
 @unittest.skipUnless(HAVE_GIS, "Install .[ice-charts] for conversion tests")
 class IceChartImportTests(unittest.TestCase):
@@ -163,6 +188,20 @@ class PublishTests(unittest.TestCase):
                 (ic.chart_dir() / f'{entry["id"]}.geojson').write_text(json.dumps(cache))
                 published = ic.publish(root / "www")
                 self.assertEqual(published["charts"][0]["feature_count"], 2)
+
+    def test_raster_seed_is_validated_and_published(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            seeds = root / "seeds"
+            seeds.mkdir()
+            entry = {"id": "eureka-daily-raster-2026-09-14", "kind": "raster", "date": "2026-09-14",
+                     "region": "Eureka (daily raster)", "coordinates": [[-112, 84], [-47, 84], [-47, 74], [-112, 74]]}
+            (seeds / f'{entry["id"]}.raster.json').write_text(json.dumps(entry))
+            (seeds / f'{entry["id"]}.png').write_bytes(b"\x89PNG\r\n\x1a\nchart")
+            with patch.object(ic, "DB_DIR", root / "db"), patch.object(ic, "SEED_DIR", seeds):
+                published = ic.publish(root / "www")
+            self.assertEqual(published["charts"][0]["kind"], "raster")
+            self.assertTrue((root / "www" / published["charts"][0]["url"].split("?")[0]).is_file())
 
 
 if __name__ == "__main__":

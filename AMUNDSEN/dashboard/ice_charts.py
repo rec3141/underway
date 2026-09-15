@@ -1,8 +1,9 @@
-"""Cache Canadian Ice Service SIGRID-3 charts as dated WGS84 GeoJSON.
+"""Cache Canadian Ice Service charts as dated map overlays.
 
 Fetching is an explicit operator action; ordinary builds only publish the local
-cache. Conversion requires the optional ``ice-charts`` dependencies. SIGRID-3
-codes remain strings, alongside decoded display values (WMO/TD-No. 1214).
+cache. Weekly SIGRID-3 vectors retain their codes as strings, alongside decoded
+display values (WMO/TD-No. 1214). Daily chart images are cropped and warped to
+Web Mercator before publication so they line up with the dashboard map.
 """
 from __future__ import annotations
 
@@ -13,6 +14,8 @@ import json
 import logging
 import math
 import re
+import shutil
+import subprocess
 import tarfile
 import tempfile
 import urllib.request
@@ -25,12 +28,30 @@ from .config import DB_DIR
 
 log = logging.getLogger(__name__)
 SOURCE = "https://ice-glaces.ec.gc.ca/prods/sigrids/"
+PRODUCT_SOURCE = "https://ice-glaces.ec.gc.ca/cgi-bin/getprod.pl?lang=en&prodid={product}&wrap=1"
 SEED_DIR = Path(__file__).with_name("ice_assets")
 ATTRIBUTION = "Canadian Ice Service / ECCC"
 LICENCE = "https://open.canada.ca/en/open-government-licence-canada"
 REGIONS = {"EA": "Eastern Arctic", "WA": "Western Arctic", "HB": "Hudson Bay", "EC": "East Coast", "GL": "Great Lakes"}
 MAX_BYTES = 64 * 1024 * 1024
 MAX_EXPANDED = 256 * 1024 * 1024
+DAILY_PRODUCTS = {
+    "WIS36C": {
+        "region": "Eureka (daily raster)",
+        "source_size": (1589, 2068),
+        "crop": (393, 0, 1196, 1517),
+        "size": (1800, 1567),
+        "extent": (-12508221.81, 12374473.546, -5254319.663, 18689398.359),
+        "coordinates": [[-112.3632683, 83.8883493], [-47.2003566, 83.8883493],
+                        [-47.2003566, 73.6469559], [-112.3632683, 73.6469559]],
+        # Pixel locations of Alert, Eureka, and Resolute in the cropped chart,
+        # paired with their WGS84 positions. These fixed chart control points
+        # define the daily product's Lambert map frame.
+        "control_points": [(907, 115, -62.3481, 82.5018),
+                           (488, 641, -85.8119, 79.9947),
+                           (200, 1473, -94.8297, 74.6973)],
+    },
+}
 CODES = ("CT", "CA", "CB", "CC", "SA", "SB", "SC", "FA", "FB", "FC", "CN", "CD", "CF")
 STAGES = {"00": "Ice free", "80": "No stage of development", "81": "New ice", "82": "Nilas / ice rind (<10 cm)",
           "83": "Young ice (10–30 cm)", "84": "Grey ice (10–15 cm)", "85": "Grey-white ice (15–30 cm)",
@@ -137,6 +158,100 @@ def available() -> list[dict]:
                      "region": REGIONS[region], "source_url": SOURCE + name,
                      "valid_time": f"{day[:4]}-{day[4:6]}-{day[6:]}T{time[:2]}:{time[2:]}:00Z" if time else None})
     return sorted(rows, key=lambda row: (row["date"], row["region"]), reverse=True)
+
+
+def _daily_source(product: str, html: bytes) -> tuple[str, str, str]:
+    """Return the current GIF URL, valid date and time for a known product."""
+    if product not in DAILY_PRODUCTS:
+        raise ValueError(f"Unsupported daily chart product {product}")
+    name = re.search(rf'/prods/{re.escape(product)}/(\d{{14}}_{re.escape(product)}_\d+\.gif)',
+                     html.decode("utf-8", "replace"))
+    if not name:
+        raise ValueError(f"CIS does not currently advertise a {product} daily chart")
+    stamp = name.group(1)[:14]
+    valid = datetime.strptime(stamp, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+    return f"https://ice-glaces.ec.gc.ca/prods/{product}/{name.group(1)}", valid.date().isoformat(), valid.isoformat().replace("+00:00", "Z")
+
+
+def available_daily(product: str = "WIS36C") -> dict:
+    """Describe the latest daily raster advertised for the ship's chart area."""
+    page = PRODUCT_SOURCE.format(product=product)
+    url, day, valid_time = _daily_source(product, _download(page, 2 * 1024 * 1024))
+    return {"product": product, "date": day, "region": DAILY_PRODUCTS[product]["region"],
+            "valid_time": valid_time, "source_url": url}
+
+
+def _projected_control_points(product: str) -> list[tuple[int, int, float, float]]:
+    if not shutil.which("cs2cs"):
+        raise ValueError("Daily chart conversion requires the PROJ cs2cs command")
+    spec = DAILY_PRODUCTS[product]
+    command = ["cs2cs", "+proj=longlat", "+datum=WGS84", "+to", "+proj=lcc", "+lat_1=49",
+               "+lat_2=77", "+lon_0=-100", "+datum=NAD27", "+units=m"]
+    source = "".join(f"{lon} {lat}\n" for _, _, lon, lat in spec["control_points"])
+    result = subprocess.run(command, input=source, text=True, capture_output=True, check=True)
+    projected = []
+    for control, line in zip(spec["control_points"], result.stdout.splitlines(), strict=True):
+        values = line.split()
+        projected.append((control[0], control[1], float(values[0]), float(values[1])))
+    return projected
+
+
+def _warp_daily(product: str, image: bytes) -> bytes:
+    """Crop the fixed chart frame and warp its Lambert image into Web Mercator."""
+    required = [name for name in ("gdal_translate", "gdalwarp", "gdalinfo") if not shutil.which(name)]
+    if required:
+        raise ValueError("Daily chart conversion requires GDAL commands: " + ", ".join(required))
+    if not image.startswith((b"GIF87a", b"GIF89a")):
+        raise ValueError("Daily chart download is not a GIF image")
+    spec = DAILY_PRODUCTS[product]
+    with tempfile.TemporaryDirectory() as directory:
+        folder = Path(directory)
+        source = folder / "source.gif"
+        rgb = folder / "rgb.tif"
+        controlled = folder / "controlled.tif"
+        warped = folder / "warped.tif"
+        output = folder / "chart.png"
+        source.write_bytes(image)
+        info = subprocess.run(["gdalinfo", "-json", str(source)], text=True, capture_output=True, check=True)
+        if tuple(json.loads(info.stdout)["size"]) != spec["source_size"]:
+            raise ValueError("Daily chart dimensions changed; control points must be checked")
+        crop = [str(value) for value in spec["crop"]]
+        subprocess.run(["gdal_translate", "-q", "-of", "GTiff", "-expand", "rgb", "-srcwin", *crop,
+                        str(source), str(rgb)], check=True, capture_output=True)
+        command = ["gdal_translate", "-q", "-of", "GTiff"]
+        for x, y, east, north in _projected_control_points(product):
+            command.extend(["-gcp", str(x), str(y), str(east), str(north)])
+        command.extend(["-a_srs", "+proj=lcc +lat_1=49 +lat_2=77 +lon_0=-100 +datum=NAD27 +units=m",
+                        str(rgb), str(controlled)])
+        subprocess.run(command, check=True, capture_output=True)
+        extent = [str(value) for value in spec["extent"]]
+        size = [str(value) for value in spec["size"]]
+        subprocess.run(["gdalwarp", "-q", "-overwrite", "-order", "1", "-t_srs", "EPSG:3857",
+                        "-te", *extent, "-ts", *size, "-dstalpha", "-r", "near", "-of", "GTiff",
+                        str(controlled), str(warped)], check=True, capture_output=True)
+        subprocess.run(["gdal_translate", "-q", "-of", "PNG", str(warped), str(output)],
+                       check=True, capture_output=True)
+        data = output.read_bytes()
+    if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > MAX_BYTES:
+        raise ValueError("GDAL did not produce a valid daily chart PNG")
+    return data
+
+
+def import_daily_chart(product: str = "WIS36C") -> dict:
+    """Download and atomically cache the latest daily chart for a fixed product."""
+    advertised = available_daily(product)
+    image = _download(advertised["source_url"])
+    png = _warp_daily(product, image)
+    spec = DAILY_PRODUCTS[product]
+    slug = re.sub(r"[^a-z0-9]+", "-", advertised["region"].lower()).strip("-")
+    entry = {"id": f"{slug}-{advertised['date']}", "kind": "raster", **advertised,
+             "coordinates": spec["coordinates"], "image_size": list(spec["size"]),
+             "attribution": ATTRIBUTION, "licence_url": LICENCE, "ship_area": True,
+             "imported_at": datetime.now(timezone.utc).isoformat()}
+    _atomic_write(chart_dir() / f"{entry['id']}.png", png)
+    _atomic_write(chart_dir() / f"{entry['id']}.raster.json",
+                  json.dumps(entry, separators=(",", ":"), ensure_ascii=False).encode())
+    return entry
 
 
 def _archive_parts(data: bytes) -> dict[str, bytes]:
@@ -316,4 +431,31 @@ def publish(root: Path) -> dict | None:
             entries.append({**entry, "url": f"data/ice-charts/{name}?v={digest}"})
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.warning("ice chart %s not published: %s", path.name, exc)
+    rasters = {path.name: path for path in SEED_DIR.glob("*.raster.json")}
+    rasters.update({path.name: path for path in chart_dir().glob("*.raster.json")})
+    for name, metadata in sorted(rasters.items()):
+        try:
+            entry = json.loads(metadata.read_text())
+            if entry.get("kind") != "raster" or not re.fullmatch(r"[a-z0-9-]+", entry["id"]):
+                raise ValueError("Invalid raster chart metadata")
+            Date.fromisoformat(entry["date"])
+            coordinates = entry["coordinates"]
+            if len(coordinates) != 4 or any(len(point) != 2 or not all(math.isfinite(float(v)) for v in point) for point in coordinates):
+                raise ValueError("Invalid raster chart coordinates")
+            image_name = f"{entry['id']}.png"
+            if name != f"{entry['id']}.raster.json":
+                raise ValueError("Invalid raster chart identifier")
+            source_image = metadata.with_name(image_name)
+            if not source_image.is_file():
+                raise ValueError("Raster chart image is missing")
+            data = source_image.read_bytes()
+            if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > MAX_BYTES:
+                raise ValueError("Invalid raster chart image")
+            digest = hashlib.sha256(data).hexdigest()[:16]
+            destination = root / "data" / "ice-charts" / image_name
+            if not destination.exists() or destination.read_bytes() != data:
+                _atomic_write(destination, data)
+            entries.append({**entry, "url": f"data/ice-charts/{image_name}?v={digest}"})
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            log.warning("ice chart %s not published: %s", metadata.name, exc)
     return {"charts": sorted(entries, key=lambda row: (row["date"], row["region"]), reverse=True)} if entries else None

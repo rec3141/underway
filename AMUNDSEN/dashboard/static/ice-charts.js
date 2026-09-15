@@ -1,8 +1,8 @@
-/* Dated CIS polygons load from the dashboard's local cache, independently of ship observations. */
+/* Dated CIS vector and raster charts load from the local cache, independently of ship observations. */
 (() => {
   'use strict';
   const UW = (window.UW = window.UW || {});
-  const SOURCE = 'cis-ice-chart', FILL = 'cis-ice-fill', OUTLINE = 'cis-ice-outline';
+  const SOURCE = 'cis-ice-chart', FILL = 'cis-ice-fill', OUTLINE = 'cis-ice-outline', RASTER = 'cis-ice-raster';
   const DAY = 86400000;
   const colours = ['#b9e5fa', '#8edb91', '#fff176', '#ffb74d', '#ef5350'];
   const colour = value => value == null ? '#9aa5b1' : colours[value < 1 ? 0 : value < 4 ? 1 : value < 7 ? 2 : value < 9 ? 3 : 4];
@@ -30,7 +30,11 @@
     };
     $('icechart-region').onchange = e => { region = e.target.value; chosen = ''; UW.store?.set('icecharts.region', region); UW.store?.set('icecharts.chart', ''); closeDetails(); select(); };
     $('icechart-date').onchange = e => { chosen = e.target.value; UW.store?.set('icecharts.chart', chosen); closeDetails(); select(); };
-    $('icechart-opacity').oninput = e => { opacity = Number(e.target.value) / 100; $('icechart-opacity-value').textContent = `${e.target.value}%`; if (view?.map?.getLayer(FILL)) view.map.setPaintProperty(FILL, 'fill-opacity', opacity); };
+    $('icechart-opacity').oninput = e => {
+      opacity = Number(e.target.value) / 100; $('icechart-opacity-value').textContent = `${e.target.value}%`;
+      if (view?.map?.getLayer(FILL)) view.map.setPaintProperty(FILL, 'fill-opacity', opacity);
+      if (view?.map?.getLayer(RASTER)) view.map.setPaintProperty(RASTER, 'raster-opacity', opacity);
+    };
     $('icechart-retry').onclick = () => load(true);
     const legend = $('icechart-legend');
     for (const [label, value] of [['<1/10', 0], ['1–3/10', 2], ['4–6/10', 5], ['7–8/10', 8], ['9–10/10', 10], ['Unknown', null]]) {
@@ -55,7 +59,7 @@
 
   function select() {
     const regions = [...new Set(charts.map(c => c.region))].sort();
-    if (!regions.includes(region)) { region = regions[0] || ''; chosen = ''; }
+    if (!regions.includes(region)) { region = charts.find(c => c.ship_area)?.region || regions[0] || ''; chosen = ''; }
     const regional = charts.filter(c => c.region === region).sort((a, b) => b.date.localeCompare(a.date));
     const previous = chart;
     chart = regional.find(c => c.id === chosen) || defaultChart(regional, reference);
@@ -86,11 +90,22 @@
       if (!data) {
         const response = await fetch(requested.url, {signal: requestController.signal, cache: retry ? 'reload' : 'default'});
         if (!response.ok) throw Error(`HTTP ${response.status}`);
-        data = await response.json();
-        if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw Error('Invalid polygon chart');
-        if (data.features.some(f => !['Polygon', 'MultiPolygon'].includes(f.geometry?.type))) throw Error('Invalid chart geometry');
+        if (requested.kind === 'raster') {
+          if (!Array.isArray(requested.coordinates) || requested.coordinates.length !== 4 || requested.coordinates.some(p => !Array.isArray(p) || p.length !== 2)) throw Error('Invalid raster coordinates');
+          const blob = await response.blob();
+          if (!blob.type.startsWith('image/')) throw Error('Invalid raster chart');
+          data = {kind: 'raster', url: URL.createObjectURL(blob)};
+        } else {
+          data = await response.json();
+          if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw Error('Invalid polygon chart');
+          if (data.features.some(f => !['Polygon', 'MultiPolygon'].includes(f.geometry?.type))) throw Error('Invalid chart geometry');
+        }
         cache.set(requested.url, data);
-        if (cache.size > 4) cache.delete(cache.keys().next().value);
+        if (cache.size > 4) {
+          const oldest = cache.keys().next().value, discarded = cache.get(oldest);
+          if (discarded?.kind === 'raster') URL.revokeObjectURL(discarded.url);
+          cache.delete(oldest);
+        }
       }
       if (token !== generation) return;
       collection = data; loading = false; ensureLayers();
@@ -107,16 +122,17 @@
     else {
       const delta = Math.round((Date.parse(day) - Date.parse(chart.date)) / DAY);
       const age = delta < 0 ? `${-delta} days after map end` : delta === 0 ? (Date.parse(chart.valid_time || chart.date) > Date.parse(reference) ? 'valid after map end' : 'same date as map end') : `${delta} days before map end`;
-      text = `${chart.region} · ${validLabel(chart)} · ${age}. ${loading ? 'Loading polygons…' : failure || 'Click a polygon for its egg code. Regional analysis; conditions can change between charts.'}`;
+      const ready = chart.kind === 'raster' ? 'Daily raster analysis for the ship area; use the original chart for egg codes.' : 'Click a polygon for its egg code. Regional analysis; conditions can change between charts.';
+      text = `${chart.region} · ${validLabel(chart)} · ${age}. ${loading ? `Loading ${chart.kind === 'raster' ? 'image' : 'polygons'}…` : failure || ready}`;
     }
     $('icechart-status').textContent = text;
     $('icechart-retry').hidden = !failure;
-    $('icechart-legend').hidden = !collection;
+    $('icechart-legend').hidden = !collection || chart?.kind === 'raster';
   }
 
   function removeLayers() {
     const m = view?.map; if (!m?.style?._loaded) return;
-    for (const id of [OUTLINE, FILL]) if (m.getLayer(id)) m.removeLayer(id);
+    for (const id of [OUTLINE, FILL, RASTER]) if (m.getLayer(id)) m.removeLayer(id);
     if (m.getSource(SOURCE)) m.removeSource(SOURCE);
   }
 
@@ -125,20 +141,26 @@
     if (ensureBusy || !enabled || !collection || !m?.style?._loaded) return;
     ensureBusy = true;
     try {
-      if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'geojson', data: collection, tolerance: .1, attribution: chart.attribution || 'Canadian Ice Service / ECCC'});
       const before = m.getLayer('coast') ? 'coast' : m.getLayer('u-base-lines') ? 'u-base-lines' : undefined;
-      if (!m.getLayer(FILL)) m.addLayer({id: FILL, type: 'fill', source: SOURCE, paint: {
-        'fill-opacity': opacity,
-        'fill-color': ['case', ['==', ['get', 'concentration'], null], '#9aa5b1', ['step', ['get', 'concentration'], colours[0], 1, colours[1], 4, colours[2], 7, colours[3], 9, colours[4]]]
-      }}, before);
-      if (!m.getLayer(OUTLINE)) m.addLayer({id: OUTLINE, type: 'line', source: SOURCE, paint: {'line-color': '#374151', 'line-width': .8, 'line-opacity': .65}}, before);
+      if (chart.kind === 'raster') {
+        if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'image', url: collection.url, coordinates: chart.coordinates});
+        if (!m.getLayer(RASTER)) m.addLayer({id: RASTER, type: 'raster', source: SOURCE,
+          paint: {'raster-opacity': opacity, 'raster-fade-duration': 0, 'raster-resampling': 'nearest'}}, before);
+      } else {
+        if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'geojson', data: collection, tolerance: .1, attribution: chart.attribution || 'Canadian Ice Service / ECCC'});
+        if (!m.getLayer(FILL)) m.addLayer({id: FILL, type: 'fill', source: SOURCE, paint: {
+          'fill-opacity': opacity,
+          'fill-color': ['case', ['==', ['get', 'concentration'], null], '#9aa5b1', ['step', ['get', 'concentration'], colours[0], 1, colours[1], 4, colours[2], 7, colours[3], 9, colours[4]]]
+        }}, before);
+        if (!m.getLayer(OUTLINE)) m.addLayer({id: OUTLINE, type: 'line', source: SOURCE, paint: {'line-color': '#374151', 'line-width': .8, 'line-opacity': .65}}, before);
+      }
     } finally { ensureBusy = false; }
   }
 
   function closeDetails() { if (detail?.open) detail.close(); }
   function click(event) {
     const m = view?.map;
-    if (!event?.point || !enabled || !collection || !m?.getLayer(FILL)) return false;
+    if (!event?.point || !enabled || !collection || chart?.kind === 'raster' || !m?.getLayer(FILL)) return false;
     const feature = m.queryRenderedFeatures(event.point, {layers: [FILL]})[0];
     if (!feature) return false;
     if (!detail) {
