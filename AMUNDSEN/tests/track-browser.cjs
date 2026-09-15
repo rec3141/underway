@@ -25,7 +25,7 @@ function manifest() {
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`,fine_file:`data/w-${label}-fine.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...(process.env.DEPTH_UI?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
-    surprise:{scales:[],note:''},stations:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
+    surprise:{scales:[],note:''},stations:process.env.STATION_SPAN_UI?[{kind:'CTD',leg,cast:'001',station:'Earlier',time:new Date(t-86400000).toISOString(),lat:76.01,lon:-78.01},{kind:'CTD',leg,cast:'002',station:'Current',time:new Date(t).toISOString(),lat:76,lon:-78}]:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
     data_range:{start:new Date(t-10000).toISOString(),end:new Date(t+10000).toISOString()},
     latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json'},
     aggregates:{'1h':{file:'data/agg-1h.json'},'1d':{file:'data/agg-1d.json'}},intranet:[],
@@ -33,7 +33,7 @@ function manifest() {
 }
 function dataset(p) {
   if(p==='/data/manifest.json') return manifest();
-  if(p.startsWith('/data/w-') || p.startsWith('/data/track/')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[p.includes('3h')?t-3600000:t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:[false,true],vars:{'SST (°C)':[generation,generation],...(process.env.DEPTH_UI?{'Bottom depth (m)':[25,100],'Rosette depth (m)':[25,100]}:{})},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
+  if(p.startsWith('/data/w-') || p.startsWith('/data/track/')) return {label:p.includes('3h')?'3h':'1h',step_s:10,n:2,t:[p.includes('3h')?t-3600000:t,t+10000],lat:[76,76.001],lon:[-78,-78.001],dist_km:[0,1],leg:[0,0],pump_low:process.env.TSG_UI?[false,false]:[false,true],vars:{'SST (°C)':process.env.TSG_UI?[1.234,null]:[generation,generation],...(process.env.DEPTH_UI?{'Bottom depth (m)':[25,100],'Rosette depth (m)':[25,100]}:{})},limits:{'SST (°C)':[0,10]},start:new Date(t).toISOString(),end:new Date(t+10000).toISOString()};
   if(p==='/data/calendar.json') return {events:[{...pumpEvent,id:'old-event',time_utc:new Date(t-86400000).toISOString(),event:'outside-span'},pumpEvent,{leg,time_utc:new Date(t).toISOString(),event:`event-${generation}`,activity:'CTD',station:'Test',lat:76,lon:-78}],pump_events:[pumpEvent],schedule:{rows:[]}};
   if(p.startsWith('/data/agg-')) return {variables:['SST (°C)'],rows:[{t,leg:0,lat:76,lon:-78,'SST (°C)':[generation,generation,generation,2]}]};
   const cast={id:`${leg}:CTD_001`,leg,kind:'CTD',cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78,p:[1,2],units:{Temperature:'°C'},vars:{Temperature:[generation,generation]}};
@@ -106,10 +106,29 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     failures.delete('/data/manifest.json'); await poll();
     assert.equal(await evaluate('!!window.UW.state.raw'),false);
     failures.clear(); await evaluate('window.dispatchEvent(new Event("online"))');
-    await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
+    await until(`window.UW.state.raw?.vars["SST (°C)"][0]===${process.env.TSG_UI?'1.234':'1'}`);
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
     await until('window.UW.mapView?.map && document.querySelector("#trackstatus")?.textContent.includes("visible track points")');
+    if(process.env.STATION_SPAN_UI){
+      assert.deepEqual(await evaluate('UW.state.stationList.map(s=>s.station)'),['Earlier','Current']);
+      await evaluate('UW.setSpan("3h")');
+      await until('UW.state.raw?.label==="3h"');
+      assert.deepEqual(await evaluate('UW.state.stationList.map(s=>s.station)'),['Earlier','Current']);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS map stations stay visible when the track span changes');return;
+    }
+    if(process.env.TSG_UI){
+      await until('UW.mapView.traces.base.some(t=>t.name==="track readings")');
+      assert.deepEqual(await evaluate('UW.mapView.traces.base.find(t=>t.name==="track readings").lat'),[76,null]);
+      assert.equal(await evaluate('UW.mapView.fc.base.circles.features.filter(f=>UW.mapView.traces.base[f.properties.t]?.name==="track readings").length'),1);
+      assert.equal(await evaluate('!!document.querySelector("#map .map-legend")'),true);
+      await evaluate('UW.state.track=false;UW.renderMap()');
+      assert.equal(await evaluate('document.querySelector("#map .map-legend")'),null);
+      assert.equal(await evaluate('UW.mapLegend'),null);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS missing TSG readings have no map markers and disabled track has no legend');return;
+    }
     assert.ok(requests.some(p=>p.includes('/data/track/')));
     assert.ok(!requests.some(p=>p.includes('-fine.json')));
     assert.equal(await evaluate('!!document.querySelector("#trackstep, #trackstepsel, .maptrack")'),false);

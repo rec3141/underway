@@ -36,7 +36,7 @@ function manifest() {
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...((process.env.DEPTH_UI||process.env.UNDERWAY_UI)?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
     surprise:{scales:[],note:''},stations:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
-    data_range:{start:new Date(t-10000).toISOString(),end:new Date(t+10000).toISOString()},
+    data_range:{start:new Date(t-10000).toISOString(),end:process.env.STATUS_UI?new Date().toISOString():new Date(t+10000).toISOString()},
     latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json'},
     aggregates:{'1h':{file:'data/agg-1h.json'},'1d':{file:'data/agg-1d.json'}},intranet:[],
   };
@@ -84,7 +84,7 @@ function dataset(p) {
     const match=p.match(/^\/data\/casts\/cast-(\d+)\.json$/); if(match) return casts[+match[1]];
   }
   if(p==='/data/casts/index.json') return {variables:Object.keys(cast.vars),casts:[{...cast,vars:Object.keys(cast.vars),file:'data/casts/cast.json',...(process.env.BOTTLE_UI?{n_bottles:2}:{})}]};
-  if(p==='/data/casts/cast.json') return process.env.BOTTLE_UI ? {...cast,bottles:[{bottle:1,p:20,depth_m:19.8,time:'2026-09-04T12:01:00',parameters:{Sal00:34.4,T090C:2.1}},{bottle:2,p:30,depth_m:29.7,time:'2026-09-04T12:02:00',parameters:{Sal00:34.5,T090C:2.2}}]} : cast;
+  if(p==='/data/casts/cast.json') return process.env.BOTTLE_UI ? {...cast,bottles:[{bottle:1,p:20.12345,depth_m:19.823456,time:'2026-09-04T12:01:00',parameters:{Sal00:34.398123,T090C:2.123456}},{bottle:2,p:30,depth_m:29.7,time:'2026-09-04T12:02:00',parameters:{Sal00:34.5,T090C:2.2}}]} : cast;
   if(p==='/api/chat') return {messages:[],online:[],crew:[],typing:[]};
   if(p==='/api/live') return liveData;
 }
@@ -198,7 +198,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       const realTimeout=window.setTimeout;
       window.setTimeout=(fn,ms,...args)=>{if(ms===4000||ms===20000)window.__chatPoll=fn;return realTimeout(fn,ms,...args);};
     `});
-    const initialWidth=Number(process.env.UI_WIDTH)||(process.env.HEADER_UI||process.env.WIKI_UI||process.env.MAP_MESH_UI?1400:390);
+    const initialWidth=Number(process.env.UI_WIDTH)||(process.env.HEADER_UI||process.env.WIKI_UI||process.env.MAP_MESH_UI||process.env.BOTTLE_SHOT?1400:390);
     await call('Emulation.setDeviceMetricsOverride',{width:initialWidth,height:844,deviceScaleFactor:1,mobile:initialWidth<=640});
     await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/${process.env.UI_PREFIX?'underway/':''}`});
     await until('window.UW && document.querySelector("#connection").textContent.includes("Underway")');
@@ -270,24 +270,45 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       console.log('PASS gallery return, whole-image fit, previous/next and keyboard/fullscreen slideshow');return;
     }
     if(process.env.STATUS_UI) {
+      await until('!!document.querySelector("#status .schedlink")');
       const headerHeight=await evaluate('document.querySelector("#status").getBoundingClientRect().height');
+      assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      assert.equal(await evaluate('document.querySelector("#status .schedlink")?.textContent'),'STATUS');
       await evaluate('UW.M.calendar.now={in_progress:[]};UW.store.set("sched.mode","hidden");UW.webId();UW.pollInapp()');
       await until('document.querySelector("#status").textContent.includes("Schedule changed")');
       assert.equal(await evaluate('document.querySelector("#alert").hidden'),true);
+      assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      assert.equal(await evaluate('!!document.querySelector("#status .status-alert")'),true);
+      assert.equal(await evaluate('!!document.querySelector("#status .schedlink")'),false);
       assert.equal(await evaluate('document.querySelector("#status").getBoundingClientRect().height'),headerHeight);
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#status")).whiteSpace'),'nowrap');
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS hidden-schedule inbox alert replaces header subtitle without growing schedule bar');return;
+      console.log('PASS LIVE remains beside a temporary status alert without growing the header');return;
     }
     if(process.env.BOTTLE_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelector("#casttable tbody tr[data-id]")');
       await evaluate('document.querySelector("#cast-bottle-table").open=true');
       await until('document.querySelectorAll("#cast-bottle-rows tbody tr").length===2');
-      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows thead").textContent.includes("Sal00")'),true);
-      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows tbody").textContent.includes("34.4")'),true);
+      if(process.env.BOTTLE_SHOT){
+        await evaluate('document.querySelector("#cast-bottle-table").scrollIntoView()');
+        await wait(250);
+        const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+        fs.writeFileSync('/tmp/underway-bottle-table-qa.png',Buffer.from(shot.result.data,'base64'));
+      }
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows thead").textContent.includes("Salinity (PSU)")'),true);
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows tbody").textContent.includes("34.398")'),true);
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows tbody").textContent.includes("34.398123")'),false);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#cast-bottle-rows th")).position'),'sticky');
+      if(initialWidth<=640)assert.equal(await evaluate('(()=>{const wrap=document.querySelector("#cast-bottle-table .tablewrap");wrap.scrollLeft=100;return wrap.scrollLeft>0})()'),true);
+      await evaluate('document.querySelector("#cast-bottle-search").value="34.398123";document.querySelector("#cast-bottle-search").dispatchEvent(new Event("input"))');
+      assert.equal(await evaluate('document.querySelectorAll("#cast-bottle-rows tbody tr").length'),1);
+      await evaluate(`document.querySelector('#cast-bottle-rows th[data-column="3"]').click()`);
       assert.equal(await evaluate('document.querySelector("#cast-bottle-tsv").disabled'),false);
-      await evaluate('document.querySelector("#cast-bottle-tsv").click()');
+      const exported=await evaluate('(()=>{const original=URL.createObjectURL;URL.createObjectURL=b=>{window.__bottleTSV=b.text();return original(b)};document.querySelector("#cast-bottle-tsv").click();return window.__bottleTSV})()');
+      assert.equal(exported.includes('34.398123'),true);
+      assert.equal(exported.includes('20.12345'),true);
+      assert.equal(exported.includes('34.5'),false);
       assert.deepEqual(await evaluate('window.__errors'),[]);
       console.log('PASS collapsible cast bottle measurements table and TSV export');return;
     }

@@ -208,13 +208,50 @@
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
     return { rows, inLegs, f };
   }
-  let bottleTableSeq = 0, bottleTableHead = [], bottleTableRows = [];
+  let bottleTableSeq = 0, bottleTableHead = [], bottleTableRows = [], bottleTableView = [];
+  let bottleTableSort = { column: 0, dir: 1 };
+  const bottleColumnName = (name) => ({
+    leg: "leg", cast: "cast", bottle: "bottle", "pressure (dbar)": "pressure (dbar)", "depth (m)": "depth (m)", time: "time (ship)",
+    Sal00: "Salinity (PSU)", Sal11: "Salinity 2 (PSU)", T090C: "Temperature (°C)", T190C: "Temperature 2 (°C)",
+    Sbeox0Mm: "Oxygen (µM)", CStarTr0: "Transmission (%)", FlSP: "Fluorescence (µg/L)", WetCDOM: "CDOM (mg/m³)",
+  })[name] || name;
+  function bottleBrowseValue(value, column) {
+    if (value == null || value === "") return "—";
+    if (column === 5) return String(value).replace("T", " ").slice(0, 16);
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+    const key = bottleTableHead[column];
+    if (column === 3 || column === 4) return String(Number(value.toFixed(1)));
+    if (/^Sal/i.test(key)) return String(Number(value.toFixed(3)));
+    if (/^T\d|^Temp/i.test(key)) return String(Number(value.toFixed(3)));
+    return String(Number(value.toPrecision(3)));
+  }
+  function renderBottleRows() {
+    const q = $("#cast-bottle-search").value.trim().toLowerCase();
+    bottleTableView = bottleTableRows.filter((r) => !q || r.some((v) => String(v ?? "").toLowerCase().includes(q)));
+    const { column, dir } = bottleTableSort;
+    bottleTableView.sort((a, b) => {
+      const x = a[column], y = b[column];
+      if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
+    });
+    const head = bottleTableHead.map((h, i) => `<th data-column="${i}" class="${i === 2 || i === 3 || i === 4 || i >= 6 ? "num" : ""}" title="${esc(h)} · sort" aria-sort="${column === i ? dir > 0 ? "ascending" : "descending" : "none"}">${esc(bottleColumnName(h))}${column === i ? dir > 0 ? " ▲" : " ▼" : ""}</th>`).join("");
+    const body = bottleTableView.map((r) => `<tr>${r.map((v, i) => `<td class="${i === 2 || i === 3 || i === 4 || i >= 6 ? "num mono" : i === 1 || i === 5 ? "mono" : ""}" title="${esc(v ?? "")}">${esc(bottleBrowseValue(v, i))}</td>`).join("")}</tr>`).join("");
+    $("#cast-bottle-rows").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${bottleTableHead.length}" class="muted">No bottle firings match.</td></tr>`}</tbody>`;
+    $("#cast-bottle-meta").textContent = `${bottleTableView.length.toLocaleString()} of ${bottleTableRows.length.toLocaleString()} bottle firings shown · export keeps full precision`;
+    $("#cast-bottle-tsv").disabled = !bottleTableView.length;
+    for (const th of $("#cast-bottle-rows").querySelectorAll("th[data-column]")) th.onclick = () => {
+      const next = +th.dataset.column;
+      bottleTableSort = { column: next, dir: next === bottleTableSort.column ? -bottleTableSort.dir : 1 };
+      renderBottleRows();
+    };
+  }
   async function renderBottleTable() {
     const table = $("#cast-bottle-table");
     if (!table.open || !casts.idx) return;
     const seq = ++bottleTableSeq;
     const visible = castRows().rows.filter((c) => c.n_bottles && c.file);
     $("#cast-bottle-meta").textContent = `Loading ${visible.length} casts with bottle firings…`;
+    $("#cast-bottle-tsv").disabled = true;
     const loaded = new Array(visible.length);
     let next = 0;
     try {
@@ -232,9 +269,7 @@
     const parameters = [...new Set(loaded.flatMap((c) => (c?.bottles || []).flatMap((b) => Object.keys(b.parameters || {}))))].sort();
     bottleTableHead = ["leg", "cast", "bottle", "pressure (dbar)", "depth (m)", "time", ...parameters];
     bottleTableRows = loaded.flatMap((data, i) => (data?.bottles || []).map((b) => [visible[i].legLabel, visible[i].cast, b.bottle, b.p, b.depth_m, b.time, ...parameters.map((p) => b.parameters?.[p]) ]));
-    $("#cast-bottle-rows").innerHTML = `<thead><tr>${bottleTableHead.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${bottleTableRows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}${bottleTableRows.length ? "" : `<tr><td colspan="${bottleTableHead.length}" class="muted">No bottle firings match the visible casts.</td></tr>`}</tbody>`;
-    $("#cast-bottle-meta").textContent = `${bottleTableRows.length.toLocaleString()} bottle firings from ${visible.length.toLocaleString()} visible casts`;
-    $("#cast-bottle-tsv").disabled = !bottleTableRows.length;
+    renderBottleRows();
   }
   function renderCastList() {
     const tbl = $("#casttable"); if (!casts.idx) return;
@@ -908,7 +943,8 @@
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
     $("#castcsv").onclick = downloadCastsTSV;
     $("#cast-bottle-table").ontoggle = () => { if ($("#cast-bottle-table").open) renderBottleTable(); else ++bottleTableSeq; };
-    $("#cast-bottle-tsv").onclick = () => saveTSV("cast-bottles.tsv", bottleTableHead, bottleTableRows);
+    $("#cast-bottle-search").oninput = renderBottleRows;
+    $("#cast-bottle-tsv").onclick = () => saveTSV("cast-bottles.tsv", bottleTableHead, bottleTableView);
     const sm = $("#castsmooth");
     sm.classList.toggle("on", casts.smooth);
     sm.onclick = () => { casts.smooth = !casts.smooth; store.set("casts.smooth", casts.smooth); sm.classList.toggle("on", casts.smooth); renderCastPlots(); };

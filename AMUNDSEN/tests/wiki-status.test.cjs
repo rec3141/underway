@@ -22,11 +22,11 @@ function alerts(mode='open',now=null){
  vm.createContext(context);vm.runInContext(between(app,'  function renderAlert()','  setInterval(() => { if (M?.calendar?.now)')+between(app,'  function renderInapp()','  async function pollInapp()'),context);
  return {context,el,writes,renders,render:()=>vm.runInContext('renderAlert();renderInapp()',context)};
 }
-test('inbox messages replace the subtitle without growing the schedule bar',()=>{
+test('inbox messages occupy the status label without growing the schedule bar',()=>{
  const {context,el,renders,render}=alerts();context.inapp.msgs=[{t:'2026-09-13T12:00:00Z',text:'Schedule changed',receivedAt:Date.now()}];render();
  assert.equal(el('#alert').hidden,true);assert.equal(renders.at(-1),'Schedule changed');
 });
-test('hidden schedule remains hidden while a message replaces the subtitle',()=>{
+test('hidden schedule remains hidden while a message occupies the status label',()=>{
  const {context,el,renders,render}=alerts('hidden',{in_progress:[]});context.inapp.msgs=[{t:'2026-09-13T12:00:00Z',text:'Updated',receivedAt:Date.now()}];render();
  assert.equal(el('#alert').hidden,true);assert.equal(renders.at(-1),'Updated');
 });

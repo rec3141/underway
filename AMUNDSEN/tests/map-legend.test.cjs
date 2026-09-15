@@ -16,8 +16,14 @@ test('landscape legend stays left, centers its title and puts values beyond the 
   const text=[],rects=[],translations=[];
   const ctx={save(){},restore(){},translate:(...args)=>translations.push(args),measureText:s=>({width:s.length*6}),fillRect:(...args)=>rects.push(args),strokeRect(){},createLinearGradient:()=>({addColorStop(){}}),fillText:function(s,x,y){text.push({s,x,y,align:this.textAlign})}};
   draw(ctx,700,400,{name:'Depth (m)',showScale:true,low:'0',high:'990',stops:[[0,'black'],[1,'white']]});
-  assert.deepEqual(translations,[[8,8]]);
+  assert.deepEqual(translations,[[4,4]]);
   const title=text[0],high=text.find(x=>x.s==='990'),low=text.find(x=>x.s==='0'),bar=rects[1];
   assert.equal(title.align,'center');assert.equal(title.x,rects[0][2]/2);
   assert(high.y<bar[1]);assert(low.y>bar[1]+bar[3]);assert.equal(high.x,low.x);
+});
+test('map legend keeps the parameter and scale in a compact box',()=>{
+  const rects=[];
+  const ctx={save(){},restore(){},translate(){},measureText:s=>({width:s.length*6}),fillRect:(...args)=>rects.push(args),strokeRect(){},createLinearGradient:()=>({addColorStop(){}}),fillText(){}};
+  draw(ctx,700,400,{name:'Oxygen (mL/L)',showScale:true,low:'8.9',high:'9.9',stops:[[0,'black'],[1,'white']]});
+  assert(rects[0][2]<=86);assert(rects[0][3]<190);
 });

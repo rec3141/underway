@@ -426,11 +426,11 @@
     const gen = Date.parse(M.generated_utc);
     const open = $("#srcpop")?.open;
     // the sources box opens on hover, or on a click on "last refresh" or LIVE
-    const schedWord = M.calendar?.now && schedMode() === "hidden" ? ` · <span class="schedlink" id="schedlink" title="show the status bar">STATUS</span>` : "";
+    const schedWord = M.calendar ? ` · <span class="schedlink" id="schedlink" title="show the schedule">STATUS</span>` : "";
     const notice = inapp.msgs.at(-1);
-    $("#status").innerHTML = notice && Date.now() - notice.receivedAt < 120000
-      ? `<span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span>`
-      : `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>${schedWord}`;
+    const statusWord = notice && Date.now() - notice.receivedAt < 120000
+      ? ` · <span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span>` : schedWord;
+    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
     const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
@@ -1057,7 +1057,7 @@
   function renderColourBar(v, lim) {
     const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
     const [low,high]=UWMapLegend.formatRange(lim);
-    UW.mapLegend={name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low,high};
+    UW.mapLegend=state.track?{name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low,high}:null;
     renderMapLegend();
     for (const bar of document.querySelectorAll(".cbar")) {
       const show = !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
@@ -1072,6 +1072,7 @@
   function renderMapLegend() {
     const el=$('#map');if(!mapView?.map)return;
     let canvas=el.querySelector('.map-legend');
+    if(!UW.mapLegend){canvas?.remove();return;}
     if(!canvas){canvas=document.createElement('canvas');canvas.className='map-legend';canvas.setAttribute('role','img');el.append(canvas);}
     UWMapLegend.render(canvas,el.clientWidth,el.clientHeight,UW.mapLegend);
   }
@@ -1175,11 +1176,19 @@
     const traces = [...planTraces(zoom), ...(window.UW?.extraMapTraces?.() || [])];
     const placeTr = placeTraces(zoom);
     const evTraces = eventTraces(f0);
+    const lowMap = v?.tsg ? pumpLow(d) : null;
     if (state.track) traces.push({
-      type: "scattermap", mode: "lines+markers", name: "track",
+      type: "scattermap", mode: v?.tsg ? "lines" : "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
       marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
+    });
+    if (state.track && v?.tsg) traces.push({
+      type: "scattermap", mode: "markers", name: "track readings",
+      lat: d.lat.map((q, i) => Number.isFinite(c[i]) && !lowMap?.[i] ? q : null),
+      lon: d.lon.map((q, i) => Number.isFinite(c[i]) && !lowMap?.[i] ? q : null),
+      text: hover, hoverinfo: "text",
+      marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: lim?.[0], cmax: lim?.[1], showscale: false, opacity: .95 },
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
@@ -1187,23 +1196,16 @@
       lat:d.lat.map((q,i)=>c[i]==null?q:null),lon:d.lon.map((q,i)=>c[i]==null?q:null),
       marker:{size:6,color:'#000000'},hovertemplate:'No matching photo<extra></extra>'
     });
-    const lowMap = v?.tsg ? pumpLow(d) : null;
-    if (state.track && lowMap && lowMap.some(Boolean)) traces.push({
-      type: "scattermap", mode: "markers", name: "pump off", showlegend: false,
-      lat: d.lat.map((q, i) => (lowMap[i] ? q : null)), lon: d.lon.map((q, i) => (lowMap[i] ? q : null)),
-      text: hover.map((h, i) => (lowMap[i] ? h + "<br><i>intake pump off</i>" : "")), hoverinfo: "text",
-      marker: { size: 6, color: "#7d8895", opacity: .8 },
-    });
     // the intranet's live page, polled every few seconds, is fresher than any
     // file: while it is, the ship stands where it says
     const ship = shipNow(overview, lastFix(overview));
     state.shipHeading = ship.heading;
     traces.push(...placeTr, ...evTraces, ...cameraTraces(f0));
     const shownIds = new Set(shownLegs().map((l) => l.id));
-    const f = spanFilter();
     // CTD casts (white; orange when selected) and the stations the event log
-    // records without a cast (green), each a click target
-    const st = state.stations ? (M.stations || []).filter((s) => inFilter(s.leg, s.time, f)) : [];
+    // records without a cast (green), each a click target. The station layer
+    // follows leg selection, not the track's time span.
+    const st = state.stations ? (M.stations || []).filter((s) => shownIds.has(s.leg)) : [];
     const selected = window.UW?.selectedCastKeys?.() || new Set();
     const stKey = (s) => s.kind === "event" ? `ev:${s.leg}:${s.station}` : `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}`;
     const stText = (s) => s.kind === "event"

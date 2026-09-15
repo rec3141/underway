@@ -198,7 +198,7 @@ a:hover { text-decoration: underline; }
 .brand .sub { color: var(--muted); font-size: var(--t-md); margin-top: 2px; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
-.brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; cursor: pointer; }   /* the hidden schedule bar, as a word next to LIVE */
+.brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; cursor: pointer; }   /* the schedule shortcut next to LIVE */
 .brand #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.4em; line-height: 1.4; }
 .brand #status .status-alert { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--accent-2); font-weight: 700; }
 .brand .sub .refresh { cursor: pointer; border-bottom: 1px dotted var(--line); list-style: none; }
@@ -590,9 +590,14 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 /* selector above the figures */
 .cast-layout { display: flex; flex-direction: column; gap: 12px; }
 .cast-bottle-table { margin-top: 12px; }
+.cast-bottle-table > summary { padding: 8px 12px; font-weight: 650; }
 .cast-bottle-table .pane-tools { padding: 8px 12px; align-items: center; }
-.cast-bottle-table .pane-tools .muted { flex: 1; }
-.cast-bottle-table .tablewrap { max-height: min(45vh, 520px); }
+.cast-bottle-table .pane-tools input { flex: 0 1 240px; min-width: 150px; }
+.cast-bottle-table .pane-tools .muted { flex: 1 1 180px; }
+.cast-bottle-table .tablewrap { max-height: min(45vh, 520px); margin: 0 12px 12px; }
+.cast-bottle-table #cast-bottle-rows td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cast-bottle-table #cast-bottle-rows th.num { text-align: right; }
+.cast-bottle-table #cast-bottle-rows td:first-child { font-weight: 600; }
 .pane-tools.compact { padding-bottom: 8px; gap: 6px 10px; }
 .pane-tools.compact input[type=search] { min-width: 0; flex: 1; }
 .seg.small button { padding: 3px 8px; font-size: var(--t-sm); }
@@ -794,20 +799,20 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
 #aggtable tbody tr.sel td:first-child, #stationtable tbody tr.sel td:first-child , #casttable tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }      /* selected for the Casts tab */
 #aggtable tbody tr.sel td, #stationtable tbody tr.sel td , #casttable tbody tr.sel td { background: color-mix(in srgb, var(--accent-2) 8%, transparent); }
 .castlist .kind.TM { background: var(--tag-tm); color: var(--accent-2); }
-#aggtable, #stationtable , #casttable { border-collapse: collapse; font-size: var(--t-sm); min-width: 100%; }
-#aggtable th, #stationtable th , #casttable th { position: sticky; top: 0; background: var(--card-2); color: var(--muted); text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line); }
-#aggtable th:hover, #stationtable th:hover , #casttable th:hover { color: var(--fg); }
-#aggtable td, #stationtable td , #casttable td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-#aggtable td.mono, #stationtable td.mono , #casttable td.mono { font-family: var(--mono); font-size: var(--t-sm); }
+#aggtable, #stationtable , #casttable, #cast-bottle-rows { border-collapse: collapse; font-size: var(--t-sm); min-width: 100%; }
+#aggtable th, #stationtable th , #casttable th, #cast-bottle-rows th { position: sticky; top: 0; background: var(--card-2); color: var(--muted); text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line); }
+#aggtable th:hover, #stationtable th:hover , #casttable th:hover, #cast-bottle-rows th:hover { color: var(--fg); }
+#aggtable td, #stationtable td , #casttable td, #cast-bottle-rows td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+#aggtable td.mono, #stationtable td.mono , #casttable td.mono, #cast-bottle-rows td.mono { font-family: var(--mono); font-size: var(--t-sm); }
 /* the first column stays put while the table scrolls sideways: its cells
    carry an opaque background, the selected shades mixed over the card */
-#aggtable td:first-child, #stationtable td:first-child, #casttable td:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); }
-#aggtable th:first-child, #stationtable th:first-child, #casttable th:first-child { position: sticky; left: 0; z-index: 3; }
-#aggtable tbody tr:hover td:first-child, #stationtable tbody tr:hover td:first-child, #casttable tbody tr:hover td:first-child { background: var(--card-2); }
+#aggtable td:first-child, #stationtable td:first-child, #casttable td:first-child, #cast-bottle-rows td:first-child { position: sticky; left: 0; z-index: 1; background: var(--card); }
+#aggtable th:first-child, #stationtable th:first-child, #casttable th:first-child, #cast-bottle-rows th:first-child { position: sticky; left: 0; z-index: 3; }
+#aggtable tbody tr:hover td:first-child, #stationtable tbody tr:hover td:first-child, #casttable tbody tr:hover td:first-child, #cast-bottle-rows tbody tr:hover td:first-child { background: var(--card-2); }
 #aggtable tbody tr.on td:first-child, #stationtable tbody tr.on td:first-child, #casttable tbody tr.on td:first-child { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
 #aggtable tbody tr.sel td:first-child, #stationtable tbody tr.sel td:first-child, #casttable tbody tr.sel td:first-child { background: color-mix(in srgb, var(--accent-2) 8%, var(--card)); }
 #stationtable td:nth-child(8) { white-space: normal; min-width: 220px; max-width: 420px; }   /* activities: the planned operations wrap */
-#aggtable tbody tr:hover, #stationtable tbody tr:hover , #casttable tbody tr:hover { background: var(--card-2); }
+#aggtable tbody tr:hover, #stationtable tbody tr:hover , #casttable tbody tr:hover, #cast-bottle-rows tbody tr:hover { background: var(--card-2); }
 
 /* ---------------------------------------------------------------- chat drawer */
 .chat { position: fixed; right: 16px; bottom: 0; z-index: 40; width: 340px; max-width: calc(100vw - 24px);
@@ -1393,8 +1398,8 @@ html[data-theme^="navigator"] .schedlinks .bigcal, html[data-theme^="navigator"]
 html[data-theme^="navigator"] :is(input:not([type=range]):not([type=checkbox]), textarea) { border: 2px inset var(--bevel) !important; border-radius: 0 !important; background: var(--card) !important; color: var(--fg) !important; }
 html[data-theme^="navigator"] input[type=range] { accent-color: #000080; }
 /* tables: grey heads, ruled cells */
-html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) th { background: var(--face); color: var(--fg); border: 1px outset var(--bevel); }
-html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, table.sched, #sources) td { border-bottom: 1px solid var(--line); }
+html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, #cast-bottle-rows, table.sched, #sources) th { background: var(--face); color: var(--fg); border: 1px outset var(--bevel); }
+html[data-theme^="navigator"] :is(#aggtable, #stationtable, #casttable, #cast-bottle-rows, table.sched, #sources) td { border-bottom: 1px solid var(--line); }
 html[data-theme^="navigator"] .tablewrap { background: var(--card); }
 /* the schedule band, the bars and the bottom bar as grey chrome; the in-app notes and the whiteboard yellow, like a tooltip */
 html[data-theme^="navigator"] .alertbar, html[data-theme^="navigator"] .alertbar.folded { background: var(--face); border-bottom: 2px groove var(--bevel); }
