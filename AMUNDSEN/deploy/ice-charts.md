@@ -45,6 +45,11 @@ latitude. Holes and multipart polygons are retained; land polygons are omitted.
 
 ## Cache and publication
 
+Fresh deployments include six compressed seed charts for Eastern Arctic,
+Western Arctic, and Hudson Bay dated 2026-08-31 and 2026-09-07. Cached charts
+with matching region/date identifiers replace the seeds, so normal imports can
+update them without changing application code.
+
 `$UNDERWAY_DB_DIR/ice-charts/<region>-<date>.geojson` contains each chart and its
 source metadata. A successful reimport atomically replaces that region/date;
 a failed conversion leaves the existing chart untouched. Builds copy valid

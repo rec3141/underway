@@ -1,5 +1,6 @@
 """SIGRID decoding, archive validation, projection and offline publication."""
 import io
+import gzip
 import json
 import tarfile
 import tempfile
@@ -96,7 +97,8 @@ class IceChartImportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
             path = self.make_chart(folder)
-            with patch.object(ic, "DB_DIR", folder / "db"):
+            with patch.object(ic, "DB_DIR", folder / "db"), \
+                    patch.object(ic, "SEED_DIR", folder / "seeds"):
                 entry = ic.import_chart(file=path, date="2026-09-07", region="Eastern Arctic")
                 self.assertEqual(entry["feature_count"], 1)
                 self.assertEqual(entry["valid_time"], "2026-09-07T18:00:00Z")
@@ -136,12 +138,31 @@ class IceChartImportTests(unittest.TestCase):
 
 class PublishTests(unittest.TestCase):
     def test_empty_missing_and_bad_cache_do_not_break_build(self):
-        with tempfile.TemporaryDirectory() as directory, patch.object(ic, "DB_DIR", Path(directory)):
+        with tempfile.TemporaryDirectory() as directory, patch.object(ic, "DB_DIR", Path(directory)), \
+                patch.object(ic, "SEED_DIR", Path(directory) / "seeds"):
             self.assertIsNone(ic.publish(Path(directory) / "www"))
             ic.chart_dir().mkdir()
             (ic.chart_dir() / "broken.geojson").write_text("{")
             with self.assertLogs(ic.log, level="WARNING"):
                 self.assertIsNone(ic.publish(Path(directory) / "www"))
+
+    def test_seed_is_published_and_matching_cache_takes_precedence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            seeds = root / "seeds"
+            seeds.mkdir()
+            entry = {"id": "eastern-arctic-2026-09-07", "date": "2026-09-07", "region": "Eastern Arctic"}
+            seed = {"type": "FeatureCollection", "chart": {**entry, "feature_count": 1},
+                    "features": [{"type": "Feature", "properties": {"CT": "92"}, "geometry": None}]}
+            (seeds / f'{entry["id"]}.geojson.gz').write_bytes(gzip.compress(json.dumps(seed).encode()))
+            with patch.object(ic, "DB_DIR", root / "db"), patch.object(ic, "SEED_DIR", seeds):
+                published = ic.publish(root / "www")
+                self.assertEqual(published["charts"][0]["feature_count"], 1)
+                cache = {**seed, "chart": {**entry, "feature_count": 2}}
+                ic.chart_dir().mkdir(parents=True)
+                (ic.chart_dir() / f'{entry["id"]}.geojson').write_text(json.dumps(cache))
+                published = ic.publish(root / "www")
+                self.assertEqual(published["charts"][0]["feature_count"], 2)
 
 
 if __name__ == "__main__":
