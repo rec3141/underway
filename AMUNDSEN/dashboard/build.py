@@ -708,7 +708,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "calendar": {"file": "data/calendar.json", **cal},
         "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
         "satellite": satellite.publish(root),           # recent Sentinel pictures around the ship, or None
-        "ice_charts": ice_charts.publish(root),         # cached dated CIS polygon charts, or None
+        "ice_charts": ice_charts.publish(root),         # cached dated CIS vector and raster charts, or None
         "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
         "history": history.publish(root),               # the History tab's wiki and artifacts, or None
     }

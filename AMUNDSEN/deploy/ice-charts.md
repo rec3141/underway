@@ -1,9 +1,33 @@
 # Canadian Ice Service chart overlay
 
-The map displays locally cached CIS SIGRID-3 polygons with a selectable region
-and chart date, concentration colours, and clickable egg-code details. Chart
-validity is separate from the camera capture date. Regional charts describe
-conditions over a broad area; they do not classify individual camera images.
+The map displays locally cached CIS charts with a selectable region and chart
+date. Weekly SIGRID-3 polygons provide concentration colours and clickable
+egg-code details. The Eureka daily product is a georeferenced raster for the
+ship's current operating area. Chart validity is separate from the camera
+capture date, and charts do not classify individual camera images.
+
+## Refresh the ship-area daily chart
+
+Run from `AMUNDSEN/` with the same `UNDERWAY_DB_DIR` used by the dashboard:
+
+```bash
+python -m dashboard ice-charts --daily WIS36C
+python -m dashboard build --root /path/to/webroot
+```
+
+The command discovers the latest Eureka colour chart, downloads its GIF, crops
+away the page legend, and uses the fixed Alert, Eureka, and Resolute control
+points to warp the Lambert chart frame into Web Mercator. Conversion requires
+the `gdal_translate`, `gdalwarp`, `gdalinfo`, and `cs2cs` commands. The importer
+rejects a changed source-image layout so fixed control points cannot silently
+misregister a chart. It writes a PNG and a
+metadata sidecar under `$UNDERWAY_DB_DIR/ice-charts/`; an incomplete download or
+failed conversion does not replace a cached chart. Ordinary dashboard builds
+remain offline.
+
+Fresh deployments include the 14 September 2026 daily chart that covers the
+ship at 78.707° N, 82.747° W. Fetching newer daily charts remains an explicit
+operator action; no download timer is installed.
 
 ## Import a chart
 
@@ -45,17 +69,18 @@ latitude. Holes and multipart polygons are retained; land polygons are omitted.
 
 ## Cache and publication
 
-Fresh deployments include six compressed seed charts for Eastern Arctic,
-Western Arctic, and Hudson Bay dated 2026-08-31 and 2026-09-07. Cached charts
-with matching region/date identifiers replace the seeds, so normal imports can
-update them without changing application code.
+Fresh deployments include six compressed vector seed charts for Eastern Arctic,
+Western Arctic, and Hudson Bay dated 2026-08-31 and 2026-09-07, plus the Eureka
+daily raster described above. Cached charts with matching identifiers replace
+the seeds, so normal imports can update them without changing application code.
 
-`$UNDERWAY_DB_DIR/ice-charts/<region>-<date>.geojson` contains each chart and its
-source metadata. A successful reimport atomically replaces that region/date;
-a failed conversion leaves the existing chart untouched. Builds copy valid
-charts to `data/ice-charts/` and include them in the `ice_charts.charts` manifest
-entry, with content-based URL cache busting. Corrupt cache entries are logged and
-skipped. Rendering and publication do not need the optional GIS packages.
+`$UNDERWAY_DB_DIR/ice-charts/<region>-<date>.geojson` contains each vector chart
+and its source metadata. Daily rasters use a `.png` plus `.raster.json` sidecar.
+A successful reimport atomically replaces that region/date; a failed conversion
+leaves the existing chart untouched. Builds copy valid charts to
+`data/ice-charts/` and include them in the `ice_charts.charts` manifest entry,
+with content-based URL cache busting. Corrupt cache entries are logged and
+skipped. Publication does not need the conversion tools.
 
 GeoJSON preserves SIGRID-3 codes as strings, including leading zeros and `-9`
 missing values. `concentration` is a numeric value in **tenths**, used only for
@@ -105,13 +130,15 @@ Open **Ice charts** above the map, choose a region, and leave the date on
 before the last visible track observation. An explicit date choice can show a
 newer chart, but the status identifies it as after the map end. Charts remain
 separate from the ship's camera-derived ice observations and track colours.
-The concentration legend is in tenths; colour is a summary, and clicking a
-polygon shows its decoded ice types and original source values. Source SIGRID codes are available in
-an expandable section. The opacity slider keeps the ship's track readable.
+For vectors, the concentration legend is in tenths; colour is a summary, and
+clicking a polygon shows its decoded ice types and original source values.
+Source SIGRID codes are available in an expandable section. The daily raster
+retains the printed egg letters and chart colours but is not clickable. The
+opacity slider keeps the ship's track and map coastline readable.
 
 The dashboard does not fetch chart data until the overlay is enabled. Each
-region/date loads from its published local GeoJSON; a failed load clears the
-previous polygon layer and offers **Retry chart**. Changing a basemap or theme
+region/date loads from its published local GeoJSON or PNG; a failed load clears
+the previous layer and offers **Retry chart**. Changing a basemap or theme
 preserves the selection. An empty cache shows a clear no-charts message.
 
 Additional browser checks, using Node 22+ and Chrome:
@@ -124,7 +151,8 @@ ICE_CHART_FIXTURE=/path/to/eastern-arctic-2026-09-07.geojson \
   PYTHON=python3 node tests/refresh-browser.cjs /usr/bin/google-chrome
 ```
 
-The standalone browser test exercises real MapLibre polygon rendering, date
-selection, cancellation, failure/retry, toggling, station-click precedence,
-style changes and safe display of source text. The full dashboard test also
-checks mobile and desktop control widths against a real converted CIS chart.
+The standalone browser test exercises real MapLibre vector and raster
+rendering, date selection, cancellation, failure/retry, toggling,
+station-click precedence, style changes and safe display of source text. The
+full dashboard test also checks mobile and desktop control widths against a
+real converted CIS chart.
