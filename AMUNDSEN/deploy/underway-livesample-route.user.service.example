@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep the experimental live sampling route available
+Requisite=underway-livesample.service
+After=underway-livesample.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/underway-livesample/venv/bin/python %h/.local/share/underway-livesample/livesample-route.py

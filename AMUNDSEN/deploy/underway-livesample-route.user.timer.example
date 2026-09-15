@@ -1,0 +1,10 @@
+[Unit]
+Description=Restore the live sampling route after Caddy configuration reloads
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=underway-livesample-route.service
+
+[Install]
+WantedBy=timers.target
