@@ -15,12 +15,12 @@ python -m dashboard ice-charts --daily WIS36C
 python -m dashboard build --root /path/to/webroot
 ```
 
-The command discovers the latest Eureka colour chart, downloads its GIF, crops
-away the page legend, and uses the fixed Alert, Eureka, and Resolute control
-points to warp the Lambert chart frame into Web Mercator. Conversion requires
-the `gdal_translate`, `gdalwarp`, `gdalinfo`, and `cs2cs` commands. The importer
-rejects a changed source-image layout so fixed control points cannot silently
-misregister a chart. It writes a PNG and a
+The command discovers the latest Eureka colour chart, downloads its vector PDF,
+and reads the projection, affine transform, and map neatline embedded by the CIS
+ArcGIS export. It renders the exact map frame at 600 DPI and warps it into a
+3600-pixel-wide Web Mercator PNG. Conversion requires the `gdal_translate`,
+`gdalwarp`, and `gdalinfo` commands. The importer rejects a PDF without the
+expected embedded polar stereographic map. It writes a PNG and a
 metadata sidecar under `$UNDERWAY_DB_DIR/ice-charts/`; an incomplete download or
 failed conversion does not replace a cached chart. Ordinary dashboard builds
 remain offline.
