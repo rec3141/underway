@@ -241,7 +241,7 @@
       this.map.on("movestart", () => { this.tip.hidden = true; });
       this.map.on("click", (e) => {
         const hit = this.pick(e.point, true);
-        if (hit) this.on.onClick?.(this.pointOf(hit)); else this.on.onEmptyClick?.();
+        if (hit) this.on.onClick?.(this.pointOf(hit)); else this.on.onEmptyClick?.(e);
       });
       this.map.on("moveend", () => this.on.onMove?.(this.getView()));
       this.map.on("zoomend", () => this.on.onZoom?.(this.map.getZoom()));
