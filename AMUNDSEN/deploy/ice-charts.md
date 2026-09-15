@@ -25,6 +25,11 @@ metadata sidecar under `$UNDERWAY_DB_DIR/ice-charts/`; an incomplete download or
 failed conversion does not replace a cached chart. Ordinary dashboard builds
 remain offline.
 
+The published 3600-pixel source remains available to capable browsers. Before
+uploading it to MapLibre, the browser fits the decoded image to its WebGL maximum
+texture size while preserving its aspect ratio and geographic corners. This
+keeps the overlay visible on devices limited to 2048-pixel textures.
+
 Fresh deployments include the 14 September 2026 daily chart that covers the
 ship at 78.707° N, 82.747° W. Fetching newer daily charts remains an explicit
 operator action; no download timer is installed.

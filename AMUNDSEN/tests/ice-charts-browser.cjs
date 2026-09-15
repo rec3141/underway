@@ -61,10 +61,14 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  UW.iceCharts.refresh(manifest,view,'2026-09-10');
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));await wait(100);view.map.fire('click',{point:pt});
  result.egg=document.querySelector('.icechart-egg-total').textContent;
- const raster={charts:[{id:'eureka-daily-raster-2026-09-14',kind:'raster',date:'2026-09-14',valid_time:'2026-09-14T18:00:00Z',region:'Eureka (daily raster)',ship_area:true,url:'/chart-raster.png',coordinates:[[-112.36,83.88],[-47.20,83.88],[-47.20,73.65],[-112.36,73.65]]}]};
+ const gl=view.map.getCanvas().getContext('webgl2'),getParameter=gl.getParameter.bind(gl);
+ gl.getParameter=p=>p===gl.MAX_TEXTURE_SIZE?2048:getParameter(p);
+ const raster={charts:[{id:'eureka-daily-raster-2026-09-14',kind:'raster',date:'2026-09-14',valid_time:'2026-09-14T18:00:00Z',region:'Eureka (daily raster)',ship_area:true,url:'/chart-raster.png',coordinates:[[-112.2078428,84.1711229],[-48.076601,84.1711229],[-48.076601,72.1717942],[-112.2078428,72.1717942]]}]};
  UW.iceCharts.refresh(raster,view,'2026-09-15T03:22:00Z');
  await until(()=>view.map.getLayer('cis-ice-raster')&&view.map.isSourceLoaded('cis-ice-chart'));
+ const rasterSource=view.map.getSource('cis-ice-chart');
  result.raster=view.map.getSource('cis-ice-chart').type==='image'&&document.querySelector('#icechart-status').textContent.includes('Daily raster analysis');
+ result.rasterSize=[rasterSource.image.width,rasterSource.image.height];
  result.rasterClick=UW.iceCharts.click({point:pt});
  window.done=true;
 })().catch(e=>{errors.push(e.stack);window.done=true});
@@ -103,6 +107,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
  assert.equal(result.futureHidden,true);assert.equal(result.empty,true);assert.equal(result.escaped,true);
  assert.equal(result.egg,'10');assert.equal(result.trackClick,true);assert.equal(result.opacity,.65);
  assert.equal(result.raster,true);assert.equal(result.rasterClick,false);
+ assert.deepEqual(result.rasterSize,[2037,2048]);
  const screenshot=await call('Page.captureScreenshot',{format:'png'});
  fs.writeFileSync('/tmp/underway-cis-ice-browser.png',Buffer.from(screenshot.result.data,'base64'));
  console.log('PASS CIS vector and raster charts, date selection, popup, style change, toggle, failure/retry and no-cache states',result);
