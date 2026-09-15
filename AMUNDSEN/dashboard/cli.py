@@ -50,9 +50,32 @@ def main(argv: list[str] | None = None) -> int:
     st.add_argument("--backfill", metavar="YYYY-MM-DD", help="fill the archive from this day on: a picture a day per sensor of the box round the ship")
     st.add_argument("--within-km", type=float, default=500.0, help="the backfilled box reaches this far from the ship (default 500)")
 
+    ic = sub.add_parser("ice-charts", help="cache public CIS SIGRID-3 chart polygons")
+    source = ic.add_mutually_exclusive_group(required=True)
+    source.add_argument("--list", action="store_true", help="list current regional chart download URLs")
+    source.add_argument("--url", help="HTTPS URL of one ZIP or TAR chart archive")
+    source.add_argument("--file", type=Path, help="local ZIP, TAR, or SHP (with companions)")
+    ic.add_argument("--date", help="chart valid date, YYYY-MM-DD")
+    ic.add_argument("--region", help="region name, e.g. Eastern Arctic")
+    ic.add_argument("--source-url", help="HTTPS provenance URL for a local import")
+
     a = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
+
+    if a.cmd == "ice-charts":
+        import json
+        from .ice_charts import available, import_chart
+        if not a.list and (not a.date or not a.region):
+            p.error("ice-charts imports require --date and --region")
+        try:
+            result = available() if a.list else import_chart(date=a.date, region=a.region,
+                        url=a.url, file=a.file, source_url=a.source_url)
+        except Exception as exc:
+            logging.error("Ice chart import failed: %s", exc)
+            return 2
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
 
     if a.cmd == "legs":
         try:

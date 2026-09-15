@@ -26,8 +26,10 @@ const hold=new Set(), held=[];
 const leg='2026_LEG_03', t=Date.parse('2026-09-04T12:00:00Z');
 const stamp = () => `2026-09-04T12:00:0${generation}Z`;
 const pumpEvent = {id:'pump|test',leg,time_utc:new Date(t).toISOString(),end_utc:new Date(t+60000).toISOString(),activity:'TSG pump',event:'Pump off / low intake flow',comment:'Intake flow below 0.5 V'};
+const cisFixture=process.env.ICE_CHART_FIXTURE?JSON.parse(fs.readFileSync(process.env.ICE_CHART_FIXTURE,'utf8')):null;
 function manifest() {
   return {
+    ...(cisFixture?{ice_charts:{charts:[{...cisFixture.chart,url:'data/ice-charts/test.geojson'}]}}:{}),
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
     ...(process.env.WIKI_FEEDBACK_UI||process.env.PHOTO_UI||process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
@@ -40,6 +42,7 @@ function manifest() {
   };
 }
 function dataset(p) {
+  if(cisFixture && p==='/data/ice-charts/test.geojson')return cisFixture;
   if(process.env.WIKI_FEEDBACK_UI && p.startsWith('/data/history/')) {
     const topics=[{slug:'inuit-oral-history',title:'Inuit oral history',domain:'history',pages:1,artifacts:3}];
     const artifacts=['photo-one','photo-two'].map((id,i)=>({id,page:'artifact/'+id,type:'image',title:'Test image '+i,topic:topics[0].slug,url:'wiki-test.png',thumb:'wiki-test.png',lat:76,lon:-78,people:['E-took-a-shoo','Shared name'],credit:'Test credit',date_start:'1900',description:'Picture'}));
@@ -203,6 +206,27 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(cisFixture) {
+      await until('UW.mapView?.map?.isStyleLoaded()');
+      await evaluate('document.querySelector("#icechart-toggle").click()');
+      assert.match(await evaluate('document.querySelector("#icechart-status").textContent'),/No cached chart on or before/);
+      await evaluate(`document.querySelector('#icechart-date').value=${JSON.stringify(cisFixture.chart.id)}; document.querySelector('#icechart-date').dispatchEvent(new Event('change')); UW.mapView.map.jumpTo({center:[-80,74],zoom:3});`);
+      await until('UW.mapView.map.getLayer("cis-ice-fill") && UW.mapView.map.isSourceLoaded("cis-ice-chart")');
+      await wait(300);
+      assert.match(await evaluate('document.querySelector("#icechart-status").textContent'),/after map end/);
+      assert(requests.some(p=>p.includes('/data/ice-charts/test.geojson')),'Published chart requested by the full app');
+      for(const width of [390,1280]) {
+        await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<=640}); await wait(300);
+        const overflow=await evaluate(`Array.from(document.querySelectorAll('#icechart-controls label, #icechart-controls select, #icechart-controls a')).filter(e=>{const r=e.getBoundingClientRect();return r.width && (r.left < -1 || r.right > innerWidth+1)}).map(e=>e.outerHTML)`);
+        assert.deepEqual(overflow,[],'Ice chart controls fit the viewport');
+      }
+      const clicked=await evaluate(`(()=>{const m=UW.mapView.map;for(let y=40;y<m.getCanvas().clientHeight;y+=30)for(let x=40;x<m.getCanvas().clientWidth;x+=30){if(UW.iceCharts.click({point:{x,y}}))return true;}return false;})()`);
+      assert.equal(clicked,true,'A real CIS polygon opens its egg details');
+      assert.match(await evaluate('document.querySelector(".icechart-detail").textContent'),/2026-09-07/);
+      assert.deepEqual(await evaluate('window.__mapErrors'),[]);assert.deepEqual(await evaluate('window.__errors'),[]);
+      if(process.env.UI_SCREENSHOT){const shot=await call('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
+      console.log('PASS full dashboard with real CIS chart, explicit date selection, mobile controls, source geometry and egg details');return;
+    }
     if(process.env.PHOTO_UI) {
       await evaluate('UW.showTab("photos")');
       await until('document.querySelectorAll(".gallery .gcard").length===2');

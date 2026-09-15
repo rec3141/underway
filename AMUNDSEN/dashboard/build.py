@@ -26,7 +26,7 @@ from . import __version__
 from . import history
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
-from . import plan, satellite
+from . import plan, satellite, ice_charts
 from .buildcache import cached_frame, file_signature, kept_window, remember_windows, surprise_cached
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
@@ -708,6 +708,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "calendar": {"file": "data/calendar.json", **cal},
         "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
         "satellite": satellite.publish(root),           # recent Sentinel pictures around the ship, or None
+        "ice_charts": ice_charts.publish(root),         # cached dated CIS polygon charts, or None
         "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
         "history": history.publish(root),               # the History tab's wiki and artifacts, or None
     }

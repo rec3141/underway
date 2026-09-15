@@ -106,6 +106,16 @@
       </div>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
       <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
+      <button id="icechart-toggle" aria-pressed="false" aria-controls="icechart-controls" title="Canadian Ice Service regional ice charts">Ice charts</button>
+      </div>
+      <div id="icechart-controls" class="icechart-controls" hidden>
+        <label>Region <select id="icechart-region"></select></label>
+        <label>Chart date (UTC) <select id="icechart-date"></select></label>
+        <label>Opacity <input id="icechart-opacity" type="range" min="0" max="80" value="40" step="5"><output id="icechart-opacity-value">40%</output></label>
+        <button id="icechart-retry" hidden>Retry chart</button>
+        <span id="icechart-status" role="status"></span>
+        <div id="icechart-legend" class="icechart-legend" hidden aria-label="Ice concentration legend"></div>
+        <a href="https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations.html" target="_blank" rel="noopener">Canadian Ice Service / ECCC</a>
       </div>
     </div>
     <div id="map"></div>
@@ -268,6 +278,8 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/map-legend.js?v={{ site.asset_version }}"></script>
 <script src="static/plot-export.js?v={{ site.asset_version }}"></script>
 <script src="static/map.js?v={{ site.asset_version }}"></script>
+<link rel="stylesheet" href="static/ice-charts.css?v={{ site.asset_version }}">
+<script src="static/ice-charts.js?v={{ site.asset_version }}"></script>
 <script src="static/app.js?v={{ site.asset_version }}"></script>
 <script src="static/responsive-header.js?v={{ site.asset_version }}"></script>
 <link rel="stylesheet" href="static/ice.css?v={{ site.asset_version }}">

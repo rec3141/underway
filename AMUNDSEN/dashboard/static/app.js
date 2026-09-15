@@ -1221,7 +1221,7 @@
     const near = sat?.near || null;
     mapData = d;
     if (!mapView) {
-      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: mapEmptyClick, onZoom: onMapZoom,
+      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(); }, onZoom: onMapZoom,
         onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
       window.UW.mapView = mapView;
       $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
@@ -1233,6 +1233,9 @@
         updateScale();
         scheduleTrack();
       });
+      let chartEnd = f0.end;
+      for (let i = overview.t.length - 1; i >= 0; i--) if (overview.lat[i] != null && overview.lon[i] != null) { chartEnd = overview.t[i]; break; }
+      UW.iceCharts?.refresh(M.ice_charts, mapView, new Date(chartEnd).toISOString());
       mapMessage("");
     } catch (e) {
       console.warn("map draw:", e);
