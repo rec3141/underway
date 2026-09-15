@@ -18,22 +18,21 @@ test('entering/leaving Wiki preserves explicit layers and later user changes',()
 });
 function alerts(mode='open',now=null){
  const els=new Map();function el(id){if(!els.has(id))els.set(id,{hidden:false,innerHTML:'',dataset:{},classList:{toggle(){},remove(){}},querySelector(){return this.button ||= {};},querySelectorAll(){return[];},style:{}});return els.get(id);}
- const writes=[],context={M:{calendar:{now}},$:el,inapp:{msgs:[]},schedMode:()=>mode,renderStatus(){},SITE:{local_tz:'UTC'},tms:Date.parse,fmtTs:x=>new Date(x).toISOString(),store:{set:(...a)=>writes.push(a)},esc:x=>String(x).replace(/</g,'&lt;')};
+ const writes=[],renders=[],context={M:{calendar:{now}},$:el,inapp:{msgs:[]},alertTimer:null,schedMode:()=>mode,renderStatus(){renders.push(context.inapp.msgs.at(-1)?.text||'normal');},SITE:{local_tz:'UTC'},tms:Date.parse,fmtTs:x=>new Date(x).toISOString(),store:{set:(...a)=>writes.push(a)},esc:x=>String(x).replace(/</g,'&lt;'),setTimeout:()=>1,clearTimeout(){},Date};
  vm.createContext(context);vm.runInContext(between(app,'  function renderAlert()','  setInterval(() => { if (M?.calendar?.now)')+between(app,'  function renderInapp()','  async function pollInapp()'),context);
- return {context,el,writes,render:()=>vm.runInContext('renderInapp()',context)};
+ return {context,el,writes,renders,render:()=>vm.runInContext('renderAlert();renderInapp()',context)};
 }
-test('inbox messages share status bar even without schedule and clear completely',()=>{
- const {context,el,writes,render}=alerts();context.inapp.msgs=[{t:'2026-09-13T12:00:00Z',text:'Schedule <changed>'}];render();
- assert.equal(el('#alert').hidden,false);assert.equal(el('#schedrow').hidden,true);assert.match(el('#inapp').innerHTML,/&lt;changed>/);
- el('#inapp').button.onclick({stopPropagation(){}});assert.equal(el('#alert').hidden,true);assert.equal(el('#inapp').innerHTML,'');assert.equal(writes[0][0],'alerts.seen');
+test('inbox messages replace the subtitle without growing the schedule bar',()=>{
+ const {context,el,renders,render}=alerts();context.inapp.msgs=[{t:'2026-09-13T12:00:00Z',text:'Schedule changed',receivedAt:Date.now()}];render();
+ assert.equal(el('#alert').hidden,true);assert.equal(renders.at(-1),'Schedule changed');
 });
-test('hidden schedule remains hidden while new messages stay visible',()=>{
- const {context,el,render}=alerts('hidden',{in_progress:[]});context.inapp.msgs=[{t:'2026-09-13T12:00:00Z',text:'Updated'}];render();
- assert.equal(el('#alert').hidden,false);assert.equal(el('#schedrow').hidden,true);assert.equal(el('#schedticker').hidden,true);
+test('hidden schedule remains hidden while a message replaces the subtitle',()=>{
+ const {context,el,renders,render}=alerts('hidden',{in_progress:[]});context.inapp.msgs=[{t:'2026-09-13T12:00:00Z',text:'Updated',receivedAt:Date.now()}];render();
+ assert.equal(el('#alert').hidden,true);assert.equal(renders.at(-1),'Updated');
 });
-test('template nests inbox inside existing status bar',()=>{
+test('template keeps status subtitle in the header',()=>{
  const template=fs.readFileSync(path.join(__dirname,'../dashboard/templates/index.html.j2'),'utf8');
- assert.match(template,/<div class="alertbar" id="alert" hidden>\s*<div class="inapp" id="inapp" role="status" aria-live="polite" hidden>/);
+ assert.match(template,/<div class="sub" id="status">loading…<\/div>/);
 });
 test('legacy auto-enabled layers reset once; new explicit choices survive reload',()=>{
  const source=between(history,'  if (store.get("wiki.map-layers.v", 0)','  // artifact kinds:');

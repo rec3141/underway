@@ -199,6 +199,8 @@ a:hover { text-decoration: underline; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
 .brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; cursor: pointer; }   /* the hidden schedule bar, as a word next to LIVE */
+.brand #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.4em; line-height: 1.4; }
+.brand #status .status-alert { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--accent-2); font-weight: 700; }
 .brand .sub .refresh { cursor: pointer; border-bottom: 1px dotted var(--line); list-style: none; }
 .brand .sub .refresh::-webkit-details-marker { display: none; }
 .brand .sub .srcpop { display: inline-block; position: relative; vertical-align: baseline; }   /* a details element is block by default: it would break the line */
@@ -297,11 +299,6 @@ select {
 .livestate.connected { background: var(--tag); color: var(--fg); }
 .livestate.offline, .livestate.off { background: var(--tag-bad); color: var(--pink); }
 .livestate.port-open { background: var(--tag-amber); color: var(--accent-2); }
-/* in-app alerts: the strip above the schedule bar, until cleared */
-.inapp { flex: 0 0 auto; min-width: 0; width: 100%; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; padding: 6px 0; font-size: var(--t-md); color: var(--accent-2); }
-.inapp .msg small { color: var(--muted); margin-left: 6px; font-family: var(--mono); }
-.inapp .clear { margin-left: auto; background: transparent; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; font: inherit; cursor: pointer; }
-.inapp .clear:hover { border-color: var(--accent-2); }
 .alertbar.folded { padding: 3px 12px; cursor: pointer; background: color-mix(in srgb, var(--accent-2) 10%, transparent); }
 .alertbar.folded:hover { background: color-mix(in srgb, var(--accent-2) 18%, transparent); }
 /* the folded bar: one slow ticker row */
@@ -592,6 +589,10 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 /* casts */
 /* selector above the figures */
 .cast-layout { display: flex; flex-direction: column; gap: 12px; }
+.cast-bottle-table { margin-top: 12px; }
+.cast-bottle-table .pane-tools { padding: 8px 12px; align-items: center; }
+.cast-bottle-table .pane-tools .muted { flex: 1; }
+.cast-bottle-table .tablewrap { max-height: min(45vh, 520px); }
 .pane-tools.compact { padding-bottom: 8px; gap: 6px 10px; }
 .pane-tools.compact input[type=search] { min-width: 0; flex: 1; }
 .seg.small button { padding: 3px 8px; font-size: var(--t-sm); }

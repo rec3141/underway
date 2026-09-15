@@ -1,4 +1,4 @@
-"""The SeaBird .btl parser: firings with pressure, depth and time."""
+"""The SeaBird .btl parser: firings with pressure, depth, time and measurements."""
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,6 +24,7 @@ class BottleTests(unittest.TestCase):
         self.assertEqual([x["bottle"] for x in b], [1, 19])
         self.assertAlmostEqual(b[0]["p"], 368.874); self.assertAlmostEqual(b[0]["depth_m"], 364.687)
         self.assertEqual(b[0]["time"], "2026-09-07T09:15:28"); self.assertEqual(b[1]["time"], "2026-09-07T09:17:57")
+        self.assertEqual(b[0]["parameters"], {"Sal00": 34.3981, "T090C": 0.0383})
 
 
 if __name__ == "__main__":

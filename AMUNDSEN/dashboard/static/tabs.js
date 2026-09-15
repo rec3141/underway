@@ -208,6 +208,34 @@
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
     return { rows, inLegs, f };
   }
+  let bottleTableSeq = 0, bottleTableHead = [], bottleTableRows = [];
+  async function renderBottleTable() {
+    const table = $("#cast-bottle-table");
+    if (!table.open || !casts.idx) return;
+    const seq = ++bottleTableSeq;
+    const visible = castRows().rows.filter((c) => c.n_bottles && c.file);
+    $("#cast-bottle-meta").textContent = `Loading ${visible.length} casts with bottle firings…`;
+    const loaded = new Array(visible.length);
+    let next = 0;
+    try {
+      await Promise.all(Array.from({ length: Math.min(8, visible.length) }, async () => {
+        while (next < visible.length) {
+          const i = next++;
+          loaded[i] = await castData(visible[i].id);
+        }
+      }));
+    } catch {
+      if (seq === bottleTableSeq) $("#cast-bottle-meta").textContent = "Bottle measurements could not be loaded. Close and reopen to retry.";
+      return;
+    }
+    if (seq !== bottleTableSeq || !table.open) return;
+    const parameters = [...new Set(loaded.flatMap((c) => (c?.bottles || []).flatMap((b) => Object.keys(b.parameters || {}))))].sort();
+    bottleTableHead = ["leg", "cast", "bottle", "pressure (dbar)", "depth (m)", "time", ...parameters];
+    bottleTableRows = loaded.flatMap((data, i) => (data?.bottles || []).map((b) => [visible[i].legLabel, visible[i].cast, b.bottle, b.p, b.depth_m, b.time, ...parameters.map((p) => b.parameters?.[p]) ]));
+    $("#cast-bottle-rows").innerHTML = `<thead><tr>${bottleTableHead.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${bottleTableRows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}${bottleTableRows.length ? "" : `<tr><td colspan="${bottleTableHead.length}" class="muted">No bottle firings match the visible casts.</td></tr>`}</tbody>`;
+    $("#cast-bottle-meta").textContent = `${bottleTableRows.length.toLocaleString()} bottle firings from ${visible.length.toLocaleString()} visible casts`;
+    $("#cast-bottle-tsv").disabled = !bottleTableRows.length;
+  }
   function renderCastList() {
     const tbl = $("#casttable"); if (!casts.idx) return;
     if (casts.kind === "live") {                                   // the table box holds the Seasave setup instead
@@ -216,6 +244,7 @@
       $("#castclear").textContent = "clear selection"; $("#castclear").classList.remove("has"); return;
     }
     const { rows, inLegs, f } = castRows();
+    renderBottleTable();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
     const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const row = (c) => {
@@ -878,6 +907,8 @@
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
     $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
     $("#castcsv").onclick = downloadCastsTSV;
+    $("#cast-bottle-table").ontoggle = () => { if ($("#cast-bottle-table").open) renderBottleTable(); else ++bottleTableSeq; };
+    $("#cast-bottle-tsv").onclick = () => saveTSV("cast-bottles.tsv", bottleTableHead, bottleTableRows);
     const sm = $("#castsmooth");
     sm.classList.toggle("on", casts.smooth);
     sm.onclick = () => { casts.smooth = !casts.smooth; store.set("casts.smooth", casts.smooth); sm.classList.toggle("on", casts.smooth); renderCastPlots(); };

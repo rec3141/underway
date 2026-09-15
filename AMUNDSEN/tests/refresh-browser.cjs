@@ -83,12 +83,12 @@ function dataset(p) {
     if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:casts.map(c=>({...c,vars:['Temperature']}))};
     const match=p.match(/^\/data\/casts\/cast-(\d+)\.json$/); if(match) return casts[+match[1]];
   }
-  if(p==='/data/casts/index.json') return {variables:Object.keys(cast.vars),casts:[{...cast,vars:Object.keys(cast.vars),file:'data/casts/cast.json'}]};
-  if(p==='/data/casts/cast.json') return cast;
+  if(p==='/data/casts/index.json') return {variables:Object.keys(cast.vars),casts:[{...cast,vars:Object.keys(cast.vars),file:'data/casts/cast.json',...(process.env.BOTTLE_UI?{n_bottles:2}:{})}]};
+  if(p==='/data/casts/cast.json') return process.env.BOTTLE_UI ? {...cast,bottles:[{bottle:1,p:20,depth_m:19.8,time:'2026-09-04T12:01:00',parameters:{Sal00:34.4,T090C:2.1}},{bottle:2,p:30,depth_m:29.7,time:'2026-09-04T12:02:00',parameters:{Sal00:34.5,T090C:2.2}}]} : cast;
   if(p==='/api/chat') return {messages:[],online:[],crew:[],typing:[]};
   if(p==='/api/live') return liveData;
 }
-const site={title:'Refresh test',version:'test',local_tz:process.env.TIMEZONE_UI?'America/Toronto':'UTC',default_window:'1h',geo_layers:[],intranet:[],links:[],asset_version:'test',plotly_version:'test'};
+const site={title:'Refresh test',version:'test',local_tz:process.env.TIMEZONE_UI?'America/Toronto':'UTC',default_window:'1h',geo_layers:process.env.MAP_MESH_UI?['bathymetry.geojson','land.geojson','glaciated_areas.geojson','minor_islands.geojson','coastline.geojson','communities.geojson']:[],intranet:[],links:[],asset_version:'test',plotly_version:'test'};
 const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
   'import sys,json; from jinja2 import Environment,FileSystemLoader; d=json.load(sys.stdin); print(Environment(loader=FileSystemLoader(sys.argv[1]),autoescape=True).get_template("index.html.j2").render(**d))',
   path.join(root,'dashboard/templates')],{input:JSON.stringify({site,m:manifest()}),encoding:'utf8'});
@@ -186,6 +186,9 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(process.env.TIMEZONE_UI) await call('Emulation.setTimezoneOverride',{timezoneId:process.env.TIMEZONE_UI});
     await call('Page.addScriptToEvaluateOnNewDocument',{source:`
       window.__errors=[];
+      window.__warnings=[];
+      const realWarn=console.warn;
+      console.warn=(...args)=>{window.__warnings.push(args.join(' '));realWarn.apply(console,args);};
       ${process.env.WIKI_LAYER_UI?'localStorage.setItem("uw:history","true");localStorage.setItem("uw:nature","true");':''}
       ${process.env.SUMMARY_UI?'':"localStorage.setItem('uw:panel','{}');"}
       addEventListener('error',e=>window.__errors.push(e.message));
@@ -195,7 +198,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       const realTimeout=window.setTimeout;
       window.setTimeout=(fn,ms,...args)=>{if(ms===4000||ms===20000)window.__chatPoll=fn;return realTimeout(fn,ms,...args);};
     `});
-    const initialWidth=Number(process.env.UI_WIDTH)||(process.env.HEADER_UI||process.env.WIKI_UI?1400:390);
+    const initialWidth=Number(process.env.UI_WIDTH)||(process.env.HEADER_UI||process.env.WIKI_UI||process.env.MAP_MESH_UI?1400:390);
     await call('Emulation.setDeviceMetricsOverride',{width:initialWidth,height:844,deviceScaleFactor:1,mobile:initialWidth<=640});
     await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/${process.env.UI_PREFIX?'underway/':''}`});
     await until('window.UW && document.querySelector("#connection").textContent.includes("Underway")');
@@ -267,16 +270,36 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       console.log('PASS gallery return, whole-image fit, previous/next and keyboard/fullscreen slideshow');return;
     }
     if(process.env.STATUS_UI) {
+      const headerHeight=await evaluate('document.querySelector("#status").getBoundingClientRect().height');
       await evaluate('UW.M.calendar.now={in_progress:[]};UW.store.set("sched.mode","hidden");UW.webId();UW.pollInapp()');
-      await until('document.querySelector("#inapp").textContent.includes("Schedule changed")');
-      assert.equal(await evaluate('document.querySelector("#inapp").parentElement.id'),'alert');
-      assert.equal(await evaluate('document.querySelector("#alert").hidden'),false);
-      assert.equal(await evaluate('document.querySelector("#schedrow").hidden'),true);
-      assert.equal(await evaluate('document.querySelector("#schedticker").hidden'),true);
-      await evaluate('document.querySelector("#inapp .clear").click()');
+      await until('document.querySelector("#status").textContent.includes("Schedule changed")');
       assert.equal(await evaluate('document.querySelector("#alert").hidden'),true);
+      assert.equal(await evaluate('document.querySelector("#status").getBoundingClientRect().height'),headerHeight);
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#status")).whiteSpace'),'nowrap');
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS hidden-schedule inbox alert uses status bar and clears without opening schedule');return;
+      console.log('PASS hidden-schedule inbox alert replaces header subtitle without growing schedule bar');return;
+    }
+    if(process.env.BOTTLE_UI) {
+      await evaluate('UW.showTab("casts")');
+      await until('document.querySelector("#casttable tbody tr[data-id]")');
+      await evaluate('document.querySelector("#cast-bottle-table").open=true');
+      await until('document.querySelectorAll("#cast-bottle-rows tbody tr").length===2');
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows thead").textContent.includes("Sal00")'),true);
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-rows tbody").textContent.includes("34.4")'),true);
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-tsv").disabled'),false);
+      await evaluate('document.querySelector("#cast-bottle-tsv").click()');
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS collapsible cast bottle measurements table and TSV export');return;
+    }
+    if(process.env.MAP_MESH_UI) {
+      await until('UW.state.geoComplete && UW.mapView?.map?.isStyleLoaded()');
+      for(const zoom of [0,1,2,4,6]) {
+        await evaluate(`UW.mapView.map.jumpTo({zoom:${zoom}})`);
+        await wait(600);
+      }
+      assert.deepEqual(await evaluate('window.__warnings.filter(w=>w.includes("Max vertices per segment"))'),[]);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS large polygon basemap renders without 65,535-vertex mesh warning');return;
     }
     if(process.env.WIKI_LAYER_UI) {
       assert.deepEqual(await evaluate('[UW.state.history,UW.state.nature]'),[false,false]);

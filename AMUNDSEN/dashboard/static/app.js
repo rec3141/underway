@@ -427,7 +427,10 @@
     const open = $("#srcpop")?.open;
     // the sources box opens on hover, or on a click on "last refresh" or LIVE
     const schedWord = M.calendar?.now && schedMode() === "hidden" ? ` · <span class="schedlink" id="schedlink" title="show the status bar">STATUS</span>` : "";
-    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>` + schedWord;
+    const notice = inapp.msgs.at(-1);
+    $("#status").innerHTML = notice && Date.now() - notice.receivedAt < 120000
+      ? `<span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span>`
+      : `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>${schedWord}`;
     const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
@@ -638,7 +641,11 @@
       });
     }
     const g = state.geoSources || {};
-    const add = (id, data, layer) => { if (!data) return; style.sources[id] = { type: "geojson", data }; style.layers.push({ id, source: id, ...layer }); };
+    const add = (id, data, layer) => { if (!data) return;
+      // Fill polygons need tile-space simplification so a world tile stays below
+      // the renderer's 16-bit, 65,535-vertex mesh segment limit.
+      style.sources[id] = { type: "geojson", data, ...(layer.type === "fill" ? { tolerance: 2 } : {}) };
+      style.layers.push({ id, source: id, ...layer }); };
     // the coastline as vector tiles (OpenStreetMap, cut on grid) when the build found them: a
     // shore that stays crisp at every zoom; the Natural Earth files otherwise
     const vt = SITE.vector;
@@ -1732,17 +1739,8 @@
     const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const c = M.calendar || {}, n = c.now;
     const bar = $("#alert");
-    const hasMessages = !!inapp.msgs.length;
-    bar.hidden = !n && !hasMessages;
+    bar.hidden = !n || schedMode() === "hidden";
     if (bar.hidden) return;
-    const onlyMessages = !n || schedMode() === "hidden";
-    if (onlyMessages) {
-      bar.hidden = !hasMessages;
-      bar.classList.remove("folded"); bar.title = ""; bar.onclick = null;
-      $("#schedrow").hidden = true; $("#schedticker").hidden = true;
-      renderStatus();
-      return;
-    }
     const hm = (t) => t ? new Date(tms(t)).toLocaleTimeString(undefined, { timeZone: SITE.local_tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "";
     // an operation in progress shows what is left of its slot rather than its times
     const left = (r) => { const m = Math.round((tms(r.end_utc) - Date.now()) / 60000); if (isNaN(m)) return "";
@@ -1784,8 +1782,7 @@
   setInterval(() => { if (M?.calendar?.now) renderAlert(); }, 60e3);   // the time left counts down between refreshes
 
   // in-app alerts: this browser's id is its address for the "web" channel;
-  // the timer queues messages into the existing status bar until cleared
-  // (and the browser notifies, when allowed)
+  // an incoming message occupies the subtitle for two minutes
   function webId() {
     let id = store.get("alerts.webid", "");
     if (!id) { id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)); store.set("alerts.webid", id); }
@@ -1793,14 +1790,18 @@
   }
   const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const inapp = { msgs: [] };
+  let alertTimer = null;
   function renderInapp() {
-    const el = $("#inapp");
-    el.hidden = !inapp.msgs.length;
-    if (el.hidden) { el.innerHTML = ""; renderAlert(); return; }
-    el.innerHTML = inapp.msgs.map((m) => `<span class="msg">🔔 ${esc(m.text)} <small>${fmtTs(Date.parse(m.t)).slice(11)}</small></span>`).join("") +
-      `<button type="button" class="clear" title="clear these">✕</button>`;
-    el.querySelector(".clear").onclick = (event) => { event.stopPropagation(); store.set("alerts.seen", inapp.msgs[inapp.msgs.length - 1].t); inapp.msgs = []; renderInapp(); };
+    clearTimeout(alertTimer);
+    renderStatus();
     renderAlert();
+    const latest = inapp.msgs.at(-1);
+    if (!latest) return;
+    alertTimer = setTimeout(() => {
+      store.set("alerts.seen", inapp.msgs.at(-1)?.t || latest.t);
+      inapp.msgs = [];
+      renderStatus();
+    }, Math.max(0, 120000 - (Date.now() - latest.receivedAt)));
   }
   async function pollInapp() {
     if (PUBLIC || !store.get("alerts.webid", "") || document.hidden) return;
@@ -1809,7 +1810,7 @@
       const have = new Set(inapp.msgs.map((m) => m.t + m.text));
       const fresh = (j.messages || []).filter((m) => !have.has(m.t + m.text));
       if (!fresh.length) return;
-      inapp.msgs = [...inapp.msgs, ...fresh].slice(-8);
+      inapp.msgs = [...inapp.msgs, ...fresh.map((m) => ({ ...m, receivedAt: Date.now() }))].slice(-8);
       renderInapp();
       if (window.Notification?.permission === "granted") for (const m of fresh) { try { new Notification("Amundsen schedule", { body: m.text, tag: m.t + m.text }); } catch { /* not every browser */ } }
     } catch { /* the next poll */ }

@@ -92,7 +92,7 @@ class Cast:
     lat_end: float | None = None
     lon_end: float | None = None
     # the rosette's bottle firings from the SeaBird .btl: bottle number,
-    # pressure (dbar), depth (m) and time, in firing order
+    # pressure (dbar), depth (m), time and measured columns, in firing order
     bottles: list = field(default_factory=list)
 
     def meta(self) -> dict:
@@ -119,7 +119,7 @@ def _cache_path(leg: str, key: str) -> Path:
 
 RECENT_DAYS = 3
 # bump when the parsed representation changes so old cache entries are redone
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 MVP_CACHE_VERSION = 5    # bumped when the MVP column set or scaling changes
 
 
@@ -236,7 +236,8 @@ def parse_btl(path: Path) -> list[dict]:
     """The bottle firings of a SeaBird .btl (Data/Rosette/<leg>/Btl): the
     header row names the columns; each firing is an "(avg)" line (bottle,
     date, one value per column) followed by an "(sdev)" line whose first
-    token is the time. Returns bottle, pressure, depth and time per firing."""
+    token is the time. Returns bottle, pressure, depth, time and numeric
+    measurements per firing."""
     cols: list[str] = []
     out: list[dict] = []
     cur: dict | None = None
@@ -264,7 +265,10 @@ def parse_btl(path: Path) -> list[dict]:
                 date = f"{int(toks[3]):04d}-{MONTHS[toks[1]]:02d}-{int(toks[2]):02d}"
             except (KeyError, ValueError):
                 date = ""
-            cur = {"bottle": int(toks[0]), "p": num("PrDM"), "depth_m": num("DepSM"), "time": date}
+            parameters = {name: value for name in names if name not in ("PrDM", "DepSM")
+                          if (value := num(name)) is not None}
+            cur = {"bottle": int(toks[0]), "p": num("PrDM"), "depth_m": num("DepSM"),
+                   "time": date, "parameters": parameters}
             out.append(cur)
         elif toks[-1] == "(sdev)" and cur is not None:
             if re.fullmatch(r"\d\d:\d\d:\d\d", toks[0]) and cur["time"]:

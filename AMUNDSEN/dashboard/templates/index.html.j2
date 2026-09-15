@@ -65,7 +65,6 @@
   </div>
 </header>
 <div class="alertbar" id="alert" hidden>
-  <div class="inapp" id="inapp" role="status" aria-live="polite" hidden></div>
   <div class="schedrow" id="schedrow">
     <div class="schedcols" id="schedcols"></div>
     <div class="schedlinks" id="schedlinks"></div>
@@ -176,6 +175,11 @@
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>
         </div>
       </div>
+      <details id="cast-bottle-table" class="card cast-bottle-table">
+        <summary>Bottle firings</summary>
+        <div class="pane-tools compact"><span class="muted" id="cast-bottle-meta">Open to load bottle measurements for the visible casts.</span><button type="button" id="cast-bottle-tsv" title="download the visible bottle firings as tab-separated text" disabled>TSV</button></div>
+        <div class="tablewrap"><table id="cast-bottle-rows"></table></div>
+      </details>
     </div>
 
     <div class="pane" id="pane-calendar" hidden>
@@ -286,6 +290,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/ice.js?v={{ site.asset_version }}"></script>
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
+<script src="static/photo-gallery.js?v={{ site.asset_version }}"></script>
 <script src="static/history.js?v={{ site.asset_version }}"></script>
 <script src="static/nature.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
