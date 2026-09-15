@@ -143,7 +143,7 @@
     try {
       const before = m.getLayer('coast') ? 'coast' : m.getLayer('u-base-lines') ? 'u-base-lines' : undefined;
       if (chart.kind === 'raster') {
-        if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'image', url: collection.url, coordinates: chart.coordinates});
+        if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'image', url: view.imageUrl(collection.url), coordinates: chart.coordinates});
         if (!m.getLayer(RASTER)) m.addLayer({id: RASTER, type: 'raster', source: SOURCE,
           paint: {'raster-opacity': opacity, 'raster-fade-duration': 0, 'raster-resampling': 'linear'}}, before);
       } else {

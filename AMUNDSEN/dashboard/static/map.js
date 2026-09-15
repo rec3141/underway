@@ -259,12 +259,17 @@
       } });
     }
 
-    // Satellite pictures can exceed a mobile GPU's texture size. Keep their
-    // bounds and source resolution, fitting only the decoded display texture.
+    imageUrl(url) {
+      return typeof createImageBitmap === "function" && this.imageProtocol
+        ? `${this.imageProtocol}://${encodeURIComponent(url)}` : url;
+    }
+
+    // Map images can exceed a mobile GPU's texture size. Keep their bounds and
+    // source resolution, fitting only the decoded display texture.
     imageStyle(style) {
       const sources = Object.fromEntries(Object.entries(style.sources).map(([id, source]) => [id,
         source.type === "image" && source.url && typeof createImageBitmap === "function"
-          ? { ...source, url: `${this.imageProtocol}://${encodeURIComponent(source.url)}` } : source]));
+          ? { ...source, url: this.imageUrl(source.url) } : source]));
       return { ...style, sources };
     }
 

@@ -26,7 +26,8 @@ function setup(limit=4096) {
   const style={id:'satellite',sources:{sat:{type:'image',url:'https://example.test/s1.webp?v=123',coordinates:corners},base:{type:'raster',tiles:['tiles/{z}/{x}/{y}.png']}},layers:[]};
   view.create(style);
   const load=(controller=new AbortController())=>protocols.get(view.imageProtocol)({url:view.map.options.style.sources.sat.url},controller);
-  return {context,view,style,decoded,load};
+  const loadUrl=(url,controller=new AbortController())=>protocols.get(view.imageProtocol)({url},controller);
+  return {context,view,style,decoded,load,loadUrl};
 }
 
 test('oversized radar texture fits GPU with its aspect ratio and geographic corners intact',async()=>{
@@ -48,6 +49,16 @@ test('capable GPU retains the full-resolution radar image',async()=>{
   const {data}=await load();
   assert.equal(data.width,4800);assert.equal(data.height,3200);
   assert.equal(decoded.length,1);assert.equal(data.closed,false);
+});
+
+test('dynamic image sources use the GPU fitting protocol',async()=>{
+  const {context,view,loadUrl}=setup(2048);
+  const original='blob:https://example.test/large-chart';
+  const url=view.imageUrl(original);
+  assert.match(url,/^uw-image-\d+:\/\//);
+  const {data}=await loadUrl(url);
+  assert.equal(context.request.url,original);
+  assert.equal(data.width,2048);assert.equal(data.height,1365);
 });
 
 test('failed image request rejects instead of uploading a blank texture',async()=>{
