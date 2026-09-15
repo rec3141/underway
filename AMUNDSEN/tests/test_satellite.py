@@ -58,13 +58,30 @@ class SatelliteTests(unittest.TestCase):
         fresh = {"fetched": (now - timedelta(hours=1)).isoformat(), "region": list(sat.REGION)}
         old = {"fetched": (now - timedelta(hours=7)).isoformat(), "region": list(sat.REGION)}
         elsewhere = {"fetched": now.isoformat(), "region": [0, 0, 1, 1]}
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": old}}, now), ["s2"])          # s2 past six hours; no fix: the near box waits
-        self.assertEqual(sat.due({"images": {"s1": elsewhere, "s2": fresh}}, now), ["s1"])    # another region
-        self.assertEqual(sat.due({}, now), ["s1", "s2"])                                        # nothing yet
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": old}}, now, ("s1", "s2")), ["s2"])
+        self.assertEqual(sat.due({"images": {"s1": elsewhere, "s2": fresh}}, now, ("s1", "s2")), ["s1"])
+        self.assertEqual(sat.due({}, now, ("s1", "s2")), ["s1", "s2"])
         near = {"fetched": now.isoformat(), "centre": [77.5, -91.8]}
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near, "s2near": near}}, now, ship=(77.5, -91.8)), [])
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near, "s2near": near}}, now, ship=(77.5, -94.1)), ["s1near", "s2near"])   # ~55 km east, past NEAR_MOVE_KM
-        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh}}, now, ship=(77.5, -91.8)), ["s1near", "s2near"])
+        moving = ("s1", "s2", "s1near", "s2near")
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near, "s2near": near}}, now, moving, ship=(77.5, -91.8)), [])
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh, "s1near": near, "s2near": near}}, now, moving, ship=(77.5, -94.1)), ["s1near", "s2near"])
+        self.assertEqual(sat.due({"images": {"s1": fresh, "s2": fresh}}, now, moving, ship=(77.5, -91.8)), ["s1near", "s2near"])
+        self.assertEqual(sat.due({}, now, ("s1north",)), ["s1north"])
+
+    def test_fixed_nansen_detail_does_not_need_a_ship_position(self):
+        now = datetime(2026, 9, 15, 19, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as d, patch.object(sat, "DB_DIR", Path(d)), \
+             patch.object(sat, "credentials", return_value=("id", "secret")), \
+             patch.object(sat, "token", return_value="tok"), patch.object(sat, "ship_position", return_value=None), \
+             patch.object(sat, "newest_scene", return_value="2026-09-15T14:19:16Z"), \
+             patch.object(sat, "render", return_value=(b"webp", 45.7, (6000, 6000))) as render:
+            info = sat.refresh(force=True, now=now, kinds=("s1north",))
+        image = info["images"]["s1north"]
+        self.assertEqual(image["centre"], [80.8, -89.0])
+        self.assertEqual(image["overlay"], "s1")
+        self.assertEqual(image["ground_m_per_px"], 40.0)
+        self.assertEqual(image["size"], [6000, 6000])
+        self.assertEqual(render.call_args.args[5], 95)
 
     def test_archive_keeps_new_scenes_only_and_prunes(self):
         now = datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)

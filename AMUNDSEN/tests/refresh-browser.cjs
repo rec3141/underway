@@ -783,9 +783,11 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('document.querySelector("#panels .plot").layout.xaxis.tickangle'),0);
       assert((await evaluate('document.querySelector("#g-Lab .gn").title')).includes('Latest displayed observation'));
       await evaluate(`UW.mapView.draw=async opts=>{window.satStyle=opts.style};
-        const bounds=[[0,1],[1,1],[1,0],[0,0]],moved=[[1,1],[2,1],[2,0],[1,0]];
-        UW.M.satellite={images:{s1:{url:'current.webp',scene:'2026-09-11T00:00:00Z',corners:bounds,label:'Radar'},s1near:{url:'current-near.webp',scene:'2026-09-11T00:00:00Z',corners:bounds}},archive:{s1:[{url:'wide-old.webp',scene:'2026-09-09T00:00:00Z',corners:bounds}],s1near:[{url:'near-one.webp',scene:'2026-09-10T00:00:00Z',corners:bounds},{url:'near-two.webp',scene:'2026-09-10T00:00:00Z',corners:moved}]}};
-        UW.state.sat='';UW.selectColour('SST (°C)');document.querySelector('#satpill').click();document.querySelector('#satprev').click()`);
+        const bounds=[[0,1],[1,1],[1,0],[0,0]],moved=[[1,1],[2,1],[2,0],[1,0]],north=[[-2,3],[3,3],[3,2],[-2,2]];
+        UW.M.satellite={images:{s1:{url:'current.webp',scene:'2026-09-11T00:00:00Z',corners:bounds,label:'Radar'},s1near:{url:'current-near.webp',scene:'2026-09-11T00:00:00Z',corners:bounds},s1north:{url:'north.webp',scene:'2026-09-11T00:00:00Z',corners:north,overlay:'s1',label:'Nansen detail'}},archive:{s1:[{url:'wide-old.webp',scene:'2026-09-09T00:00:00Z',corners:bounds}],s1near:[{url:'near-one.webp',scene:'2026-09-10T00:00:00Z',corners:bounds},{url:'near-two.webp',scene:'2026-09-10T00:00:00Z',corners:moved}]}};
+        UW.state.sat='';UW.selectColour('SST (°C)');document.querySelector('#satpill').click()`);
+      assert.deepEqual(await evaluate('satStyle.sources.satdetail1.coordinates'),[[-2,3],[3,3],[3,2],[-2,2]]);
+      await evaluate('document.querySelector("#satprev").click()');
       assert.equal(await evaluate('UW.state.satAt'),'near-two.webp');
       assert.deepEqual(await evaluate('satStyle.sources.satnear.coordinates'),[[1,1],[2,1],[2,0],[1,0]]);
       await evaluate('document.querySelector("#satprev").click()');
