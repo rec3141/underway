@@ -7,6 +7,7 @@ codes remain strings, alongside decoded display values (WMO/TD-No. 1214).
 from __future__ import annotations
 
 import hashlib
+import gzip
 import io
 import json
 import logging
@@ -24,6 +25,7 @@ from .config import DB_DIR
 
 log = logging.getLogger(__name__)
 SOURCE = "https://ice-glaces.ec.gc.ca/prods/sigrids/"
+SEED_DIR = Path(__file__).with_name("ice_assets")
 ATTRIBUTION = "Canadian Ice Service / ECCC"
 LICENCE = "https://open.canada.ca/en/open-government-licence-canada"
 REGIONS = {"EA": "Eastern Arctic", "WA": "Western Arctic", "HB": "Hudson Bay", "EC": "East Coast", "GL": "Great Lakes"}
@@ -289,23 +291,29 @@ def import_chart(*, date: str, region: str, url: str | None = None, file: Path |
 
 
 def publish(root: Path) -> dict | None:
-    """Publish cached charts without a network request or GIS dependencies."""
+    """Publish local charts without a network request or GIS dependencies.
+
+    Bundled seeds make a fresh deployment useful before its writable cache is
+    populated. A cache file with the same name takes precedence.
+    """
     entries = []
-    for path in sorted(chart_dir().glob("*.geojson")):
+    charts = {path.name.removesuffix(".gz"): path for path in SEED_DIR.glob("*.geojson.gz")}
+    charts.update({path.name: path for path in chart_dir().glob("*.geojson")})
+    for name, path in sorted(charts.items()):
         try:
-            data = path.read_bytes()
+            data = gzip.decompress(path.read_bytes()) if path.suffix == ".gz" else path.read_bytes()
             collection = json.loads(data)
             entry = collection["chart"]
             if collection["type"] != "FeatureCollection" or not collection["features"]:
                 raise ValueError("Empty or invalid chart")
-            if not re.fullmatch(r"[a-z0-9-]+", entry["id"]) or path.stem != entry["id"]:
+            if not re.fullmatch(r"[a-z0-9-]+", entry["id"]) or Path(name).stem != entry["id"]:
                 raise ValueError("Invalid cached chart identifier")
             Date.fromisoformat(entry["date"])
             digest = hashlib.sha256(data).hexdigest()[:16]
-            destination = root / "data" / "ice-charts" / path.name
+            destination = root / "data" / "ice-charts" / name
             if not destination.exists() or destination.read_bytes() != data:
                 _atomic_write(destination, data)
-            entries.append({**entry, "url": f"data/ice-charts/{path.name}?v={digest}"})
+            entries.append({**entry, "url": f"data/ice-charts/{name}?v={digest}"})
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.warning("ice chart %s not published: %s", path.name, exc)
     return {"charts": sorted(entries, key=lambda row: (row["date"], row["region"]), reverse=True)} if entries else None
