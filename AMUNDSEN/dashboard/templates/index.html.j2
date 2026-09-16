@@ -158,6 +158,11 @@
             <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)" aria-label="Filter casts"><button id="castcsv" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
           <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
+          <details id="cast-bottle-table" class="card cast-bottle-table">
+            <summary>Bottles fired</summary>
+            <div class="pane-tools compact"><input type="search" id="cast-bottle-search" placeholder="filter bottles" aria-label="Filter bottles fired"><span class="muted" id="cast-bottle-meta">Select casts, then open to load their bottle measurements.</span><button type="button" id="cast-bottle-tsv" title="download the filtered bottle firings at full precision as tab-separated text" disabled>TSV</button></div>
+            <div class="tablewrap"><table id="cast-bottle-rows"></table></div>
+          </details>
         </div>
         <div class="castmain">
           <div class="pane-tools compact">
@@ -175,11 +180,6 @@
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>
         </div>
       </div>
-      <details id="cast-bottle-table" class="card cast-bottle-table">
-        <summary>Bottle firings</summary>
-        <div class="pane-tools compact"><input type="search" id="cast-bottle-search" placeholder="filter bottles" aria-label="Filter bottle firings"><span class="muted" id="cast-bottle-meta">Select casts, then open to load their bottle measurements.</span><button type="button" id="cast-bottle-tsv" title="download the filtered bottle firings at full precision as tab-separated text" disabled>TSV</button></div>
-        <div class="tablewrap"><table id="cast-bottle-rows"></table></div>
-      </details>
     </div>
 
     <div class="pane" id="pane-calendar" hidden>

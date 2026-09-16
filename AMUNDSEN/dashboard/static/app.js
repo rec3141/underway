@@ -683,13 +683,13 @@
                               ...(nt.bounds ? { bounds: nt.bounds } : {}), attribution: nt.attribution };
       const bands = nt.layers.map((l) => [l, +l.replace(/\D/g, "")]).sort((a, b) => b[1] - a[1]);
       for (const [layer, band] of bands) {
-        const size = band <= 2 ? 15 : band <= 3 ? 14 : band <= 4 ? 13 : band <= 6 ? 12 : band <= 8 ? 11 : 10.5;
+        const size = band <= 2 ? 17 : band <= 3 ? 16 : band <= 4 ? 15 : 14;
         style.layers.push({ id: `names-${layer}`, type: "symbol", source: "names", "source-layer": layer, minzoom: band,
-          layout: { "text-field": ["get", "n"], "text-size": fz(size), "text-max-width": 9, "text-line-height": 1.15, "text-padding": 4,
+          layout: { "text-field": ["get", "n"], "text-size": fz(size), "text-max-width": 11, "text-line-height": 1.2, "text-padding": 4,
                     "text-font": ["case", ["==", ["get", "w"], 1], ["literal", ["Open Sans Italic"]], ["literal", ["Open Sans Regular"]]],
-                    "text-letter-spacing": band <= 3 ? 0.15 : band <= 4 ? 0.08 : 0.02, "text-transform": band <= 3 ? "uppercase" : "none" },
+                    "text-letter-spacing": band <= 3 ? 0.06 : 0.01, "text-transform": band <= 3 ? "uppercase" : "none" },
           paint: { "text-color": ["case", ["==", ["get", "w"], 1], C.mapNameWater, C.mapNameLand],
-                   "text-halo-color": C.mapNameHalo, "text-halo-width": 1.1, "text-halo-blur": 0.4 } });
+                   "text-halo-color": C.mapNameHalo, "text-halo-width": 1.7, "text-halo-blur": 0 } });
       }
     }
     return style;
