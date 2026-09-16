@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1419">
+<title>Live sampling · Underway</title>
+<script>
+(function () { try {
+  var theme = JSON.parse(localStorage.getItem('uw:theme')) || 'auto';
+  if (theme === 'auto') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'claude-light' : 'claude-dark';
+  document.documentElement.dataset.theme = theme;
+  var size = JSON.parse(localStorage.getItem('uw:textsize'));
+  if (size && size !== 'auto') document.documentElement.dataset.size = size;
+} catch (e) {} })();
+</script>
+<link rel="stylesheet" href="static/style.css">
+<link rel="stylesheet" href="static/livesample.css">
+<script defer src="static/plotly.min.js"></script>
+<script defer src="static/livesample.js"></script>
+</head>
+<body class="sampling-page">
+<header class="top">
+  <div class="brand"><a href="/">← Underway dashboard</a><h1>Live sampling <span class="sample-badge">Experimental</span></h1><div class="sub">Find water types missing from your samples.</div></div>
+  <div class="sample-connection"><span id="service-state" class="sample-badge" role="status">Connecting</span><span id="updated" class="muted">Updates every 10 seconds</span></div>
+</header>
+<main class="sampling-main">
+  <div id="request-error" class="sample-notice error" role="alert" hidden></div>
+  <section class="sample-card setup-card" aria-labelledby="setup-title">
+    <div class="sample-section-head"><div><div class="sample-eyebrow">01 · Reference & method</div><h2 id="setup-title">Plan for diversity</h2></div><span id="save-status" class="muted" role="status">Loading settings…</span></div>
+    <form id="settings-form">
+      <div class="sample-controls">
+        <div><span class="sample-label">Reference legs</span><details class="group legmenu" id="legmenu"><summary id="legsummary">Loading legs…</summary><div class="pop"><div class="pophead">Legs to include · <button type="button" id="legall">all</button> · <button type="button" id="legnone">none</button></div><ul id="leglist"></ul><div class="popfoot">Only these legs define the reference water types.</div></div></details></div>
+      </div>
+      <div class="sample-input-row">
+        <div class="sample-upload"><label for="samples-file">Already sampled · TSV</label><input id="samples-file" type="file" accept=".tsv,.txt,text/tab-separated-values,text/plain"><span id="file-status" class="muted">Upload replaces the saved sample list; settings alone keep it.</span><button id="download-template" type="button" class="sample-link">Download selected-leg bottle TSV</button></div>
+        <div class="sample-notifications"><label class="sample-check"><input type="checkbox" id="telegram"> Send recommendations via underwaybot</label><p class="muted">When applied, sends CTD and flow-through recommendations to the bot’s configured owner Telegram recipient.</p><span id="telegram-status" class="muted"></span></div>
+        <button id="apply-settings" type="submit" class="sample-primary" disabled>Apply settings</button>
+      </div>
+      <details class="sample-help"><summary>TSV columns & interpretation</summary><p>The selected-leg download lists each archived rosette bottle firing. Put <code>1</code> in <code>sampled</code> for bottles already sampled; leave others blank or enter <code>0</code>. For a custom rosette TSV, use <code>cast</code> and <code>bottle</code>; include <code>leg</code> when cast numbers repeat. A measured <code>pressure</code> (dbar) can replace <code>bottle</code>. For flow-through samples, set <code>source</code> to <code>flow</code> and provide <code>time</code> (ISO 8601 with timezone), <code>temperature</code> (°C), and <code>salinity</code> (practical salinity). Leave unrelated cells empty. Unmatched marked rows are reported below.</p><p>Recommendations are experimental guidance. Targets are chosen from water already observed during the downcast, for collection on the upcast. The reference population and sample coverage depend on the selected legs and available properties.</p></details>
+    </form>
+  </section>
+  <div class="sample-cast-grid">
+    <section class="sample-card" aria-labelledby="live-title">
+      <div class="sample-section-head"><div><div class="sample-eyebrow">02 · In the water</div><h2 id="live-title">Live CTD cast</h2></div><div class="sample-chart-tools"><button id="live-depth-scale" type="button" aria-pressed="false" title="Compress depth spacing using square root">⇅ Depth spacing</button><button id="live-reset" type="button" title="Reset cast axes">⟲ Reset view</button></div></div>
+      <div class="sample-cast-settings">        <label>Priority method<select form="settings-form" id="algorithm"><option value="coverage">Coverage · fill sample gaps</option><option value="rarity">Rarity · uncommon water</option><option value="gradient">Gradient · transitions</option><option value="surprise">Surprise · unexpected properties</option><option value="hybrid">Hybrid · combined priorities</option></select></label>
+        <label>Rosette targets<input form="settings-form" id="target-count" type="number" min="1" max="24" value="6" required></label>
+        <label>Minimum spacing (dbar)<input form="settings-form" id="min-spacing" type="number" min="2" max="500" step="1" value="10" required></label>
+<button id="apply-chart-settings" type="submit" form="settings-form" class="sample-primary" disabled>Apply priorities</button></div>
+      <p id="method-description" class="muted">Choose a method, then apply priorities.</p>
+      <div id="live-status" class="muted" role="status">Waiting for the Seasave feed.</div>
+      <div class="single-layout sample-single-layout"><div id="live-parameters" class="single-parameters" aria-label="Drag parameters above or below Chart to select upper or lower axes"></div><div class="sample-live-canvas"><div id="live-empty" class="sample-empty">Connecting to the live sampling service…</div><div id="live-plot" class="sample-plot live-plot" hidden></div></div></div>
+      <p class="sample-caption">Solid: downcast · dotted: upcast · amber lines: sampling targets. Drag the Chart divider to move parameter axes above or below the chart.</p>
+      <div class="sample-histogram"><h3>Target novelty</h3><p class="sample-caption">Distribution of nearest-bottle T/S novelty across previous archived bottles. Target lines show rank, method score, and novelty z-score.</p><div id="ctd-hist-empty" class="sample-empty sample-hist-empty">Waiting for target scores.</div><div id="ctd-hist-plot" class="sample-plot histogram-plot" hidden></div></div>
+    </section>
+    <section class="sample-card" aria-labelledby="targets-title"><div class="sample-section-head"><div><div class="sample-eyebrow">03 · Next samples</div><h2 id="targets-title">Rosette upcast plan</h2></div><span class="sample-badge">Depth & pressure</span></div><p id="target-summary" class="muted">Waiting for enough live observations.</p><ol id="recommendations" class="sample-recommendations"></ol></section>
+  </div>
+  <section class="sample-card" aria-labelledby="flow-title">
+    <div class="sample-section-head"><div><div class="sample-eyebrow">04 · Along the track</div><h2 id="flow-title">Flow-through sampling</h2></div><button id="flow-reset" type="button">⟲ Reset view</button></div>
+    <div class="sample-flow-settings"><label>Priority method<select id="flow-method"><option value="coverage">Coverage · fill sample gaps</option><option value="rarity">Rarity · uncommon water</option><option value="gradient">Gradient · transitions</option><option value="surprise">Surprise · unexpected properties</option><option value="hybrid">Hybrid · combined priorities</option></select></label><label>Targets<input id="flow-target-count" type="number" min="1" max="24" value="6"></label><label>Minimum spacing (minutes)<input id="flow-spacing" type="number" min="1" max="1440" step="1" value="15"></label><label>Time span<select id="flow-span" aria-label="Flow-through time span"></select></label><button id="apply-flow-settings" type="button" class="sample-primary">Recalculate targets</button></div>
+    <div class="sample-flow"><div id="flow-status" role="status">Waiting for underway data.</div><p id="flow-values" class="muted"></p></div>
+    <div class="dockgroup sample-lab-group"><div class="head"><span class="gname">Lab</span><span id="flow-data-status" class="muted"></span></div><div id="flow-chips" class="chips" role="group" aria-label="Flow-through lab parameters"></div></div>
+    <div id="flow-empty" class="sample-empty">Loading flow-through history…</div><div id="flow-plot" class="sample-plot flow-plot" hidden></div>
+    <p class="sample-caption">Amber vertical lines mark historical method picks: a replay of the selected method, not notifications sent to Telegram. Each selected property has its own scale; times are UTC. Grey chips have no observations in this window.</p>
+    <div class="sample-histogram"><h3>Target novelty</h3><p class="sample-caption">Distribution of nearest-bottle T/S novelty across previous archived bottles. Target lines show rank, method score, and novelty z-score.</p><div id="flow-hist-empty" class="sample-empty sample-hist-empty">Waiting for historical target scores.</div><div id="flow-hist-plot" class="sample-plot histogram-plot" hidden></div></div>
+  </section>
+  <section class="sample-card" aria-labelledby="water-title"><div class="sample-section-head"><div><div class="sample-eyebrow">05 · Water property space</div><h2 id="water-title">Which water types have we sampled?</h2></div><div class="sample-chart-tools"><label class="sample-check"><input type="checkbox" id="show-bottles"> Show collected bottles</label><label class="sample-inline-label">Colour by<select id="embedding-color"><option value="leg">Leg</option><option value="pressure">Pressure (dbar)</option></select></label><button id="embedding-reset" type="button">⟲ Reset views</button></div></div><p class="muted">t-SNE and UMAP show archived reference observations from the selected legs. Outlined diamonds mark the uploaded sample inventory; the bottle toggle overlays archived bottle firings. Grey points have no value for the selected colour property. Nearby points have similar standardized water properties; the axes are dimensionless. Drag to pan, scroll to zoom, or use the chart controls. These views do not project the live cast.</p><p id="feature-list" class="sample-caption"></p><div class="sample-embedding-grid"><div><h3>t-SNE</h3><div id="tsne-empty" class="sample-empty">Waiting for the reference model.</div><div id="tsne-plot" class="sample-plot embedding-plot" hidden></div></div><div><h3>UMAP</h3><div id="umap-empty" class="sample-empty">Waiting for the reference model.</div><div id="umap-plot" class="sample-plot embedding-plot" hidden></div></div></div></section>
+  <details id="unmatched-details" class="sample-card sample-help" hidden><summary id="unmatched-summary">Unmatched sample rows</summary><ul id="unmatched-list"></ul></details>
+  <div id="model-warnings" class="sample-notice" role="status" hidden></div>
+  <footer class="sample-footer">Underway · Live sampling experiment · Recommendations use observed properties and the uploaded sampling record.</footer>
+</main>
+</body>
+</html>

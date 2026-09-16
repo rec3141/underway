@@ -13,7 +13,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from dashboard import live as live_mod
-from dashboard.live import LiveCTD, xml_columns
+from dashboard.live import DEFAULT_SEASAVE_TCP, SEASAVE_PORTS, LiveCTD, xml_columns
 
 SEASAVE_HEADER = """<?xml version="1.0"?>
 <SBE_ConvertedDataSettings>
@@ -61,6 +61,32 @@ class FakeSeasave:
         self.srv.close()
 
 
+class FakeRawPort:
+    """Keeps an open SeaSave-like port busy without sending converted XML."""
+
+    def __init__(self):
+        self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.srv.bind(("127.0.0.1", 0)); self.srv.listen(1); self.srv.settimeout(5)
+        self.addr = f"127.0.0.1:{self.srv.getsockname()[1]}"
+        self.conn = None
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _serve(self):
+        try:
+            self.conn, _ = self.srv.accept()
+            while True:
+                self.conn.sendall(b"001122334455\r\n")
+                time.sleep(0.01)
+        except OSError:
+            pass
+
+    def close(self):
+        if self.conn:
+            self.conn.close()
+        self.srv.close()
+
+
 def wait_for(live, predicate, timeout=4):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -71,6 +97,10 @@ def wait_for(live, predicate, timeout=4):
 
 
 class LiveTests(unittest.TestCase):
+    def test_default_source_probes_the_seasave_port_range(self):
+        self.assertEqual(tuple(SEASAVE_PORTS), tuple(range(49160, 49169)))
+        self.assertEqual(DEFAULT_SEASAVE_TCP, "10.0.0.22:" + ",".join(str(port) for port in range(49160, 49169)))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         p = patch.object(live_mod, "DB_DIR", Path(self.tmp.name)); p.start(); self.addCleanup(p.stop)
@@ -137,6 +167,14 @@ class LiveTests(unittest.TestCase):
         wait_for(self.live, lambda s: s["tcp_state"].startswith("connecting ("), timeout=8)
         self.live.close()
         self.assertFalse(self.live._thread.is_alive())
+
+    def test_open_non_xml_port_does_not_block_a_converted_data_port(self):
+        raw = FakeRawPort(); self.addCleanup(raw.close)
+        converted = FakeSeasave(); self.addCleanup(converted.close)
+        with patch.object(live_mod, "ANNOUNCE_S", 0.1), patch.object(live_mod, "TCP_RETRY_S", 0.05):
+            self.live.configure(f"{raw.addr},{converted.addr.rpartition(':')[2]}")
+            wait_for(self.live, lambda status: status["tcp_state"] == "connected", timeout=3)
+        self.assertEqual(self.live.status()["active"], converted.addr)
 
     def test_casts_survive_a_restart(self):
         self.start_cast()

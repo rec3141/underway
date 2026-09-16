@@ -1,7 +1,7 @@
 """Live CTD cast from Seasave's "TCP/IP Out" of converted data.
 
-The acquisition PC (``UNDERWAY_CTD_TCP``, host:port; the ship's is
-10.0.0.22:49161) serves an XML stream: on connection an
+The acquisition PC (``UNDERWAY_CTD_TCP``, host:port; by default the ship's
+10.0.0.22 host is probed across SeaSave ports 49160–49168) serves an XML stream: on connection an
 ``SBE_ConvertedDataSettings`` element lists the fields (``FieldDefinition``
 with ``FullName`` and ``Tag`` Field0, Field1, ...), then each scan comes as
 one top-level element holding ``<FieldN>value</FieldN>`` children. Column
@@ -41,7 +41,10 @@ from .config import DB_DIR
 
 log = logging.getLogger(__name__)
 
-DEFAULT_TCP = os.environ.get("UNDERWAY_CTD_TCP", "10.0.0.22:49161,49162")   # Seasave's TCP/IP Out, the ports it may use; "" for none
+SEASAVE_PORTS = range(49160, 49169)
+DEFAULT_SEASAVE_TCP = "10.0.0.22:" + ",".join(str(port) for port in SEASAVE_PORTS)
+DEFAULT_TCP = os.environ.get("UNDERWAY_CTD_TCP", DEFAULT_SEASAVE_TCP)
+# SeaSave assigns its TCP services within this range; only converted XML is accepted.
 TARGET_RX = re.compile(r"^[\w.-]+:\d{1,5}$")
 PORT_RX = re.compile(r"^\d{1,5}$")
 
@@ -231,10 +234,11 @@ class LiveCTD:
                 self._stop.wait(max(1.0, TCP_RETRY_S / len(targets)))
                 continue
             with self.lock:
-                self.tcp_state = "connected"
+                self.tcp_state = "probing"
                 self.active = f"{host}:{port}"
+                self._xml_tags, self._xml_names = [], []
             buf = ""
-            last_rx = time.time()
+            opened = last_rx = time.time()
             try:
                 while not self._stop.is_set():
                     with self.lock:
@@ -258,6 +262,13 @@ class LiveCTD:
                         break
                     last_rx = time.time()
                     buf = self._xml_feed(buf + data.decode("latin-1", errors="replace"), time.time())
+                    with self.lock:
+                        announced = bool(self._xml_tags)
+                        if announced:
+                            self.tcp_state = "connected"
+                    if not announced and time.time() - opened > ANNOUNCE_S:
+                        log.info("live CTD: %s is not a converted XML stream, trying next port", self.active)
+                        break
                     if len(buf) > 400000:           # a stream that never closes an element must not grow forever
                         buf = buf[-100000:]
             except OSError:
