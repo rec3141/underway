@@ -36,9 +36,9 @@ function manifest() {
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...((process.env.DEPTH_UI||process.env.UNDERWAY_UI)?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
-    surprise:{scales:[],note:''},stations:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
+    surprise:{scales:[],note:''},stations:process.env.BOTTLE_UI?[{kind:'CTD',leg,cast:'001',station:'Test',time:new Date(t).toISOString(),lat:76,lon:-78}]:[],columns_seen:[],files:{total:1,latest:'ACSD_20260904.csv'},
     data_range:{start:new Date(t-10000).toISOString(),end:process.env.STATUS_UI?new Date().toISOString():new Date(t+10000).toISOString()},
-    latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json'},
+    latest:{lat:76,lon:-78},casts:{index:'data/casts/index.json'},calendar:{file:'data/calendar.json',...(process.env.STATUS_UI?{now:{completed:null,in_progress:[],next:null}}:{})},
     aggregates:{'1h':{file:'data/agg-1h.json'},'1d':{file:'data/agg-1d.json'}},intranet:[],
   };
 }
@@ -271,26 +271,50 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       console.log('PASS gallery return, whole-image fit, previous/next and keyboard/fullscreen slideshow');return;
     }
     if(process.env.STATUS_UI) {
-      await until('!!document.querySelector("#status .schedlink")');
+      await until('!document.querySelector("#alert").hidden && !document.querySelector("#schedrow").hidden');
       const headerHeight=await evaluate('document.querySelector("#status").getBoundingClientRect().height');
       assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      assert.equal(await evaluate('document.querySelector("#status .refresh")?.textContent.includes("last refresh")'),true);
+      assert.equal(await evaluate('!!document.querySelector("#status .schedlink")'),false);
+      await evaluate('document.querySelector("#status .refresh").click()');
+      assert.equal(await evaluate('document.querySelector("#srcpop").open'),true);
+      assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      assert.equal(await evaluate('document.querySelector("#status .refresh")?.textContent.includes("last refresh")'),true);
+      await evaluate('document.querySelector("#schedrow").click()');
+      await until('!document.querySelector("#schedticker").hidden');
+      assert.equal(await evaluate('!!document.querySelector("#status .schedlink")'),false);
+      assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      await evaluate('document.querySelector("#alert").click()');
+      await until('document.querySelector("#alert").hidden && !!document.querySelector("#status .schedlink")');
       assert.equal(await evaluate('document.querySelector("#status .schedlink")?.textContent'),'STATUS');
-      await evaluate('UW.M.calendar.now={in_progress:[]};UW.store.set("sched.mode","hidden");UW.webId();UW.pollInapp()');
+      assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      await evaluate('document.querySelector("#status .schedlink").click()');
+      await until('!document.querySelector("#alert").hidden && !document.querySelector("#schedrow").hidden');
+      assert.equal(await evaluate('!!document.querySelector("#status .schedlink")'),false);
+      assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      await evaluate('document.querySelector("#schedrow").click();document.querySelector("#alert").click();UW.webId();UW.pollInapp()');
       await until('document.querySelector("#status").textContent.includes("Schedule changed")');
       assert.equal(await evaluate('document.querySelector("#alert").hidden'),true);
       assert.equal(await evaluate('document.querySelector("#status .live")?.textContent'),'LIVE');
+      assert.equal(await evaluate('document.querySelector("#status .refresh")?.textContent.includes("last refresh")'),true);
       assert.equal(await evaluate('!!document.querySelector("#status .status-alert")'),true);
       assert.equal(await evaluate('!!document.querySelector("#status .schedlink")'),false);
       assert.equal(await evaluate('document.querySelector("#status").getBoundingClientRect().height'),headerHeight);
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#status")).whiteSpace'),'nowrap');
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS LIVE remains beside a temporary status alert without growing the header');return;
+      console.log('PASS refresh/LIVE persist through source and schedule clicks; STATUS appears only after the second banner click');return;
     }
     if(process.env.BOTTLE_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelector("#casttable tbody tr[data-id]")');
       await evaluate('document.querySelector("#cast-bottle-table").open=true');
+      await until('document.querySelector("#cast-bottle-meta").textContent.includes("0 of 0")');
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-tsv").disabled'),true);
+      assert.equal(await evaluate('document.querySelector("#casttable thead input[data-select-all]").getAttribute("aria-label")'), 'Select all shown casts');
+      await evaluate('document.querySelector("#casttable thead input[data-select-all]").click()');
       await until('document.querySelectorAll("#cast-bottle-rows tbody tr").length===2');
+      assert.equal(await evaluate('document.querySelector("#casttable thead input[data-select-all]").checked'),true);
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-meta").textContent.includes("export keeps full precision")'),false);
       if(process.env.BOTTLE_SHOT){
         await evaluate('document.querySelector("#cast-bottle-table").scrollIntoView()');
         await wait(250);
@@ -310,8 +334,19 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(exported.includes('34.398123'),true);
       assert.equal(exported.includes('20.12345'),true);
       assert.equal(exported.includes('34.5'),false);
+      await evaluate('document.querySelector("#cast-bottle-search").value="";document.querySelector("#cast-bottle-search").dispatchEvent(new Event("input"));document.querySelector("#casttable thead input[data-select-all]").click()');
+      await until('document.querySelector("#cast-bottle-meta").textContent.includes("0 of 0")');
+      assert.equal(await evaluate('document.querySelector("#cast-bottle-tsv").disabled'),true);
+      await evaluate('UW.showTab("stations")');
+      await until('document.querySelector("#stationtable thead input[data-select-all]")');
+      assert.equal(await evaluate('document.querySelector("#stationtable thead input[data-select-all]").getAttribute("aria-label")'),'Select all shown station casts');
+      await evaluate('document.querySelector("#stationtable thead input[data-select-all]").click()');
+      await until('document.querySelector("#stationtable thead input[data-select-all]").checked');
+      await until('document.querySelector("#cast-bottle-meta").textContent.includes("2 of 2")');
+      await evaluate('document.querySelector("#stationtable thead input[data-select-all]").click()');
+      await until('document.querySelector("#cast-bottle-meta").textContent.includes("0 of 0")');
       assert.deepEqual(await evaluate('window.__errors'),[]);
-      console.log('PASS collapsible cast bottle measurements table and TSV export');return;
+      console.log('PASS select-all Casts/Stations controls, selected-cast bottles and full-precision TSV export');return;
     }
     if(process.env.MAP_MESH_UI) {
       await until('UW.state.geoComplete && UW.mapView?.map?.isStyleLoaded()');
@@ -690,6 +725,15 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(process.env.TRANSECT_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelectorAll("#casttable tr[data-id]").length===30');
+      await evaluate('document.querySelector("#castsearch").value="Station 29";document.querySelector("#castsearch").dispatchEvent(new Event("input"))');
+      await until('document.querySelectorAll("#casttable tr[data-id]").length===1');
+      await evaluate('document.querySelector("#casttable thead input[data-select-all]").click()');
+      await until('document.querySelector("#casttable thead input[data-select-all]").checked');
+      assert.equal(await evaluate('document.querySelector("#casttable tr[data-id]").classList.contains("sel")'),true);
+      await evaluate('document.querySelector("#castsearch").value="";document.querySelector("#castsearch").dispatchEvent(new Event("input"))');
+      await until('document.querySelectorAll("#casttable tr[data-id]").length===30');
+      assert.equal(await evaluate('document.querySelector("#casttable thead input[data-select-all]").indeterminate'),true);
+      await evaluate('document.querySelector("#castclear").click()');
       assert.deepEqual(await evaluate('[...document.querySelectorAll("#castkind button")].map(b=>b.textContent)'),['All','Live','Rosette','TM','MVP','TRS']);
       assert.equal(await evaluate('document.querySelector("#castlist").getBoundingClientRect().height <= innerHeight/3+1'),true);
       assert.equal(await evaluate('document.querySelector("#castlist").scrollHeight > document.querySelector("#castlist").clientHeight'),true);
@@ -726,7 +770,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="Shelf <transect>")'),false);
       await evaluate('UW.showTab("stations");UW.showTab("wiki");document.querySelector("#wikiclose").click()');
       assert.equal(await evaluate('document.querySelector("#pane-stations").hidden'),false);
-      assert.equal(await evaluate('document.querySelector("#stationtable th").dataset.k'),'station');
+      assert.equal(await evaluate('document.querySelector("#stationtable th[data-k]").dataset.k'),'station');
       assert.equal(await evaluate('document.querySelector("#stationtable").textContent.includes("(ship)")'),false);
       await evaluate('UW.chatToggle(true)');
       await until('document.querySelectorAll("#chatlog .msg").length===45');

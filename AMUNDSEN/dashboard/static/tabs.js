@@ -151,6 +151,22 @@
     store.set("casts.sel", [...casts.sel]);
     renderCastList(); renderCastPlots(); UW.renderMap();
   }
+  function selectCastRows(ids, checked) {
+    const targets = new Set(ids);
+    for (const selected of [...casts.sel]) if (targets.has(parentId(selected))) casts.sel.delete(selected);
+    if (checked) for (const id of targets) casts.sel.add(id);
+    store.set("casts.sel", [...casts.sel]);
+    renderCastList(); renderCastPlots(); UW.renderMap();
+  }
+  function selectAllHeader(table, ids) {
+    const box = table.querySelector("thead input[data-select-all]");
+    if (!box) return;
+    const shown = new Set(ids);
+    const n = ids.filter((id) => casts.sel.has(id)).length;
+    box.checked = ids.length > 0 && n === ids.length;
+    box.indeterminate = !box.checked && [...casts.sel].some((id) => shown.has(parentId(id)));
+    box.disabled = !ids.length;
+  }
 
   async function ensureCastIndex() {
     const stamp = UW.M.generated_utc;
@@ -237,7 +253,7 @@
     const head = bottleTableHead.map((h, i) => `<th data-column="${i}" class="${i === 2 || i === 3 || i === 4 || i >= 6 ? "num" : ""}" title="${esc(h)} · sort" aria-sort="${column === i ? dir > 0 ? "ascending" : "descending" : "none"}">${esc(bottleColumnName(h))}${column === i ? dir > 0 ? " ▲" : " ▼" : ""}</th>`).join("");
     const body = bottleTableView.map((r) => `<tr>${r.map((v, i) => `<td class="${i === 2 || i === 3 || i === 4 || i >= 6 ? "num mono" : i === 1 || i === 5 ? "mono" : ""}" title="${esc(v ?? "")}">${esc(bottleBrowseValue(v, i))}</td>`).join("")}</tr>`).join("");
     $("#cast-bottle-rows").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${bottleTableHead.length}" class="muted">No bottle firings match.</td></tr>`}</tbody>`;
-    $("#cast-bottle-meta").textContent = `${bottleTableView.length.toLocaleString()} of ${bottleTableRows.length.toLocaleString()} bottle firings shown · export keeps full precision`;
+    $("#cast-bottle-meta").textContent = `${bottleTableView.length.toLocaleString()} of ${bottleTableRows.length.toLocaleString()} bottle firings shown`;
     $("#cast-bottle-tsv").disabled = !bottleTableView.length;
     for (const th of $("#cast-bottle-rows").querySelectorAll("th[data-column]")) th.onclick = () => {
       const next = +th.dataset.column;
@@ -249,8 +265,9 @@
     const table = $("#cast-bottle-table");
     if (!table.open || !casts.idx) return;
     const seq = ++bottleTableSeq;
-    const visible = castRows().rows.filter((c) => c.n_bottles && c.file);
-    $("#cast-bottle-meta").textContent = `Loading ${visible.length} casts with bottle firings…`;
+    const visible = orderedSelection().filter((c) => c.n_bottles && c.file)
+      .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg }));
+    $("#cast-bottle-meta").textContent = `Loading ${visible.length} selected casts with bottle firings…`;
     $("#cast-bottle-tsv").disabled = true;
     const loaded = new Array(visible.length);
     let next = 0;
@@ -281,7 +298,9 @@
     const { rows, inLegs, f } = castRows();
     renderBottleTable();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = CAST_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
+    const head = CAST_COLS.map(([k, l]) => k === "sel"
+      ? `<th class="select-all"><input type="checkbox" data-select-all aria-label="Select all shown casts" title="Select all shown casts"></th>`
+      : `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
@@ -299,8 +318,11 @@
       return html;
     };
     tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, inLegs.length, f, "tr", CAST_COLS.length)}${rows.map(row).join("")}${!rows.length ? `<tr><td colspan="${CAST_COLS.length}" class="muted">no casts match</td></tr>` : ""}</tbody>`;
+    const all = tbl.querySelector("thead input[data-select-all]");
+    selectAllHeader(tbl, rows.map((c) => c.id));
+    all.onclick = (e) => { e.stopPropagation(); selectCastRows(rows.map((c) => c.id), all.checked); };
     topScroll($("#castlist"));
-    for (const th of tbl.querySelectorAll("th")) th.onclick = () => {
+    for (const th of tbl.querySelectorAll("th[data-k]")) th.onclick = () => {
       const k = th.dataset.k; casts.sort = { key: k, dir: casts.sort.key === k ? -casts.sort.dir : (k === "time" ? -1 : 1) }; store.set("casts.sort", casts.sort); renderCastList();
     };
     for (const tr of tbl.querySelectorAll("tbody tr[data-id]")) tr.onclick = (e) => {
@@ -1574,11 +1596,24 @@
   function renderStations() {
     const rows = stationRows();
     const arrow = (k) => stn.sort.key === k ? (stn.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
+    const head = `<th class="select-all"><input type="checkbox" data-select-all aria-label="Select all shown station casts" title="Select all shown station casts"></th>`
+      + STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
-    const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`) ? "sel" : ""} ${r.cast ? "" : "evst"}">${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
-    $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + stn.hidden, UW.currentFilter(), "tr", STATION_COLS.length)}${body}</tbody>`;
+    const stationKey = (r) => `${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`;
+    const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(stationKey(r)) ? "sel" : ""} ${r.cast ? "" : "evst"}"><td class="sel">${r.cast && casts.sel.has(stationKey(r)) ? "✓" : ""}</td>${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
+    $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + stn.hidden, UW.currentFilter(), "tr", STATION_COLS.length + 1)}${body}</tbody>`;
+    const selectable = rows.filter((r) => r.cast).map(stationKey);
+    const all = $("#stationtable thead input[data-select-all]");
+    selectAllHeader($("#stationtable"), selectable);
+    all.onclick = async (e) => {
+      e.stopPropagation();
+      const checked = all.checked;
+      try { await ensureCastIndex(); }
+      catch { UW.setLoadError("Casts", true); renderStations(); return; }
+      selectCastRows(selectable.filter((id) => castById(id)), checked);
+      renderStations();
+    };
     const nsel0 = new Set([...casts.sel].map(parentId)).size;
     $("#stnclear").textContent = nsel0 ? `clear selection (${nsel0})` : "clear selection";
     $("#stnclear").classList.toggle("has", nsel0 > 0);
@@ -1586,7 +1621,7 @@
     const nsel = rows.filter((r) => r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
     const nev = rows.filter((r) => !r.cast).length;
     $("#stnmeta").textContent = `${rows.length.toLocaleString()} stations${nev ? ` (${nev} without a cast)` : ""}${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to select its cast (again to deselect), or to find a station on the map`;
-    for (const th of $("#stationtable").querySelectorAll("th")) th.onclick = () => {
+    for (const th of $("#stationtable").querySelectorAll("th[data-k]")) th.onclick = () => {
       const k = th.dataset.k; stn.sort = { key: k, dir: stn.sort.key === k ? -stn.sort.dir : (k === "time" ? -1 : 1) }; store.set("stn.sort", stn.sort); renderStations();
     };
     // a click selects the cast (and shows the station on the map); a click on

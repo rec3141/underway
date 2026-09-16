@@ -199,11 +199,15 @@ a:hover { text-decoration: underline; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
 .brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; cursor: pointer; }   /* the schedule shortcut next to LIVE */
-.brand #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.4em; line-height: 1.4; }
-.brand #status .status-alert { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; color: var(--accent-2); font-weight: 700; }
+.brand #status { display: flex; align-items: baseline; min-width: 0; white-space: nowrap; height: 1.4em; line-height: 1.4; }
+.brand #status .status-now { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand #status .status-tail { min-width: 0; overflow: hidden; white-space: nowrap; }
+.brand #status .status-short { flex: 0 0 auto; }
+.brand #status .status-notice { flex: 1 1 auto; text-overflow: ellipsis; }
+.brand #status .status-alert { color: var(--accent-2); font-weight: 700; }
 .brand .sub .refresh { cursor: pointer; border-bottom: 1px dotted var(--line); list-style: none; }
 .brand .sub .refresh::-webkit-details-marker { display: none; }
-.brand .sub .srcpop { display: inline-block; position: relative; vertical-align: baseline; }   /* a details element is block by default: it would break the line */
+.brand .sub .srcpop { display: inline-block; position: relative; vertical-align: baseline; flex: 0 0 auto; }   /* the refresh control stays visible while the date or alert yields space */
 .brand .sub .srcpop > summary { display: inline; }
 .brand .sub .srcpop:not([open]):not(:hover) table { display: none; }        /* hover shows the box; a click pins it */
 .brand .sub .srcpop:hover::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; }   /* bridges the gap so the pointer can reach the box */
@@ -802,6 +806,10 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
 #aggtable, #stationtable , #casttable, #cast-bottle-rows { border-collapse: collapse; font-size: var(--t-sm); min-width: 100%; }
 #aggtable th, #stationtable th , #casttable th, #cast-bottle-rows th { position: sticky; top: 0; background: var(--card-2); color: var(--muted); text-align: left; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; border-bottom: 1px solid var(--line); }
 #aggtable th:hover, #stationtable th:hover , #casttable th:hover, #cast-bottle-rows th:hover { color: var(--fg); }
+#stationtable th.select-all, #casttable th.select-all { width: 32px; min-width: 32px; padding: 6px 8px; cursor: default; text-align: center; }
+#stationtable th.select-all input, #casttable th.select-all input { width: 16px; height: 16px; margin: 0; vertical-align: middle; accent-color: var(--accent-2); cursor: pointer; }
+#stationtable th.select-all input:disabled, #casttable th.select-all input:disabled { cursor: default; }
+#stationtable td.sel { text-align: center; color: var(--accent-2); font-weight: 700; }
 #aggtable td, #stationtable td , #casttable td, #cast-bottle-rows td { padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 #aggtable td.mono, #stationtable td.mono , #casttable td.mono, #cast-bottle-rows td.mono { font-family: var(--mono); font-size: var(--t-sm); }
 /* the first column stays put while the table scrolls sideways: its cells
@@ -811,7 +819,7 @@ table.sched tr.fold button:hover { color: var(--fg); border-color: var(--accent-
 #aggtable tbody tr:hover td:first-child, #stationtable tbody tr:hover td:first-child, #casttable tbody tr:hover td:first-child, #cast-bottle-rows tbody tr:hover td:first-child { background: var(--card-2); }
 #aggtable tbody tr.on td:first-child, #stationtable tbody tr.on td:first-child, #casttable tbody tr.on td:first-child { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
 #aggtable tbody tr.sel td:first-child, #stationtable tbody tr.sel td:first-child, #casttable tbody tr.sel td:first-child { background: color-mix(in srgb, var(--accent-2) 8%, var(--card)); }
-#stationtable td:nth-child(8) { white-space: normal; min-width: 220px; max-width: 420px; }   /* activities: the planned operations wrap */
+#stationtable td:nth-child(9) { white-space: normal; min-width: 220px; max-width: 420px; }   /* activities: the planned operations wrap */
 #aggtable tbody tr:hover, #stationtable tbody tr:hover , #casttable tbody tr:hover, #cast-bottle-rows tbody tr:hover { background: var(--card-2); }
 
 /* ---------------------------------------------------------------- chat drawer */

@@ -426,11 +426,11 @@
     const gen = Date.parse(M.generated_utc);
     const open = $("#srcpop")?.open;
     // the sources box opens on hover, or on a click on "last refresh" or LIVE
-    const schedWord = M.calendar ? ` · <span class="schedlink" id="schedlink" title="show the schedule">STATUS</span>` : "";
+    const schedWord = M.calendar && schedMode() === "hidden" ? `<span class="status-tail status-short"> · <span class="schedlink" id="schedlink" title="show the schedule">STATUS</span></span>` : "";
     const notice = inapp.msgs.at(-1);
     const statusWord = notice && Date.now() - notice.receivedAt < 120000
-      ? ` · <span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span>` : schedWord;
-    $("#status").innerHTML = `<b>${now}</b> · <details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
+      ? `<span class="status-tail status-notice"> · <span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span></span>` : schedWord;
+    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> · </span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
     const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
