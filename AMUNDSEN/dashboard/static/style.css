@@ -298,7 +298,7 @@ select {
 .livestate.live { background: var(--ok-bg); color: var(--ok); }
 .livestate.connected { background: var(--tag); color: var(--fg); }
 .livestate.offline, .livestate.off { background: var(--tag-bad); color: var(--pink); }
-.livestate.port-open { background: var(--tag-amber); color: var(--accent-2); }
+.livestate.port-open, .livestate.probing { background: var(--tag-amber); color: var(--accent-2); }
 .alertbar.folded { padding: 3px 12px; cursor: pointer; background: color-mix(in srgb, var(--accent-2) 10%, transparent); }
 .alertbar.folded:hover { background: color-mix(in srgb, var(--accent-2) 18%, transparent); }
 /* the folded bar: one slow ticker row */

@@ -338,6 +338,7 @@
   const live = { vars: store.get("casts.live.vars", ["temperature", "salinity"]), which: "current", data: null, timer: null, showCfg: false };
   const single = { vars: store.get("casts.single.vars", ["Temperature", "Salinity"]), id: null, dip: null };
   const LIVE_SKIP = new Set(["scan", "time", "t", "pressure", "prdm", "prm", "pr", "p", "depth", "depsm", "depth_m"]);
+  const SEASAVE_PORTS = Array.from({ length: 9 }, (_, i) => 49160 + i);
   const liveVisible = () => casts.kind === "live" && !$("#pane-casts").hidden;
 
   // spec: { depth[], vars: {name: values}, units: {name}, splitAt (index of the deepest point, or null), nowDepth, sub }
@@ -422,8 +423,15 @@
       const stl = box.querySelector("#livesetupstatus"); if (stl) stl.innerHTML = live.statusHtml || "";
       return;
     }
-    box.innerHTML = `<div class="livesetup-title">Live cast</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>Seasave TCP/IP out (host:port, more ports with commas) <input name="tcp" value="${esc(d.tcp || "")}" size="26"></label><button type="submit">apply</button>
+    box.innerHTML = `<div class="livesetup-title">Live cast</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>SeaSave TCP/IP out (host:port, more ports with commas) <input name="tcp" value="${esc(d.tcp || "")}" size="48"></label><button type="button" data-seasave-range title="Try every port in SeaSave's standard 49160–49168 range">49160–49168</button><button type="submit">apply</button>
         <span role="alert" id="livecfgerror"></span></form><div id="livedetails">${details}</div>`;
+    box.querySelector("[data-seasave-range]").onclick = () => {
+      const input = box.querySelector("[name=tcp]");
+      const first = input.value.split(",", 1)[0].trim();
+      const host = first.match(/^([\w.-]+):\d+$/)?.[1] || "10.0.0.22";
+      input.value = `${host}:${SEASAVE_PORTS.join(",")}`;
+      input.focus();
+    };
     box.querySelector("form").onsubmit = async (ev) => { ev.preventDefault(); const f = new FormData(ev.target);
       const button = ev.target.querySelector('[type="submit"]'), error = box.querySelector("#livecfgerror");
       button.disabled = true; error.textContent = "";
@@ -449,7 +457,7 @@
     const age = d.last_packet_age_s;
     const flowing = d.tcp_state === "connected" && age != null && age < 10;
     const announced = !!d.fields?.length;                          // Seasave sends its field list when it is really serving
-    const state = !d.tcp ? "OFF" : flowing ? "LIVE" : d.tcp_state === "connected" ? (announced ? "CONNECTED" : "PORT OPEN") : "OFFLINE";
+    const state = !d.tcp ? "OFF" : flowing ? "LIVE" : d.tcp_state === "connected" ? (announced ? "CONNECTED" : "PORT OPEN") : d.tcp_state === "probing" ? "PROBING" : "OFFLINE";
     const updated = d.packets && age != null ? `last updated ${age < 60 ? age.toFixed(0) + " s" : (age / 60).toFixed(0) + " min"} ago` : "no data yet";
     const why = !d.tcp ? "no source set" : state === "PORT OPEN" ? `Seasave at ${d.active || d.tcp} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off` : `Seasave at ${d.active || d.tcp}: ${d.tcp_state}`;
     const feed = `${stampL(Date.now())} ${tzAbbr()} · ${updated} · <span class="livestate ${state.toLowerCase().replace(" ", "-")}" title="${esc(why)}">${state}</span>`;
