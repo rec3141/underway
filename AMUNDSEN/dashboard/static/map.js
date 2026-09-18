@@ -357,12 +357,31 @@
     }
 
     hover(pt) {
+      // a box put up at a point stays while the pointer rests on that point
+      if (this.tipKey != null && !this.tip.hidden && this.tipAt && Math.hypot(pt.x - this.tipAt.x, pt.y - this.tipAt.y) <= PICK_PX) return;
       const hit = this.pick(pt);
       // the hand over anything with a hover box, or a silent point that still takes a click
       const silentTarget = !hit && this.pick(pt, true);
       this.map.getCanvas().style.cursor = hit || (silentTarget && at(silentTarget.tr.customdata, silentTarget.i) != null) ? "pointer" : "";
       const html = hit ? hoverOf(hit.tr, hit.i) : "";
+      this.tipKey = null;
       if (!html) { this.tip.hidden = true; return; }
+      this.placeTip(html, pt);
+    }
+
+    // the box at a point of the map, as if the pointer hovered it: it stays
+    // until something else is hovered or the map moves, so a tap on a phone
+    // (which hovers nothing) still reads what it tapped; `key` names what is
+    // shown, for a caller to refresh it while it is up (tipShowing)
+    showAt(lat, lon, html, key = null) {
+      if (!this.map || lat == null || lon == null) return;
+      this.tipAt = this.map.project([+lon, +lat]);
+      this.placeTip(html, this.tipAt);
+      this.tipKey = key;
+    }
+    tipShowing(key) { return !this.tip.hidden && this.tipKey === key; }
+
+    placeTip(html, pt) {
       this.tip.innerHTML = html;
       this.tip.hidden = false;
       const w = this.el.clientWidth, tw = this.tip.offsetWidth, th = this.tip.offsetHeight;

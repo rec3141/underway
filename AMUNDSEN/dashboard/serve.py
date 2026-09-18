@@ -202,6 +202,28 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(data))); self.end_headers()
             self.wfile.write(data)
             return
+        if u.path == "/api/transects":
+            # the sections every browser shares (dashboard.transects)
+            from .transects import listing
+            try:
+                return self._json(200, {"transects": listing()})
+            except (OSError, sqlite3.Error):
+                log.exception("transects read failed")
+                return self._json(500, {"error": "Shared transects could not be read"})
+        if u.path == "/api/searoute":
+            # ?from=lat,lon&to=lat,lon: the distance by air and by sea, and the sea route's path
+            from .searoute import route
+            q = parse_qs(u.query)
+            try:
+                pts = [float(v) for key in ("from", "to") for v in q.get(key, [""])[0].split(",")]
+                if len(pts) != 4:
+                    raise ValueError("from and to must each be lat,lon")
+                return self._json(200, route(*pts))
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception:                            # noqa: BLE001
+                log.exception("sea route failed")
+                return self._json(500, {"error": "The sea route could not be worked out"})
         if u.path == "/api/live":
             return self._json(200, LIVE.status() if LIVE else {"tcp": "", "tcp_state": "off"})
         if u.path == "/api/intranet":
@@ -355,6 +377,24 @@ class Handler(SimpleHTTPRequestHandler):
                 self.close_connection = True
                 log.exception('photo upload failed')
                 return self._json(500, {'error': 'Upload failed; keep this page open and retry.'})
+        if u.path in ("/api/transects", "/api/transects/delete"):
+            # share a section with every browser ({"transect": {...}, "name": who}), or drop one ({"id": ...})
+            from .transects import remove, save
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 512 * 1024:
+                    raise ValueError("Transect request must be at most 512 KB")
+                payload = json.loads(self.rfile.read(n))
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                if u.path.endswith("/delete"):
+                    return self._json(200, {"ok": True, "removed": remove(payload.get("id"))})
+                return self._json(200, {"ok": True, "transect": save(payload.get("transect"), str(payload.get("name", "")))})
+            except (ValueError, UnicodeDecodeError) as e:
+                return self._json(400, {"error": str(e)})
+            except Exception:
+                log.exception("transect save failed")
+                return self._json(500, {"error": "Could not save the transect. Please try again."})
         if u.path == "/api/feedback":
             from .feedback import submit
             try:

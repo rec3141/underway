@@ -23,7 +23,8 @@
     bottles: store.get("casts.bottles", false),          // mark the bottle firings on the casts
     smooth: store.get("casts.smooth", true),             // the section smooths the jittery sensors down the profile
     search: "",
-    transects: store.get("casts.transects", []),
+    transects: store.get("casts.transects", []),       // saved in this browser only: from before sharing, or when the server was away
+    shared: [], sharedAt: 0,                            // the transects every browser shares (api/transects), and when they were fetched
   };
   // a profile's variable at a pressure, interpolated between its levels
   const valueAt = (prof, v, pres) => {
@@ -38,8 +39,9 @@
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
-  const allCasts = () => [...(casts.idx?.casts || []), ...casts.transects];
-  const castById = (id) => (id.startsWith("trs:") ? casts.transects : casts.idx?.casts)?.find((c) => c.id === parentId(id));
+  const allTransects = () => [...casts.shared, ...casts.transects];
+  const allCasts = () => [...(casts.idx?.casts || []), ...allTransects()];
+  const castById = (id) => (id.startsWith("trs:") ? allTransects() : casts.idx?.casts)?.find((c) => c.id === parentId(id));
   const selectionIds = () => [...new Set([...casts.sel].flatMap((id) => id.startsWith("trs:") ? castById(id)?.members || [] : [id]))];
   const dipSel = (towId) => selectionIds().filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
   casts.open = new Set(store.get("casts.open", []));
@@ -170,10 +172,32 @@
 
   async function ensureCastIndex() {
     const stamp = UW.M.generated_utc;
+    await loadSharedTransects();
     if (casts.idx && casts.loadedFor === stamp) return;
     const idx = await cachedJSON("cast-index", UW.M.casts.index);
     casts.idx = idx; casts.loadedFor = stamp;
     fillCastVars();
+  }
+  // the shared transects, asked for again after a minute (another browser
+  // may have saved one); a server that does not answer leaves what we have
+  async function loadSharedTransects() {
+    if (Date.now() - casts.sharedAt < 60000) return;
+    casts.sharedAt = Date.now();
+    try {
+      const r = await fetch("api/transects");
+      if (r.ok) casts.shared = (await r.json()).transects || [];
+    } catch { /* offline: the local ones stand alone */ }
+  }
+  // a transect to the server, for every browser; null (with a word to the user) when it could not go
+  async function shareTransect(transect) {
+    try {
+      const r = await fetch("api/transects", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transect, name: store.get("chat.name", "") }) });
+      const body = await r.json();
+      if (!r.ok || !body.transect) throw new Error(body.error || "no answer");
+      casts.shared = [...casts.shared.filter((c) => c.id !== body.transect.id), body.transect];
+      return body.transect;
+    } catch (err) { UW.toast(`The transect could not be shared (${err.message}); it stays in this browser`); return null; }
   }
   async function castData(id) {
     const m = castById(id); if (!m) return null;
@@ -226,17 +250,22 @@
   }
   let bottleTableSeq = 0, bottleTableHead = [], bottleTableRows = [], bottleTableView = [];
   let bottleTableSort = { column: 0, dir: 1 };
+  // the fixed columns before the measured parameters: the cast's station and position, then the firing
+  const BOTTLE_FIXED = ["leg", "cast", "station", "lat", "lon", "bottle", "pressure (dbar)", "depth (m)", "time"];
   const bottleColumnName = (name) => ({
-    leg: "leg", cast: "cast", bottle: "bottle", "pressure (dbar)": "pressure (dbar)", "depth (m)": "depth (m)", time: "time (ship)",
+    time: "time (ship)",
     Sal00: "Salinity (PSU)", Sal11: "Salinity 2 (PSU)", T090C: "Temperature (°C)", T190C: "Temperature 2 (°C)",
     Sbeox0Mm: "Oxygen (µM)", CStarTr0: "Transmission (%)", FlSP: "Fluorescence (µg/L)", WetCDOM: "CDOM (mg/m³)",
   })[name] || name;
+  const bottleNumeric = (column) => column >= BOTTLE_FIXED.length || ["lat", "lon", "bottle", "pressure (dbar)", "depth (m)"].includes(bottleTableHead[column]);
+  const bottleMono = (column) => bottleNumeric(column) || ["cast", "time"].includes(bottleTableHead[column]);
   function bottleBrowseValue(value, column) {
     if (value == null || value === "") return "—";
-    if (column === 5) return String(value).replace("T", " ").slice(0, 16);
-    if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
     const key = bottleTableHead[column];
-    if (column === 3 || column === 4) return String(Number(value.toFixed(1)));
+    if (key === "time") return String(value).replace("T", " ").slice(0, 16);
+    if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
+    if (key === "lat" || key === "lon") return value.toFixed(4);
+    if (key === "pressure (dbar)" || key === "depth (m)") return String(Number(value.toFixed(1)));
     if (/^Sal/i.test(key)) return String(Number(value.toFixed(3)));
     if (/^T\d|^Temp/i.test(key)) return String(Number(value.toFixed(3)));
     return String(Number(value.toPrecision(3)));
@@ -250,8 +279,8 @@
       if (x == null) return 1; if (y == null) return -1;
       return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
     });
-    const head = bottleTableHead.map((h, i) => `<th data-column="${i}" class="${i === 2 || i === 3 || i === 4 || i >= 6 ? "num" : ""}" title="${esc(h)} · sort" aria-sort="${column === i ? dir > 0 ? "ascending" : "descending" : "none"}">${esc(bottleColumnName(h))}${column === i ? dir > 0 ? " ▲" : " ▼" : ""}</th>`).join("");
-    const body = bottleTableView.map((r) => `<tr>${r.map((v, i) => `<td class="${i === 2 || i === 3 || i === 4 || i >= 6 ? "num mono" : i === 1 || i === 5 ? "mono" : ""}" title="${esc(v ?? "")}">${esc(bottleBrowseValue(v, i))}</td>`).join("")}</tr>`).join("");
+    const head = bottleTableHead.map((h, i) => `<th data-column="${i}" class="${bottleNumeric(i) ? "num" : ""}" title="${esc(h)} · sort" aria-sort="${column === i ? dir > 0 ? "ascending" : "descending" : "none"}">${esc(bottleColumnName(h))}${column === i ? dir > 0 ? " ▲" : " ▼" : ""}</th>`).join("");
+    const body = bottleTableView.map((r) => `<tr>${r.map((v, i) => `<td class="${bottleNumeric(i) ? "num mono" : bottleMono(i) ? "mono" : ""}" title="${esc(v ?? "")}">${esc(bottleBrowseValue(v, i))}</td>`).join("")}</tr>`).join("");
     $("#cast-bottle-rows").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${bottleTableHead.length}" class="muted">No bottle firings match.</td></tr>`}</tbody>`;
     $("#cast-bottle-meta").textContent = `${bottleTableView.length.toLocaleString()} of ${bottleTableRows.length.toLocaleString()} bottle firings shown`;
     $("#cast-bottle-tsv").disabled = !bottleTableView.length;
@@ -284,8 +313,9 @@
     }
     if (seq !== bottleTableSeq || !table.open) return;
     const parameters = [...new Set(loaded.flatMap((c) => (c?.bottles || []).flatMap((b) => Object.keys(b.parameters || {}))))].sort();
-    bottleTableHead = ["leg", "cast", "bottle", "pressure (dbar)", "depth (m)", "time", ...parameters];
-    bottleTableRows = loaded.flatMap((data, i) => (data?.bottles || []).map((b) => [visible[i].legLabel, visible[i].cast, b.bottle, b.p, b.depth_m, b.time, ...parameters.map((p) => b.parameters?.[p]) ]));
+    bottleTableHead = [...BOTTLE_FIXED, ...parameters];
+    bottleTableRows = loaded.flatMap((data, i) => (data?.bottles || []).map((b) => [visible[i].legLabel, visible[i].cast, visible[i].station || "", visible[i].lat ?? null, visible[i].lon ?? null,
+      b.bottle, b.p, b.depth_m, b.time, ...parameters.map((p) => b.parameters?.[p]) ]));
     renderBottleRows();
   }
   function renderCastList() {
@@ -305,9 +335,9 @@
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
       let html = `<tr class="${whole ? "sel" : part ? "part" : ""}" data-id="${esc(c.id)}">
-        <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="Delete saved transect" aria-label="Delete saved transect">×</button>` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
+        <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="${c.shared ? "Delete this shared transect for everyone" : "Delete this transect (saved in this browser)"}" aria-label="Delete transect">×</button>${c.shared ? "" : `<button class="tog" data-share-transect="${esc(c.id)}" title="Share this transect with everyone on the ship" aria-label="Share transect">↑</button>`}` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
         <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="Open rosette sheet">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
-        <td title="${esc(c.station || '')}">${esc(c.kind==='TRS' && c.stations?.length ? `${c.stations[0]} → ${c.stations.at(-1)}` : c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}</td>
+        <td title="${esc(c.station || '')}">${esc(c.kind==='TRS' && c.stations?.length ? `${c.stations[0]} → ${c.stations.at(-1)}` : c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}${c.kind === "TRS" ? ` <small>${c.shared ? (c.by ? `shared by ${esc(c.by)}` : "shared") : "this browser"}</small>` : ""}</td>
         <td class="mono">${esc(castDate(c))}</td><td class="mono">${c.depth ?? ""}</td><td class="mono">${c.bottles ?? ""}</td><td>${esc(c.legLabel)}</td></tr>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
@@ -329,13 +359,29 @@
       if (e.target.closest(".tog") || e.target.closest("a")) return;
       e.preventDefault(); toggleCast(tr.dataset.id);
     };
-    for (const b of tbl.querySelectorAll("[data-delete-transect]")) b.onclick = (e) => {
+    for (const b of tbl.querySelectorAll("[data-delete-transect]")) b.onclick = async (e) => {
       e.stopPropagation();
-      const id = b.dataset.deleteTransect;
-      if (!confirm(`Delete saved transect “${castById(id).label}”?`)) return;
-      casts.transects = casts.transects.filter((c) => c.id !== id); casts.sel.delete(id);
-      store.set("casts.transects", casts.transects); store.set("casts.sel", [...casts.sel]);
+      const id = b.dataset.deleteTransect, t = castById(id);
+      if (!confirm(t.shared ? `Delete the shared transect “${t.label}” for everyone?` : `Delete saved transect “${t.label}”?`)) return;
+      if (t.shared) {
+        try {
+          const r = await fetch("api/transects/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+          if (!r.ok) throw new Error();
+        } catch { UW.toast("The shared transect could not be deleted: the server did not answer"); return; }
+        casts.shared = casts.shared.filter((c) => c.id !== id);
+      } else {
+        casts.transects = casts.transects.filter((c) => c.id !== id); store.set("casts.transects", casts.transects);
+      }
+      casts.sel.delete(id); store.set("casts.sel", [...casts.sel]);
       renderCastList(); renderCastPlots(); UW.renderMap();
+    };
+    // a transect from before sharing (or saved while the server was away) goes to everyone on request
+    for (const b of tbl.querySelectorAll("[data-share-transect]")) b.onclick = async (e) => {
+      e.stopPropagation();
+      const id = b.dataset.shareTransect;
+      if (!(await shareTransect(castById(id)))) return;
+      casts.transects = casts.transects.filter((c) => c.id !== id); store.set("casts.transects", casts.transects);
+      renderCastList();
     };
     for (const b of tbl.querySelectorAll("button[data-tow]")) b.onclick = (e) => {
       e.stopPropagation();
@@ -831,8 +877,8 @@
     if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
     const save = $("#savetransect");
     save.disabled = false;
-    save.onclick = () => {
-      const label = prompt("Transect name (saved in this browser)", `Transect ${casts.transects.length + 1}`)?.trim();
+    save.onclick = async () => {
+      const label = prompt("Transect name (shared with everyone on the ship)", `Transect ${allTransects().length + 1}`)?.trim();
       if (!label) return;
       const times = withVar.map((d) => d.time).filter(Boolean).sort();
       const legs = [...new Set(withVar.map((d) => d.parent?.leg || d.leg).filter(Boolean))];
@@ -845,10 +891,12 @@
           const lat = d.lat ?? d.parent?.lat, lon = d.lon ?? d.parent?.lon;
           return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : [null, null];
         }) };
-      const next = [...casts.transects, transect];
-      try { localStorage.setItem("uw:casts.transects", JSON.stringify(next)); }
-      catch { alert("This browser could not save the transect. Check available storage and try again."); return; }
-      casts.transects = next;
+      if (!(await shareTransect(transect))) {          // the server did not take it: this browser keeps it
+        const next = [...casts.transects, transect];
+        try { localStorage.setItem("uw:casts.transects", JSON.stringify(next)); }
+        catch { alert("This browser could not save the transect. Check available storage and try again."); return; }
+        casts.transects = next;
+      }
       casts.kind = "TRS"; casts.search = ""; $("#castsearch").value = "";
       store.set("casts.kind", casts.kind);
       for (const b of $("#castkind").querySelectorAll("button")) b.classList.toggle("on", b.dataset.k === casts.kind);
@@ -970,7 +1018,8 @@
       b.onclick = () => { const was = casts.kind; casts.kind = b.dataset.k; store.set("casts.kind", casts.kind); for (const x of $("#castkind").querySelectorAll("button")) x.classList.toggle("on", x === b); renderCastList(); if (casts.kind === "live" || was === "live") renderCastPlots(); UW.renderMap(); };
     }
     $("#castsearch").oninput = debounce((e) => { casts.search = e.target.value; renderCastList(); }, 150);
-    $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); renderCastList(); renderCastPlots(); UW.renderMap(); };
+    // clearing the selection also empties the filter box: a fresh start
+    $("#castclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); casts.search = ""; $("#castsearch").value = ""; renderCastList(); renderCastPlots(); UW.renderMap(); };
     $("#castcsv").onclick = downloadCastsTSV;
     $("#cast-bottle-table").ontoggle = () => { if ($("#cast-bottle-table").open) renderBottleTable(); else ++bottleTableSeq; };
     $("#cast-bottle-search").oninput = renderBottleRows;
@@ -1578,7 +1627,7 @@
   // one row per CTD cast from the logbook, and one per station the event
   // log records without a cast (kind "event", with what was done there)
   const stn = { sort: store.get("stn.sort", { key: "time", dir: -1 }), search: "" };
-  const STATION_COLS = [["station", "station"], ["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["lat", "lat"], ["lon", "lon"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
+  const STATION_COLS = [["station", "station"], ["lat", "lat"], ["lon", "lon"], ["time", "time (ship)"], ["leg", "leg"], ["kind", "source"], ["cast", "cast"], ["label", "label"], ["type", "type"], ["activities", "activities"], ["bottom_m", "bottom (m)"], ["depth_m", "cast depth (m)"], ["comments", "comments"]];
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
@@ -1652,7 +1701,7 @@
   }
   function wireStations() {
     $("#stnsearch").oninput = debounce((e) => { stn.search = e.target.value; renderStations(); }, 150);
-    $("#stnclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); UW.clearFocus?.(); renderStations(); renderCastList(); if (!$("#pane-casts").hidden) renderCastPlots(); UW.renderMap(); };
+    $("#stnclear").onclick = () => { casts.sel.clear(); store.set("casts.sel", []); stn.search = ""; $("#stnsearch").value = ""; UW.clearFocus?.(); renderStations(); renderCastList(); if (!$("#pane-casts").hidden) renderCastPlots(); UW.renderMap(); };
     $("#stncsv").onclick = downloadStationsCSV;
   }
 
