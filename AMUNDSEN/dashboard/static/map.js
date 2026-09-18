@@ -237,8 +237,9 @@
         this._at = e.point;
         if (!this._raf) this._raf = requestAnimationFrame(() => { this._raf = 0; this.hover(this._at); });
       });
-      this.map.getCanvas().addEventListener("mouseleave", () => { this.tip.hidden = true; });
-      this.map.on("movestart", () => { this.tip.hidden = true; });
+      this.map.getCanvas().addEventListener("mouseleave", () => { if (!this.pinned) this.tip.hidden = true; });
+      this.map.on("movestart", () => { if (!this.pinned) this.tip.hidden = true; });
+      this.map.on("move", () => { if (this.pinned) this.placeTip(this.pinned.html, this.map.project([this.pinned.lon, this.pinned.lat])); });
       this.map.on("click", (e) => {
         const hit = this.pick(e.point, true);
         if (hit) this.on.onClick?.(this.pointOf(hit)); else this.on.onEmptyClick?.(e);
@@ -357,37 +358,44 @@
     }
 
     hover(pt) {
-      // a box put up at a point stays while the pointer rests on that point
-      if (this.tipKey != null && !this.tip.hidden && this.tipAt && Math.hypot(pt.x - this.tipAt.x, pt.y - this.tipAt.y) <= PICK_PX) return;
       const hit = this.pick(pt);
       // the hand over anything with a hover box, or a silent point that still takes a click
       const silentTarget = !hit && this.pick(pt, true);
       this.map.getCanvas().style.cursor = hit || (silentTarget && at(silentTarget.tr.customdata, silentTarget.i) != null) ? "pointer" : "";
+      if (this.pinned) return;                        // a pinned box is not the pointer's to change
       const html = hit ? hoverOf(hit.tr, hit.i) : "";
-      this.tipKey = null;
       if (!html) { this.tip.hidden = true; return; }
       this.placeTip(html, pt);
     }
 
-    // the box at a point of the map, as if the pointer hovered it: it stays
-    // until something else is hovered or the map moves, so a tap on a phone
-    // (which hovers nothing) still reads what it tapped; `key` names what is
-    // shown, for a caller to refresh it while it is up (tipShowing)
-    showAt(lat, lon, html, key = null) {
+    // a box pinned at a point of the map: it stays (following the map as it
+    // pans) and its text can be selected and copied, until it is unpinned;
+    // `key` names what is shown, for a caller to refresh it while it is up
+    pin(lat, lon, html, key = null) {
       if (!this.map || lat == null || lon == null) return;
-      this.tipAt = this.map.project([+lon, +lat]);
-      this.placeTip(html, this.tipAt);
-      this.tipKey = key;
+      this.pinned = { lat: +lat, lon: +lon, html, key };
+      this.tip.classList.add("pinned");
+      this.placeTip(html, this.map.project([+lon, +lat]));
     }
-    tipShowing(key) { return !this.tip.hidden && this.tipKey === key; }
+    unpin() {
+      if (!this.pinned) return;
+      this.pinned = null;
+      this.tip.classList.remove("pinned");
+      this.tip.hidden = true;
+    }
+    pinnedIs(key) { return !!this.pinned && this.pinned.key === key; }
 
     placeTip(html, pt) {
       this.tip.innerHTML = html;
       this.tip.hidden = false;
-      const w = this.el.clientWidth, tw = this.tip.offsetWidth, th = this.tip.offsetHeight;
-      const x = pt.x + 14 + tw > w ? pt.x - 14 - tw : pt.x + 14;
-      this.tip.style.left = `${Math.max(2, x)}px`;
-      this.tip.style.top = `${Math.max(2, Math.min(pt.y - th / 2, this.el.clientHeight - th - 2))}px`;
+      // beside the point: to its right, else its left, else below or above
+      // it, so the box never covers the point (a pinned box takes the clicks)
+      const w = this.el.clientWidth, h = this.el.clientHeight, tw = this.tip.offsetWidth, th = this.tip.offsetHeight;
+      let x = pt.x + 14, y = Math.max(2, Math.min(pt.y - th / 2, h - th - 2));
+      if (x + tw > w - 2) x = pt.x - 14 - tw;
+      if (x < 2) { x = Math.max(2, Math.min(pt.x - tw / 2, w - tw - 2)); y = pt.y + 14 + th > h - 2 ? pt.y - 14 - th : pt.y + 14; }
+      this.tip.style.left = `${x}px`;
+      this.tip.style.top = `${y}px`;
     }
   }
 

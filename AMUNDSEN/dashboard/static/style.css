@@ -409,6 +409,7 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 /* the map's hover box (static/map.js): the point's text beside the pointer */
 #map { position: relative; }
 .maptip { position: absolute; z-index: 5; pointer-events: none; max-width: min(360px, 80%); padding: 5px 8px; border-radius: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px var(--shadow); font-size: var(--t-sm); line-height: 1.35; }
+.maptip.pinned { pointer-events: auto; user-select: text; cursor: text; }   /* a clicked mark's box: it stays, for copying from */
 .map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: var(--t-xs); padding: 3px 8px 0; opacity: .8; }
 .map-legend { position:absolute; top:0; left:0; z-index:3; pointer-events:none; }
 #mapdetails { width:min(600px,calc(100vw - 32px)); max-height:80dvh; overflow:auto; padding:16px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius); }
