@@ -12,9 +12,10 @@ Read with `python -m dashboard.feedback` on 2026-09-18; all done in that change.
   `db/transects.sqlite`) and every browser lists them; one saved earlier in a
   browser shows "this browser" with an ↑ button that shares it.
 - Stations table: lat and lon are the columns after station.
-- Map: station hover and click show the position; a click on open map drops
-  a waypoint with its position and the distance from the ship by air and by
-  sea (the sea route is drawn); a click on the mark removes it.
+- Map: station hover shows the position; a click on a station pins its box
+  (position, distance from the ship by air and by sea, the sea route drawn)
+  so it can be copied from, until the mark is clicked again or something
+  else is; a click on open map drops a waypoint with the same box.
 - Bottles table: station, lat and lon columns after cast.
 - "Clear selection" on Casts and Stations also empties the filter box.
 

@@ -740,7 +740,7 @@
     const currentZoom = mapView?.getView()?.zoom ?? state.view?.zoom ?? 6;
     const zoom = preserveZoom ? currentZoom : Math.max(currentZoom, 6);
     state.view = { center: { lat: +lat, lon: +lon }, zoom }; state.fitPending = false;
-    state.focus = { lat: +lat, lon: +lon, label: label || "", tip: true };
+    state.focus = { lat: +lat, lon: +lon, label: label || "" };
     renderMap();
   }
   function chartClickAnywhere(plot,d){
@@ -1057,9 +1057,10 @@
     return out;
   }
   // the mark: a station or track point that was clicked, a row that was
-  // found, or a waypoint dropped on open map; its box says what and where,
-  // and how far from the ship by air (a great circle) and by sea (the
-  // server's shortest walk over water, dashboard/searoute.py)
+  // found, or a waypoint dropped on open map; its box (pinned to the map so
+  // it can be copied from, until the mark is clicked or something else is)
+  // says what and where, and how far from the ship by air (a great circle)
+  // and by sea (the server's shortest walk over water, dashboard/searoute.py)
   let lastShip = null, routeSeq = 0;
   const kmNmi = (km) => `${km.toFixed(1)} km / ${(km / 1.852).toFixed(1)} nmi`;
   const haversineKm = (lat1, lon1, lat2, lon2) => {
@@ -1069,16 +1070,18 @@
   };
   function focusHtml(f, ship) {
     const escF = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    let s = `<b>${escF(f.label || "Waypoint")}</b><br>${dms(f.lat, f.lon)}`;
+    let s = f.html || `<b>${escF(f.label || "Waypoint")}</b>`;       // a clicked point keeps its own box
+    const where = dms(f.lat, f.lon);
+    if (!s.includes(where)) s += `<br>${where}`;
     if (ship?.lat != null) {
       s += `<br>from the ship: ${kmNmi(haversineKm(ship.lat, ship.lon, f.lat, f.lon))} by air`;
       s += !f.route ? "<br>by sea: working it out…"
         : f.route.sea_km != null ? `<br>${kmNmi(f.route.sea_km)} by sea` : `<br>by sea: ${escF(f.route.reason || "no route")}`;
     }
-    return s + "<br><small>click the mark to remove it</small>";
+    return f.waypoint ? s + "<br><small>click the mark to remove it</small>" : s;
   }
-  function setFocus(lat, lon, label, tip = false) {
-    state.focus = { lat: +lat, lon: +lon, label: label || "", tip };
+  function setFocus(lat, lon, label, extra = {}) {
+    state.focus = { lat: +lat, lon: +lon, label: label || "", ...extra };
     renderMap();
   }
   // the sea route from where the ship is now, asked for once per mark; the
@@ -1094,15 +1097,14 @@
       .then(() => {
         if (seq !== routeSeq || state.focus !== f || !mapView) return;
         mapView.setTraces("live", liveTraces(lastShip));
-        if (mapView.tipShowing(f)) mapView.showAt(f.lat, f.lon, focusHtml(f, lastShip), f);
+        if (mapView.pinnedIs(f)) mapView.pin(f.lat, f.lon, focusHtml(f, lastShip), f);
       });
   }
-  // a mark placed by a click or a row shows its box at once, as a hover would
-  function showFocusTip() {
+  // the mark's box is pinned while there is a mark, and goes with it
+  function syncFocusTip() {
     const f = state.focus;
-    if (!f?.tip || !mapView) return;
-    f.tip = false;
-    mapView.showAt(f.lat, f.lon, focusHtml(f, lastShip), f);
+    if (!mapView) return;
+    if (f) mapView.pin(f.lat, f.lon, focusHtml(f, lastShip), f); else mapView.unpin();
   }
   const lastFix = (d) => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; };
   // called by the live poller: move the marker without redrawing the map
@@ -1211,13 +1213,16 @@
     if (typeof p?.customdata === "string" && p.customdata.startsWith("nat:")) return window.UW?.onNatureClick?.(p.customdata.slice(4), p);
     if (p?.data?.name === "focus" && window.UW?.onFocusClick?.(p)) return;   // the mark took the click meant for the point under it
     if (p?.data?.name === "focus") { state.focus = null; renderMap(); return; }   // a click on the mark takes it away
-    if (p?.lat != null) setFocus(p.lat, p.lon, String(p.text || p.hovertext || "").split(/<br\s*\/?>/i)[0].replace(/<[^>]+>/g, ""), true);   // the mark moves to what was clicked
+    if (p?.lat != null) {                                                    // the mark moves to what was clicked, with its box
+      const html = String(p.hovertext || p.text || "");
+      setFocus(p.lat, p.lon, html.split(/<br\s*\/?>/i)[0].replace(/<[^>]+>/g, ""), { html });
+    }
     if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
   }
   // a click on open map drops a waypoint there: its position and distances from the ship
   function mapEmptyClick(e) {
     const at = e?.lngLat?.wrap?.() || e?.lngLat;
-    if (at) setFocus(at.lat, at.lng, "Waypoint", true);
+    if (at) setFocus(at.lat, at.lng, "Waypoint", { waypoint: true });
   }
   function renderMap() {
     const overview = state.span;
@@ -1301,7 +1306,7 @@
     const details = sat?.details || (sat?.near ? [sat.near] : []);
     mapData = d;
     if (!mapView) {
-      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(); }, onZoom: onMapZoom,
+      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(e); }, onZoom: onMapZoom,
         onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
       window.UW.mapView = mapView;
       $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
@@ -1312,7 +1317,7 @@
         if (!state.view) state.view = mapView.getView() || view;   // where a fit landed, as centre and zoom
         updateScale();
         scheduleTrack();
-        showFocusTip(); fetchRoute(ship);
+        syncFocusTip(); fetchRoute(ship);
       });
       let chartEnd = f0.end;
       for (let i = overview.t.length - 1; i >= 0; i--) if (overview.lat[i] != null && overview.lon[i] != null) { chartEnd = overview.t[i]; break; }
