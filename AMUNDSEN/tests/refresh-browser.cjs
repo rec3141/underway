@@ -32,7 +32,7 @@ function manifest() {
   return {
     ...(cisFixture?{ice_charts:{charts:[{...cisFixture.chart,url:'data/ice-charts/test.geojson'}]}}:{}),
     generated_utc:stamp(),default_window:'1h',local_tz:'UTC',title:'Refresh test',version:'test',
-    ...(process.env.WIKI_FEEDBACK_UI||process.env.PHOTO_UI||process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
+    ...((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI)||process.env.PHOTO_UI||process.env.UPLOAD_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.CHAT_WIKI_UI?{history:{stamp:'test'}}:{}),
     windows:['1h','3h'].map(label=>({label,hours:label==='1h'?1:3,step_s:10,file:`data/w-${label}.json`})),
     legs:[{id:leg,index:0,label:'2026 Leg 3',year:2026,number:3,first_date:'20260904',last_date:'20260904',files:1}],live:leg,
     variables:[{name:'SST (°C)',unit:'°C',resolved:true,derived:false,tsg:true,coverage:{[leg]:true},source:'TSG'},...((process.env.DEPTH_UI||process.env.UNDERWAY_UI)?['Bottom depth (m)','Rosette depth (m)'].map(name=>({name,unit:'m',resolved:true,reverse:true,coverage:{[leg]:true},source:'Winches'})):[])],
@@ -44,9 +44,9 @@ function manifest() {
 }
 function dataset(p) {
   if(cisFixture && p==='/data/ice-charts/test.geojson')return cisFixture;
-  if(process.env.WIKI_FEEDBACK_UI && p.startsWith('/data/history/')) {
+  if((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI) && p.startsWith('/data/history/')) {
     const topics=[{slug:'inuit-oral-history',title:'Inuit oral history',domain:'history',pages:1,artifacts:3}];
-    const artifacts=['photo-one','photo-two'].map((id,i)=>({id,page:'artifact/'+id,type:'image',title:'Test image '+i,topic:topics[0].slug,url:'wiki-test.png',thumb:'wiki-test.png',lat:76,lon:-78,people:['E-took-a-shoo','Shared name'],credit:'Test credit',date_start:'1900',description:'Picture'}));
+    const artifacts=['photo-one','photo-two'].map((id,i)=>({id,page:'artifact/'+id,type:i===0&&!process.env.WIKI_GALLERY_UI?'map':'image',title:'Test image '+i,keywords:i?['Group A']:['Group A','Group B'],topic:topics[0].slug,url:'wiki-test.png',thumb:'wiki-test.png',lat:76,lon:-78,people:['E-took-a-shoo','Shared name'],credit:'Test credit',date_start:'1900',description:'Picture'}));
     artifacts.push({id:'place-artifact',page:'artifact/place-artifact',type:'place',title:'Historic camp artifact',topic:topics[0].slug,lat:76,lon:-78,date_start:'1900'});
     const pages=[{slug:'test-narrative',kind:'page',title:'Readable narrative',topic:topics[0].slug,html:'See [inuit-oral-history](topic/inuit-oral-history), [a chosen label](topic/inuit-oral-history), and inuit-oral-history.'},
       ...artifacts.map(a=>({slug:a.page,kind:'artifact',ref:a.id,title:a.title,topic:a.topic,html:'Picture by E-took-a-shoo.'})),
@@ -98,9 +98,9 @@ const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname.replace(/^\/underway\//,'/'); requests.push(req.url);
   if(process.env.PHOTO_UI && p.startsWith('/journal/')) {res.setHeader('Content-Type','image/svg+xml');res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="${p.endsWith('a.svg')?1600:600}" height="${p.endsWith('a.svg')?600:1600}"><rect width="100%" height="100%" fill="teal"/></svg>`);return;}
 
-  if(process.env.WIKI_FEEDBACK_UI && p==='/wiki-test.png'){res.setHeader('Content-Type','image/svg+xml');res.end('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="teal"/></svg>');return;}
-  if(process.env.WIKI_FEEDBACK_UI && p==='/api/history/flags'){res.end(JSON.stringify({flags:wikiFlags}));return;}
-  if(process.env.WIKI_FEEDBACK_UI && p==='/api/history/flag'){
+  if((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI) && p==='/wiki-test.png'){res.setHeader('Content-Type','image/svg+xml');res.end('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="teal"/></svg>');return;}
+  if((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI) && p==='/api/history/flags'){res.end(JSON.stringify({flags:wikiFlags}));return;}
+  if((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI) && p==='/api/history/flag'){
     let body='';req.on('data',d=>body+=d);req.on('end',()=>{const row=JSON.parse(body);wikiFlags.push({...row,mine:true,raisers:[{who:row.name,note:row.note}]});res.end(JSON.stringify({flags:wikiFlags}));});return;
   }
   if(p==='/api/usage' && req.method==='POST') {let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{pageViews.push(body);res.end('{}');});return;}
@@ -401,7 +401,37 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       return;
     }
 
-    if(process.env.WIKI_FEEDBACK_UI){
+
+    if(process.env.WIKI_GALLERY_UI){
+      await evaluate('UW.showTab("wiki");UW.wikiOpen("kind/image/inuit-oral-history")');
+      await until('document.querySelectorAll("#histmain .artcard img").length>=2');
+      await evaluate('document.querySelector("#histmain .artcard").click()');
+      await until('document.querySelector(".photo-detail .photo-open img")?.naturalWidth===1600');
+      const first=await evaluate('location.hash');
+      assert.equal(await evaluate('document.querySelector(".photo-navigation span").textContent'),'1 / 2');
+      await evaluate('document.querySelector(".photo-navigation .photo-next").click()');
+      await until('document.querySelector(".photo-navigation span")?.textContent==="2 / 2"');
+      assert.notEqual(await evaluate('location.hash'),first);
+      await call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
+      await until('document.querySelector(".photo-navigation span")?.textContent==="1 / 2"');
+      assert.equal(await evaluate('location.hash'),first);
+      await evaluate('document.querySelector(".photo-open").click()');
+      await until('document.querySelector(".photo-slideshow")?.open');
+      await call('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',code:'ArrowLeft',windowsVirtualKeyCode:37});
+      await until('document.querySelector(".photo-caption")?.textContent.startsWith("2 / 2")');
+      await evaluate('document.querySelector(".photo-slideshow .photo-close").click()');
+      await until('!document.querySelector(".photo-slideshow") && document.querySelector(".photo-navigation span")?.textContent==="2 / 2"');
+      await evaluate('document.querySelector(".photo-gallery").click()');
+      await until('location.hash==="#wiki/kind/image/inuit-oral-history" && document.querySelector("#histmain .artcard")');
+      await evaluate('document.querySelector("#histmain .artcard").click()');
+      await until('document.querySelector(".photo-detail")');
+      await evaluate('document.querySelector("#histback").click()');
+      await until('location.hash==="#wiki/kind/image/inuit-oral-history" && document.querySelector("#histmain .artcard")');
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS topic image gallery, deduplicated ordering, detail/slideshow arrows, wraparound, Gallery and Back');
+      return;
+    }
+    if((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI)){
       await evaluate('UW.store.set("chat.token","test-token");UW.showTab("wiki");UW.wikiOpen("test-narrative")');
       await until('document.querySelector("#histmain .wiki")?.textContent.includes("See")');
       assert.equal(await evaluate('[...document.querySelectorAll("#histmain .wiki a")].filter(a=>a.dataset.slug==="topic/inuit-oral-history").length'),3);
