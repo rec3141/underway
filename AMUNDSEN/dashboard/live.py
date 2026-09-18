@@ -69,8 +69,7 @@ def parse_targets(tcp: str) -> list[tuple[str, int]]:
     return out
 TCP_RETRY_S = 5
 SAVE_EVERY_S = 5           # how often the casts go to disk while one is in the water
-ANNOUNCE_S = 15            # Seasave sends its field list at once; a connection without one by then is stale
-SILENT_S = 120             # a connection that did announce may idle (acquisition off) this long before it is reopened
+ANNOUNCE_S = 5            # Seasave sends its field list at once; a connection without one by then is stale
 IN_WATER_DBAR = 2.0        # a cast starts when pressure first exceeds this …
 SURFACE_DBAR = 1.0         # … and ends after SURFACE_S below this
 SURFACE_S = 60
@@ -238,35 +237,39 @@ class LiveCTD:
                 self.active = f"{host}:{port}"
                 self._xml_tags, self._xml_names = [], []
             buf = ""
-            opened = last_rx = time.time()
+            opened = time.monotonic()
             try:
                 while not self._stop.is_set():
                     with self.lock:
                         if self.tcp != target:
                             break
+                    with self.lock:
+                        announced = bool(self._xml_tags)
+                    remaining = ANNOUNCE_S - (time.monotonic() - opened)
+                    if not announced and remaining <= 0:
+                        log.info("live CTD: no field list from %s:%d for %d s, trying next port", host, port, ANNOUNCE_S)
+                        break
+                    s.settimeout(2.0 if announced else min(2.0, remaining))
                     try:
                         data = s.recv(65536)
                     except socket.timeout:
                         self._tick(time.time())
-                        # a socket Seasave has gone quiet on (it stopped without closing) is
-                        # dropped and reopened, which also asks for the field list afresh:
-                        # quickly when nothing at all has arrived, patiently between casts
+                        # Once the field list arrives, acquisition may start hours later.
+                        # Silence on a recognized stream does not end the connection.
                         with self.lock:
                             announced = bool(self._xml_tags)
-                        limit = SILENT_S if announced else ANNOUNCE_S
-                        if time.time() - last_rx > limit:
-                            log.info("live CTD: nothing from %s for %d s, reconnecting", target, limit)
+                        if not announced and time.monotonic() - opened >= ANNOUNCE_S:
+                            log.info("live CTD: no field list from %s:%d for %d s, trying next port", host, port, ANNOUNCE_S)
                             break
                         continue
                     if not data:
                         break
-                    last_rx = time.time()
                     buf = self._xml_feed(buf + data.decode("latin-1", errors="replace"), time.time())
                     with self.lock:
                         announced = bool(self._xml_tags)
                         if announced:
                             self.tcp_state = "connected"
-                    if not announced and time.time() - opened > ANNOUNCE_S:
+                    if not announced and time.monotonic() - opened >= ANNOUNCE_S:
                         log.info("live CTD: %s is not a converted XML stream, trying next port", self.active)
                         break
                     if len(buf) > 400000:           # a stream that never closes an element must not grow forever
@@ -371,13 +374,12 @@ class LiveCTD:
                 self.surface_since = now
 
     def _tick(self, now: float) -> None:
-        """Close a cast that has been back at the surface long enough (or gone silent)."""
+        """Close a cast that has been back at the surface long enough."""
         with self.lock:
             c = self.current
             if c is None:
                 return
-            quiet = now - self.last_t > 300
-            if (self.surface_since and now - self.surface_since > SURFACE_S) or quiet:
+            if self.surface_since and now - self.surface_since > SURFACE_S:
                 c["ended"] = now
                 self.last, self.current, self.surface_since = c, None, None
                 self._save(force=True)

@@ -1,7 +1,7 @@
 /* Rearrange the existing controls; keep their IDs, listeners and saved state. */
 (() => {
   const tabs = document.querySelector('#tabs'), top = document.querySelector('.top');
-  const originals = [...tabs.querySelectorAll('button')];
+  const originals = [...tabs.querySelectorAll('button, a.games-link')];
   const appearance = document.querySelector('.themepick'), footer = document.querySelector('#mobile-appearance');
   const appearanceHome = appearance.parentElement;
   const alert = document.querySelector('#alert'), alertHome = document.createComment('schedule home');
@@ -20,12 +20,12 @@
   function layout() {
     if (phone.matches && !groups.length) {
       tabs.setAttribute('role','navigation'); tabs.setAttribute('aria-label','Main navigation');
-      for (const [label, names] of [['Map',['map']],['Science',['calendar','stations','underway','casts']],['Extras',['photos','wiki','chat','sources']]]) {
+      for (const [label, names] of [['Map',['map']],['Science',['calendar','stations','underway','casts']],['Extras',['photos','wiki','chat','games','sources']]]) {
         const d = document.createElement('details'); d.className = 'mobile-nav';
         const s = document.createElement('summary'); s.textContent = '☰ ' + label;
         const panel = document.createElement('div'); panel.className = 'mobile-nav-items';
         d.append(s,panel); tabs.append(d); groups.push(d);
-        for (const name of names) { const b=originals.find(b=>b.dataset.tab===name); b.removeAttribute('role'); panel.append(b); }
+        for (const name of names) { const b=originals.find(b=>(b.dataset.tab || b.dataset.nav)===name); b.removeAttribute('role'); panel.append(b); }
         if (label==='Map') {
           d.classList.add('mobile-map');
           originals.find(b=>b.dataset.tab==='map').style.display='none';
@@ -39,7 +39,7 @@
         d.addEventListener('toggle',()=>{ if(d.open) groups.filter(g=>g!==d).forEach(g=>{g.open=false;}); });
       }
     } else if (!phone.matches && groups.length) {
-      for (const b of originals) { if(b.dataset.tab!=='map') b.setAttribute('role','tab'); tabs.append(b); }
+      for (const b of originals) { if(b.dataset.tab && b.dataset.tab!=='map') b.setAttribute('role','tab'); tabs.append(b); }
       originals.find(b=>b.dataset.tab==='map').style.display='';
       originals.find(b=>b.dataset.tab==='sources').textContent='?';
       for (const d of groups) d.remove(); groups=[];
@@ -50,7 +50,7 @@
     (phone.matches?footer:appearanceHome).append(appearance);
     if (wide.matches) top.append(alert); else alertHome.before(alert);
   }
-  tabs.addEventListener('click',e=>{if(e.target.closest('button'))close();});
+  tabs.addEventListener('click',e=>{if(e.target.closest('button, a'))close();});
   document.addEventListener('click',e=>{if(!tabs.contains(e.target))close();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const d=groups.find(g=>g.open);close();d?.querySelector('summary').focus();}});
   new MutationObserver(syncMapMenu).observe(document.querySelector('main'), {attributes:true, attributeFilter:['data-mapmode']});

@@ -221,7 +221,7 @@ a:hover { text-decoration: underline; }
 .top .tabrow { order: 0; flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }   /* the theme picker drops to a second line when the chat's side bar leaves no room */
 .top .tabs { margin-left: 0; display: flex; }
 .top .brand { order: 1; flex: 1 1 auto; min-width: 160px; }
-.tabs button { white-space: nowrap; }
+.tabs :is(button, a.games-link) { white-space: nowrap; }
 .top .pickhint { color: var(--muted); font-size: var(--t-md); }
 .themepick { flex: 0 0 auto; margin-left: auto; align-self: center; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: var(--t-md); }
 .themepick .group { gap: 6px; }
@@ -469,7 +469,7 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
   .brand .sub { font-size: var(--t-sm); }
   /* one row each: the tabs, the map cycler flowing among them; legs + span; time/distance + colour */
   .top .tabs { flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; margin-left: 0; }
-  .top .tabs button { flex: 1 1 auto; min-width: 0; padding: 8px 6px; font-size: var(--t-md); }   /* the seven tabs take a second row rather than running into each other */
+  .top .tabs :is(button, a.games-link) { flex: 1 1 auto; min-width: 0; padding: 8px 6px; font-size: var(--t-md); }   /* the seven tabs take a second row rather than running into each other */
   .castside .castfilter { flex-basis: 100%; }         /* the filter and clear on their own line */
   /* the status as a coloured dot; its word is the tooltip */
   table.sched .status { display: inline-block; width: 11px; height: 11px; padding: 0; border-radius: 50%; font-size: 0; vertical-align: middle; border: 0; }
@@ -572,8 +572,8 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 
 /* ---------------------------------------------------------------- tabs */
 .tabs { display: inline-flex; gap: 2px; background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
-.tabs button { background: transparent; color: var(--muted); border: 0; padding: 6px 14px; border-radius: 6px; font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer; }
-.tabs button:hover { color: var(--fg); }
+.tabs :is(button, a.games-link) { background: transparent; color: var(--muted); border: 0; padding: 6px 14px; border-radius: 6px; font: inherit; font-size: var(--t-md); font-weight: 600; cursor: pointer; }
+.tabs :is(button, a.games-link):hover { color: var(--fg); }
 .tabs button.on { background: var(--card); color: var(--fg); box-shadow: 0 1px 0 var(--line); }
 .tabs button.mapbtn { width: 6.2em; box-sizing: border-box; padding-left: 8px; padding-right: 8px; text-align: center; color: var(--fg); }   /* the map cycler: the state's icon and the word, in a box one width through every state */
 .tabs button.mapbtn .ico { display: inline-block; width: 1.2em; font-size: 1.1em; line-height: 1; vertical-align: -1px; }
@@ -1264,7 +1264,7 @@ main.mapfull.tab-wiki > .map { grid-row: 2 / 4; }
 html.bigtype .group button, html.bigtype .seg button, html.bigtype select,
 html.bigtype .legmenu summary, html.bigtype .pane-tools button, html.bigtype .pane-tools input[type=search],
 html.bigtype .chip, html.bigtype .month .mhead button, html.bigtype .alertform input, html.bigtype .alertform select { padding: .4em .85em; }
-html.bigtype .tabs button { padding: .45em 1em; }
+html.bigtype .tabs :is(button, a.games-link) { padding: .45em 1em; }
 html.bigtype .maplayers button { padding: .3em .8em; }
 html.bigtype .panels { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
 html.bigtype .panel .plot, html.bigtype .panel .empty { height: 230px; }
@@ -1277,7 +1277,7 @@ html.bigtype .chat.sidebar { width: 440px; }
 html.bigtype.chat-side main, html.bigtype.chat-side .top, html.bigtype.chat-side .alertbar { padding-right: 460px; }   /* the wider side bar of the large type, whichever theme asked for it */
 @media (max-width: 640px) {
   .themepick .lbl { display: none; }
-  html.bigtype .top .tabs button { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
+  html.bigtype .top .tabs :is(button, a.games-link) { flex: 1 1 auto; padding: .5em .6em; }   /* the seven tabs take two rows rather than squeezing the words */
 }
 
 /* ---- the Nature tab: the same pane as History, with the names in the region's languages, the record and the journal */
@@ -1399,7 +1399,7 @@ html[data-theme^="navigator"] :is(button, .chip, summary, a.chip).on:not(.chatto
   border-style: inset !important; background: var(--pressed) !important; color: var(--pressed-fg) !important; font-weight: bold; }
 html[data-theme^="navigator"] :where(button, .chip, select, summary):where(:not(.on, :active, .refresh, .chattoggle, .bell, .flag)):hover { border-color: var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi) !important; }
 html[data-theme^="navigator"] .tabs { background: transparent; border: 0; padding: 0; gap: 3px; }
-html[data-theme^="navigator"] .tabs button { padding: 5px 14px; }
+html[data-theme^="navigator"] .tabs :is(button, a.games-link) { padding: 5px 14px; }
 html[data-theme^="navigator"] .seg button, html[data-theme^="navigator"] .seg button:first-child, html[data-theme^="navigator"] .seg button:last-child { margin-left: 2px; }
 html[data-theme^="navigator"] .schedlinks .bigcal, html[data-theme^="navigator"] .ticker .smallcal { padding: 4px 12px; }
 /* text boxes: white, bevelled in */
@@ -1533,7 +1533,7 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
   .mobile-nav[open] > summary { border-color:var(--accent); }
   .mobile-nav-items { position:absolute; top:calc(100% + 4px); left:0; z-index:80; min-width:160px; padding:6px; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 18px var(--shadow); }
   .mobile-nav:last-child .mobile-nav-items { left:auto; right:0; }
-  .top #tabs .mobile-nav-items button { display:block; width:100%; text-align:left; margin:2px 0; }
+  .top #tabs .mobile-nav-items :is(button, a.games-link) { display:block; width:100%; text-align:left; margin:2px 0; }
 }
 
 #chaterror { flex: 0 0 auto; margin: 0; padding: 8px 10px; color: var(--warn); background: var(--card-2); font-size: var(--t-md); }
@@ -1550,3 +1550,5 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
 .sitecards .artcard { display:block; }
 .sitevisits { font-size:var(--t-sm); color:var(--muted); }
 #histmain h2 > .flag { margin-left:12px; font-size:var(--t-md); opacity:1; }
+
+.tabs a.games-link { text-decoration:none; box-sizing:border-box; }

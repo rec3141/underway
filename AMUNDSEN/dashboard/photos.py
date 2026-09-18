@@ -422,7 +422,8 @@ PROMPT = ("This is a contact sheet of {n} numbered photographs taken by scientis
           "sunset, sedimentary rock) or else the main thing shown (the ship, people, a box core, a CTD rosette, a helicopter, an "
           "instrument, a settlement); and kind, one word from wildlife, ice, landscape, sky, weather, ship, people, work, other. "
           "Say only what is visible; do not guess species you cannot see clearly, and say 'bird' or 'seal' rather than a species "
-          "when unsure. Answer with a JSON array of {n} objects, each with the keys n, caption, tags, subject, kind, and nothing "
+          "when unsure. For similar photographs, vary the wording and focus on visible differences without inventing details. "
+          "Answer with a JSON array of {n} objects, each with the keys n, caption, tags, subject, kind, and nothing "
           "else: no prose before or after the JSON.")
 
 
@@ -438,13 +439,13 @@ def tag_sheet(data_url: str, n: int) -> list[dict]:
     text = PROMPT.format(n=n)
     url, model = status["url"], status["model"]
     if status["backend"] == "openai":
-        body = {"model": model, "stream": False, "temperature": 0, "max_tokens": 2400, "chat_template_kwargs": {"enable_thinking": False},
+        body = {"model": model, "stream": False, "temperature": 0.7, "max_tokens": 2400, "chat_template_kwargs": {"enable_thinking": False},
                 "messages": [{"role": "user", "content": [{"type": "text", "text": text}, {"type": "image_url", "image_url": {"url": data_url}}]}]}
         r = requests.post(url + "/v1/chat/completions", json=body, timeout=600)
         r.raise_for_status()
         content = r.json()["choices"][0]["message"].get("content") or ""
     else:
-        body = {"model": model, "stream": False, "keep_alive": -1, "options": {"temperature": 0, "num_predict": 2400},
+        body = {"model": model, "stream": False, "keep_alive": -1, "options": {"temperature": 0.7, "num_predict": 2400},
                 "messages": [{"role": "user", "content": text, "images": [data_url.split(",", 1)[1]]}]}
         r = requests.post(url + "/api/chat", json=body, timeout=600)
         r.raise_for_status()

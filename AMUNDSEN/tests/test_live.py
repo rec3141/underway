@@ -64,7 +64,8 @@ class FakeSeasave:
 class FakeRawPort:
     """Keeps an open SeaSave-like port busy without sending converted XML."""
 
-    def __init__(self):
+    def __init__(self, payload=b"001122334455\r\n"):
+        self.payload = payload
         self.srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.srv.bind(("127.0.0.1", 0)); self.srv.listen(1); self.srv.settimeout(5)
@@ -76,7 +77,7 @@ class FakeRawPort:
         try:
             self.conn, _ = self.srv.accept()
             while True:
-                self.conn.sendall(b"001122334455\r\n")
+                self.conn.sendall(self.payload)
                 time.sleep(0.01)
         except OSError:
             pass
@@ -98,6 +99,7 @@ def wait_for(live, predicate, timeout=4):
 
 class LiveTests(unittest.TestCase):
     def test_default_source_probes_the_seasave_port_range(self):
+        self.assertEqual(live_mod.ANNOUNCE_S, 5)
         self.assertEqual(tuple(SEASAVE_PORTS), tuple(range(49160, 49169)))
         self.assertEqual(DEFAULT_SEASAVE_TCP, "10.0.0.22:" + ",".join(str(port) for port in range(49160, 49169)))
 
@@ -153,6 +155,45 @@ class LiveTests(unittest.TestCase):
         self.live.configure(None)                                  # None leaves the source alone
         self.assertEqual(self.live.status()["tcp"], "")
 
+    def test_announced_connection_waits_hours_for_first_scan(self):
+        self.assertTrue(self.seasave.ready.wait(3))
+        ticked = threading.Event()
+        tick = self.live._tick
+
+        def observe_tick(now):
+            tick(now)
+            ticked.set()
+
+        future = time.time() + 3 * 3600
+        with patch.object(self.live, "_tick", side_effect=observe_tick), patch.object(live_mod.time, "time", return_value=future):
+            self.assertTrue(ticked.wait(3), "listener must process an idle socket timeout")
+            self.seasave.scan(12.0)
+            wait_for(self.live, lambda s: s["packets"] == 1)
+            self.assertEqual(self.live.status()["active"], self.seasave.addr)
+            self.assertEqual(self.live.status()["tcp_state"], "connected")
+            self.assertIsNotNone(self.live.status()["current"])
+
+    def test_in_water_cast_survives_hours_without_scans(self):
+        self.start_cast()
+        started = self.live.status()["current"]["started"]
+        future = time.time() + 3 * 3600
+        self.live._tick(future)
+        self.assertEqual(self.live.status()["current"]["started"], started)
+        with patch.object(live_mod.time, "time", return_value=future):
+            self.seasave.scan(20.0)
+            wait_for(self.live, lambda s: s["packets"] == 2)
+        current = self.live.status()["current"]
+        self.assertEqual(current["started"], started)
+        self.assertEqual(current["max_p"], 20.0)
+
+    def test_cast_ends_after_surface_dwell(self):
+        self.start_cast()
+        self.seasave.scan(0.5)
+        wait_for(self.live, lambda s: s["packets"] == 2)
+        self.live._tick(time.time() + live_mod.SURFACE_S + 1)
+        self.assertIsNone(self.live.status()["current"])
+        self.assertIsNotNone(self.live.status()["last"])
+
     def test_invalid_source_does_not_mutate(self):
         for tcp in ["garbage", "host:", ":1", "a b:5", 5, ["x:1"]]:
             with self.subTest(tcp=tcp), self.assertRaises(ValueError):
@@ -175,6 +216,18 @@ class LiveTests(unittest.TestCase):
             self.live.configure(f"{raw.addr},{converted.addr.rpartition(':')[2]}")
             wait_for(self.live, lambda status: status["tcp_state"] == "connected", timeout=3)
         self.assertEqual(self.live.status()["active"], converted.addr)
+
+    def test_silent_port_times_out_without_waiting_for_socket_poll(self):
+        silent = FakeRawPort(payload=b""); self.addCleanup(silent.close)
+        converted = FakeSeasave(); self.addCleanup(converted.close)
+        self.live.close()
+        with patch.object(live_mod, "ANNOUNCE_S", 0.1), patch.object(live_mod, "TCP_RETRY_S", 0.05):
+            listener = LiveCTD(f"{silent.addr},{converted.addr.rpartition(':')[2]}")
+            try:
+                wait_for(listener, lambda s: s["tcp_state"] == "connected", timeout=1)
+                self.assertEqual(listener.status()["active"], converted.addr)
+            finally:
+                listener.close()
 
     def test_casts_survive_a_restart(self):
         self.start_cast()

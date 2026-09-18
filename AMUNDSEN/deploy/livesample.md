@@ -19,6 +19,12 @@ is `http://127.0.0.1:8042/api/live`; override it with `--live-url` for replay.
 The main dashboard listener probes `10.0.0.22:49160–49168` by default and
 accepts the first SeaSave converted-data XML stream. The live-sampling page
 shows the active endpoint, or the ports being probed while it waits.
+It listens to one port at a time. Once a converted-data field header arrives,
+the connection stays open through arbitrarily long acquisition pauses; only
+socket closure, a socket error, shutdown, or a source change ends that connection.
+Ports without a recognized header are still subject to a five-second discovery timeout from connection establishment.
+An in-water cast stays current through silent intervals until surface dwell,
+a source change, or a changed field list ends it.
 `underway-livesample.user.service.example` provides an isolated user service.
 The deployed app directory needs `dashboard/{__init__,config,alerts,surprise,
 sampling,sampling_flow,livesample}.py` and the three `static/livesample.*` files. The private
