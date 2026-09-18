@@ -739,7 +739,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     # immediately instead of serving a heuristically cached one
     import hashlib
     h = hashlib.sha1()
-    for name in ("data.js", "track-data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "history.js", "nature.js", "feedback.js", "style.css"):
+    for name in ("data.js", "track-data.js", "map.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "photo-gallery.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())
     from .serve import TILES_DIR
     site = {"title": title, "links": links, "version": __version__, "local_tz": LOCAL_TZ,
