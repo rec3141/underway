@@ -654,6 +654,19 @@
     if (topicDomain(t.slug) === "nature") UW.natureViews?.topicExtra?.(el, t.slug);
   }
   // a page: a narrative, or a generated one (artifact, person, place, event, source, animal, vessel)
+  let imageGallery = null;
+  function wireArtifactGallery(el, artifact) {
+    if (artifact?.type !== 'image' || !window.UWPhotoGallery) return;
+    const picture = a => a?.type === 'image' && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url || '');
+    if (!picture(artifact)) return;
+    const context = imageGallery?.ids.includes(artifact.id) ? imageGallery : {
+      slug: `kind/image/${artifact.topic}`, ids: arts().filter(a => a.topic === artifact.topic && picture(a)).sort(byYear).map(a => a.id)
+    };
+    const items = context.ids.map(artifactById).filter(picture).map(a => ({id:a.id,src:a.url,title:a.title,credit:[a.credit,rights(a)].filter(Boolean).join(' · ')}));
+    const figure = el.querySelector('figure'); if (!figure) return;
+    figure.dataset.wikiGallery = context.slug;
+    window.UWPhotoGallery.wireDetail(figure, {items,id:artifact.id,onSelect:id=>open('artifact/'+id),onGallery:()=>open(context.slug)});
+  }
   async function renderPage(el, slug) {
     const n = ns;
     // an event's page comes from the publisher; a build without them gets the pane's own
@@ -731,6 +744,7 @@
     crossLink(el.querySelector(".wiki"), p.slug, a?.people || ev?.people || p.people, p.kind === "page" ? p.title : "");
     if (p.kind === "page") enrich(el.querySelector(".wiki"));
     el.scrollTop = 0; window.scrollTo?.(0, 0);
+    wireArtifactGallery(el, a);
   }
   // a narrative's artifacts where the text reaches them: the cards of those
   // a block links, not shown higher up, set beside it with the text flowing
@@ -1013,6 +1027,7 @@
       el.innerHTML = crumb(`<a href="#wiki/kind/${esc(kind)}" data-slug="kind/${esc(kind)}">${esc(K.label)}</a>`, here(esc(t?.title || collection), hist.slug)) +
         `<h2><span class="dot" style="background:${topicColour(collection)}"></span><span class="muted">${xs.length}</span> ${esc(K.label)}</h2>` +
         (t ? `<p class="lead">${esc(t.title)}: <a href="#wiki/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">the topic's page</a>${kind === "track" ? " · the routes from north to south, by where each began" : ""}</p>` : "") + body;
+      if (kind === 'image') imageGallery = {slug:hist.slug,ids:[...new Set([...el.querySelectorAll('.artcard[data-slug]')].map(card=>card.dataset.slug.slice(9)))]};
       return;
     }
     if (COLLECTED.has(kind)) {                                      // the collections, one a topic
@@ -1391,6 +1406,8 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     open(s, { pop: true }).then(() => { if (left) backToMap(); });
   });
   function goBack() {
+    const gallery = $('#histmain .photo-detail')?.dataset.wikiGallery;
+    if (gallery) { open(gallery); return; }
     if (UW.natureViews?.photoBack?.()) return;
     if (nav.n > 0 && history.state?.hist != null) history.back();
     else { const left = nav.fromMap; nav.fromMap = false; open("").then(() => { if (left) backToMap(); }); }
