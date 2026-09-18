@@ -4,6 +4,20 @@
 
 - Nature map clicks should open the sidebar without filtering or recentering the map. Fixed in this change.
 
+## From the feedback form
+
+Read with `python -m dashboard.feedback` on 2026-09-18; all done in that change.
+
+- Saved transects visible to everyone: they go to the server (`api/transects`,
+  `db/transects.sqlite`) and every browser lists them; one saved earlier in a
+  browser shows "this browser" with an ↑ button that shares it.
+- Stations table: lat and lon are the columns after station.
+- Map: station hover and click show the position; a click on open map drops
+  a waypoint with its position and the distance from the ship by air and by
+  sea (the sea route is drawn); a click on the mark removes it.
+- Bottles table: station, lat and lon columns after cast.
+- "Clear selection" on Casts and Stations also empties the filter box.
+
 ## Notes recovered from page flags
 
 Copied before clearing the flags on 2026-09-11. These notes are pending; they are not all interface issues.

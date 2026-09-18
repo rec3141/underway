@@ -410,6 +410,29 @@ boxed run with bounds — so the map never asks for a tile that is not there
 and is **not** committed (a few GB); regenerate it on a new machine. Needs
 GDAL with Python bindings (`gdal-bin python3-gdal` on Ubuntu).
 
+## Sea distances (optional)
+
+A click on open map drops a waypoint; a click on a station marks it. The
+mark's box gives the position and the distance from the ship by air (a great
+circle) and by sea: the shortest walk over water on a coarse lon/lat grid,
+worked out by `dashboard/searoute.py` (`GET /api/searoute?from=lat,lon&to=lat,lon`)
+and drawn on the map. The grid is a water mask built once from the same GEBCO
+release as the tiles:
+
+```sh
+tools/make_sea_mask.sh gebco_2024_sub_ice_topo_geotiff.zip \
+    "$UNDERWAY_TILES_DIR/sea-mask.npz"          # the western Arctic and Labrador Sea, ~2 min
+```
+
+The server reads `UNDERWAY_SEA_MASK` (default `sea-mask.npz` under
+`UNDERWAY_TILES_DIR`) and picks a new file up without a restart; without one
+the box shows the air distance only. The default box is lon −150…−15,
+lat 45…86 at 0.04° × 0.02° (about 1 × 2 km at 78° N; ~80 KB packed); pass
+another box and cell size for another region. A route is an estimate for
+planning, not a track to steer: the grid keeps a strait open when any GEBCO
+sample in a cell is below sea level, so an islet narrower than a cell is not
+there. Needs GDAL (`gdal-bin`) and numpy.
+
 ## A finer coastline (optional)
 
 The coastline, land and islands in `static/geo/` are Natural Earth 10 m,
