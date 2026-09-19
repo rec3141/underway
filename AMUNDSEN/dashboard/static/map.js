@@ -223,7 +223,9 @@
       this.map = new maplibregl.Map({
         container: this.el, style: this.imageStyle(style), ...camera,
         attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0,
-        fadeDuration: 0, renderWorldCopies: true,
+        // app.js schedules container resizes after ResizeObserver delivery.
+        // Avoid a second synchronous resize from MapLibre during the same cycle.
+        trackResize: false, fadeDuration: 0, renderWorldCopies: true,
       });
       this.map.touchZoomRotate.disableRotation();
       this.map.keyboard.disableRotation?.();

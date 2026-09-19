@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0f1419">
 <title>{{ site.title }}</title>
+<script src="static/i18n-catalog.js?v={{ site.asset_version }}"></script>
+<script src="static/i18n.js?v={{ site.asset_version }}"></script>
 <script>/* the chosen theme goes on before the first paint; app.js keeps it (Claude dark without a choice) */
 (function () { try {
   var t = JSON.parse(localStorage.getItem("uw:theme")) || "auto";
@@ -24,19 +26,20 @@
   <!-- Tabs and map cycler, with feedback and appearance controls at the right. -->
   <div class="tabrow">
     <nav class="tabs" id="tabs" role="tablist">
-    <button data-tab="map" id="maptoggle" class="mapbtn" title="how much of the page the map takes: half, all of it, or none"><span class="ico">◧</span> Map</button>
-    <button data-tab="calendar" role="tab">Schedule</button>
-    <button data-tab="stations" role="tab">Stations</button>
-    <button data-tab="underway" class="on" role="tab">Underway</button>
-    <button data-tab="casts" role="tab">Casts</button>
-    <button data-tab="photos" role="tab" title="Photo gallery and imports">Photos</button>
-    <button data-tab="wiki" role="tab" title="the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask">Wiki</button>
-    <button data-tab="chat" role="tab" id="tabchat" title="ship chat">Chat</button>
-    <a href="/game/" class="games-link" data-nav="games">Games</a>
-    <button data-tab="sources" role="tab" title="Sources" aria-label="Sources">?</button>
+    <button data-tab="map" id="maptoggle" class="mapbtn" data-i18n-title="nav.mapHint" title="how much of the page the map takes: half, all of it, or none"><span class="ico">◧</span> <span data-i18n="nav.map">Map</span></button>
+    <button data-tab="calendar" role="tab" data-i18n="nav.schedule">Schedule</button>
+    <button data-tab="stations" role="tab" data-i18n="nav.stations">Stations</button>
+    <button data-tab="underway" class="on" role="tab" data-i18n="nav.underway">Underway</button>
+    <button data-tab="casts" role="tab" data-i18n="nav.casts">Casts</button>
+    <button data-tab="photos" role="tab" data-i18n="nav.photos" data-i18n-title="nav.photosHint" title="Photo gallery and imports">Photos</button>
+    <button data-tab="wiki" role="tab" data-i18n="nav.wiki" data-i18n-title="nav.wikiHint" title="the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask">Wiki</button>
+    <button data-tab="chat" role="tab" id="tabchat" data-i18n="nav.chat" data-i18n-title="nav.chatHint" title="ship chat">Chat</button>
+    <a href="/game/" class="games-link" data-nav="games" data-i18n="nav.games">Games</a>
+    <button data-tab="sources" role="tab" data-i18n-title="nav.sources" data-i18n-aria-label="nav.sources" title="Sources" aria-label="Sources">?</button>
     </nav>
     <div class="themepick">
-      <button type="button" id="feedback-open" class="feedback-link">Feedback</button>
+      <label class="group select" data-i18n-title="locale.coverage" title="French is available for navigation and feedback; other sections use English while translation is in progress."><span data-i18n="locale.label">Language</span> <select id="locale" data-locale-picker data-i18n-aria-label="locale.label" aria-label="Language"><option value="en">English</option><option value="fr-CA">Français (Canada)</option></select></label>
+      <button type="button" id="feedback-open" class="feedback-link" data-i18n="feedback.open">Feedback</button>
       <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><select id="theme" aria-label="Theme"></select></label>
       <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
     </div>
@@ -73,7 +76,7 @@
   <div class="ticker" id="schedticker" hidden title="show the schedule"><div class="tkwrap"><div class="tk" id="tk"></div></div><div class="tklinks" id="tickerlinks"></div></div>
 </div>
 
-<main>
+<main lang="en">
   <div class="plotctl" id="plotctl">
     <div class="group xmode" aria-label="X axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the graphs between time and distance along track">Time</button></div>
     <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
@@ -235,21 +238,21 @@
       </div>
     </div>
   </section>
-  <dialog id="feedback-dialog" aria-labelledby="feedback-title">
+  <dialog id="feedback-dialog" aria-labelledby="feedback-title" data-i18n-locale>
     <form id="feedback-form">
-      <h2 id="feedback-title">Feedback about this page</h2>
-      <p>Report a problem or suggest an improvement. The current page and view settings are included.</p>
+      <h2 id="feedback-title" data-i18n="feedback.title">Feedback about this page</h2>
+      <p data-i18n="feedback.description">Report a problem or suggest an improvement. The current page and view settings are included.</p>
       <p id="feedback-page" class="muted"></p>
-      <label for="feedback-message">Your feedback</label>
+      <label for="feedback-message" data-i18n="feedback.message">Your feedback</label>
       <textarea id="feedback-message" rows="6" maxlength="5000" required></textarea>
-      <label for="feedback-name">Name (optional)</label>
+      <label for="feedback-name" data-i18n="feedback.name">Name (optional)</label>
       <input id="feedback-name" maxlength="100" autocomplete="name">
       <p id="feedback-status" role="status" aria-live="polite"></p>
-      <div class="feedback-actions"><button type="button" id="feedback-close">Cancel</button><button type="submit" id="feedback-send">Submit feedback</button></div>
+      <div class="feedback-actions"><button type="button" id="feedback-close">Cancel</button><button type="submit" id="feedback-send" data-i18n="feedback.submit">Submit feedback</button></div>
     </form>
   </dialog>
 </main>
-<footer id="mobile-appearance" aria-label="Feedback and appearance" hidden></footer>
+<footer id="mobile-appearance" data-i18n-aria-label="feedback.appearance" aria-label="Feedback and appearance" hidden></footer>
 
 <script>
 window.__SITE__ = {{ site|tojson }};

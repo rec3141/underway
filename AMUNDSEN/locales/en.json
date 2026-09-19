@@ -1,0 +1,154 @@
+{
+  "locale": "en",
+  "messages": {
+    "map.next": {"text":"{current} · click for {next}","context":"Map size cycling; mode names are translated separately."},
+    "nav.map": {
+      "text": "Map",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.schedule": {
+      "text": "Schedule",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.stations": {
+      "text": "Stations",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.underway": {
+      "text": "Underway",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.casts": {
+      "text": "Casts",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.photos": {
+      "text": "Photos",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.wiki": {
+      "text": "Wiki",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.chat": {
+      "text": "Chat",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.games": {
+      "text": "Games",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.sources": {
+      "text": "Sources",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.science": {
+      "text": "Science",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.extras": {
+      "text": "Extras",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.label": {
+      "text": "Main navigation",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "map.none": {
+      "text": "No map",
+      "context": "Dashboard controls."
+    },
+    "map.half": {
+      "text": "Half map",
+      "context": "Dashboard controls."
+    },
+    "map.full": {
+      "text": "Full map",
+      "context": "Dashboard controls."
+    },
+    "map.mode": {
+      "text": "Map: {mode}",
+      "context": "Dashboard controls."
+    },
+    "locale.label": {
+      "text": "Language",
+      "context": "Dashboard controls."
+    },
+    "feedback.open": {
+      "text": "Feedback",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.title": {
+      "text": "Feedback about this page",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.description": {
+      "text": "Report a problem or suggest an improvement. The current page and view settings are included.",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.message": {
+      "text": "Your feedback",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.name": {
+      "text": "Name (optional)",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.cancel": {
+      "text": "Cancel",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.submit": {
+      "text": "Submit feedback",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.close": {
+      "text": "Close",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.saving": {
+      "text": "Saving feedback…",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.saved": {
+      "text": "Thank you—your feedback has been saved.",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.failed": {
+      "text": "Could not save feedback.",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.timeout": {
+      "text": "The request timed out. Your feedback is still here; please retry.",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.retry": {
+      "text": "{error} Your feedback is still here; please retry.",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "feedback.appearance": {
+      "text": "Feedback and appearance",
+      "context": "Page-feedback dialog; never translate user-authored feedback."
+    },
+    "nav.mapHint": {
+      "text": "how much of the page the map takes: half, all of it, or none",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.photosHint": {
+      "text": "Photo gallery and imports",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.wikiHint": {
+      "text": "the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "nav.chatHint": {
+      "text": "ship chat",
+      "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
+    },
+    "locale.coverage": {
+      "text": "French is available for navigation and feedback; other sections use English while translation is in progress.",
+      "context": "Dashboard controls."
+    }
+  }
+}

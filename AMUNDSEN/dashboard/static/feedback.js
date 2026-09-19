@@ -2,11 +2,20 @@
 (() => {
   "use strict";
   const $ = s => document.querySelector(s), UW = window.UW;
+  const {t} = window.UWI18n;
   const dialog = $("#feedback-dialog"), form = $("#feedback-form");
   if (UW?.public) { $("#feedback-open").hidden = true; return; }   // saved on the ship's server only
   const message = $("#feedback-message"), name = $("#feedback-name");
   const status = $("#feedback-status"), send = $("#feedback-send"), close = $("#feedback-close");
   let context, submission, sending = false, saved = false;
+  let statusKey = '', statusValues = {};
+  function renderText() {
+    close.textContent = t(saved ? 'feedback.close' : 'feedback.cancel');
+    status.textContent = statusKey ? t(statusKey, statusValues) : '';
+  }
+  function showStatus(key, values = {}) { statusKey = key; statusValues = values; renderText(); }
+  window.addEventListener('uw:localechange', renderText);
+  renderText();
   const id = () => {
     // crypto.randomUUID is unavailable on the ship's plain HTTP origins.
     const b = crypto.getRandomValues(new Uint8Array(16));
@@ -26,7 +35,7 @@
       submission = id();
     }
     $("#feedback-page").textContent = `${context.tab} · ${context.wiki || context.window || ""}`;
-    status.textContent = ""; close.textContent = "Cancel"; send.disabled = false;
+    showStatus(''); send.disabled = false;
     dialog.showModal(); message.focus();
   };
   close.onclick = () => dialog.close();
@@ -36,16 +45,17 @@
     e.preventDefault(); if (sending || saved || !form.reportValidity()) return;
     sending = true; send.disabled = true; close.disabled = true;
     message.readOnly = name.readOnly = true;
-    status.textContent = "Saving feedback…";
+    showStatus('feedback.saving');
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 15000);
     try {
       const response = await fetch("api/feedback", {method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({id:submission, message:message.value, name:name.value, context}), signal:controller.signal});
       const result = await response.json();
-      if (!response.ok || !result.ok) throw Error(result.error || "Could not save feedback.");
-      saved = true; status.textContent = "Thank you—your feedback has been saved."; close.textContent = "Close";
+      if (!response.ok || !result.ok) throw Error(result.error || t('feedback.failed'));
+      saved = true; showStatus('feedback.saved');
     } catch (error) {
-      status.textContent = error.name === "AbortError" ? "The request timed out. Your feedback is still here; please retry." : `${error.message} Your feedback is still here; please retry.`;
+      if (error.name === "AbortError") showStatus('feedback.timeout');
+      else showStatus('feedback.retry', {error:error.message});
     } finally {
       clearTimeout(timer); sending = false; send.disabled = saved; close.disabled = false;
       message.readOnly = name.readOnly = false;

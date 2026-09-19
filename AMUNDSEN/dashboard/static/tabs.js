@@ -1619,8 +1619,13 @@
     const table = wrap.querySelector("table");
     const fit = () => { top.firstElementChild.style.width = `${table?.scrollWidth || 0}px`; top.hidden = !table || table.scrollWidth <= wrap.clientWidth + 1; };
     fit();
-    if (!wrap._topObs) { wrap._topObs = new ResizeObserver(fit); wrap._topObs.observe(wrap); }
-    if (table && !table._topObs) { table._topObs = new ResizeObserver(fit); table._topObs.observe(table); }
+    // Switching language or layout can change scrollbar visibility. Apply
+    // those writes after observer delivery, not inside the layout callback.
+    const scheduleFit = () => {
+      if (!wrap._topFrame) wrap._topFrame = requestAnimationFrame(() => { wrap._topFrame = 0; if (wrap.isConnected) fit(); });
+    };
+    if (!wrap._topObs) { wrap._topObs = new ResizeObserver(scheduleFit); wrap._topObs.observe(wrap); }
+    if (table && !table._topObs) { table._topObs = new ResizeObserver(scheduleFit); table._topObs.observe(table); }
   }
 
   // ================================================================ stations

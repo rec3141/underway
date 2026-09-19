@@ -16,6 +16,8 @@
   // the plan drop) is hidden rather than left to fail against api/
   const PUBLIC = !!M?.public;
   const $ = (s) => document.querySelector(s);
+  const {t} = window.UWI18n;
+  window.addEventListener('uw:localechange', () => window.UW?.refreshMapLabels?.());
   const { fetchJSON } = window.UWData;
   const loadErrors = new Set();
   function setLoadError(scope, failed) {
@@ -494,7 +496,7 @@
     // whole page, no pane) or none (the pane takes the whole width). The
     // header pill cycles through them; the map's own — and ⤢ buttons pick
     // none and full (⤢ again, back to half). Every plot resizes after.
-    const MAP_MODES = ["half", "full", "none"], MAP_WORD = { half: "Half map", full: "Full map", none: "No map" };
+    const MAP_MODES = ["half", "full", "none"];
     const MAP_ICON = { half: "◧", full: "■", none: "□" };          // the cycler in the tab row shows the state it is in
     const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
     // the classes and labels follow the stored mode; the plots resize and
@@ -503,7 +505,10 @@
     const applyMapMode = () => {
       const m = mapMode(), main = $("main");
       main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
-      $("#maptoggle").innerHTML = `<span class="ico">${MAP_ICON[m]}</span> Map`; $("#maptoggle").title = `${MAP_WORD[m]} · click for ${MAP_WORD[m === "half" ? (mapDir === "up" ? "full" : "none") : "half"].toLowerCase()}`;
+      const toggle = $('#maptoggle');
+      toggle.querySelector('.ico').textContent = MAP_ICON[m];
+      toggle.querySelector('[data-i18n="nav.map"]').textContent = t('nav.map');
+      toggle.title = t('map.next', {current:t('map.' + m), next:t('map.' + (m === 'half' ? (mapDir === 'up' ? 'full' : 'none') : 'half'))});
       $("#mapfull").classList.toggle("on", m === "full"); $("#mapfull").textContent = m === "full" ? "⤡" : "⤢";
       if (main.dataset.mapmode === m) return;
       const first = !main.dataset.mapmode;
@@ -515,7 +520,7 @@
       }, 0);
     };
     const setMapMode = (m) => { store.set("mapmode", m); applyMapMode(); };
-    window.UW = Object.assign(window.UW || {}, { mapMode, setMapMode });
+    window.UW = Object.assign(window.UW || {}, { mapMode, setMapMode, refreshMapLabels:applyMapMode });
     // the pill swings: none, half, full, half, none, ... so half is always one click away
     let mapDir = "up";
     window.UW = Object.assign(window.UW || {}, { cycleMap() {
@@ -1998,7 +2003,12 @@
     // the map box changes with the window and as the bars round it fill
     const resizeMap = () => {mapView?.resize();renderMapLegend();};
     window.addEventListener("resize", resizeMap);
-    new ResizeObserver(resizeMap).observe($("#map"));
+    // Localized labels can wrap and change the map box. Resize outside the
+    // observer delivery cycle to avoid re-entering layout during its callback.
+    let resizeFrame = 0;
+    new ResizeObserver(() => {
+      if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; resizeMap(); });
+    }).observe($("#map"));
     if (PUBLIC) {
       // the web copy: the tabs and buttons for what runs only aboard go
       for (const sel of ['#tabs button[data-tab="photos"]', "#tabchat", "#feedback-open"]) { const b = $(sel); if (b) b.hidden = true; }

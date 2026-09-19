@@ -1,0 +1,198 @@
+{
+  "locale": "fr-CA",
+  "profile": {
+    "id": "editorial-fr-ca-v1",
+    "translator": "lead-assistant",
+    "model": "GPT-6",
+    "glossary": "ui-pilot-v1",
+    "method": "Editorial draft for navigation and feedback; requires Canadian French review."
+  },
+  "messages": {
+    "map.next": {"source":"{current} · click for {next}","text":"{current} · cliquez pour passer à {next}","status":"draft"},
+    "nav.map": {
+      "source": "Map",
+      "text": "Carte",
+      "status": "draft"
+    },
+    "nav.schedule": {
+      "source": "Schedule",
+      "text": "Horaire",
+      "status": "draft"
+    },
+    "nav.stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "nav.underway": {
+      "source": "Underway",
+      "text": "Mesures en route",
+      "status": "draft"
+    },
+    "nav.casts": {
+      "source": "Casts",
+      "text": "Profils",
+      "status": "draft"
+    },
+    "nav.photos": {
+      "source": "Photos",
+      "text": "Photos",
+      "status": "draft"
+    },
+    "nav.wiki": {
+      "source": "Wiki",
+      "text": "Wiki",
+      "status": "draft"
+    },
+    "nav.chat": {
+      "source": "Chat",
+      "text": "Clavardage",
+      "status": "draft"
+    },
+    "nav.games": {
+      "source": "Games",
+      "text": "Jeux",
+      "status": "draft"
+    },
+    "nav.sources": {
+      "source": "Sources",
+      "text": "Sources",
+      "status": "draft"
+    },
+    "nav.science": {
+      "source": "Science",
+      "text": "Science",
+      "status": "draft"
+    },
+    "nav.extras": {
+      "source": "Extras",
+      "text": "Autres",
+      "status": "draft"
+    },
+    "nav.label": {
+      "source": "Main navigation",
+      "text": "Navigation principale",
+      "status": "draft"
+    },
+    "map.none": {
+      "source": "No map",
+      "text": "Sans carte",
+      "status": "draft"
+    },
+    "map.half": {
+      "source": "Half map",
+      "text": "Demi-carte",
+      "status": "draft"
+    },
+    "map.full": {
+      "source": "Full map",
+      "text": "Carte pleine page",
+      "status": "draft"
+    },
+    "map.mode": {
+      "source": "Map: {mode}",
+      "text": "Carte : {mode}",
+      "status": "draft"
+    },
+    "locale.label": {
+      "source": "Language",
+      "text": "Langue",
+      "status": "draft"
+    },
+    "feedback.open": {
+      "source": "Feedback",
+      "text": "Commentaires",
+      "status": "draft"
+    },
+    "feedback.title": {
+      "source": "Feedback about this page",
+      "text": "Commentaires sur cette page",
+      "status": "draft"
+    },
+    "feedback.description": {
+      "source": "Report a problem or suggest an improvement. The current page and view settings are included.",
+      "text": "Signalez un problème ou proposez une amélioration. La page actuelle et les paramètres d’affichage sont inclus.",
+      "status": "draft"
+    },
+    "feedback.message": {
+      "source": "Your feedback",
+      "text": "Vos commentaires",
+      "status": "draft"
+    },
+    "feedback.name": {
+      "source": "Name (optional)",
+      "text": "Nom (facultatif)",
+      "status": "draft"
+    },
+    "feedback.cancel": {
+      "source": "Cancel",
+      "text": "Annuler",
+      "status": "draft"
+    },
+    "feedback.submit": {
+      "source": "Submit feedback",
+      "text": "Envoyer les commentaires",
+      "status": "draft"
+    },
+    "feedback.close": {
+      "source": "Close",
+      "text": "Fermer",
+      "status": "draft"
+    },
+    "feedback.saving": {
+      "source": "Saving feedback…",
+      "text": "Enregistrement des commentaires…",
+      "status": "draft"
+    },
+    "feedback.saved": {
+      "source": "Thank you—your feedback has been saved.",
+      "text": "Merci! Vos commentaires ont été enregistrés.",
+      "status": "draft"
+    },
+    "feedback.failed": {
+      "source": "Could not save feedback.",
+      "text": "Impossible d’enregistrer les commentaires.",
+      "status": "draft"
+    },
+    "feedback.timeout": {
+      "source": "The request timed out. Your feedback is still here; please retry.",
+      "text": "Le délai de la demande est écoulé. Vos commentaires sont toujours ici; veuillez réessayer.",
+      "status": "draft"
+    },
+    "feedback.retry": {
+      "source": "{error} Your feedback is still here; please retry.",
+      "text": "{error} Vos commentaires sont toujours ici; veuillez réessayer.",
+      "status": "draft"
+    },
+    "feedback.appearance": {
+      "source": "Feedback and appearance",
+      "text": "Commentaires et apparence",
+      "status": "draft"
+    },
+    "nav.mapHint": {
+      "source": "how much of the page the map takes: half, all of it, or none",
+      "text": "part de la page occupée par la carte : la moitié, la totalité ou aucune",
+      "status": "draft"
+    },
+    "nav.photosHint": {
+      "source": "Photo gallery and imports",
+      "text": "Galerie de photos et importations",
+      "status": "draft"
+    },
+    "nav.wikiHint": {
+      "source": "the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask",
+      "text": "le passé et la nature de la région : voyages, personnes, lieux et artéfacts, roche, glace, eau, ciel et êtres vivants, sur la carte et dans un wiki, avec l’équipage à qui poser vos questions",
+      "status": "draft"
+    },
+    "nav.chatHint": {
+      "source": "ship chat",
+      "text": "clavardage à bord",
+      "status": "draft"
+    },
+    "locale.coverage": {
+      "source": "French is available for navigation and feedback; other sections use English while translation is in progress.",
+      "text": "Le français est offert pour la navigation et les commentaires; les autres sections restent en anglais pendant la traduction.",
+      "status": "draft"
+    }
+  }
+}

@@ -41,6 +41,7 @@ function dataset(p) {
   if(p==='/data/casts/cast.json') return cast;
   if(p==='/api/chat') return {messages:[],online:[],crew:[],typing:[]};
   if(p==='/api/live') return {};
+  if(p==='/api/feedback') return {ok:true};
 }
 const site={title:'Refresh test',version:'test',local_tz:process.env.TIMEZONE_UI?'America/Toronto':'UTC',default_window:'1h',geo_layers:[],intranet:[],links:[],asset_version:'test',plotly_version:'test'};
 const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
@@ -109,6 +110,39 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until(`window.UW.state.raw?.vars["SST (°C)"][0]===${process.env.TSG_UI?'1.234':'1'}`);
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.I18N_UI){
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      assert.equal(await evaluate('document.documentElement.lang'),'fr-CA');
+      assert.equal(await evaluate('document.querySelector("[data-tab=underway]").textContent'),'Mesures en route');
+      await evaluate('document.querySelector("#feedback-open").click();document.querySelector("#feedback-message").value="Do not translate my own words"');
+      assert.equal(await evaluate('document.querySelector("#feedback-title").textContent'),'Commentaires sur cette page');
+      await evaluate('UWI18n.setLocale("en")');
+      assert.equal(await evaluate('document.querySelector("#feedback-message").value'),'Do not translate my own words');
+      assert.equal(await evaluate('document.querySelector("#feedback-close").textContent'),'Cancel');
+      await evaluate('document.querySelector("#feedback-form").requestSubmit()');
+      await until('document.querySelector("#feedback-close").textContent==="Close"');
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      assert.equal(await evaluate('document.querySelector("#feedback-status").textContent'),'Merci! Vos commentaires ont été enregistrés.');
+      assert.equal(await evaluate('document.querySelector("#feedback-close").textContent'),'Fermer');
+      await evaluate('document.querySelector("#feedback-close").click()');
+      await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+      await until('document.querySelector(".mobile-map > summary")?.textContent.includes("Carte")');
+      assert.deepEqual(await evaluate('[...document.querySelectorAll("[data-map-mode]")].map(b=>b.textContent)'),['□ Sans carte','◧ Demi-carte','■ Carte pleine page']);
+      await evaluate('UW.setMapMode("full");UWI18n.setLocale("en")');
+      assert.equal(await evaluate('document.querySelector(".mobile-map > summary").getAttribute("aria-label")'),'Map: Full map');
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      await call('Emulation.setDeviceMetricsOverride',{width:1400,height:844,deviceScaleFactor:1,mobile:false});
+      await until('!document.querySelector(".mobile-map")');
+      assert.equal(await evaluate('document.querySelector("#maptoggle [data-i18n]").textContent'),'Carte');
+      if (process.env.I18N_SCREENSHOT) {
+        await evaluate('UW.setMapMode("half");document.querySelector("#feedback-open").click()');
+        await wait(300);
+        const shot=await call('Page.captureScreenshot',{format:'png'});
+        fs.writeFileSync(process.env.I18N_SCREENSHOT,Buffer.from(shot.result.data,'base64'));
+      }
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS French navigation, mobile controls, live feedback state, safe user input and language switching');return;
+    }
     await until('window.UW.mapView?.map && document.querySelector("#trackstatus")?.textContent.includes("visible track points")');
     if(process.env.STATION_SPAN_UI){
       assert.deepEqual(await evaluate('UW.state.stationList.map(s=>s.station)'),['Earlier','Current']);
