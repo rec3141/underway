@@ -113,8 +113,12 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(process.env.I18N_UI){
       const selectionBefore=await evaluate('JSON.stringify({win:UW.state.win,colour:UW.state.colour,hidden:[...UW.state.hidden],data:UW.state.raw.vars})');
       await evaluate('document.querySelector("#tblsearch").value="My scientific filter"');
+      await evaluate('UW.M.calendar.now={completed:null,in_progress:[{operation:"Crew operation text",station:"A",end_utc:new Date(Date.now()+60000).toISOString()}],next:null}');
       await evaluate('UWI18n.setLocale("fr-CA")');
       assert.equal(await evaluate('document.documentElement.lang'),'fr-CA');
+      assert.deepEqual(await evaluate('[...document.querySelectorAll("#schedcols .slbl")].map(e=>e.textContent)'),['Dernière opération terminée','En cours','À venir']);
+      assert.ok(await evaluate('document.querySelector("#schedcols").textContent.includes("Crew operation text")'));
+      assert.ok(await evaluate('document.querySelector("#schedcols .live .stm").textContent.includes("Temps restant")'));
       assert.equal(await evaluate('document.querySelector("[data-tab=underway]").textContent'),'Mesures en route');
       assert.equal(await evaluate('document.querySelector("#colour option[value=\\"SST (°C)\\"]").textContent'),'Température de surface (°C)');
       assert.equal(await evaluate('document.querySelector("#tblsearch").value'),'My scientific filter');
@@ -125,6 +129,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await evaluate('UWI18n.setLocale("en")');
       assert.equal(await evaluate('document.querySelector("#feedback-message").value'),'Do not translate my own words');
       assert.equal(await evaluate('document.querySelector("#feedback-close").textContent'),'Cancel');
+      assert.equal(await evaluate('document.querySelector("#schedcols .live .slbl").textContent'),'In progress');
       await evaluate('document.querySelector("#feedback-form").requestSubmit()');
       await until('document.querySelector("#feedback-close").textContent==="Close"');
       await evaluate('UWI18n.setLocale("fr-CA")');

@@ -1,10 +1,10 @@
 # Page localization
 
-The selected Canadian French catalog contains 423 messages. Coverage includes
+The selected Canadian French catalog contains 430 messages. Coverage includes
 desktop/mobile navigation, the feedback dialog, static page controls and
 accessibility labels, appearance options, the main Underway controls and chart
 groups, measurement names, table headings/summaries, map details and legends,
-ice-chart UI, graph/map export controls, and Sources explanations.
+ice-chart UI, graph/map export controls, the schedule banner, and Sources explanations.
 
 This is not yet a site-wide translation. Most dynamic Casts/live-feed and
 Schedule workflows, generated wiki/article content, photo tools and chat
@@ -16,7 +16,7 @@ The implementation is independent of the wiki's record/field translation store.
 Both can share the same language choice when the wiki publisher is connected.
 Do not translate generated wiki HTML into these UI catalogs.
 
-The selected profile is `editorial-fr-ca-v2`; the original v1 candidates remain
+The selected profile is `editorial-fr-ca-v3`; the v1 and v2 candidates remain
 available for comparison and rollback. The game now has its own CTD catalog.
 
 ## Source, candidates and selection

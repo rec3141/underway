@@ -1707,6 +1707,34 @@
     "provenance.globe": {
       "text": "The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.",
       "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "scheduleBanner.completed": {
+      "text": "Last completed",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "scheduleBanner.current": {
+      "text": "In progress",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "scheduleBanner.next": {
+      "text": "Coming up next",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "scheduleBanner.left": {
+      "text": "{duration} left",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "scheduleBanner.over": {
+      "text": "{duration} over",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "scheduleBanner.google": {
+      "text": "open the Amundsen Schedule in Google Calendar",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "scheduleBanner.ics": {
+      "text": "subscribe to the Amundsen Schedule as an ICS feed",
+      "context": "Schedule banner interface; never translate crew-entered operation names here."
     }
   }
 }

@@ -21,7 +21,7 @@
   const variableLabel = name => window.UWI18n?.variable?.(name) ?? name;
   window.addEventListener('uw:localechange', () => {
     window.UW?.refreshMapLabels?.();
-    renderLegMenu(); renderControls(); renderStatus(); renderPanels(); renderProvenance();
+    renderLegMenu(); renderControls(); renderStatus(); renderPanels(); renderProvenance(); renderAlert();
     // Relabel the current view. Do not reload windows, reset the track, or
     // invoke onFilter: those paths change selections and request fresh data.
     if (trackStatusKey) setTrackStatus(trackStatusKey, trackStatusValues);
@@ -1864,8 +1864,8 @@
     // an operation in progress shows what is left of its slot rather than its times
     const left = (r) => { const m = Math.round((tms(r.end_utc) - Date.now()) / 60000); if (isNaN(m)) return "";
       const d = (n) => n >= 60 ? `${Math.floor(n / 60)} h ${String(n % 60).padStart(2, "0")} min` : `${n} min`;
-      return m >= 0 ? `${d(m)} left` : `${d(-m)} over`; };
-    const op = (r, live) => `<div class="sop" title="${esc(r.comment || "")}${live ? ` (${hm(r.start_utc)}–${hm(r.end_utc)})` : ""}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${live ? left(r) : `${hm(r.start_utc)}–${hm(r.end_utc)}`}</span></div>`;
+      return t(m >= 0 ? "scheduleBanner.left" : "scheduleBanner.over", {duration:d(Math.abs(m))}); };
+    const op = (r, live) => `<div class="sop" title="${esc(r.comment || "")}${live ? ` (${hm(r.start_utc)}–${hm(r.end_utc)})` : ""}"><b>${esc(r.station || "")}</b> ${esc(r.operation || "")}<span class="stm">${live ? esc(left(r)) : `${hm(r.start_utc)}–${hm(r.end_utc)}`}</span></div>`;
     const col = (label, rows, cls) => `<div class="scol ${cls}"><div class="slbl">${label}</div>${rows.length ? rows.map((r) => op(r, cls === "live")).join("") : '<div class="sop muted">—</div>'}</div>`;
     // a click folds the bar to a thin strip; a click on the strip brings it back
     // three states: open, folded to the ticker, hidden (then SCHEDULE in the
@@ -1880,12 +1880,12 @@
     bar.onclick = folded ? (ev) => { if (ev.target.closest("a, .inapp")) return; setSchedMode("hidden"); } : null;
     $("#schedticker").hidden = !folded;
     const feed = (c.feeds || []).find((f) => f.key === "schedule");
-    const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="open the Amundsen Schedule in Google Calendar">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="subscribe to the Amundsen Schedule as an ICS feed">📆 ICS</a>` : "";
+    const links = (cls) => feed ? `<a class="${cls}" href="${esc(feed.url)}" target="_blank" rel="noopener" title="${esc(t('scheduleBanner.google'))}">📅 Gcal</a><a class="${cls}" href="${esc(feed.ics)}" title="${esc(t('scheduleBanner.ics'))}">📆 ICS</a>` : "";
     if (folded) {
       // the folded bar is a one-line ticker: the three columns as a slow
       // marquee (two copies so the loop is seamless), the links pinned on the right
       const item = (label, rows, cls) => `<span class="tki ${cls}"><b>${label}</b> ${rows.length ? rows.map((r) => `${esc(r.station || "")} ${esc(r.operation || "")} ${cls === "live" ? `<span class="stm tkleft" data-end="${esc(r.end_utc)}"></span>` : `<span class="stm">${hm(r.start_utc)}–${hm(r.end_utc)}</span>`}`).join(" · ") : "—"}</span>`;
-      const text = item("Last completed", n.completed ? [n.completed] : [], "done") + item("In progress", n.in_progress || [], "live") + item("Coming up next", n.next ? [n.next] : [], "next");
+      const text = item(esc(t("scheduleBanner.completed")), n.completed ? [n.completed] : [], "done") + item(esc(t("scheduleBanner.current")), n.in_progress || [], "live") + item(esc(t("scheduleBanner.next")), n.next ? [n.next] : [], "next");
       const tk = $("#tk");
       const same = tk.dataset.text === text;
       if (!same) { tk.innerHTML = text + text; tk.dataset.text = text; }
@@ -1894,7 +1894,7 @@
       $("#tickerlinks").innerHTML = links("smallcal");
       return;
     }
-    $("#schedcols").innerHTML = col("Last completed", n.completed ? [n.completed] : [], "done") + col("In progress", n.in_progress || [], "live") + col("Coming up next", n.next ? [n.next] : [], "next");
+    $("#schedcols").innerHTML = col(esc(t("scheduleBanner.completed")), n.completed ? [n.completed] : [], "done") + col(esc(t("scheduleBanner.current")), n.in_progress || [], "live") + col(esc(t("scheduleBanner.next")), n.next ? [n.next] : [], "next");
     $("#schedlinks").innerHTML = links("bigcal");
   }
 
