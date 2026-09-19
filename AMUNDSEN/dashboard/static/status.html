@@ -6,8 +6,10 @@
 <style>
 :root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;background:light-dark(#f4f5f7,#16191d);color:light-dark(#20252d,#e5e9ef)}body{max-width:1000px;margin:auto;padding:24px}h1{margin-bottom:4px}h2{font-size:1.15rem}p{margin:8px 0;color:light-dark(#536070,#a9b6c6)}section{background:light-dark(white,#20252c);border:1px solid light-dark(#d7dde5,#3b4551);border-radius:12px;padding:18px;margin:20px 0}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid light-dark(#e0e5ec,#3b4551);vertical-align:top}th{font-weight:600}td:first-child{overflow-wrap:anywhere}button{font:inherit;padding:8px 16px;cursor:pointer}#health{font-weight:650}.good{color:light-dark(#146437,#7de0a2)}.bad{color:light-dark(#a3261c,#ffb2a8)}.muted{color:light-dark(#64615a,#c4baa6)}.stats{display:flex;gap:24px;flex-wrap:wrap}.stats b{display:block;font-size:1.8rem}#error{color:light-dark(#a3261c,#ffb2a8)}@media(max-width:600px){body{padding:14px}section{padding:12px}th,td{padding:8px}#checks td:first-child{min-width:165px}table{font-size:14px}}
 </style>
+<script defer src="static/i18n.js"></script>
 </head>
 <body>
+<label class="language-picker" translate="no"><span class="language-label">Language / Langue</span><select data-language-select aria-label="Language / Langue"><option value="en" lang="en">English</option><option value="fr-CA" lang="fr-CA">Français</option></select></label>
 <h1>Underway status</h1><p>Availability and page views</p>
 <button id="refresh" type="button">Refresh</button><p id="error" role="alert" hidden></p>
 <section><h2 id="health" aria-live="polite">Loading monitoring data…</h2><p id="checked"></p>

@@ -18,9 +18,11 @@
 <link rel="stylesheet" href="static/livesample.css">
 <script defer src="static/plotly.min.js"></script>
 <script defer src="static/livesample.js"></script>
+<script defer src="static/i18n.js"></script>
 </head>
 <body class="sampling-page">
 <header class="top">
+<label class="language-picker" translate="no"><span class="language-label">Language / Langue</span><select data-language-select aria-label="Language / Langue"><option value="en" lang="en">English</option><option value="fr-CA" lang="fr-CA">Français</option></select></label>
   <div class="brand"><a href="/">← Underway dashboard</a><h1>Live sampling <span class="sample-badge">Experimental</span></h1><div class="sub">Find water types missing from your samples.</div></div>
   <div class="sample-connection"><span id="service-state" class="sample-badge" role="status">Connecting</span><span id="updated" class="muted">Updates every 10 seconds</span></div>
 </header>

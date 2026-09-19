@@ -1552,3 +1552,9 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
 #histmain h2 > .flag { margin-left:12px; font-size:var(--t-md); opacity:1; }
 
 .tabs a.games-link { text-decoration:none; box-sizing:border-box; }
+
+/* The language preference follows the reader between dashboard and games. */
+.language-picker { display:inline-flex; align-items:center; gap:6px; font-size:var(--t-md, 14px); }
+.language-picker select { font:inherit; color:inherit; background:var(--panel, transparent); border:1px solid var(--line, #888); border-radius:5px; padding:4px 6px; }
+.language-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.mobile-nav-items .language-picker { padding:8px 12px; }
