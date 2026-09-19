@@ -3,7 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../dashboard/static/ice.js'),'utf8');
 function setup(photos){
-  const context=vm.createContext({photos,U:{cmap:()=>[],colourAt:(_,t)=>String(t)}});
+  // The sliced numerical helpers also supply a localized trace label.
+  const context=vm.createContext({photos,ui:s=>s==='1 h centered mean'?'moyenne centrée sur 1 h':s,U:{cmap:()=>[],colourAt:(_,t)=>String(t)}});
   vm.runInContext(source.slice(source.indexOf('  function centeredMeans('),source.indexOf('  function recenterPhoto('))+
     source.slice(source.indexOf('  function meanTraces('),source.indexOf('  function concentrationTraces('))+'\nthis.api={centeredMeans,meanTraces};',context);
   return context.api;
@@ -29,6 +30,7 @@ test('mean segments break at pending observations, leg changes and long gaps',()
   assert.equal(traces.length,1);
   assert.deepEqual(Array.from(traces[0].x),[0,60000,null,240000,300000,null,1200000,1260000,null]);
   assert.equal(traces[0].mode,'lines');
+  assert.equal(traces[0].name,'moyenne centrée sur 1 h');
 });
 test('long records use bounded colour traces instead of one trace per segment',()=>{
   const rows=Array.from({length:10000},(_,i)=>({id:String(i),time:i*60000,leg:'a',ice:40}));

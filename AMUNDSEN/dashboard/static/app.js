@@ -7,6 +7,9 @@
  * each point carries its leg, and the leg list filters what is shown. */
 (() => {
   "use strict";
+  const ui = (source, values) => window.UWI18n.text(source, values);
+  const uh = (source, values = {}) => window.UWI18n.html(source, values);
+
 
   const SITE = window.__SITE__;
   let M = window.__MANIFEST__;
@@ -18,7 +21,7 @@
   const $ = (s) => document.querySelector(s);
   const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const {t} = window.UWI18n;
-  const variableLabel = name => window.UWI18n?.variable?.(name) ?? name;
+  const variableLabel = name => window.UWI18n.text(window.UWI18n.variable(name));
   window.addEventListener('uw:localechange', () => {
     window.UW?.refreshMapLabels?.();
     renderLegMenu(); renderControls(); renderStatus(); renderPanels(); renderProvenance(); renderAlert();
@@ -1048,12 +1051,12 @@
     const recT = li >= 0 ? d.t[li] : -Infinity;
     if (live && live.lat != null && live.t > recT) {
       return { lat: live.lat, lon: live.lon, heading: live.heading, t: live.t,
-        text: `CCGS Amundsen · live · ${fmtTs(live.t)} ${tzAbbr()} · heading ${live.heading != null ? live.heading.toFixed(0) + "°" : "unknown"}${live.speed != null ? ` · ${live.speed.toFixed(1)} kn` : ""}` };
+        text: ui("CCGS Amundsen · live · {v0} {v1} · heading {v2}{v3}", {v0: (fmtTs(live.t)), v1: (tzAbbr()), v2: (live.heading != null ? live.heading.toFixed(0) + "°" : "unknown"), v3: (live.speed != null ? ` · ${live.speed.toFixed(1)} kn` : "")}) };
     }
     if (li < 0) return { lat: null };
     const heading = M.latest?.heading ?? null;
     return { lat: d.lat[li], lon: d.lon[li], heading, t: recT,
-      text: `CCGS Amundsen · latest · ${fmtTs(d.t[li])} ${tzAbbr()} · heading ${heading != null ? heading.toFixed(0) + "°" : "unknown"}` };
+      text: ui("CCGS Amundsen · latest · {v0} {v1} · heading {v2}", {v0: (fmtTs(d.t[li])), v1: (tzAbbr()), v2: (heading != null ? heading.toFixed(0) + "°" : "unknown")}) };
   }
   // the ship at her latest position, and the focus mark: the map's live layers,
   // which the poller moves without touching the rest
@@ -1095,15 +1098,15 @@
   };
   function focusHtml(f, ship) {
     const escF = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    let s = f.html || `<b>${escF(f.label || "Waypoint")}</b>`;       // a clicked point keeps its own box
+    let s = f.html || `<b>${escF(f.label || ui("Waypoint"))}</b>`;       // a clicked point keeps its own box
     const where = dms(f.lat, f.lon);
     if (!s.includes(where)) s += `<br>${where}`;
     if (ship?.lat != null) {
-      s += `<br>from the ship: ${kmNmi(haversineKm(ship.lat, ship.lon, f.lat, f.lon))} by air`;
-      s += !f.route ? "<br>by sea: working it out…"
-        : f.route.sea_km != null ? `<br>${kmNmi(f.route.sea_km)} by sea` : `<br>by sea: ${escF(f.route.reason || "no route")}`;
+      s += '<br>' + uh('from the ship: {distance} by air', {distance: kmNmi(haversineKm(ship.lat, ship.lon, f.lat, f.lon))});
+      s += '<br>' + (!f.route ? uh('by sea: working it out…')
+        : f.route.sea_km != null ? uh('{distance} by sea', {distance: kmNmi(f.route.sea_km)}) : uh('by sea: {reason}', {reason: escF(ui(f.route.reason || 'no route'))}));
     }
-    return f.waypoint ? s + "<br><small>click the mark to remove it</small>" : s;
+    return f.waypoint ? s + `<br><small>${uh("click the mark to remove it")}</small>` : s;
   }
   function setFocus(lat, lon, label, extra = {}) {
     state.focus = { lat: +lat, lon: +lon, label: label || "", ...extra };
@@ -1266,7 +1269,7 @@
     const c = customColour || d.vars[state.colour] || [];
     const lim = d.limits[state.colour] || minmax(c);
     const hover = d.t.map((ms, i) => d.lat[i] == null ? "" :
-      `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtTs(ms)} ${tzAbbr()}<br>${state.colour}: <b>${v?.rgb ? (c[i] === '#000000' ? 'no nearby photo' : c[i]) : fmtVal(c[i], v?.unit)}</b>` +
+      `<b>${legByIndex(d.leg[i])?.label || ""}</b> · ${fmtTs(ms)} ${tzAbbr()}<br>${esc(variableLabel(state.colour))}: <b>${v?.rgb ? (c[i] === '#000000' ? ui("no nearby photo") : c[i]) : fmtVal(c[i], v?.unit)}</b>` +
       `<br>${dms(d.lat[i], d.lon[i])}<br>${(d.dist_km[i] ?? 0).toFixed(1)} km along track`);
 
     // draw order is click order: MVP tows from the cast tab go under the
@@ -1288,7 +1291,7 @@
       marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
     });
     if (state.track && v?.tsg) traces.push({
-      type: "scattermap", mode: "markers", name: "track readings",
+      type: "scattermap", mode: "markers", name: ui("track readings"),
       lat: d.lat.map((q, i) => Number.isFinite(c[i]) && !lowMap?.[i] ? q : null),
       lon: d.lon.map((q, i) => Number.isFinite(c[i]) && !lowMap?.[i] ? q : null),
       text: hover, hoverinfo: "text",
@@ -1296,7 +1299,7 @@
     });
     // coloured by a TSG variable, the track goes grey where the pump was off
     if (state.track && extraColours.has(state.colour) && !v?.rgb) traces.push({
-      type:'scattermap',mode:'markers',name:'no nearby photo',showlegend:false,
+      type:'scattermap',mode:'markers',name:ui("no nearby photo"),showlegend:false,
       lat:d.lat.map((q,i)=>c[i]==null?q:null),lon:d.lon.map((q,i)=>c[i]==null?q:null),
       marker:{size:6,color:'#000000'},hovertemplate:'No matching photo<extra></extra>'
     });
@@ -1316,8 +1319,8 @@
     const stWhere = (s) => s.lat != null && s.lon != null ? `<br>${dms(s.lat, s.lon)}` : "";
     const stText = (s) => s.kind === "event"
       ? `<b>${s.station}</b>${s.type ? " · " + s.type : ""} · ${legById(s.leg)?.label || s.leg}<br>${(s.time || "").slice(0, 16)}${s.time_end && s.time_end !== s.time ? " → " + s.time_end.slice(0, 16) : ""}` +
-        `<br>${(s.activities || []).length > 3 ? `${s.activities.length} events` : (s.activities || []).join(", ")}${s.bottom_m != null ? `<br>depth ${Math.round(s.bottom_m)} m` : ""}${stWhere(s)}${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`
-      : `<b>Cast ${s.cast}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
+        `<br>${(s.activities || []).length > 3 ? ui("{v0} events", {v0: (s.activities.length)}) : (s.activities || []).join(", ")}${s.bottom_m != null ? `<br>depth ${Math.round(s.bottom_m)} m` : ""}${stWhere(s)}${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`
+      : `<b>${uh("Cast {v0}", {v0: (s.cast)})}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
         `<br>${s.time || ""}${s.type ? "<br>" + s.type : ""}${s.bottom_m != null ? `<br>bottom ${s.bottom_m} m` : ""}${stWhere(s)}` +
         `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`;
     state.stationList = st;
@@ -1422,7 +1425,7 @@
         </div></div><div class="plot"></div>`;
     el.querySelector("h3").textContent = variableLabel(v?.label || name);
     el.querySelector("h3").onclick = () => selectPanel(name);
-    if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
+    if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = window.UWI18n.text(extraPanels.get(name).description || name); }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
     el.querySelector('.depthscale')?.addEventListener('click', () => { state.depthScale[name] = !state.depthScale[name]; store.set('depthScale', state.depthScale); renderPanel(name); });
@@ -1439,7 +1442,7 @@
   // Group cards collect panels by where their data come from: an
   // extra panel names its group when it registers; a variable's follows its
   // source instrument
-  const groupLabel = name => ["Surprise","Lab","Met Station","Bridge","Winches","Other"].includes(name) ? t("underway.group." + name) : name;
+  const groupLabel = name => ["Surprise","Lab","Met Station","Bridge","Winches","Other"].includes(name) ? t("underway.group." + name) : window.UWI18n.text(name);
   const GROUPS = ["Surprise", "Lab", "Met Station", "Bridge", "Winches", "Other"];
   const GROUP_OF_INSTRUMENT = { TSG: "Lab", AVOS: "Met Station", ATS_Portside: "Met Station", ATS: "Met Station", POSMV: "Bridge", Multibeam: "Bridge" };
   function panelGroup(name) {
@@ -1930,7 +1933,7 @@
       if (!fresh.length) return;
       inapp.msgs = [...inapp.msgs, ...fresh.map((m) => ({ ...m, receivedAt: Date.now() }))].slice(-8);
       renderInapp();
-      if (window.Notification?.permission === "granted") for (const m of fresh) { try { new Notification("Amundsen schedule", { body: m.text, tag: m.t + m.text }); } catch { /* not every browser */ } }
+      if (window.Notification?.permission === "granted") for (const m of fresh) { try { new Notification(ui("Amundsen schedule"), { body: m.text, tag: m.t + m.text }); } catch { /* not every browser */ } }
     } catch { /* the next poll */ }
   }
   setInterval(pollInapp, 60e3);
@@ -2019,11 +2022,11 @@
     if (q.get("tab")) store.set("tab", q.get("tab"));
   }
   // a script error is shown rather than swallowed, so it can be reported
-  window.addEventListener("error", (e) => { try { toast(`Page error: ${e.message} (${(e.filename || "").split("/").pop()}:${e.lineno})`); } catch {} });
+  window.addEventListener("error", (e) => { try { toast(ui("Page error: {v0} ({v1}:{v2})", {v0: (e.message), v1: ((e.filename || "").split("/").pop()), v2: (e.lineno)})); } catch {} });
   window.addEventListener("unhandledrejection", (e) => {
     // Plotly's own promises reject harmlessly when a plot is replaced mid-draw
     if (String(e.reason?.stack || "").includes("plotly")) return;
-    try { toast(`Page error: ${e.reason?.message || e.reason}`); } catch {}
+    try { toast(ui("Page error: {v0}", {v0: (e.reason?.message || e.reason)})); } catch {}
   });
 
   (async () => {

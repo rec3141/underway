@@ -3,6 +3,20 @@
   'use strict';
   const catalog = window.UW_UI_CATALOG || {sourceLocale:'en', locales:{en:{label:'English', messages:{}}}};
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  // Source-addressed authored UI messages use versioned catalog candidates too.
+  // Never run this over article text, user messages, dataset keys or API values.
+  const sourceKeys = new Map(Object.entries(catalog.locales[catalog.sourceLocale]?.messages || {})
+    .filter(([key, value]) => key.startsWith('pages.') && typeof value === 'string')
+    .map(([key, value]) => [value, key]));
+  function text(source, values = {}) {
+    return sourceKeys.has(source) ? t(sourceKeys.get(source), values) : String(source).replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (token, name) => has(values, name) ? String(values[name]) : token);
+  }
+  function html(source, values = {}) {
+    // Escape translator text first; values are the original template's trusted
+    // markup or already-escaped data, never translator-provided HTML.
+    const escaped = text(source).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    return escaped.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (token, name) => has(values, name) ? String(values[name]) : token);
+  }
   // Measurement names remain immutable lookup keys; only their display changes.
   const variableKeys = {
     "SST (°C)": "variable.sst",
@@ -83,6 +97,30 @@
     window.dispatchEvent(new CustomEvent('uw:localechange', {detail:{locale}}));
     return true;
   }
+  async function preserve(root, render) {
+    // Repaint labels without losing a draft, selected files, focus or scroll.
+    if (!root) return render();
+    const selector = node => node.id ? '#' + CSS.escape(node.id) : node.name ? `${node.tagName.toLowerCase()}[name="${CSS.escape(node.name)}"]${/^(checkbox|radio)$/.test(node.type) ? `[value="${CSS.escape(node.value)}"]` : ''}` : null;
+    const fields = [...root.querySelectorAll('input,textarea,select')].map(node => ({
+      node, selector:selector(node), value:node.value, checked:node.checked,
+      start:node.selectionStart, end:node.selectionEnd, focus:node === document.activeElement
+    })).filter(x => x.selector);
+    const details = [...root.querySelectorAll('details')].map((node,index) => ({id:node.id,index,open:node.open}));
+    const scroll = [root,...root.querySelectorAll('[id]')].filter(node => node.scrollTop || node.scrollLeft)
+      .map(node => ({node,id:node.id,top:node.scrollTop,left:node.scrollLeft}));
+    await render();
+    for (const state of fields) {
+      let node = root.querySelector(state.selector); if (!node) continue;
+      if (node.type === 'file') { if (node !== state.node) { node.replaceWith(state.node); node = state.node; } }
+      else { node.value = state.value; node.checked = state.checked; }
+      if (state.focus) { node.focus({preventScroll:true}); if (state.start != null) node.setSelectionRange?.(state.start,state.end); }
+    }
+    for (const state of details) {
+      const node = state.id ? root.querySelector('#'+CSS.escape(state.id)) : root.querySelectorAll('details')[state.index];
+      if (node) node.open = state.open;
+    }
+    for (const state of scroll) { const node = state.node.isConnected ? state.node : state.id ? root.querySelector('#'+CSS.escape(state.id)) : null; if (node) { node.scrollTop=state.top;node.scrollLeft=state.left; } }
+  }
   function init() {
     for (const picker of document.querySelectorAll('[data-locale-picker]')) {
       picker.replaceChildren();
@@ -95,6 +133,6 @@
     document.documentElement.lang = locale;
     apply();
   }
-  window.UWI18n = Object.freeze({t, variable, apply, setLocale, get locale() { return locale; }});
+  window.UWI18n = Object.freeze({t, text, html, preserve, variable, apply, setLocale, get locale() { return locale; }});
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
 })();

@@ -181,7 +181,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       if(r.result?.exceptionDetails) throw Error(r.result.exceptionDetails.exception?.description||expression);
       return r.result?.result?.value;
     };
-    const until=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression))return;await wait(100);}throw Error(`Timed out: ${expression}; ${JSON.stringify(await evaluate("({errors:window.__errors,url:location.href})"))}`);};
+    const until=async expression=>{for(let i=0;i<150;i++){if(await evaluate(expression))return;await wait(100);}throw Error(`Timed out: ${expression}; ${JSON.stringify(await evaluate("({errors:window.__errors,url:location.href,casts:document.querySelector('#castplots')?.innerHTML.slice(0,1400),selected:[...(window.UW?.selectedCastKeys?.()||[])]})"))}`);};
     const poll=async()=>{await evaluate('window.__poll()');await wait(250);};
     await call('Page.enable');
     if(process.env.TIMEZONE_UI) await call('Emulation.setTimezoneOverride',{timezoneId:process.env.TIMEZONE_UI});
@@ -210,6 +210,48 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.PAGES_I18N) {
+      await evaluate('UWI18n.setLocale("fr-CA"); UW.showTab("casts")');
+      await until('document.querySelector("#casttable tbody tr[data-id]")');
+      assert.equal(await evaluate('document.querySelector("#castvar option[value=Temperature]").textContent'),'Température');
+      await evaluate('document.querySelector("#casttable tbody tr[data-id]").click(); document.querySelector("#castmode button[data-m=single]").click()');
+      await until('!!document.querySelector("#single-plot")?._fullLayout');
+      await evaluate('Plotly.relayout(document.querySelector("#single-plot"),{"xaxis.range":[0.8,1.2],"xaxis.autorange":false,"yaxis.range":[1.8,1.1],"yaxis.autorange":false})');
+      const selected=await evaluate('JSON.stringify([...UW.selectedCastKeys()])');
+      await evaluate('UWI18n.setLocale("en")');
+      await until('document.querySelector("#single-plot")?._fullLayout?.yaxis?.title?.text==="depth (m)"');
+      assert.equal(await evaluate('JSON.stringify([...UW.selectedCastKeys()])'),selected);
+      assert.deepEqual(await evaluate('document.querySelector("#single-plot")._fullLayout.yaxis.range'),[1.8,1.1]);
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      await until('document.querySelector("#single-plot")?._fullLayout?.yaxis?.title?.text==="profondeur (m)"');
+      assert.deepEqual(await evaluate('document.querySelector("#single-plot")._fullLayout.xaxis.range'),[0.8,1.2]);
+      await evaluate('document.querySelector("#castkind button[data-k=live]").click()');
+      await until('document.querySelector("#livecfgform input[name=tcp]")');
+      await evaluate('document.querySelector("#livecfgform input[name=tcp]").value="crew-host:49163"; UWI18n.setLocale("en")');
+      await until('document.querySelector(".livesetup-title")?.textContent==="Live cast"');
+      assert.equal(await evaluate('document.querySelector("#livecfgform input[name=tcp]").value'),'crew-host:49163');
+      await evaluate('UW.M.alerts={email:true,web:true}; UW.showTab("calendar")');
+      await until('document.querySelector("#alertform")');
+      await evaluate('document.querySelector("#alerts").open=true; document.querySelector("#alertform input[name=match]").value="Crew CTD note"; document.querySelector("#alertform input[value=finished]").checked=true; UWI18n.setLocale("fr-CA")');
+      await until('document.querySelector("#alerts summary")?.textContent.includes("Recevoir")');
+      assert.equal(await evaluate('document.querySelector("#alertform input[name=match]").value'),'Crew CTD note');
+      assert.equal(await evaluate('document.querySelector("#alertform input[value=finished]").checked'),true);
+      assert.equal(await evaluate('document.querySelector("#alerts").open'),true);
+      await evaluate('UW.historyOpen("journal");');
+      await until('document.querySelector("#jtabs button[data-t=submit]")');
+      await evaluate('document.querySelector("#jtabs button[data-t=submit]").click()');
+      await until('document.querySelector("#natimportform input[name=name]")');
+      await evaluate('const draft=document.querySelector("#natimportform input[name=name]"); draft.value="Crew draft"; draft.dispatchEvent(new Event("input",{bubbles:true})); UWI18n.setLocale("en")');
+      await until('document.querySelector("#natimportform h4")?.textContent==="Add to the journal"');
+      assert.equal(await evaluate('document.querySelector("#natimportform input[name=name]").value'),'Crew draft');
+      await evaluate('UW.chatToggle(); document.querySelector("#chattext").value="Keep this English crew draft <b>literal</b>"; UWI18n.setLocale("fr-CA")');
+      assert.equal(await evaluate('document.querySelector("#chattext").value'),'Keep this English crew draft <b>literal</b>');
+      assert.equal(await evaluate('document.querySelector("#chattitle").textContent'),'Carré');
+      assert.match(await evaluate('document.querySelector("#chatprivacy").textContent'),/Salle partagée/);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS French cast/live/calendar/wiki/upload/chat UI, unchanged scientific keys, plot zoom and drafts');
+      return;
+    }
     if(cisFixture) {
       await until('UW.mapView?.map?.isStyleLoaded()');
       await evaluate('document.querySelector("#icechart-toggle").click()');

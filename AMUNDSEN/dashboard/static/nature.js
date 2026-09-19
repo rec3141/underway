@@ -15,6 +15,9 @@
  * history.js. */
 (() => {
   "use strict";
+  const ui = (source, values) => window.UWI18n.text(source, values);
+  const uh = (source, values = {}) => window.UWI18n.html(source, values);
+
   const UW = window.UW, H = UW.histShared;
   const $ = (s) => document.querySelector(s);
   const { store, C, fz } = UW;
@@ -23,7 +26,7 @@
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
   // the domains: a colour each from the theme's palette, read when used
-  const dom = (label, i, hint) => ({ label, hint, get colour() { return C.palette[i]; } });
+  const dom = (label, i, hint) => ({ get label() { return ui(label); }, get hint() { return ui(hint); }, get colour() { return C.palette[i]; } });
   const DOMAINS = {
     biology: dom("Biology", 2, "the living things: mammals, birds, fish, plants, the small and the microbial"),
     geology: dom("Geology", 1, "the rock, its fossils and minerals, the landforms"),
@@ -176,7 +179,7 @@
     const su = subjectOf(o.subject);
     const what = su ? `<b class="${su.kind === "taxon" ? "sci" : ""}">${esc(displayName(su))}</b>` : `<b>${esc(o.subject)}</b>`;
     const num = numberOf(o);
-    return `<a class="vig" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" data-lat="${o.lat ?? ""}" data-lon="${o.lon ?? ""}"><span class="dot" style="background:${domainOf(domainOfObs(o)).colour}"></span>${lead}<span class="txt">${what}${num ? ` <i>${esc(num)}</i>` : ""}${o.qualifier && !num ? ` <i>${esc(o.qualifier)}</i>` : ""}${o.observer ? ` <span class="muted">${esc(o.observer)}</span>` : ""}${o.place ? ` <span class="muted">· ${esc(o.place)}</span>` : ""}${o._journal ? ` <span class="status draft" title="the ship's own journal">ship</span>` : ""}${o.lat != null ? ` <span class="pin" title="on the map">⌖</span>` : ""}</span></a>`;
+    return `<a class="vig" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" data-lat="${o.lat ?? ""}" data-lon="${o.lon ?? ""}"><span class="dot" style="background:${domainOf(domainOfObs(o)).colour}"></span>${lead}<span class="txt">${what}${num ? ` <i>${esc(num)}</i>` : ""}${o.qualifier && !num ? ` <i>${esc(o.qualifier)}</i>` : ""}${o.observer ? ` <span class="muted">${esc(o.observer)}</span>` : ""}${o.place ? ` <span class="muted">· ${esc(o.place)}</span>` : ""}${o._journal ? ` <span class="status draft" title="${uh("the ship's own journal")}">${uh("ship")}</span>` : ""}${o.lat != null ? ` <span class="pin" title="${uh("on the map")}">⌖</span>` : ""}</span></a>`;
   }
   // the number as it was written: "about 200", "-58.5 F", "no bottom at 1,000 fathoms"
   function numberOf(o) {
@@ -192,13 +195,13 @@
     if (!nat.subjects || !nat.available) return "";
     const now = new Date(), pos = UW.M.latest || {};
     const today = onThisDay(now), here = nearShip(pos.lat, pos.lon);
-    const dateWord = now.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+    const dateWord = now.toLocaleDateString(window.UWI18n.locale, { month: "long", day: "numeric" });
     const fold = (xs, key, line) => {
       const shown = nat.more[key] ? xs : xs.slice(0, VIG_N), rest = xs.length - shown.length;
-      return shown.map(line).join("") + (rest > 0 ? `<button type="button" class="more" data-more="nat:${key}">see ${rest} more</button>` : nat.more[key] && xs.length > VIG_N ? `<button type="button" class="more" data-more="nat:${key}">see fewer</button>` : "");
+      return shown.map(line).join("") + (rest > 0 ? `<button type="button" class="more" data-more="nat:${key}">${uh("see {v1} more", {v1: (rest)})}</button>` : nat.more[key] && xs.length > VIG_N ? `<button type="button" class="more" data-more="nat:${key}">${uh("see fewer")}</button>` : "");
     };
-    return `<section class="vigcard"><h3>Observed on this day · ${esc(dateWord)}</h3>${today.length ? fold(today, "today", (o) => obsLine(o, `<b>${esc(H.yearLabel(o._year))}</b>`)) : `<div class="muted small">Nothing observed on ${esc(dateWord)} in the record yet.</div>`}</section>
-      <section class="vigcard"><h3>Observed near the ship${pos.lat != null ? ` · ${esc(H.whereName(pos.lat, pos.lon) || "")}` : ""}</h3>${here.length ? fold(here, "here", (x) => obsLine(x.o, `<b>${Math.round(x.d)} km</b>`)) : `<div class="muted small">${pos.lat == null ? "The ship's position is not known to this build." : `Nothing observed within ${NEAR_KM} km of the ship yet.`}</div>`}</section>`;
+    return `<section class="vigcard"><h3>${uh("Observed on this day · {v0}", {v0: (esc(dateWord))})}</h3>${today.length ? fold(today, "today", (o) => obsLine(o, `<b>${esc(H.yearLabel(o._year))}</b>`)) : `<div class="muted small">${uh("Nothing observed on {v0} in the record yet.", {v0: (esc(dateWord))})}</div>`}</section>
+      <section class="vigcard"><h3>${uh("Observed near the ship{v2}", {v2: (pos.lat != null ? ` · ${esc(H.whereName(pos.lat, pos.lon) || "")}` : "")})}</h3>${here.length ? fold(here, "here", (x) => obsLine(x.o, `<b>${Math.round(x.d)} km</b>`)) : `<div class="muted small">${pos.lat == null ? uh("The ship's position is not known to this build.") : uh("Nothing observed within {v0} km of the ship yet.", {v0: (NEAR_KM)})}</div>`}</section>`;
   }
 
   // ---------------------------------------------------------------- the pane
@@ -210,7 +213,7 @@
   function subjectRow(s) {
     const names = [s.english !== s.name ? s.english : "", s.inuktitut, s.kalaallisut, s.french].filter(Boolean).join(" · ");
     const n = (nat.bySubject.get(s.name) || []).length;
-    return `<a class="person" href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}"><b class="${s.kind === "taxon" ? "sci" : ""}">${esc(s.name)}</b>${names ? ` <span class="muted">(${esc(names)})</span>` : ""} <span class="muted small">${esc(s.rank || s.kind || "")}${n ? ` · ${n}` : ""}</span>${s.status ? ` <span class="status" title="conservation status">${esc(s.status)}</span>` : ""}${s.note ? `<span class="role">${esc(s.note.length > 160 ? s.note.slice(0, 157) + "…" : s.note)}</span>` : ""}</a>`;
+    return `<a class="person" href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}"><b class="${s.kind === "taxon" ? "sci" : ""}">${esc(s.name)}</b>${names ? ` <span class="muted">(${esc(names)})</span>` : ""} <span class="muted small">${esc(s.rank || s.kind || "")}${n ? ` · ${n}` : ""}</span>${s.status ? ` <span class="status" title="${uh("conservation status")}">${esc(s.status)}</span>` : ""}${s.note ? `<span class="role">${esc(s.note.length > 160 ? s.note.slice(0, 157) + "…" : s.note)}</span>` : ""}</a>`;
   }
   // the record: observations as a table, oldest first, with a chart above it
   // when there are numbers to draw
@@ -219,15 +222,15 @@
       const su = subjectOf(o.subject);
       const what = opts.subject ? "" : `<td>${su ? subjectLink(su) : esc(o.subject)}</td>`;
       const where = o.place ? esc(o.place) : "";
-      const pin = o.lat != null ? ` <span class="pin" data-lat="${o.lat}" data-lon="${o.lon}" data-label="${esc(o.subject)}" data-layer="nature" title="on the map">⌖</span>` : "";
+      const pin = o.lat != null ? ` <span class="pin" data-lat="${o.lat}" data-lon="${o.lon}" data-label="${esc(o.subject)}" data-layer="nature" title="${uh("on the map")}">⌖</span>` : "";
       const num = numberOf(o);
-      const src = o.bibkey ? H.sourceRef(o.bibkey, o.pages) : o._journal ? `<span class="status draft" title="the ship's own journal">ship's journal</span>` : "";
+      const src = o.bibkey ? H.sourceRef(o.bibkey, o.pages) : o._journal ? `<span class="status draft" title="${uh("the ship's own journal")}">${uh("ship's journal")}</span>` : "";
       return `<tr data-key="${i}"${o.lat != null ? ` data-lat="${o.lat}" data-lon="${o.lon}"` : ""}><td class="mono"><a href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}">${esc(o.date_text || H.dateLabel(o.date_start))}</a></td>${what}` +
-        `<td>${num ? `<b>${esc(num)}</b> ` : ""}${o.qualifier && !/\bat$/.test(o.qualifier) ? `<i>${esc(o.qualifier)}</i> ` : ""}${o.depth != null ? `<span class="muted">${esc(fmtNum(o.depth))} m down</span> ` : ""}${o.height != null ? `<span class="muted">${esc(fmtNum(o.height))} m up</span> ` : ""}<span class="muted">${esc(short(o.detail || "", 110))}</span></td>` +
+        `<td>${num ? `<b>${esc(num)}</b> ` : ""}${o.qualifier && !/\bat$/.test(o.qualifier) ? `<i>${esc(o.qualifier)}</i> ` : ""}${o.depth != null ? `<span class="muted">${uh("{v0} m down", {v0: (esc(fmtNum(o.depth)))})}</span> ` : ""}${o.height != null ? `<span class="muted">${uh("{v0} m up", {v0: (esc(fmtNum(o.height)))})}</span> ` : ""}<span class="muted">${esc(short(o.detail || "", 110))}</span></td>` +
         `<td>${where}${pin}</td><td>${esc(o.observer || "")}${o.vessel ? ` <span class="muted">${esc(o.vessel)}</span>` : ""}</td><td>${src}</td></tr>`;
     };
-    const chart = rows.length >= 2 ? `<section class="panel card castplot wide solo" data-cp="natplot"><div class="head"><h3>${esc(opts.title || "Observations")}</h3><div class="tools"><span class="now">${rows.length} observations · scroll to zoom, drag to pan, click a point for its row</span><button type="button" class="reset" id="natplotreset" title="the whole record">⟲</button></div></div><div class="plot" id="natplot"></div></section>` : "";
-    return chart + `<div class="hscroll" id="natrecord"><table class="sched timeline record"><thead><tr><th>Date</th>${opts.subject ? "" : "<th>Subject</th>"}<th>Observation</th><th>Where</th><th>Observer</th><th>Source</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>`;
+    const chart = rows.length >= 2 ? `<section class="panel card castplot wide solo" data-cp="natplot"><div class="head"><h3>${esc(opts.title || ui("Observations"))}</h3><div class="tools"><span class="now">${uh("{v1} observations · scroll to zoom, drag to pan, click a point for its row", {v1: (rows.length)})}</span><button type="button" class="reset" id="natplotreset" title="${uh("the whole record")}">⟲</button></div></div><div class="plot" id="natplot"></div></section>` : "";
+    return chart + `<div class="hscroll" id="natrecord"><table class="sched timeline record"><thead><tr><th>${uh("Date")}</th>${opts.subject ? "" : `<th>${uh("Subject")}</th>`}<th>${uh("Observation")}</th><th>${uh("Where")}</th><th>${uh("Observer")}</th><th>${uh("Source")}</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>`;
   }
   const short = (t, n = 60) => t.length > n ? t.slice(0, n - 3) + "…" : t;
   // the chart: values against the year when the rows share a unit and carry
@@ -236,7 +239,7 @@
   function drawRecord(rows, opts = {}) {
     const gd = $("#histmain #natplot"); if (!gd) return;
     const dated = rows.filter((o) => o._year != null);
-    if (!dated.length) { gd.innerHTML = `<div class="empty">No dates to chart.</div>`; return; }
+    if (!dated.length) { gd.innerHTML = `<div class="empty">${uh("No dates to chart.")}</div>`; return; }
     const label = (o) => `${esc(short(o.subject, 60))}<br>${esc(numberOf(o) || o.qualifier || "")}${o.observer ? " · " + esc(o.observer) : ""}<br>${esc(o.date_text || H.dateLabel(o.date_start))}${o.place ? " · " + esc(o.place) : ""}`;
     const units = new Set(dated.filter((o) => o.value != null && o.value !== "" && Number.isFinite(+o.value)).map((o) => o.unit || ""));
     const numeric = dated.filter((o) => Number.isFinite(+o.value) && o.value !== "" && o.value != null);
@@ -248,7 +251,7 @@
       traces.push({ type: "scatter", mode: "markers+lines", name: unit, x: numeric.map((o) => o._year), y: numeric.map((o) => +o.value), customdata: numeric.map((o) => rows.indexOf(o)),
         text: numeric.map(label), hovertemplate: "%{text}<extra></extra>", line: { color: C.line, width: 1 }, marker: { size: 8, color: numeric.map((o) => o._journal ? C.accent2 : domainOf(domainOfObs(o)).colour), line: { color: C.markerLine, width: .5 } } });
       layout = { ...UW.THEME, margin: { l: fz(56), r: 12, t: fz(8), b: fz(40) }, showlegend: false, dragmode: "pan",
-        xaxis: { ...UW.THEME.xaxis, ...H.yearTicks(lo - pad, hi + pad), range: [lo - pad, hi + pad], zeroline: false, title: { text: "year", font: { size: fz(12) } }, tickfont: { size: fz(12) } },
+        xaxis: { ...UW.THEME.xaxis, _uwIdentity:'year', ...H.yearTicks(lo - pad, hi + pad), range: [lo - pad, hi + pad], zeroline: false, title: { text: ui("year"), font: { size: fz(12) } }, tickfont: { size: fz(12) } },
         yaxis: { ...UW.THEME.yaxis, title: { text: unit || "value", font: { size: fz(12) } }, tickfont: { size: fz(11) } } };
     } else {
       const observers = new Set(dated.map((o) => o.observer || "")).size, bySubject = new Set(dated.map((o) => o.subject)).size <= 14;
@@ -258,7 +261,7 @@
         text: dated.map(label), hovertemplate: "%{text}<extra></extra>",
         marker: { size: dated.map((o) => o._journal ? 11 : 8), color: dated.map((o) => domainOf(domainOfObs(o)).colour), line: { color: dated.map((o) => o._journal ? C.accent2 : C.markerLine), width: dated.map((o) => o._journal ? 2 : .5) } } });
       layout = { ...UW.THEME, margin: { l: fz(150), r: 12, t: fz(8), b: fz(40) }, showlegend: false, dragmode: "pan",
-        xaxis: { ...UW.THEME.xaxis, ...H.yearTicks(lo - pad, hi + pad), range: [lo - pad, hi + pad], zeroline: false, title: { text: "year", font: { size: fz(12) } }, tickfont: { size: fz(12) } },
+        xaxis: { ...UW.THEME.xaxis, _uwIdentity:'year', ...H.yearTicks(lo - pad, hi + pad), range: [lo - pad, hi + pad], zeroline: false, title: { text: ui("year"), font: { size: fz(12) } }, tickfont: { size: fz(12) } },
         yaxis: { ...UW.THEME.yaxis, type: "category", categoryorder: "array", categoryarray: cats.slice().reverse(), tickfont: { size: fz(11) }, fixedrange: true } };
     }
     UW.reactPlot(gd, traces, layout, UW.CFG).then((g) => {
@@ -288,9 +291,9 @@
     const hit = (s) => { const t = String(s || "").toLowerCase(); return words.every((w) => t.includes(w)); };
     const subs = nat.subjects.filter((s) => hit([s.name, s.english, s.french, s.inuktitut, s.kalaallisut, s.also, s.note].join(" ")));
     const obs = allObs().filter((o) => hit([o.subject, o.detail, o.observer, o.place, o.qualifier, o.vessel].join(" "))).sort(byDate);
-    el.insertAdjacentHTML("beforeend", `<h2>${subs.length} subjects · ${obs.length} observations</h2>` +
+    el.insertAdjacentHTML("beforeend", `<h2>${uh("{v0} subjects · {v1} observations", {v0: (subs.length), v1: (obs.length)})}</h2>` +
       (subs.length ? `<div class="peoplelist subjlist">${subs.slice(0, 60).map(subjectRow).join("")}</div>` : "") +
-      (obs.length ? recordHTML(obs.slice(0, 200), { title: "Observations found" }) : ""));
+      (obs.length ? recordHTML(obs.slice(0, 200), { title: ui("Observations found") }) : ""));
     if (obs.length) drawRecord(obs.slice(0, 200));
   }
   // the home, after the vignettes: the journal and the domains
@@ -298,15 +301,15 @@
     if (!nat.subjects) return "";
     const counts = new Map(); for (const o of allObs()) { const d = domainOfObs(o) || "other"; counts.set(d, (counts.get(d) || 0) + 1); }
     const doms = [...Object.keys(DOMAINS), ...[...counts.keys()].filter((d) => !DOMAINS[d])].map((d) => domainChip(d, counts.get(d) || 0)).join("");
-    return (nat.available ? "" : `<p class="lead">The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.</p>`) +
+    return (nat.available ? "" : `<p class="lead">${uh("The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.")}</p>`) +
       journalHTML(true) +
-      `<h2>Domains <a class="chip small" href="#wiki/record" data-slug="record">All observations</a></h2><div class="domgrid">${doms}</div>`;
+      `<h2>${uh("Domains")} <a class="chip small" href="#wiki/record" data-slug="record">${uh("All observations")}</a></h2><div class="domgrid">${doms}</div>`;
   }
   const wireHome = (el) => wireJournal(el);
   // Explore, after the topics: the kinds of subject
   function exploreExtraHTML() {
     if (!nat.subjects) return "";
-    return `<h3>Kinds of subject</h3><div class="domgrid">${Object.entries(SUBJECT_KINDS).map(([k, label]) => { const n = nat.subjects.filter((s) => s.kind === k).length; return n ? `<a class="chip" href="#wiki/subjects/${k}" data-slug="subjects/${k}">${esc(label)} <span class="muted">${n}</span></a>` : ""; }).join("")}</div>`;
+    return `<h3>${uh("Kinds of subject")}</h3><div class="domgrid">${Object.entries(SUBJECT_KINDS).map(([k, label]) => { const n = nat.subjects.filter((s) => s.kind === k).length; return n ? `<a class="chip" href="#wiki/subjects/${k}" data-slug="subjects/${k}">${esc(label)} <span class="muted">${n}</span></a>` : ""; }).join("")}</div>`;
   }
   // a natural topic's page, after its documents: its subjects and observations
   function topicExtra(el, t) {
@@ -315,17 +318,17 @@
     const subs = nat.subjects.filter((s) => s.topic === t).sort((a, b) => a.name.localeCompare(b.name));
     const rows = shownObs().sort(byDate);
     el.insertAdjacentHTML("beforeend",
-      (subs.length ? `<h3><span class="muted">${subs.length}</span> Subjects</h3><div class="peoplelist subjlist">${subs.map(subjectRow).join("")}</div>` : "") +
-      (rows.length ? `<h3><span class="muted">${rows.length}</span> Observations</h3>` + recordHTML(rows, { title: topic?.title || t }) : ""));
+      (subs.length ? `<h3><span class="muted">${subs.length}</span> ${uh("Subjects")}</h3><div class="peoplelist subjlist">${subs.map(subjectRow).join("")}</div>` : "") +
+      (rows.length ? `<h3><span class="muted">${rows.length}</span> ${uh("Observations")}</h3>` + recordHTML(rows, { title: topic?.title || t }) : ""));
     drawRecord(rows);
   }
   // this half's own views: the record, the journal, an import, a domain and its parts, a kind of subject, a subject, an observation
   const handles = (s) => /^(record|journal)$|^(import|domain|subjects|subject|observation)\//.test(s);
   async function render(el, s) {
-    if (!nat.subjects) { el.innerHTML = `<div class="empty">Loading the record…</div>`; return; }
+    if (!nat.subjects) { el.innerHTML = `<div class="empty">${uh("Loading the record…")}</div>`; return; }
     if (s === "record") {
       const rows = shownObs().sort(byDate);
-      el.innerHTML = crumb(here("Observations", "record")) + `<h2><span class="muted">${rows.length}</span> Observations</h2><div class="domgrid">${Object.keys(DOMAINS).map((d) => domainChip(d, rows.filter((o) => domainOfObs(o) === d).length)).join("")}</div>` + (rows.length ? recordHTML(rows, { title: "Observations" }) : `<p class="muted">Nothing in the record yet.</p>`);
+      el.innerHTML = crumb(here(uh("Observations"), "record")) + `<h2><span class="muted">${rows.length}</span> ${uh("Observations")}</h2><div class="domgrid">${Object.keys(DOMAINS).map((d) => domainChip(d, rows.filter((o) => domainOfObs(o) === d).length)).join("")}</div>` + (rows.length ? recordHTML(rows, { title: uh("Observations") }) : `<p class="muted">${uh("Nothing in the record yet.")}</p>`);
       drawRecord(rows);
       return;
     }
@@ -335,7 +338,7 @@
     if (s.startsWith("subjects/")) {
       const k = s.slice(9);
       const subs = nat.subjects.filter((x) => x.kind === k);
-      el.innerHTML = crumb(here(esc(SUBJECT_KINDS[k] || k), s)) + `<h2><span class="muted">${subs.length}</span> ${esc(SUBJECT_KINDS[k] || k)}</h2>` + treeHTML(subs);
+      el.innerHTML = crumb(here(esc(ui(SUBJECT_KINDS[k] || k)), s)) + `<h2><span class="muted">${subs.length}</span> ${esc(ui(SUBJECT_KINDS[k] || k))}</h2>` + treeHTML(subs);
       return;
     }
     if (s.startsWith("observation/")) { renderObservation(el, s.slice(12)); return; }
@@ -347,7 +350,7 @@
   // topics': the page is a chip per part, narrative, images, events, maps
   // and glossary (the subjects), each opening its own page, over the record
   // of its observations.
-  const DOMAIN_PARTS = [["pages", "Explore", "pages"], ["images", "Images", "images"], ["events", "Events", "events"], ["maps", "Maps", "maps"], ["glossary", "Glossary", "subjects"], ["observations", "Observations", "observations"]];
+  const DOMAIN_PARTS = [["pages", ui("Explore"), "pages"], ["images", "Images", "images"], ["events", "Events", "events"], ["maps", "Maps", "maps"], ["glossary", ui("Glossary"), "subjects"], ["observations", ui("Observations"), "observations"]];
   function domainTopics(d) {
     const t = new Set();
     for (const x of nat.subjects) if (x.domain === d && x.topic) t.add(x.topic);
@@ -373,25 +376,25 @@
       const chips = DOMAIN_PARTS.filter(([k]) => sets[k].length).map(([k, label, word]) =>
         H.collectionChip({ slug: `domain/${d}/${k}`, label, colour: D.colour, count: sets[k].length, word, items: k === "maps" ? sets.maps : sets.images })).join("");
       el.innerHTML = crumb(here(esc(D.label), `domain/${d}`)) + h2(null, D.label) + `<p class="lead">${esc(D.hint)}</p>` +
-        (chips ? `<div class="colgrid">${chips}</div>` : `<p class="muted">Nothing of this domain in the wiki yet.</p>`);
+        (chips ? `<div class="colgrid">${chips}</div>` : `<p class="muted">${uh("Nothing of this domain in the wiki yet.")}</p>`);
       return;
     }
     const P = DOMAIN_PARTS.find(([k]) => k === part);
-    if (!P) { el.innerHTML = crumb(dlink) + `<div class="empty">No such part of the domain.</div>`; return; }
+    if (!P) { el.innerHTML = crumb(dlink) + `<div class="empty">${uh("No such part of the domain.")}</div>`; return; }
     const [, label] = P, xs = sets[part];
     let body;
     if (part === "pages") {                                        // as the wiki's Explore: the domain's topics, then their pages
       const topics = (H.data().index?.topics || []).filter((t) => sets.topics.has(t.slug));
-      body = `<div class="topicgrid">${topics.map((t) => H.topicCard(t, true)).join("")}</div><h3><span class="muted">${xs.length}</span> Pages</h3><div class="pagelist">${xs.map((p) => H.pageLink(p)).join("")}</div>`;
+      body = `<div class="topicgrid">${topics.map((t) => H.topicCard(t, true)).join("")}</div><h3><span class="muted">${xs.length}</span> ${uh("Pages")}</h3><div class="pagelist">${xs.map((p) => H.pageLink(p)).join("")}</div>`;
     }
     else if (part === "images" || part === "maps") body = `<div class="artgrid pictures">${xs.sort(byYear).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>`;
     else if (part === "observations") body = recordHTML(xs, { title: D.label });
     else if (part === "events") body = `<div class="pagelist">${xs.sort(byYear).map((e) => H.pageLink({ slug: `event/${e.id}`, kind: "event", title: e.title, summary: [H.dateLabel(e.date_text || e.date_start || ""), e.place].filter(Boolean).join(" · ") })).join("")}</div>`;
     else {
       const kinds = [...new Set(xs.map((x) => x.kind))];
-      body = kinds.map((k) => `<h3>${esc(SUBJECT_KINDS[k] || k)} <span class="muted">${xs.filter((x) => x.kind === k).length}</span></h3><div class="peoplelist subjlist">${xs.filter((x) => x.kind === k).sort((a, b) => a.name.localeCompare(b.name)).map(subjectRow).join("")}</div>`).join("");
+      body = kinds.map((k) => `<h3>${esc(ui(SUBJECT_KINDS[k] || k))} <span class="muted">${xs.filter((x) => x.kind === k).length}</span></h3><div class="peoplelist subjlist">${xs.filter((x) => x.kind === k).sort((a, b) => a.name.localeCompare(b.name)).map(subjectRow).join("")}</div>`).join("");
     }
-    el.innerHTML = crumb(dlink, here(esc(label), `domain/${d}/${part}`)) + h2(part === "pages" ? null : xs.length, label) + (xs.length ? body : `<p class="muted">Nothing here yet.</p>`);
+    el.innerHTML = crumb(dlink, here(esc(label), `domain/${d}/${part}`)) + h2(part === "pages" ? null : xs.length, label) + (xs.length ? body : `<p class="muted">${uh("Nothing here yet.")}</p>`);
     if (part === "observations") drawRecord(xs);
   }
   // the taxa and the rock units as a tree: a root is a row with no parent in the list
@@ -405,28 +408,28 @@
     const s = subjectBySlug(slug);
     let p = null;
     try { p = await page(slug); } catch { /* a subject without a page yet: the row is enough */ }
-    if (!s && !p) { el.innerHTML = crumb() + `<div class="empty">That subject is not in this build.</div>`; return; }
+    if (!s && !p) { el.innerHTML = crumb() + `<div class="empty">${uh("That subject is not in this build.")}</div>`; return; }
     const row = s || { name: p.title, kind: "", domain: "", page: slug };
     const D = domainOf(row.domain), t = row.topic ? topicOf(row.topic) : null;
     const rows = (nat.bySubject.get(row.name) || []).concat(nat.journal.filter((o) => o.subject === row.name && !nat.obs.some((x) => x.id === o.id))).sort(byDate);
     const kids = (nat.children.get(row.name) || []).sort((a, b) => a.name.localeCompare(b.name));
     const parent = row.parent ? subjectOf(row.parent) : null;
-    const names = [["scientific", row.kind === "taxon" ? row.name : ""], ["name", row.kind !== "taxon" ? row.name : ""], ["English", row.english], ["French", row.french], ["Inuktitut", row.inuktitut], ["Kalaallisut", row.kalaallisut], ["also", row.also]].filter(([, v]) => v);
+    const names = [["scientific", row.kind === "taxon" ? row.name : ""], ["name", row.kind !== "taxon" ? row.name : ""], [ui("English"), row.english], [ui("French"), row.french], ["Inuktitut", row.inuktitut], ["Kalaallisut", row.kalaallisut], ["also", row.also]].filter(([, v]) => v);
     const backbone = row.backbone_id ? backboneLink(row) : "";
-    const meta = [row.kind ? esc(SUBJECT_KINDS[row.kind] || row.kind) : "", row.rank ? esc(row.rank) : "", row.unit ? `in ${esc(row.unit)}` : "", row.status ? `<span class="status" title="conservation status">${esc(row.status)}</span>` : ""].filter(Boolean).join(" · ");
+    const meta = [row.kind ? esc(ui(SUBJECT_KINDS[row.kind] || row.kind)) : "", row.rank ? esc(row.rank) : "", row.unit ? ui("in {v0}", {v0: (esc(row.unit))}) : "", row.status ? `<span class="status" title="${uh("conservation status")}">${esc(row.status)}</span>` : ""].filter(Boolean).join(" · ");
     // the pictures of it: the evidence of its observations, and the natural topics' images tagged with its names
     const evidence = new Set(rows.map((o) => o.artifact_id).filter(Boolean));
     const hd = H.data(), lname = [row.name, row.english].filter(Boolean).map((x) => x.toLowerCase());
     const pictures = (hd.artifacts || []).filter((a) => (a.type === "image" || a.type === "map") && (evidence.has(a.id) || (a.topic && H.topicDomain(a.topic) === "nature" && (a.tags || []).some((x) => lname.includes(String(x).toLowerCase())))));
-    el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-slug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(row.domain || "other")]), here(`<span class="kind">subject</span>`, slug)) +
+    el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-slug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(row.domain || "other")]), here(`<span class="kind">${uh("subject")}</span>`, slug)) +
       `<h2>${row.kind === "taxon" ? `<i>${esc(row.name)}</i>` : esc(row.name)}${row.english && row.english !== row.name ? ` <span class="muted">${esc(row.english)}</span>` : ""}</h2>` +
-      `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${meta ? " · " + meta : ""}${parent ? ` · under ${subjectLink(parent)}` : ""}${backbone ? " · " + backbone : ""}</div>` +
+      `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${meta ? " · " + meta : ""}${parent ? uh(" · under {v0}", {v0: (subjectLink(parent))}) : ""}${backbone ? " · " + backbone : ""}</div>` +
       `<div class="names">${names.map(([l, v]) => `<span class="lbl">${esc(l)}</span><span class="${l === "scientific" ? "sci" : ""}">${esc(v)}</span>`).join("")}</div>` +
       (row.bibkey ? H.facts([["source", H.sourceRef(row.bibkey)]]) : "") +
       `<div class="wiki">${H.markdown(p?.html || row.note || "")}</div>` +
-      (pictures.length ? `<h3>Pictures <span class="muted">${pictures.length}</span></h3><div class="artgrid pictures">${pictures.slice(0, 24).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>${pictures.length > 24 ? `<p class="muted small">and ${pictures.length - 24} more among the <a href="#wiki/kind/image" data-slug="kind/image">images</a></p>` : ""}` : "") +
-      (kids.length ? `<h3>Below it <span class="muted">${kids.length}</span></h3><div class="peoplelist subjlist">${kids.map(subjectRow).join("")}</div>` : "") +
-      `<h3>Observations <span class="muted">${rows.length}</span></h3>` + (rows.length ? recordHTML(rows, { subject: true, title: shortName(row) }) : `<p class="muted">No observations of it in the record yet.</p>`) +
+      (pictures.length ? `<h3>${uh("Pictures")} <span class="muted">${pictures.length}</span></h3><div class="artgrid pictures">${pictures.slice(0, 24).map((a) => H.artifactCard(a, { creator: true })).join("")}</div>${pictures.length > 24 ? `<p class="muted small">${uh("and {v0} more among the", {v0: (pictures.length - 24)})} <a href="#wiki/kind/image" data-slug="kind/image">${uh("images")}</a></p>` : ""}` : "") +
+      (kids.length ? `<h3>${uh("Below it")} <span class="muted">${kids.length}</span></h3><div class="peoplelist subjlist">${kids.map(subjectRow).join("")}</div>` : "") +
+      `<h3>${uh("Observations")} <span class="muted">${rows.length}</span></h3>` + (rows.length ? recordHTML(rows, { subject: true, title: shortName(row) }) : `<p class="muted">${uh("No observations of it in the record yet.")}</p>`) +
       H.backlinksHTML(p?.backlinks || []);
     H.wireBackmore(el);
     H.crossLink(el.querySelector(".wiki"), slug, p?.people, row.name);
@@ -437,7 +440,7 @@
     const id = String(s.backbone_id);
     const m = /^(?:gbif:)?(\d+)$/.exec(id);
     const url = m && s.kind === "taxon" ? `https://www.gbif.org/species/${m[1]}` : /^urn:lsid:marinespecies\.org:taxname:(\d+)$/.test(id) ? `https://www.marinespecies.org/aphia.php?p=taxdetails&id=${RegExp.$1}` : "";
-    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="the backbone this subject resolves in">${esc(id)} ↗</a>` : `<span class="muted mono">${esc(id)}</span>`;
+    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" title="${uh("the backbone this subject resolves in")}">${esc(id)} ↗</a>` : `<span class="muted mono">${esc(id)}</span>`;
   }
   // a slug's title for the wiki's backlinks: a subject's name, an observation's label
   const titleOf = (s) => s.startsWith("subject/") ? subjectBySlug(s)?.name || "" : s.startsWith("observation/") ? (obsById(s.slice(12))?.label || obsById(s.slice(12))?.subject || "") : "";
@@ -451,14 +454,14 @@
     window.UWPhotoGallery.wireDetail(figure, {
       items: galleryPhotos().map(photo => ({
         id: photo.id, src: photoSource(photo), title: photo.subject || '',
-        alt: photo.detail || photo.subject || 'Ship photograph', credit: photo.observer || 'the ship',
+        alt: photo.detail || photo.subject || ui("Ship photograph"), credit: photo.observer || ui("the ship"),
       })),
       id: o.id, onSelect: id => H.open(`observation/${id}`), onGallery: returnToGallery,
     });
   }
   function renderObservation(el, id) {
     const o = obsById(id);
-    if (!o) { el.innerHTML = crumb() + `<div class="empty">That observation is not in this build.</div>`; return; }
+    if (!o) { el.innerHTML = crumb() + `<div class="empty">${uh("That observation is not in this build.")}</div>`; return; }
     const s = subjectOf(o.subject), D = domainOf(domainOfObs(o)), t = o.topic ? topicOf(o.topic) : null;
     const hd = H.data();
     const when = o.date_text || [o.date_start, o.date_end].filter(Boolean).map((d) => H.dateLabel(d)).join(" to ") || (o.date || "");
@@ -472,20 +475,20 @@
     const num = numberOf(o);
     const facts = H.facts([
       ["observed", [num, o.qualifier && !num ? o.qualifier : "", o.stage, o.sex, o.behaviour].filter(Boolean).join(" · ")],
-      ["depth", o.depth != null ? `${fmtNum(o.depth)} m below the surface` : ""], ["height", o.height != null ? `${fmtNum(o.height)} m above` : ""],
+      ["depth", o.depth != null ? ui("{v0} m below the surface", {v0: (fmtNum(o.depth))}) : ""], ["height", o.height != null ? ui("{v0} m above", {v0: (fmtNum(o.height))}) : ""],
       ["method", [o.method, o.instrument].filter(Boolean).join(", ")],
-      ["confidence", o.confidence], ["origin", o._journal || o.origin === "ship" || o.origin === "crew" ? "the ship's own journal" : ""],
+      ["confidence", o.confidence], ["origin", o._journal || o.origin === "ship" || o.origin === "crew" ? ui("the ship's own journal") : ""],
       ["source", o.bibkey ? H.sourceRef(o.bibkey, o.pages) : ""],
     ]);
-    el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-slug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(domainOfObs(o) || "other")]), here(`<span class="kind">observation</span>`, `observation/${o.id}`)) +
+    el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-slug="topic/${esc(t.slug)}">${esc(t.title)}</a>`] : [domainChip(domainOfObs(o) || "other")]), here(`<span class="kind">${uh("observation")}</span>`, `observation/${o.id}`)) +
       `<h2>${s ? subjectLink(s) : esc(o.subject)}${num ? ` <span class="muted">${esc(num)}</span>` : ""}</h2>` +
-      `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${when ? " · " + esc(when) : ""}${place ? " · " + place : ""}${where}${o.sensitive ? ` · <span class="status draft" title="a sensitive site: the position is published coarsened and the place left blank">sensitive</span>` : ""}</div>` +
-      (o.observer || o.vessel ? `<div class="artpeople"><span class="lbl">By</span>${o.observer ? person ? pageLinkFor(person.page, esc(o.observer), "chip small") : `<span class="chip small">${esc(o.observer)}</span>` : ""}${o.vessel ? vessel ? pageLinkFor(vessel.page, esc(o.vessel), "chip small") : `<span class="chip small">${esc(o.vessel)}</span>` : ""}</div>` : "") +
-      (o.artifact_file ? `<figure><img src="${esc(o.artifact_file.startsWith("_journal/") ? journalPic(o) : o.artifact_file)}" alt=""><figcaption>${esc(o.observer || "the ship")}</figcaption></figure>` : "") +
+      `<div class="artmeta"><span class="dot" style="background:${D.colour}"></span>${esc(D.label)}${when ? " · " + esc(when) : ""}${place ? " · " + place : ""}${where}${o.sensitive ? ` · <span class="status draft" title="${uh("a sensitive site: the position is published coarsened and the place left blank")}">${uh("sensitive")}</span>` : ""}</div>` +
+      (o.observer || o.vessel ? `<div class="artpeople"><span class="lbl">${uh("By")}</span>${o.observer ? person ? pageLinkFor(person.page, esc(o.observer), "chip small") : `<span class="chip small">${esc(o.observer)}</span>` : ""}${o.vessel ? vessel ? pageLinkFor(vessel.page, esc(o.vessel), "chip small") : `<span class="chip small">${esc(o.vessel)}</span>` : ""}</div>` : "") +
+      (o.artifact_file ? `<figure><img src="${esc(o.artifact_file.startsWith("_journal/") ? journalPic(o) : o.artifact_file)}" alt=""><figcaption>${esc(o.observer || ui("the ship"))}</figcaption></figure>` : "") +
       facts + `<div class="wiki"><p>${esc(o.detail || "")}</p></div>` +
-      (art ? `<h3>Evidence</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
-      (ev ? `<div class="backlinks"><span class="lbl">Also the event</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
-      (s ? `<div class="backlinks"><span class="lbl">Observations</span><a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}">every observation of ${esc(shortName(s))}</a></div>` : "");
+      (art ? `<h3>${uh("Evidence")}</h3><div class="artgrid">${H.artifactCard(art, { creator: true })}</div>` : "") +
+      (ev ? `<div class="backlinks"><span class="lbl">${uh("Also the event")}</span>${pageLinkFor(`event/${ev.id}`, esc(ev.title))}</div>` : "") +
+      (s ? `<div class="backlinks"><span class="lbl">${uh("Observations")}</span><a href="#wiki/${esc(s.page)}" data-slug="${esc(s.page)}">${uh("every observation of {v3}", {v3: (esc(shortName(s)))})}</a></div>` : "");
     if (galleryPhoto(o.id)) wirePhotoDetail(el, o);
   }
 
@@ -506,23 +509,23 @@
     const u = phoneUpload;
     if (u?.batch && u.files.length && u.done === u.files.length && !u.busy) {
       return `<section class="phone-upload upload-complete" aria-labelledby="phone-saved">
-        <h4 id="phone-saved">✓ ${u.done} photo${u.done === 1 ? '' : 's'} saved to the share</h4>
-        <p id="phone-message" role="status">${u.journalJob ? 'Import status below.' : 'Not yet in the journal.'}</p>
-        ${u.journalJob ? `<a class="chip" href="#wiki/import/${esc(u.journalJob)}" data-slug="import/${esc(u.journalJob)}">Follow journal import</a>` :
-          '<p>Add your credit and licence below.</p><button type="button" class="go" id="phone-next">Next: add to journal ↓</button>'}
-        <details><summary>Saved folder</summary><p class="small">/Share/${esc(u.batch.path)}</p></details>
-        <button type="button" class="chip small" id="phone-clear">Upload more photos</button></section>`;
+        <h4 id="phone-saved">${uh("✓ {v0} photo{v1} saved to the share", {v0: (u.done), v1: (u.done === 1 ? '' : 's')})}</h4>
+        <p id="phone-message" role="status">${u.journalJob ? uh("Import status below.") : uh("Not yet in the journal.")}</p>
+        ${u.journalJob ? `<a class="chip" href="#wiki/import/${esc(u.journalJob)}" data-slug="import/${esc(u.journalJob)}">${uh("Follow journal import")}</a>` :
+          `<p>${uh("Add your credit and licence below.")}</p><button type="button" class="go" id="phone-next">${uh("Next: add to journal ↓")}</button>`}
+        <details><summary>${uh("Saved folder")}</summary><p class="small">/Share/${esc(u.batch.path)}</p></details>
+        <button type="button" class="chip small" id="phone-clear">${uh("Upload more photos")}</button></section>`;
     }
-    return `<section class="phone-upload"><h4>Upload photos</h4>
-      <p class="muted small">New subfolder for each upload. Originals stay unchanged. Keep this page open and your phone awake.</p>
-      <details><summary>File limits</summary><p>JPEG, PNG or WebP · 300 photos · 64 MiB each · 2 GiB total.</p></details>
-      <p class="small">Destination: <b>${esc(u?.parent != null ? '/Share/' + u.parent : l ? '/Share/' + l.path : 'Choose a folder above')}</b> → new subfolder</p>
-      <label>Folder name <input id="phone-label" maxlength="60" value="${esc(u?.label || 'Phone photos')}" ${u?.batch || u?.busy ? 'disabled' : ''}></label>
-      <label>Photos <input id="phone-files" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple ${u?.batch || u?.busy ? 'disabled' : ''}></label>
-      <div class="jtools"><button type="button" id="phone-upload" class="go" ${!u?.files.length || u.busy || u.done === u.files.length || !l || l.error ? 'disabled' : ''}>${u?.busy ? 'Uploading…' : u?.batch ? 'Retry Remaining Photos' : 'Upload Selected Photos'}</button>
-      ${u && !u.busy ? '<button type="button" id="phone-clear">New selection</button>' : ''}</div>
-      <progress id="phone-progress" max="100" value="${u?.percent || 0}" ${u ? '' : 'hidden'} aria-label="Photo upload progress"></progress>
-      <p id="phone-message" class="small" role="status" aria-live="polite">${esc(u?.message || 'No photos selected.')}</p></section>`;
+    return `<section class="phone-upload"><h4>${uh("Upload photos")}</h4>
+      <p class="muted small">${uh("New subfolder for each upload. Originals stay unchanged. Keep this page open and your phone awake.")}</p>
+      <details><summary>${uh("File limits")}</summary><p>${uh("JPEG, PNG or WebP · 300 photos · 64 MiB each · 2 GiB total.")}</p></details>
+      <p class="small">${uh("Destination:")} <b>${esc(u?.parent != null ? '/Share/' + u.parent : l ? '/Share/' + l.path : ui("Choose a folder above"))}</b> ${uh("→ new subfolder")}</p>
+      <label>${uh("Folder name")} <input id="phone-label" maxlength="60" value="${esc(u?.label || ui("Phone photos"))}" ${u?.batch || u?.busy ? 'disabled' : ''}></label>
+      <label>${uh("Photos")} <input id="phone-files" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple ${u?.batch || u?.busy ? 'disabled' : ''}></label>
+      <div class="jtools"><button type="button" id="phone-upload" class="go" ${!u?.files.length || u.busy || u.done === u.files.length || !l || l.error ? 'disabled' : ''}>${u?.busy ? uh("Uploading…") : u?.batch ? uh("Retry Remaining Photos") : uh("Upload Selected Photos")}</button>
+      ${u && !u.busy ? `<button type="button" id="phone-clear">${uh("New selection")}</button>` : ''}</div>
+      <progress id="phone-progress" max="100" value="${u?.percent || 0}" ${u ? '' : 'hidden'} aria-label="${uh("Photo upload progress")}"></progress>
+      <p id="phone-message" class="small" role="status" aria-live="polite">${esc(u?.message || ui("No photos selected."))}</p></section>`;
   }
   function paintUpload() {
     const u = phoneUpload, msg = $('#phone-message'), bar = $('#phone-progress');
@@ -539,25 +542,25 @@
       xhr.upload.onprogress = e => {
         const completed = u.files.slice(0, i).reduce((n, f) => n + f.size, 0);
         u.percent = 100 * (completed + e.loaded) / u.total;
-        u.message = `Uploading ${i + 1}/${u.files.length}: ${u.files[i].name} · ${Math.floor(u.percent)}% transferred`;
+        u.message = ui("Uploading {v0}/{v1}: {v2} · {v3}% transferred", {v0: (i + 1), v1: (u.files.length), v2: (u.files[i].name), v3: (Math.floor(u.percent))});
         paintUpload();
       };
       xhr.onload = () => { let data; try { data = JSON.parse(xhr.responseText); } catch { data = {}; }
         if (xhr.status >= 200 && xhr.status < 300 && data.ok) resolve(data);
-        else reject(new Error(data.error || `Upload failed (${xhr.status})`)); };
-      xhr.onerror = xhr.ontimeout = () => reject(new Error('Connection interrupted'));
+        else reject(new Error(data.error || ui("Upload failed ({v0})", {v0: (xhr.status)}))); };
+      xhr.onerror = xhr.ontimeout = () => reject(new Error(ui("Connection interrupted")));
       xhr.send(u.files[i]);
     });
   }
   function wireUpload(box) {
     const picker = box.querySelector('#phone-files');
     if (picker) picker.onchange = () => {
-      const files = [...picker.files], label = box.querySelector('#phone-label').value.trim() || 'Phone photos';
+      const files = [...picker.files], label = box.querySelector('#phone-label').value.trim() || ui("Phone photos");
       const total = files.reduce((n, f) => n + f.size, 0);
-      const error = files.length > 300 || total > 2 * 1024 ** 3 ? 'Choose up to 300 photos and 2 GiB per batch.' :
-        files.some(f => !/\.(jpe?g|png|webp)$/i.test(f.name) || !f.size || f.size > 64 * 1024 ** 2) ? 'Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.' : '';
+      const error = files.length > 300 || total > 2 * 1024 ** 3 ? ui("Choose up to 300 photos and 2 GiB per batch.") :
+        files.some(f => !/\.(jpe?g|png|webp)$/i.test(f.name) || !f.size || f.size > 64 * 1024 ** 2) ? ui("Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.") : '';
       phoneUpload = { files: error ? [] : files, label, parent: share.list?.path, total, done: 0, percent: 0, busy: false,
-        message: error || `${files.length} photo${files.length === 1 ? '' : 's'} selected · ${(total / 1024 ** 2).toFixed(1)} MiB. Ready to upload.` };
+        message: error || ui("{v0} photo{v1} selected · {v2} MiB. Ready to upload.", {v0: (files.length), v1: (files.length === 1 ? '' : 's'), v2: ((total / 1024 ** 2).toFixed(1))}) };
       H.rerender();
     };
     box.querySelector('#phone-clear')?.addEventListener('click', () => { phoneUpload = null; H.rerender(); });
@@ -570,9 +573,9 @@
     const uploadButton = box.querySelector('#phone-upload');
     if (uploadButton) uploadButton.onclick = async () => {
       const u = phoneUpload; if (!u || u.busy || !u.files.length) return;
-      u.label = box.querySelector('#phone-label').value.trim() || 'Phone photos';
+      u.label = box.querySelector('#phone-label').value.trim() || ui("Phone photos");
       if (!u.batch) u.parent = share.list.path;
-      u.busy = true; u.message = 'Preparing a new upload folder…'; H.rerender();
+      u.busy = true; u.message = ui("Preparing a new upload folder…"); H.rerender();
       try {
         if (!u.batch) {
           const r = await fetch('api/nature/upload', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Photo-Upload': '1'},
@@ -581,10 +584,10 @@
         }
         for (; u.done < u.files.length; u.done++) await sendPhoto(u, u.done);
         u.percent = 100;
-        u.message = `Saved ${u.done} photo${u.done === 1 ? '' : 's'} to /Share/${u.batch.path}.`;
+        u.message = ui("Saved {v0} photo{v1} to /Share/{v2}.", {v0: (u.done), v1: (u.done === 1 ? '' : 's'), v2: (u.batch.path)});
         await loadShare(u.batch.path);
       } catch (e) {
-        u.message = `${u.done}/${u.files.length} saved. ${e.message || e}. Keep this page open and retry; saved photos will not be uploaded again.`;
+        u.message = ui("{v0}/{v1} saved. {v2}. Keep this page open and retry; saved photos will not be uploaded again.", {v0: (u.done), v1: (u.files.length), v2: (e.message || e)});
       } finally {
         u.busy = false; H.rerender();
         if (u.done === u.files.length) requestAnimationFrame(() => $('#phone-next')?.scrollIntoView({block:'nearest', behavior:'smooth'}));
@@ -596,15 +599,15 @@
   const journalPic = (o) => "journal/" + o.artifact_file.replace(/^_journal\/img\//, "");
   // the page: Gallery (the journal's pictures, newest first, each a card to its page) | Submit (the import, and one line by hand)
   function journalHTML(brief) {
-    if (UW.public) return brief ? "" : `<section class="journal card"><h3>/Share Photos</h3><p class="muted">The ship's photographs and journal are kept aboard and are not part of the web copy.</p></section>`;
+    if (UW.public) return brief ? "" : `<section class="journal card"><h3>/Share Photos</h3><p class="muted">${uh("The ship's photographs and journal are kept aboard and are not part of the web copy.")}</p></section>`;
     if (brief) {
       const lines = nat.journal.slice(0, 5);
-      const list = lines.length ? lines.map(jentry).join("") + (nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">all ${nat.journal.length} entries</a>` : "") : `<p class="muted small">Nothing in the ship's journal yet.</p>`;
-      return `<section class="journal card"><h3>/Share Photos <a class="chip small" href="#wiki/journal" data-slug="journal">open</a></h3>${list}` +
-        `<div class="jtools"><button type="button" class="chip" id="natimport">Add photos</button></div></section>`;
+      const list = lines.length ? lines.map(jentry).join("") + (nat.journal.length > lines.length ? `<a class="chip small" href="#wiki/journal" data-slug="journal">${uh("all {v0} entries", {v0: (nat.journal.length)})}</a>` : "") : `<p class="muted small">${uh("Nothing in the ship's journal yet.")}</p>`;
+      return `<section class="journal card"><h3>/Share Photos <a class="chip small" href="#wiki/journal" data-slug="journal">${uh("open")}</a></h3>${list}` +
+        `<div class="jtools"><button type="button" class="chip" id="natimport">${uh("Add photos")}</button></div></section>`;
     }
     const tab = share.tab === "submit" ? "submit" : "gallery";
-    const tabs = `<div class="group seg jtabs" id="jtabs"><button type="button" data-t="gallery" class="${tab === "gallery" ? "on" : ""}">Gallery</button><button type="button" data-t="submit" class="${tab === "submit" ? "on" : ""}">Submit</button></div>`;
+    const tabs = `<div class="group seg jtabs" id="jtabs"><button type="button" data-t="gallery" class="${tab === "gallery" ? "on" : ""}">${uh("Gallery")}</button><button type="button" data-t="submit" class="${tab === "submit" ? "on" : ""}">${uh("Submit")}</button></div>`;
     const body = tab === "submit" ? importHTML() : galleryHTML();
     return `<section class="journal card"><h3>/Share Photos</h3>${tabs}${body}</section>`;
   }
@@ -612,8 +615,8 @@
     const pics = nat.journal.filter((o) => o.artifact_file), rest = nat.journal.filter((o) => !o.artifact_file);
     const cap = (o) => (o.detail || "").split(/(?<=\.)\s+/)[0] || o.subject || "";
     const cards = pics.map((o) => `<a class="gcard" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" title="${esc(o.subject || "")}"><img src="${esc(journalPic(o))}" alt="" loading="lazy"><div class="cap">${esc(cap(o))}</div><div class="who">${esc(o.observer || "")}${o.date ? " · " + esc(o.date.slice(0, 10)) : ""}</div></a>`).join("");
-    return (pics.length ? `<div class="gallery">${cards}</div>` : `<p class="muted small">No photos yet. Choose Submit to add some.</p>`) +
-      (rest.length ? `<h4>Observations without a picture</h4>` + rest.map(jentry).join("") : "");
+    return (pics.length ? `<div class="gallery">${cards}</div>` : `<p class="muted small">${uh("No photos yet. Choose Submit to add some.")}</p>`) +
+      (rest.length ? `<h4>${uh("Observations without a picture")}</h4>` + rest.map(jentry).join("") : "");
   }
   // the import panel: the browser over the share (the folder open is the one imported), the form with the
   // permission to keep importing from it, the folders being watched, the imports so far
@@ -624,34 +627,34 @@
     const name = store.get("chat.name", ""), f = store.get("nat.import.form", {}) || {};
     const l = share.list, at = (nm) => (l.path ? l.path + "/" : "") + nm;
     const crumbs = l ? ["Share", ...l.path.split("/").filter(Boolean)].map((seg, i, a) => i === a.length - 1 ? `<b>${esc(seg)}</b>` : `<a href="#" data-share="${esc(a.slice(1, i + 1).join("/"))}">${esc(seg)}</a>`).join(" › ") : "…";
-    const folders = l ? l.folders.map((d) => `<a class="shfolder" href="#" data-share="${esc(at(d.name))}" title="open this folder">📁 ${esc(d.name)}${d.images ? ` <span class="muted">${d.images}</span>` : ""}</a>`).join("") : "";
+    const folders = l ? l.folders.map((d) => `<a class="shfolder" href="#" data-share="${esc(at(d.name))}" title="${uh("open this folder")}">📁 ${esc(d.name)}${d.images ? ` <span class="muted">${d.images}</span>` : ""}</a>`).join("") : "";
     const files = l ? l.files.map((x) => `<figure class="shfile"><img src="api/nature/share/thumb?path=${encodeURIComponent(at(x.name))}" alt="" loading="lazy"><figcaption title="${esc(x.name)}">${esc(x.name)}</figcaption></figure>`).join("") : "";
-    const lic = Object.entries(share.licences).map(([k, v]) => `<option value="${esc(k)}" title="${esc(v)}" ${(f.licence || "attribution") === k ? "selected" : ""}>${esc(LICENCE_LABELS[k] || v)}</option>`).join("");
-    const clocks = CLOCKS.map(([k, v]) => `<option value="${k}" ${(f.clock || "exif") === k ? "selected" : ""}>${esc(v)}</option>`).join("");
+    const lic = Object.entries(share.licences).map(([k, v]) => `<option value="${esc(k)}" title="${esc(v)}" ${(f.licence || "attribution") === k ? "selected" : ""}>${esc(ui(LICENCE_LABELS[k] || v))}</option>`).join("");
+    const clocks = CLOCKS.map(([k, v]) => `<option value="${k}" ${(f.clock || "exif") === k ? "selected" : ""}>${esc(ui(v))}</option>`).join("");
     const n = folderCount(l), here = l && l.path ? l.path.split("/").pop() : "";
     const watched = l && share.watches.find((w) => w.path === l.path);
     const w = share.watch;
     return `<section class="import card">
-      <h3>Add photos</h3>
-      <div class="import-source"><span>Import from:</span><div class="group seg" role="group" aria-label="Import from"><button type="button" data-import-source="share" class="${share.source==='share'?'on':''}" aria-pressed="${share.source==='share'}">/Share folder</button><button type="button" data-import-source="device" class="${share.source==='device'?'on':''}" aria-pressed="${share.source==='device'}">This device</button></div></div>
-      <p class="muted small">${share.source==='device'?'Choose a /Share destination below.':'Choose a /Share folder to import.'}</p>
-      <div class="sharebar"><span class="crumbs">${crumbs}</span>${l ? `<span class="muted small">${l.files.length} photograph${l.files.length === 1 ? "" : "s"} · ${l.folders.length} folder${l.folders.length === 1 ? "" : "s"}${l.error ? ` · <span class="warn">${esc(l.error)}</span>` : ""}</span>` : ""}${watched ? `<span class="chip small on" title="new photographs here are imported every ten minutes">watched · ${esc(watched.form?.name || "")}</span>` : ""}</div>
-      <div class="sharelist" id="sharelist">${l ? (folders + files || `<p class="muted small">Nothing here.</p>`) : `<p class="muted small">Reading the share…</p>`}</div>
+      <h3>${uh("Add photos")}</h3>
+      <div class="import-source"><span>${uh("Import from:")}</span><div class="group seg" role="group" aria-label="${uh("Import from")}"><button type="button" data-import-source="share" class="${share.source==='share'?'on':''}" aria-pressed="${share.source==='share'}">${uh("/Share folder")}</button><button type="button" data-import-source="device" class="${share.source==='device'?'on':''}" aria-pressed="${share.source==='device'}">${uh("This device")}</button></div></div>
+      <p class="muted small">${share.source==='device'?uh("Choose a /Share destination below."):uh("Choose a /Share folder to import.")}</p>
+      <div class="sharebar"><span class="crumbs">${crumbs}</span>${l ? `<span class="muted small">${uh("{v0} photograph{v1} · {v2} folder{v3}{v4}", {v0: (l.files.length), v1: (l.files.length === 1 ? "" : "s"), v2: (l.folders.length), v3: (l.folders.length === 1 ? "" : "s"), v4: (l.error ? ` · <span class="warn">${esc(l.error)}</span>` : "")})}</span>` : ""}${watched ? `<span class="chip small on" title="${uh("new photographs here are imported every ten minutes")}">${uh("watched · {v0}", {v0: (esc(watched.form?.name || ""))})}</span>` : ""}</div>
+      <div class="sharelist" id="sharelist">${l ? (folders + files || `<p class="muted small">${uh("Nothing here.")}</p>`) : `<p class="muted small">${uh("Reading the share…")}</p>`}</div>
       ${share.source==='device' ? uploadHTML(l) : ''}
       <div id="import-status">${w ? importStatus(w) : ''}</div>
       <form id="natimportform" autocomplete="off" ${share.source==='device' && (!phoneUpload?.files.length || phoneUpload.done!==phoneUpload.files.length)?'hidden':''}>
-        <h4 class="wide">Add to the journal</h4>
-        <label>Name<input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
-        <label>Organisation<input name="org" value="${esc(f.org || "")}" maxlength="120"></label>
-        <label>Email <span class="muted">Private to the ship</span><input name="email" type="email" value="${esc(f.email || "")}" maxlength="120"></label>
-        <label>Licence<select name="licence">${lic}</select></label>
-        <label>Time zone<select name="clock">${clocks}</select></label>
-        <details class="wide"><summary>Licence & time zone</summary><p id="import-licence-help">${esc(share.licences[f.licence || 'attribution'] || '')}</p><p>Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.</p></details>
-        <label class="row wide"><input type="checkbox" name="watch" ${watched ? "checked" : ""}><span>Keep importing from this /Share folder <small>Using this credit and licence.</small></span></label>
-        <div class="wide"><button type="submit" class="go" id="natimportgo" ${n && here && !share.starting && !importActive(w) ? "" : "disabled"}>${here ? `Add to journal · ${n} photo${n === 1 ? "" : "s"}` : "Choose a folder"}</button> <span class="muted small" id="natimportmsg"></span></div>
+        <h4 class="wide">${uh("Add to the journal")}</h4>
+        <label>${uh("Name")}<input name="name" value="${esc(f.name || name)}" required maxlength="80"></label>
+        <label>${uh("Organisation")}<input name="org" value="${esc(f.org || "")}" maxlength="120"></label>
+        <label>${uh("Email")} <span class="muted">${uh("Private to the ship")}</span><input name="email" type="email" value="${esc(f.email || "")}" maxlength="120"></label>
+        <label>${uh("Licence")}<select name="licence">${lic}</select></label>
+        <label>${uh("Time zone")}<select name="clock">${clocks}</select></label>
+        <details class="wide"><summary>${uh("Licence & time zone")}</summary><p id="import-licence-help">${esc(share.licences[f.licence || 'attribution'] || '')}</p><p>${uh("Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.")}</p></details>
+        <label class="row wide"><input type="checkbox" name="watch" ${watched ? "checked" : ""}><span>${uh("Keep importing from this /Share folder")} <small>${uh("Using this credit and licence.")}</small></span></label>
+        <div class="wide"><button type="submit" class="go" id="natimportgo" ${n && here && !share.starting && !importActive(w) ? "" : "disabled"}>${here ? uh("Add to journal · {v0} photo{v1}", {v0: (n), v1: (n === 1 ? "" : "s")}) : uh("Choose a folder")}</button> <span class="muted small" id="natimportmsg"></span></div>
       </form>
-      ${share.watches.length ? `<details class="watch-history"><summary>Watched folders</summary><div class="watches">${share.watches.map((x) => `<span class="watch"><a href="#" data-share="${esc(x.path)}">📁 ${esc(x.path.split("/").slice(-2).join("/"))}</a> · ${esc(x.form?.name || "")} · ${x.imported || 0} added${x.unchanged_failed ? ` · ${x.unchanged_failed} unchanged failures skipped` : ''} <button type="button" class="chip small" data-unwatch="${esc(x.path)}">Stop</button></span>`).join("")}</div></details>` : ""}
-      ${share.jobs.length ? `<details class="import-history"><summary>Imports Status</summary><div class="imports">${share.jobs.slice(0, 8).map((j) => `<a class="chip small" href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${esc(j.form?.name || "")} · ${j.imported}/${j.total}${j.failed ? ` · ${j.failed} failed` : j.status !== "done" ? " · " + esc(j.status) : ""}${j.from_watch ? " · auto" : ""}</a>`).join(" ")}</div></details>` : ""}
+      ${share.watches.length ? `<details class="watch-history"><summary>${uh("Watched folders")}</summary><div class="watches">${share.watches.map((x) => `<span class="watch"><a href="#" data-share="${esc(x.path)}">📁 ${esc(x.path.split("/").slice(-2).join("/"))}</a> ${uh("· {v2} · {v3} added{v4}", {v2: (esc(x.form?.name || "")), v3: (x.imported || 0), v4: (x.unchanged_failed ? uh(" · {v0} unchanged failures skipped", {v0: (x.unchanged_failed)}) : '')})} <button type="button" class="chip small" data-unwatch="${esc(x.path)}">${uh("Stop")}</button></span>`).join("")}</div></details>` : ""}
+      ${share.jobs.length ? `<details class="import-history"><summary>${uh("Imports Status")}</summary><div class="imports">${share.jobs.slice(0, 8).map((j) => `<a class="chip small" href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${esc(j.form?.name || "")} · ${j.imported}/${j.total}${j.failed ? uh(" · {v0} failed", {v0: (j.failed)}) : j.status !== "done" ? " · " + esc(j.status) : ""}${j.from_watch ? " · auto" : ""}</a>`).join(" ")}</div></details>` : ""}
     </section>`;
   }
   const importActive = j => j && ['queued','running'].includes(j.status);
@@ -660,15 +663,15 @@
     const added = j.imported ?? items.filter(it=>it.id).length;
     const skipped = j.skipped ?? items.filter(it=>it.status==='skipped').length;
     const failed = j.failed ?? items.filter(it=>it.status==='failed').length;
-    const title = active ? 'Importing…' : j.status==='failed'||(failed && !added) ? 'Import failed' : 'Import finished';
+    const title = active ? 'Importing…' : j.status==='failed'||(failed && !added) ? ui("Import failed") : ui("Import finished");
     const reasons = [...new Set([j.error, ...(j.reasons || items.map(it=>it.error))].filter(Boolean))];
-    return `<section class="import-progress" aria-label="Your import"><h4>${title}</h4>
-      <progress max="100" ${!active || j.progress != null ? `value="${active ? Math.max(0,Math.min(100,j.progress)) : 100}"` : ''} aria-label="Import progress"></progress>
-      <p role="status">${active ? esc(j.stage || 'Queued') : `${added}/${j.total} added · ${skipped} skipped · ${failed} failed`}</p>
-      ${!active && j.failed_images ? '<p class="warn">Failed images are skipped until their contents change.</p>' : ''}
-      ${j.unchanged_failed ? `<p>${j.unchanged_failed} unchanged failed images skipped.</p>` : ''}
-      ${reasons.length ? `<details><summary>${active ? 'Warnings' : 'Why?'}</summary>${reasons.slice(0,3).map(r=>`<p>${esc(r)}</p>`).join('')}</details>` : ''}
-      <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${active ? 'Details' : 'View results'}</a></section>`;
+    return `<section class="import-progress" aria-label="${uh("Your import")}"><h4>${title}</h4>
+      <progress max="100" ${!active || j.progress != null ? `value="${active ? Math.max(0,Math.min(100,j.progress)) : 100}"` : ''} aria-label="${uh("Import progress")}"></progress>
+      <p role="status">${active ? esc(j.stage || ui("Queued")) : uh("{v0}/{v1} added · {v2} skipped · {v3} failed", {v0: (added), v1: (j.total), v2: (skipped), v3: (failed)})}</p>
+      ${!active && j.failed_images ? `<p class="warn">${uh("Failed images are skipped until their contents change.")}</p>` : ''}
+      ${j.unchanged_failed ? `<p>${uh("{v0} unchanged failed images skipped.", {v0: (j.unchanged_failed)})}</p>` : ''}
+      ${reasons.length ? `<details><summary>${active ? uh("Warnings") : 'Why?'}</summary>${reasons.slice(0,3).map(r=>`<p>${esc(r)}</p>`).join('')}</details>` : ''}
+      <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${active ? uh("Details") : uh("View results")}</a></section>`;
   }
   async function loadShare(path) {
     try {
@@ -685,7 +688,7 @@
     wireUpload(box);
     for (const b of box.querySelectorAll('[data-import-source]')) b.onclick=()=>{share.source=b.dataset.importSource;store.set('nat.import.source',share.source);H.rerender();};
     if (!share.watch && store.get('nat.import.current','')) watchJob(store.get('nat.import.current',''));
-    if (!share.list) Promise.all([loadShare(share.path), loadImports()]).then(() => { if (slug() === "journal") H.rerender(); });
+    if (!share.list) Promise.all([loadShare(share.path), loadImports()]).then(() => { if (slug() === "journal") return window.UWI18n.preserve(el, H.rerender); }).catch(console.error);
     for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); if (phoneUpload?.busy) return; share.list = null; share.path = a.dataset.share; if (phoneUpload && !phoneUpload.batch) phoneUpload.parent = a.dataset.share; H.rerender(); };
     for (const b of box.querySelectorAll("button[data-unwatch]")) b.onclick = async () => {
       b.disabled = true;
@@ -708,10 +711,10 @@
         share.watch = j.job;
         store.set('nat.import.current', j.job.id);
         if (phoneUpload?.batch?.path === body.folder) phoneUpload.journalJob = j.job.id;
-        UW.toast?.(`Importing ${j.job.total} photograph${j.job.total === 1 ? "" : "s"}${j.job.known ? ` (${j.job.known} already in the journal)` : ""}${body.watch ? "; the folder is watched" : ""}`);
+        UW.toast?.(ui("Importing {v0} photograph{v1}{v2}{v3}", {v0: (j.job.total), v1: (j.job.total === 1 ? "" : "s"), v2: (j.job.known ? ui(" ({v0} already in the journal)", {v0: (j.job.known)}) : ""), v3: (body.watch ? ui("; the folder is watched") : "")}));
         watchJob(j.job.id);
         await loadImports(); share.starting = false; H.rerender();
-      } catch (e) { msg.textContent = `Not started: ${e.message || e}`; go.disabled = false; }
+      } catch (e) { msg.textContent = ui("Not started: {v0}", {v0: (e.message || e)}); go.disabled = false; }
       finally { share.starting = false; }
     };
   }
@@ -732,7 +735,7 @@
         await Promise.all([loadJournal(), loadImports()]);
         if (slug() === "journal" || slug() === `import/${id}` || !slug()) H.rerender();
         if (UW.state.nature) UW.renderMap();
-        UW.toast?.(`${j.imported ?? j.done}/${j.total} added${j.skipped ? ` · ${j.skipped} skipped` : ''}${j.failed ? ` · ${j.failed} failed` : ''}`);
+        UW.toast?.(ui("{v0}/{v1} added{v2}{v3}", {v0: (j.imported ?? j.done), v1: (j.total), v2: (j.skipped ? ui(" · {v0} skipped", {v0: (j.skipped)}) : ''), v3: (j.failed ? ui(" · {v0} failed", {v0: (j.failed)}) : '')}));
         return;
       }
       await new Promise(r=>setTimeout(r,2500));
@@ -742,7 +745,7 @@
   async function renderImport(el, id) {
     let j = null;
     try { const r = await fetch(`api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); if (r.ok) j = await r.json(); } catch { /* shown as missing */ }
-    if (!j) { el.innerHTML = crumb(here("Import", slug())) + `<p class="muted">No such import.</p>`; return; }
+    if (!j) { el.innerHTML = crumb(here(uh("Import"), slug())) + `<p class="muted">${uh("No such import.")}</p>`; return; }
     const live = j.status === "queued" || j.status === "running";
     const item = (it) => {
       const pic = it.artifact_file ? `journal/${esc(it.artifact_file.replace(/^_journal\/img\//, ""))}` : `api/nature/share/thumb?path=${encodeURIComponent(it.file)}`;
@@ -754,9 +757,9 @@
         ${it.tags?.length ? `<div class="tags">${it.tags.map((t) => `<span>${esc(t)}</span>`).join("")}</div>` : ""}
         <div class="st">${esc(it.status)}${it.error ? `: ${esc(it.error)}` : ""}${it.id ? ` · ${esc(it.id)}` : ""} · <span class="muted">${esc(it.file)}</span></div></div></article>`;
     };
-    el.innerHTML = crumb(hlinkJournal(), here("Import", slug())) +
-      `<h2>${esc(j.form?.name || "")}'s photographs${j.form?.org ? ` <span class="muted">${esc(j.form.org)}</span>` : ""}</h2>` +
-      (j.folder ? `<p class="muted small">📁 ${esc(j.folder)}${j.from_watch ? " · imported by the watch on this folder" : ""}${j.known ? ` · ${j.known} already in the journal, passed over` : ""}</p>` : "") +
+    el.innerHTML = crumb(hlinkJournal(), here(uh("Import"), slug())) +
+      `<h2>${uh("{v0}'s photographs{v1}", {v0: (esc(j.form?.name || "")), v1: (j.form?.org ? ` <span class="muted">${esc(j.form.org)}</span>` : "")})}</h2>` +
+      (j.folder ? `<p class="muted small">📁 ${esc(j.folder)}${j.from_watch ? uh(" · imported by the watch on this folder") : ""}${j.known ? uh(" · {v0} already in the journal, passed over", {v0: (j.known)}) : ""}</p>` : "") +
       importStatus(j) +
       `<div class="implist">${j.items.map(item).join("")}</div>`;
     if (live) setTimeout(() => { if (slug() === `import/${id}`) H.rerender(); }, 3000);
@@ -774,7 +777,7 @@
   function mapMenu() {
     const bar = $("#mapnatlayers");
     if (!bar) return;
-    H.menu(bar, "Domains", Object.entries(DOMAINS).map(([d, D]) => ({ key: d, label: D.label, colour: D.colour, hint: D.hint })), nat.domains, "nat.domains", () => UW.state.nature);
+    H.menu(bar, ui("Domains"), Object.entries(DOMAINS).map(([d, D]) => ({ key: d, label: D.label, colour: D.colour, hint: D.hint })), nat.domains, "nat.domains", () => UW.state.nature);
     bar.hidden = !UW.state.nature || !UW.M.history;
   }
   const domainOptions = (cur) => Object.entries(DOMAINS).map(([d, D]) => `<option value="domain/${d}" ${cur === `domain/${d}` || cur.startsWith(`domain/${d}/`) ? "selected" : ""}>${esc(D.label)}</option>`).join("");

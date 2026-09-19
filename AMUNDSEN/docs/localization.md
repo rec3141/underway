@@ -1,14 +1,15 @@
 # Page localization
 
-The selected Canadian French catalog contains 430 messages. Coverage includes
+The selected Canadian French catalog contains 1,196 messages. Coverage includes
 desktop/mobile navigation, the feedback dialog, static page controls and
 accessibility labels, appearance options, the main Underway controls and chart
 groups, measurement names, table headings/summaries, map details and legends,
 ice-chart UI, graph/map export controls, the schedule banner, and Sources explanations.
+Detailed Casts/live-feed setup, Schedule calendars and alert forms, photo upload
+and gallery tools, chat controls, wiki navigation, and camera controls are also covered.
 
-This is not yet a site-wide translation. Most dynamic Casts/live-feed and
-Schedule workflows, generated wiki/article content, photo tools and chat
-dialogs still need work. Source-authored station/event descriptions, source
+Generated wiki/article content is a separate translation pipeline and is not
+published by this UI change. Source-authored station/event descriptions, source
 column names, attribution records and user messages remain unchanged.
 French is an editorial draft awaiting independent language review.
 
@@ -16,8 +17,8 @@ The implementation is independent of the wiki's record/field translation store.
 Both can share the same language choice when the wiki publisher is connected.
 Do not translate generated wiki HTML into these UI catalogs.
 
-The selected profile is `editorial-fr-ca-v3`; the v1 and v2 candidates remain
-available for comparison and rollback. The game now has its own CTD catalog.
+The selected profile is `editorial-fr-ca-v4`; v1, v2 and v3 candidates remain
+available for comparison and rollback. The game maintains its own catalog.
 
 ## Source, candidates and selection
 
@@ -55,6 +56,18 @@ allowlisted attribute, or the existing HTML-escape helper when constructing HTML
 Never interpret translator-supplied text as markup. User-written feedback is
 not translated or replaced when the language changes.
 
+`UWI18n.text(source, values)` looks up explicitly authored English messages in
+the `pages.<source-hash>` namespace. This is not a general DOM translator: only
+reviewed calls in source code are translated, never arbitrary wiki/user text.
+Unknown sources fall back unchanged. `UWI18n.html(source, values)` escapes the
+translated template before substituting trusted markup or already-escaped
+values; callers must escape any untrusted interpolation themselves.
+
+`UWI18n.preserve(root, render)` restores draft controls, file inputs, open
+details, scroll position and focus after localized rendering. Plot axes use
+stable `_uwIdentity` values when their display titles change, preserving zoom
+without changing scientific field keys or units.
+
 Static leaf nodes use `data-i18n="key"`. Title, placeholder and accessible labels
 use `data-i18n-title`, `data-i18n-placeholder`, and `data-i18n-aria-label`.
 Do not put a text binding on a parent that contains controls or icons: use a
@@ -90,6 +103,7 @@ node --test tests/i18n.test.cjs
 python3 -m unittest discover -s tests -p test_ui_catalog.py
 # Node 22+, Chromium, and a Python with Jinja2:
 I18N_UI=1 UI_WIDTH=1400 PYTHON=python3 node tests/track-browser.cjs /path/to/chromium
+PAGES_I18N=1 BOTTLE_UI=1 UPLOAD_UI=1 WIKI_UI=1 CHAT_WIKI_UI=1 UI_WIDTH=1400 PYTHON=python3 node tests/refresh-browser.cjs /path/to/chromium
 ```
 
 The browser test uses an isolated HTTP fixture and mocked feedback endpoint. It
@@ -101,8 +115,9 @@ scheduled outside ResizeObserver delivery because localized text and responsive
 menus change the layout; MapLibre's duplicate automatic resize is disabled for
 the main map, whose existing app resize handler owns that lifecycle.
 
-Next slices: detailed Casts/live setup and Schedule workflows, followed by
-photo/chat tools and wiki-serving integration.
+The extended browser pass checks French Casts/live setup, calendars, wiki,
+upload forms and chat, including locale round-trips with drafts and plot zoom.
+Remaining integration work: reviewed wiki article candidates into the publisher.
 Game state, control bindings, variable names and numerical datasets are not
 translation inputs. Published `/game/` files are generated output, not the place
 to maintain translations.

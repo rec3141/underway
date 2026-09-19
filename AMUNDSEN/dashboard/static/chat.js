@@ -11,6 +11,9 @@
 // by a token kept on the device; a direct message reaches only that device.
 (() => {
   "use strict";
+  const ui = (source, values) => window.UWI18n.text(source, values);
+  const uh = (source, values = {}) => window.UWI18n.html(source, values);
+
   const $ = (s) => document.querySelector(s);
   const store = window.UW?.store || { get: (k, d) => { try { const v = localStorage.getItem("uw." + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem("uw." + k, JSON.stringify(v)); } catch {} } };
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -49,20 +52,20 @@
   const partnerTitle = (n) => { if (!n.startsWith("@")) return n; const c = st.crew.find((x) => x.handle === n.slice(1)); return c ? (c.room || c.name) : n; };
   // the rooms that are always there: the Mess (everyone), the Lounge (the crew's own), the Library (Ada), the Deck (Ada and Doc together)
   const ROOMS = [
-    { ch: "ship", title: "Mess", icon: "🍽️", hint: "the Mess: everyone; the crew answer when @mentioned" },
-    { ch: "crew", title: "Lounge", icon: "🛋️", hint: "the Lounge: the AI crew's room, where they talk among themselves" },
-    { ch: "ada", title: "Library", icon: "📖", hint: "the Library: ask Ada, the librarian, about the region's past" },
-    { ch: "deck", title: "Deck", icon: "🧭", hint: "the Deck: ask Ada and Doc together, the history and the nature" },
+    { ch: "ship", get title() { return ui("Mess"); }, icon: "🍽️", get hint() { return ui("the Mess: everyone; the crew answer when @mentioned"); } },
+    { ch: "crew", get title() { return ui("Lounge"); }, icon: "🛋️", get hint() { return ui("the Lounge: the AI crew's room, where they talk among themselves"); } },
+    { ch: "ada", get title() { return ui("Library"); }, icon: "📖", get hint() { return ui("the Library: ask Ada, the librarian, about the region's past"); } },
+    { ch: "deck", get title() { return ui("Deck"); }, icon: "🧭", get hint() { return ui("the Deck: ask Ada and Doc together, the history and the nature"); } },
   ];
   const fixedRoom = (ch) => ROOMS.find((r) => r.ch === ch);
-  const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: fixedRoom(ch)?.title || (ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).map(partnerTitle).join(", ") || "Me"), kind: isDM(ch) ? "dm" : "room" };
-  const roomTitle = (ch) => roomInfo(ch).title;
+  const roomInfo = (ch) => st.rooms.find((r) => r.channel === ch) || { channel: ch, title: fixedRoom(ch)?.title || (ch.replace(/^dm:/, "").split("|").filter((n) => n !== st.myName.toLowerCase()).map(partnerTitle).join(", ") || ui("Me")), kind: isDM(ch) ? "dm" : "room" };
+  const roomTitle = (ch) => fixedRoom(ch)?.title || roomInfo(ch).title;
   const dmWith = (ch, h) => isDM(ch) && ch.slice(3).split("|").includes("@" + h);   // a direct message with this crew member
-  const placeholder = (ch) => ch === "ada" ? "ask Ada, the librarian · Enter to send"
-    : ch === "deck" ? "ask Ada and Doc · Enter to send"
-    : dmWith(ch, "doc") ? "ask Doc, the naturalist · Enter to send"
-    : ch === "crew" ? "talk to the crew · Enter to send"
-    : isDM(ch) ? `message ${roomTitle(ch)} · Enter to send` : "message · Enter to send";
+  const placeholder = (ch) => ch === "ada" ? ui("ask Ada, the librarian · Enter to send")
+    : ch === "deck" ? ui("ask Ada and Doc · Enter to send")
+    : dmWith(ch, "doc") ? ui("ask Doc, the naturalist · Enter to send")
+    : ch === "crew" ? ui("talk to the crew · Enter to send")
+    : isDM(ch) ? ui("message {v0} · Enter to send", {v0: (roomTitle(ch))}) : ui("message · Enter to send");
 
   function layout() {
     el.hidden = !st.open;                                     // closed is gone; the Chat tab brings it back
@@ -70,8 +73,8 @@
     el.dataset.room = st.room;
     $("#chattitle").textContent = roomTitle(st.room);
     $('#chatprivacy').textContent = isDM(st.room)
-      ? 'Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.'
-      : 'Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.';
+      ? ui("Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.")
+      : ui("Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.");
     textIn.placeholder = placeholder(st.room);
     renderRooms();
     el.classList.toggle("collapsed", !st.open);
@@ -79,7 +82,7 @@
     document.documentElement.classList.toggle("chat-side", st.side && st.open);
     $("#tabchat")?.classList.toggle("on", st.side && st.open);
     $("#chatsidebtn").textContent = st.side ? "⇥" : "⇤";
-    $("#chatsidebtn").title = st.side ? "back to the corner" : "open as a side bar";
+    $("#chatsidebtn").title = st.side ? ui("back to the corner") : ui("open as a side bar");
     setTimeout(() => {
       for (const p of document.querySelectorAll(".plot, #map")) if (p.data && p.offsetParent) window.Plotly?.Plots.resize(p);
     }, 80);
@@ -91,16 +94,16 @@
     const fresh = (ch) => ch !== st.room && (st.latest[ch] || 0) > (st.seen[ch] || 0);
     const btn = (ch, label, hint, cls = "room") => `<button type="button" data-ch="${esc(ch)}" class="${ch === st.room ? "on" : ""} ${cls}" title="${esc(hint)}"><span class="rdot" ${fresh(ch) ? "" : "hidden"}></span>${label}</button>`;
     const fixed = ROOMS.map((r) => btn(r.ch, `${r.icon} ${esc(r.title)}`, r.hint));
-    const crewRooms = st.crew.filter((c) => c.handle !== "ada").map((c) => btn(st.myName ? dmChannel("@" + c.handle) : `@${c.handle}`, `${esc(c.emoji)} ${esc(c.room || c.name)}`, `the ${c.room || c.name}: a private room with ${c.name} (${c.beat})`, "room crew"));
+    const crewRooms = st.crew.filter((c) => c.handle !== "ada").map((c) => btn(st.myName ? dmChannel("@" + c.handle) : `@${c.handle}`, `${esc(c.emoji)} ${esc(c.room || c.name)}`, ui("the {v0}: a private room with {v1} ({v2})", {v0: (c.room || c.name), v1: (c.name), v2: (c.beat)}), "room crew"));
     const dms = st.rooms.filter((r) => r.kind === "dm" && !(st.closed[r.channel] && (r.latest || 0) <= st.closed[r.channel]) && !st.crew.some((c) => dmWith(r.channel, c.handle)));
     if (isDM(st.room) && !dms.some((r) => r.channel === st.room) && !st.crew.some((c) => dmWith(st.room, c.handle))) dms.unshift(roomInfo(st.room));   // a room just opened, empty so far
-    roomsEl.innerHTML = [...fixed, ...crewRooms, ...dms.map((r) => btn(r.channel, esc(r.title), "a private room with " + r.title, "dm"))].join("") +
-      `<button type="button" id="chatnew" title="a private room with someone here">+</button>` +
+    roomsEl.innerHTML = [...fixed, ...crewRooms, ...dms.map((r) => btn(r.channel, esc(r.title), ui("a private room with ") + r.title, "dm"))].join("") +
+      `<button type="button" id="chatnew" title="${uh("a private room with someone here")}">+</button>` +
       // the room's own tools sit at the right end of the row, out of the head
-      `<span class="tools">${st.room === "ship" ? `<button type="button" id="chataibtn" title="${st.noai ? "show the AI crew's messages again" : "hide the AI crew's messages and names"}">${st.noai ? "show AI" : "hide AI"}</button>` : ""}` +
+      `<span class="tools">${st.room === "ship" ? `<button type="button" id="chataibtn" title="${st.noai ? uh("show the AI crew's messages again") : uh("hide the AI crew's messages and names")}">${st.noai ? uh("show AI") : uh("hide AI")}</button>` : ""}` +
       (isDM(st.room)
-        ? `<button type="button" id="chatclearbtn" title="close this conversation: its history is erased and the room leaves the row">close</button>`
-        : `<button type="button" id="chatclearbtn" title="clear this room on this device; others keep their copy">clear</button>`) + `</span>`;
+        ? `<button type="button" id="chatclearbtn" title="${uh("close this conversation: its history is erased and the room leaves the row")}">${uh("close")}</button>`
+        : `<button type="button" id="chatclearbtn" title="${uh("clear this room on this device; others keep their copy")}">${uh("clear")}</button>`) + `</span>`;
     for (const b of roomsEl.querySelectorAll("button[data-ch]")) b.onclick = () => (b.dataset.ch.startsWith("@") ? openDM(b.dataset.ch) : setRoom(b.dataset.ch));   // a crew room before a name is given asks for the name
     $("#chatnew").onclick = () => togglePicker();
     $("#chatclearbtn").onclick = clearRoom;
@@ -112,13 +115,13 @@
     if (!show) { pickerEl.hidden = true; return; }
     const me = st.myName.toLowerCase();
     const people = st.online.filter((n) => n.name.toLowerCase() !== me);
-    pickerEl.innerHTML = `<div class="pickhead">A private room with…</div>` +
-      (people.length ? people.map((n) => `<button type="button" data-with="${esc(n.name)}">${esc(n.emoji || "•")} ${esc(n.name)}</button>`).join("") : `<div class="muted small">nobody else has the page open</div>`);
+    pickerEl.innerHTML = `<div class="pickhead">${uh("A private room with…")}</div>` +
+      (people.length ? people.map((n) => `<button type="button" data-with="${esc(n.name)}">${esc(n.emoji || "•")} ${esc(n.name)}</button>`).join("") : `<div class="muted small">${uh("nobody else has the page open")}</div>`);
     for (const b of pickerEl.querySelectorAll("button[data-with]")) b.onclick = () => { pickerEl.hidden = true; openDM(b.dataset.with); };
     pickerEl.hidden = false;
   }
   function openDM(withName) {
-    if (!st.myName) { nameIn.focus(); nameIn.placeholder = "name first"; return; }
+    if (!st.myName) { nameIn.focus(); nameIn.placeholder = ui("name first"); return; }
     const ch = "dm:" + [st.myName.toLowerCase(), withName.toLowerCase()].sort().join("|");
     if (st.closed[ch]) { delete st.closed[ch]; store.set("chat.closedRooms", st.closed); }
     setRoom(ch);
@@ -130,7 +133,7 @@
   const flatten = (s) => { let t = String(s ?? ""), prev; do { prev = t; t = t.replace(/\[([^\[\]]*)\[([^\[\]]*)\]\([^()]*\)([^\[\]]*)\]\(/g, "[$1$2$3]("); } while (t !== prev); return t; };
   // links: Markdown links to History pages, bare URLs, and @handles
   const linkify = (s) => esc(flatten(s))
-    .replace(/\[(\d{1,2})\]\(#history\/([^)\s]+)\)/g, (m, n, slug) => `<sup><a href="#history/${slug}" data-slug="${slug}" class="ref" title="reference ${n}">${n}</a></sup>`)
+    .replace(/\[(\d{1,2})\]\(#history\/([^)\s]+)\)/g, (m, n, slug) => `<sup><a href="#history/${slug}" data-slug="${slug}" class="ref" title="${uh("reference {v2}", {v2: (n)})}">${n}</a></sup>`)
     .replace(/\[([^\]]+)\]\(#history\/([^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)
     .replace(/\[([^\]]+)\]\(((?:artifact|person|place|event|source|topic|vessel|animal|kind|subject|observation)\/[^)\s]+)\)/g, (m, t, slug) => `<a href="#history/${slug}" data-slug="${slug}" class="cite">${t}</a>`)   // a page written without the #history/ prefix
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
@@ -150,7 +153,7 @@
   const pagesHTML = (m) => m.meta?.refs?.length
     ? `<ol class="refs">${m.meta.refs.map((p) => `<li value="${p.n}"><a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a></li>`).join("")}</ol>`
     : m.meta?.pages?.length
-    ? `<div class="pages"><span class="lbl">read</span>${m.meta.pages.map((p) => `<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a>`).join("")}</div>` : "";
+    ? `<div class="pages"><span class="lbl">${uh("read")}</span>${m.meta.pages.map((p) => `<a href="#history/${esc(p.slug)}" data-slug="${esc(p.slug)}">${esc(p.title)}</a>`).join("")}</div>` : "";
 
   function append(msgs, room) {
     if (!msgs.length) return;
@@ -163,7 +166,7 @@
       const mine = st.myName && m.name === st.myName;
       const d = document.createElement("div");
       d.className = "msg" + (mine ? " mine" : "") + (isCrew(m.name) ? " bot" : "");
-      d.innerHTML = `<span class="av">${esc(m.emoji || (isCrew(m.name) ? "" : "•"))}</span><span class="who" data-name="${esc(m.name)}" title="${mine ? "" : "message " + esc(m.name) + " directly"}">${esc(m.name)}</span><span class="when">${fmtT(m.t)}</span><div class="txt">${bodyHTML(m)}${pagesHTML(m)}</div>`;
+      d.innerHTML = `<span class="av">${esc(m.emoji || (isCrew(m.name) ? "" : "•"))}</span><span class="who" data-name="${esc(m.name)}" title="${mine ? "" : uh("message ") + esc(m.name) + uh(" directly")}">${esc(m.name)}</span><span class="when">${fmtT(m.t)}</span><div class="txt">${bodyHTML(m)}${pagesHTML(m)}</div>`;
       log.appendChild(d);
     }
     while (log.children.length > 300) log.firstChild.remove();
@@ -199,22 +202,22 @@
       const others = st.online.filter((n) => n.name !== st.myName);
       showFormError(st.error, true);
       who.classList.remove("warn");
-      who.textContent = isDM(room) ? (dmWith(room, "doc") ? "the Lab: ask Doc about the living things, the ice, the water and the sky" : st.roomBots.length ? "private room with a crew member" : `private with ${roomTitle(room)}`)
-        : room === "ada" ? "the Library: ask Ada about the region's past"
-        : room === "deck" ? "the Deck: Ada and Doc together, the history and the nature"
-        : st.online.length ? `${st.online.length} here${others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : ""}` : "nobody else here";
+      who.textContent = isDM(room) ? (dmWith(room, "doc") ? ui("the Lab: ask Doc about the living things, the ice, the water and the sky") : st.roomBots.length ? ui("private room with a crew member") : ui("private with {v0}", {v0: (roomTitle(room))}))
+        : room === "ada" ? ui("the Library: ask Ada about the region's past")
+        : room === "deck" ? ui("the Deck: Ada and Doc together, the history and the nature")
+        : st.online.length ? ui("{v0} here{v1}", {v0: (st.online.length), v1: (others.length ? ": " + others.slice(0, 4).map((n) => `${n.emoji || ""}${n.name}`).join(", ") + (others.length > 4 ? "…" : "") : "")}) : ui("nobody else here");
       who.title = st.online.map((n) => n.name).join(", ");
       const t = (j.typing || []).map((h) => st.crew.find((c) => c.handle === h)).filter(Boolean);
       const noai = st.noai && room === "ship";
-      typing.hidden = !t.length || noai; typing.textContent = t.length ? `${t.map((c) => `${c.emoji} ${c.name}`).join(", ")} ${t.length > 1 ? "are" : "is"} ${room === "ada" || dmWith(room, "doc") || t.some((c) => c.handle === "ada") ? "looking it up…" : "typing…"}` : "";
+      typing.hidden = !t.length || noai; typing.textContent = t.length ? ui(room === "ada" || dmWith(room, "doc") || t.some((c) => c.handle === "ada") ? '{names}: looking it up…' : '{names}: typing…', {names:t.map(c => `${c.emoji} ${c.name}`).join(', ')}) : '';
       // the crew line: who belongs to this room, and whether their model is up
       const on = st.modelOn;
-      const light = `<span class="mdot ${on ? "on" : "off"}" title="${on ? "model online: " + esc(j.model || "") : "no model loaded: the crew cannot answer (" + esc(j.model || "") + "); the operator has been told"}"></span>`;
+      const light = `<span class="mdot ${on ? "on" : "off"}" title="${on ? uh("model online: ") + esc(j.model || "") : uh("no model loaded: the crew cannot answer (") + esc(j.model || "") + uh("); the operator has been told")}"></span>`;
       const members = st.crew.filter((c) => st.roomBots.includes(c.handle));
       crewEl.hidden = !st.crew.length || noai;
       crewEl.innerHTML = !st.crew.length ? "" : room === "ship"
-        ? `${light}AI crew${on ? "" : " offline"}, answer when mentioned:<br>` + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ")
-        : `${light}${on ? "" : "offline: no model loaded, and the chat never loads one itself. "}${members.map((c) => `${esc(c.emoji)} ${esc(c.name)}`).join(", ")}${members.length ? (room === "crew" ? " are here and may speak first" : members.length > 1 ? " are here" : " is here") : ""}`;
+        ? uh("{v0}AI crew{v1}, answer when mentioned:", {v0: light, v1: on ? "" : uh(" offline")}) + '<br>' + st.crew.map((c) => `<button type="button" class="mention" data-h="${esc(c.handle)}" title="${esc(c.name)}">${esc(c.emoji)} @${esc(c.handle)}</button>`).join(" ")
+        : `${light}${on ? "" : uh("offline: no model loaded, and the chat never loads one itself. ")}${members.map((c) => `${esc(c.emoji)} ${esc(c.name)}`).join(", ")}${members.length ? (room === "crew" ? uh(" are here and may speak first") : members.length > 1 ? uh(" are here") : uh(" is here")) : ""}`;
       for (const b of crewEl.querySelectorAll(".mention")) b.onclick = () => { textIn.value = (textIn.value ? textIn.value.replace(/\s*$/, " ") : "") + `@${b.dataset.h} `; textIn.focus(); };
       el.classList.toggle("model-off", !on);
       layout();
@@ -240,13 +243,13 @@
   async function clearRoom() {
     const room = st.room, dm = isDM(room);
     const warn = dm
-      ? `Close this conversation with ${roomTitle(room)}? Its temporary history will be cleared for both participants.`
-      : `Clear ${roomTitle(room)} on this device? Others keep their copy.`;
+      ? ui("Close this conversation with {v0}? Its temporary history will be cleared for both participants.", {v0: (roomTitle(room))})
+      : ui("Clear {v0} on this device? Others keep their copy.", {v0: (roomTitle(room))});
     if (!confirm(warn)) return;
     try {
       const r = await fetch("api/chat/clear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: st.myName, token, channel: room }) });
       const j = await r.json();
-      if (!r.ok) { who.textContent = j.error || "not closed"; return; }
+      if (!r.ok) { who.textContent = j.error || ui("not closed"); return; }
       const upTo = Math.max(st.lastId[room] || 0, st.latest[room] || 0);
       st.hidden[room] = upTo; store.set("chat.hiddenRooms", st.hidden);
       log.innerHTML = ""; st.lastId[room] = 0;
@@ -284,18 +287,19 @@
   $("#chatform").onsubmit = async (ev) => {
     ev.preventDefault();
     const text = textIn.value.trim(); if (!text) return;
-    if (!st.myName) { nameIn.focus(); nameIn.placeholder = "name first"; return; }
+    if (!st.myName) { nameIn.focus(); nameIn.placeholder = ui("name first"); return; }
     if (st.error) { showFormError(st.error, true); nameIn.focus(); return; }
     textIn.disabled = true;
     try {
       const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room };
       if (st.room === "ada" || st.roomBots.length) body.slug = window.UW?.wikiContext?.() || "";   // the wiki page being read, as context for whoever answers
       const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); showFormError(j.error || "not sent", /name/i.test(j.error || "")); }
-    } catch { showFormError("Message not sent: offline"); }
+      if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); showFormError(j.error || ui("not sent"), /name/i.test(j.error || "")); }
+    } catch { showFormError(ui("Message not sent: offline")); }
     textIn.disabled = false; textIn.focus();
   };
   document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+  window.addEventListener('uw:localechange', () => { layout(); if (!pickerEl.hidden) togglePicker(true); });
   if (st.room === "historian" || st.room === "crew" && !store.get("chat.rooms.v2")) { st.room = st.room === "historian" ? "ada" : "ship"; store.set("chat.rooms.v2", true); }
   layout(); poll();
 })();

@@ -37,7 +37,7 @@
     const scopes = new Map();
     let revision = 0;
     const axes = (layout) => Object.keys(layout).filter(k => /^[xy]axis\d*$/.test(k));
-    const identity = (key, axis) => JSON.stringify([key[0], axis.title?.text || key, axis.type || 'linear']);
+    const identity = (key, axis) => JSON.stringify([key[0], axis._uwIdentity || axis.title?.text || key, axis.type || 'linear']);
     return async (gd, data, layout, config, scope, axisOverrides = {}) => {
       let saved = scopes.get(scope);
       if (!saved) {

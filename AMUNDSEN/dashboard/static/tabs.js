@@ -2,6 +2,9 @@
  * window.UW (state, manifest, helpers, and hooks the map calls back into). */
 (() => {
   "use strict";
+  const ui = (source, values) => window.UWI18n.text(source, values);
+  const uh = (source, values = {}) => window.UWI18n.html(source, values);
+
   const UW = window.UW;
   const {t} = window.UWI18n;
   const variableLabel = name => window.UWI18n?.variable?.(name) ?? name;
@@ -39,7 +42,7 @@
     return xa + (xb - xa) * (pres - p[j]) / (p[j + 1] - p[j] || 1);
   };
   const bottleDepth = (b, lat) => b.depth_m ?? (b.p != null ? depthFrom(b.p, lat) : null);
-  const bottleText = (b) => `bottle ${b.bottle}${b.time ? " · " + String(b.time).replace("T", " ").slice(11, 16) : ""}`;
+  const bottleText = (b) => ui("bottle {v0}{v1}", {v0: (b.bottle), v1: (b.time ? " · " + String(b.time).replace("T", " ").slice(11, 16) : "")});
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
@@ -49,8 +52,8 @@
   const selectionIds = () => [...new Set([...casts.sel].flatMap((id) => id.startsWith("trs:") ? castById(id)?.members || [] : [id]))];
   const dipSel = (towId) => selectionIds().filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
   casts.open = new Set(store.get("casts.open", []));
-  const castLabel = (c) => c.kind === "LIVE" ? "Live cast" : c.kind === "MVP" ? `MVP tow ${c.cast}${c.n_profiles ? ` · ${c.n_profiles} dips` : ""}`
-    : `${c.kind === "TM" ? "TM cast" : "Cast"} ${c.cast}${c.station ? " · " + c.station : ""}`;
+  const castLabel = (c) => c.kind === "LIVE" ? ui("Live cast") : c.kind === "MVP" ? ui("MVP tow {v0}{v1}", {v0: (c.cast), v1: (c.n_profiles ? ui(" · {v0} dips", {v0: (c.n_profiles)}) : "")})
+    : `${c.kind === "TM" ? ui("TM cast") : ui("Cast")} ${c.cast}${c.station ? " · " + c.station : ""}`;
   const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) + (c.time_end ? "–" + c.time_end.replace("T", " ").slice(11, 16) : "") : "";
   // a tow bundle expands into its dips — only the selected ones when dips were
   // picked individually, all of them when the tow was selected as a whole; a
@@ -103,18 +106,18 @@
       lat.push(null); lon.push(null); cd.push(null); txt.push("");
     }
     if (tows.length) {
-      out.push({ type: "scattermap", mode: "lines", name: "MVP tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
+      out.push({ type: "scattermap", mode: "lines", name: ui("MVP tows"), showlegend: false, hoverinfo: "skip", connectgaps: false,
                  lat, lon, line: { width: 3, color: "rgba(126,231,135,.55)" } });
       // selected tows drawn brighter on top; individually picked dips as dots
       const sel = tows.filter((c) => casts.sel.has(c.id));
-      if (sel.length) out.push({ type: "scattermap", mode: "lines", name: "selected tows", showlegend: false, hoverinfo: "skip", connectgaps: false,
+      if (sel.length) out.push({ type: "scattermap", mode: "lines", name: ui("selected tows"), showlegend: false, hoverinfo: "skip", connectgaps: false,
         lat: sel.flatMap((c) => [...c.track.map((t) => t[0]), null]), lon: sel.flatMap((c) => [...c.track.map((t) => t[1]), null]),
         line: { width: 4, color: C.accent2 } });
       const dips = tows.flatMap((c) => dipSel(c.id).map((i) => ({ c, i })));
-      if (dips.length) out.push({ type: "scattermap", mode: "markers", name: "selected dips", showlegend: false, hoverinfo: "text",
+      if (dips.length) out.push({ type: "scattermap", mode: "markers", name: ui("selected dips"), showlegend: false, hoverinfo: "text",
         lat: dips.map(({ c, i }) => c.track[i]?.[0]), lon: dips.map(({ c, i }) => c.track[i]?.[1]),
-        text: dips.map(({ c, i }) => `${castLabel(c)} · dip ${i + 1}`), marker: { size: 9, color: C.accent2 } });
-      out.push({ type: "scattermap", mode: "markers", name: "MVP tow starts", showlegend: false, hoverinfo: "text",
+        text: dips.map(({ c, i }) => ui("{v0} · dip {v1}", {v0: (castLabel(c)), v1: (i + 1)})), marker: { size: 9, color: C.accent2 } });
+      out.push({ type: "scattermap", mode: "markers", name: ui("MVP tow starts"), showlegend: false, hoverinfo: "text",
         lat: tows.map((c) => c.lat), lon: tows.map((c) => c.lon), customdata: tows.map((c) => c.id),
         text: tows.map((c) => `<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)} · click to select the tow`),
         marker: { size: tows.map((c) => isSelected(c) ? 11 : 7), color: tows.map((c) => isSelected(c) ? C.accent2 : C.ok), symbol: "circle" } });
@@ -141,7 +144,7 @@
       casts.variable = transect.variable;
       for (const key of ["mode", "xmode", "order"]) store.set(`casts.${key}`, casts[key]);
       store.set("casts.var", casts.variable);
-      $("#castxmode .xcycle").textContent = "Custom";
+      $("#castxmode .xcycle").textContent = ui("Custom");
       for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
     }
     if (id.includes("#")) {
@@ -198,10 +201,10 @@
       const r = await fetch("api/transects", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transect, name: store.get("chat.name", "") }) });
       const body = await r.json();
-      if (!r.ok || !body.transect) throw new Error(body.error || "no answer");
+      if (!r.ok || !body.transect) throw new Error(body.error || ui("no answer"));
       casts.shared = [...casts.shared.filter((c) => c.id !== body.transect.id), body.transect];
       return body.transect;
-    } catch (err) { UW.toast(`The transect could not be shared (${err.message}); it stays in this browser`); return null; }
+    } catch (err) { UW.toast(ui("The transect could not be shared ({v0}); it stays in this browser", {v0: (err.message)})); return null; }
   }
   async function castData(id) {
     const m = castById(id); if (!m) return null;
@@ -216,7 +219,7 @@
     const chosen = orderedSelection();
     const vars = chosen.length ? orderVars(new Set(chosen.flatMap((c) => c.vars || []))) : orderVars(casts.idx.variables);
     const sel = $("#castvar"); sel.innerHTML = "";
-    for (const v of vars) { const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o); }
+    for (const v of vars) { const o = document.createElement("option"); o.value = v; o.textContent = ui(variableLabel(v)); sel.appendChild(o); }
     if (!vars.includes(casts.variable)) casts.variable = vars.includes("Temperature") ? "Temperature" : (vars[0] || "Temperature");
     sel.value = casts.variable;
   }
@@ -283,10 +286,10 @@
       if (x == null) return 1; if (y == null) return -1;
       return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
     });
-    const head = bottleTableHead.map((h, i) => `<th data-column="${i}" class="${bottleNumeric(i) ? "num" : ""}" title="${esc(h)} · sort" aria-sort="${column === i ? dir > 0 ? "ascending" : "descending" : "none"}">${esc(bottleColumnName(h))}${column === i ? dir > 0 ? " ▲" : " ▼" : ""}</th>`).join("");
+    const head = bottleTableHead.map((h, i) => `<th data-column="${i}" class="${bottleNumeric(i) ? "num" : ""}" title="${esc(ui(variableLabel(bottleColumnName(h))))} · ${esc(t('underway.sort'))}" aria-sort="${column === i ? dir > 0 ? "ascending" : "descending" : "none"}">${esc(ui(variableLabel(bottleColumnName(h))))}${column === i ? dir > 0 ? " ▲" : " ▼" : ""}</th>`).join("");
     const body = bottleTableView.map((r) => `<tr>${r.map((v, i) => `<td class="${bottleNumeric(i) ? "num mono" : bottleMono(i) ? "mono" : ""}" title="${esc(v ?? "")}">${esc(bottleBrowseValue(v, i))}</td>`).join("")}</tr>`).join("");
-    $("#cast-bottle-rows").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${bottleTableHead.length}" class="muted">No bottle firings match.</td></tr>`}</tbody>`;
-    $("#cast-bottle-meta").textContent = `${bottleTableView.length.toLocaleString()} of ${bottleTableRows.length.toLocaleString()} bottle firings shown`;
+    $("#cast-bottle-rows").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${bottleTableHead.length}" class="muted">${uh("No bottle firings match.")}</td></tr>`}</tbody>`;
+    $("#cast-bottle-meta").textContent = ui("{v0} of {v1} bottle firings shown", {v0: (bottleTableView.length.toLocaleString(window.UWI18n.locale)), v1: (bottleTableRows.length.toLocaleString(window.UWI18n.locale))});
     $("#cast-bottle-tsv").disabled = !bottleTableView.length;
     for (const th of $("#cast-bottle-rows").querySelectorAll("th[data-column]")) th.onclick = () => {
       const next = +th.dataset.column;
@@ -300,7 +303,7 @@
     const seq = ++bottleTableSeq;
     const visible = orderedSelection().filter((c) => c.n_bottles && c.file)
       .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg }));
-    $("#cast-bottle-meta").textContent = `Loading ${visible.length} selected casts with bottle firings…`;
+    $("#cast-bottle-meta").textContent = ui("Loading {v0} selected casts with bottle firings…", {v0: (visible.length)});
     $("#cast-bottle-tsv").disabled = true;
     const loaded = new Array(visible.length);
     let next = 0;
@@ -312,7 +315,7 @@
         }
       }));
     } catch {
-      if (seq === bottleTableSeq) $("#cast-bottle-meta").textContent = "Bottle measurements could not be loaded. Close and reopen to retry.";
+      if (seq === bottleTableSeq) $("#cast-bottle-meta").textContent = ui("Bottle measurements could not be loaded. Close and reopen to retry.");
       return;
     }
     if (seq !== bottleTableSeq || !table.open) return;
@@ -333,25 +336,25 @@
     renderBottleTable();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
     const head = CAST_COLS.map(([k, l]) => k === "sel"
-      ? `<th class="select-all"><input type="checkbox" data-select-all aria-label="Select all shown casts" title="Select all shown casts"></th>`
+      ? `<th class="select-all"><input type="checkbox" data-select-all aria-label="${uh("Select all shown casts")}" title="${uh("Select all shown casts")}"></th>`
       : `<th data-k="${esc(k)}" title="${esc(t('underway.sort'))}">${esc(columnLabel(l))}${arrow(k)}</th>`).join("");
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
       let html = `<tr class="${whole ? "sel" : part ? "part" : ""}" data-id="${esc(c.id)}">
-        <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="${c.shared ? "Delete this shared transect for everyone" : "Delete this transect (saved in this browser)"}" aria-label="Delete transect">×</button>${c.shared ? "" : `<button class="tog" data-share-transect="${esc(c.id)}" title="Share this transect with everyone on the ship" aria-label="Share transect">↑</button>`}` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="show dips">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
-        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="Open rosette sheet">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
-        <td title="${esc(c.station || '')}">${esc(c.kind==='TRS' && c.stations?.length ? `${c.stations[0]} → ${c.stations.at(-1)}` : c.station || "")}${isTow && c.n_profiles ? ` <small>${part ? `${dips.length}/` : ""}${c.n_profiles} dips</small>` : ""}</td><td>${esc(c.label || "")}${c.kind === "TRS" ? ` <small>${c.shared ? (c.by ? `shared by ${esc(c.by)}` : "shared") : "this browser"}</small>` : ""}</td>
+        <td class="sel">${c.kind === "TRS" ? `<button class="tog" data-delete-transect="${esc(c.id)}" title="${c.shared ? uh("Delete this shared transect for everyone") : uh("Delete this transect (saved in this browser)")}" aria-label="${uh("Delete transect")}">×</button>${c.shared ? "" : `<button class="tog" data-share-transect="${esc(c.id)}" title="${uh("Share this transect with everyone on the ship")}" aria-label="${uh("Share transect")}">↑</button>`}` : isTow ? `<button class="tog" data-tow="${esc(c.id)}" title="${uh("show dips")}">${casts.open.has(c.id) ? "▾" : "▸"}</button>` : ""}</td>
+        <td><span class="kind ${c.kind}">${c.kind === "CTD" ? "ROS" : c.kind}</span></td><td class="mono">${c.log_url?`<a href="${esc(c.log_url)}" target="_blank" rel="noopener" title="${uh("Open rosette sheet")}">${esc(c.cast)} ↗</a>`:esc(c.cast)}</td>
+        <td title="${esc(c.station || '')}">${esc(c.kind==='TRS' && c.stations?.length ? `${c.stations[0]} → ${c.stations.at(-1)}` : c.station || "")}${isTow && c.n_profiles ? ` <small>${uh("{v0}{v1} dips", {v0: (part ? `${dips.length}/` : ""), v1: (c.n_profiles)})}</small>` : ""}</td><td>${esc(c.label || "")}${c.kind === "TRS" ? ` <small>${c.shared ? (c.by ? uh("shared by {v0}", {v0: (esc(c.by))}) : "shared") : uh("this browser")}</small>` : ""}</td>
         <td class="mono">${esc(castDate(c))}</td><td class="mono">${c.depth ?? ""}</td><td class="mono">${c.bottles ?? ""}</td><td>${esc(c.legLabel)}</td></tr>`;
       if (isTow && casts.open.has(c.id)) {
         const picked = new Set(dips);
         html += c.track.map((t, i) => `<tr class="dip ${picked.has(i) ? "sel" : ""}" data-id="${esc(c.id)}#${i}">
           <td class="sel"></td><td><span class="kind dip">#${i + 1}</span></td><td></td>
-          <td>dip ${i + 1}</td><td class="mono">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</td><td></td><td></td><td></td><td></td></tr>`).join("");
+          <td>${uh("dip {v4}", {v4: (i + 1)})}</td><td class="mono">${t[0] != null ? `${t[0].toFixed(3)}, ${t[1].toFixed(3)}` : ""}</td><td></td><td></td><td></td><td></td></tr>`).join("");
       }
       return html;
     };
-    tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, inLegs.length, f, "tr", CAST_COLS.length)}${rows.map(row).join("")}${!rows.length ? `<tr><td colspan="${CAST_COLS.length}" class="muted">no casts match</td></tr>` : ""}</tbody>`;
+    tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, inLegs.length, f, "tr", CAST_COLS.length)}${rows.map(row).join("")}${!rows.length ? `<tr><td colspan="${CAST_COLS.length}" class="muted">${uh("no casts match")}</td></tr>` : ""}</tbody>`;
     const all = tbl.querySelector("thead input[data-select-all]");
     selectAllHeader(tbl, rows.map((c) => c.id));
     all.onclick = (e) => { e.stopPropagation(); selectCastRows(rows.map((c) => c.id), all.checked); };
@@ -366,12 +369,12 @@
     for (const b of tbl.querySelectorAll("[data-delete-transect]")) b.onclick = async (e) => {
       e.stopPropagation();
       const id = b.dataset.deleteTransect, t = castById(id);
-      if (!confirm(t.shared ? `Delete the shared transect “${t.label}” for everyone?` : `Delete saved transect “${t.label}”?`)) return;
+      if (!confirm(t.shared ? ui("Delete the shared transect “{v0}” for everyone?", {v0: (t.label)}) : ui("Delete saved transect “{v0}”?", {v0: (t.label)}))) return;
       if (t.shared) {
         try {
           const r = await fetch("api/transects/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
           if (!r.ok) throw new Error();
-        } catch { UW.toast("The shared transect could not be deleted: the server did not answer"); return; }
+        } catch { UW.toast(ui("The shared transect could not be deleted: the server did not answer")); return; }
         casts.shared = casts.shared.filter((c) => c.id !== id);
       } else {
         casts.transects = casts.transects.filter((c) => c.id !== id); store.set("casts.transects", casts.transects);
@@ -437,13 +440,13 @@
       const unit = spec.units?.[v] ? ` (${spec.units[v]})` : "";
       // each axis carries a baseline in its colour, ticks tight against it and the
       // title tight against the ticks, so the stacked axes read as groups
-      layout[key] = { ...THEME.xaxis, title: { text: v + unit, font: { size: fz(12), color }, standoff: 2 }, tickfont: { size: fz(11), color }, ticks: "outside", ticklen: 3, tickcolor: color,
+      layout[key] = { ...THEME.xaxis, _uwIdentity:v, title: { text: ui(variableLabel(v)) + unit, font: { size: fz(12), color }, standoff: 2 }, tickfont: { size: fz(11), color }, ticks: "outside", ticklen: 3, tickcolor: color,
         showline: true, linecolor: color, linewidth: 1.5, showgrid: i === 0, side: bottom ? "bottom" : "top",
         ...(i === 0 ? {} : { overlaying: "x" }),
         anchor: k === 0 ? "y" : "free", position: k === 0 ? undefined : (bottom ? y0 - step * k : y1 + step * k) };
       const seg = (from, to, dash) => traces.push({ type: "scatter", mode: "lines", name: `${v}${dash ? " up" : ""}`, xaxis: ax, yaxis: "y",
         x: spec.vars[v].slice(from, to), y: yv.slice(from, to), customdata: spec.depth.slice(from, to), connectgaps: false, line: { color, width: dash ? 1.2 : 1.8, dash: dash ? "dot" : "solid" },
-        hovertemplate: `${esc(v)} %{x:.3~f}${esc(unit)}<br>%{customdata:.1f} m<extra>${dash ? "up" : ""}</extra>` });
+        hovertemplate: `${esc(ui(variableLabel(v)))} %{x:.3~f}${esc(unit)}<br>%{customdata:.1f} m<extra>${dash ? "up" : ""}</extra>` });
       if (spec.splitAt != null && spec.splitAt < spec.depth.length - 1) { seg(0, spec.splitAt + 1, false); seg(spec.splitAt, spec.depth.length, true); }
       else seg(0, spec.depth.length, false);
     });
@@ -457,12 +460,12 @@
       traces.push({ type: "scatter", mode: "markers", xaxis: "x20", yaxis: "y", name: "bottles", x: spec.bottles.map(() => 0.975), y: spec.bottles.map((b) => yT(bottleDepth(b, spec.lat))),
         text: spec.bottles.map((b) => `${bottleText(b)}<br>${Math.round(bottleDepth(b, spec.lat))} m`), hoverinfo: "text", marker: { size: 8, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
-    if (!vars.length) { body.innerHTML = '<div class="empty">Select at least one parameter.</div>'; return; }
+    if (!vars.length) { body.innerHTML = `<div class="empty">${uh("Select at least one parameter.")}</div>`; return; }
     UW.reactPlot($(`#${plotId}`), traces, layout, CFG, [spec.scope || plotId, casts.dscale]).then((gd) => UW.axisZoom(gd, { x: false }));
     const sub = body.querySelector(`#${plotId}`)?.closest(".castplot")?.querySelector(".now");
     if (sub) sub.textContent = spec.sub || "";
   }
-  const varChips = (names, on, cls) => names.map((c) => `<button type="button" class="chip ${cls} ${on.includes(c) ? "on" : ""}" data-v="${esc(c)}" aria-pressed="${on.includes(c)}" title="${on.includes(c) ? 'Hide' : 'Show'} ${esc(c)} axis">${esc(c)}${cls === 'singlevar' ? `<small>${on.includes(c) ? 'On' : 'Off'}</small>` : ''}</button>`).join("");
+  const varChips = (names, on, cls) => names.map((c) => `<button type="button" class="chip ${cls} ${on.includes(c) ? "on" : ""}" data-v="${esc(c)}" aria-pressed="${on.includes(c)}" title="${uh("{v4} {v5} axis", {v4: (on.includes(c) ? uh("Hide") : uh("Show")), v5: (esc(ui(variableLabel(c))))})}">${esc(ui(variableLabel(c)))}${cls === 'singlevar' ? `<small>${on.includes(c) ? uh("On") : uh("Off")}</small>` : ''}</button>`).join("");
 
   // ---- live
   async function pollLive() {
@@ -484,18 +487,18 @@
   function liveCfgForm(host, d) {
     const box = host.querySelector("#livecfgbox");
     if (!box) return;
-    const fieldsSummary = `Seasave's field list (SBE_ConvertedDataSettings)${d.fields?.length ? ` · ${d.fields.length} fields` : ""}`;
-    const fieldsText = d.fields?.length ? d.fields.map((n, i) => `${(d.columns || [])[i] || ""}  ←  ${n}`).join("\n") : "none received yet — Seasave sends it when the connection opens";
-    const rawText = (d.raw || []).join("\n") || "none yet";
+    const fieldsSummary = ui("Seasave's field list (SBE_ConvertedDataSettings){v0}", {v0: (d.fields?.length ? ui(" · {v0} fields", {v0: (d.fields.length)}) : "")});
+    const fieldsText = d.fields?.length ? d.fields.map((n, i) => `${(d.columns || [])[i] || ""}  ←  ${n}`).join("\n") : ui("none received yet — Seasave sends it when the connection opens");
+    const rawText = (d.raw || []).join("\n") || ui("none yet");
     const details = `<details id="livefields"><summary>${esc(fieldsSummary)}</summary><pre class="mono">${esc(fieldsText)}</pre></details>
-        <details id="liveraw"><summary>last raw scans</summary><pre class="mono">${esc(rawText)}</pre></details>`;
+        <details id="liveraw"><summary>${uh("last raw scans")}</summary><pre class="mono">${esc(rawText)}</pre></details>`;
     if (box.querySelector("form")) {                     // refresh the texts, not the elements: an open panel stays open
       const set = (id, summary, text) => { const el = box.querySelector(id); if (!el) return; if (summary) el.querySelector("summary").textContent = summary; el.querySelector("pre").textContent = text; };
       set("#livefields", fieldsSummary, fieldsText); set("#liveraw", null, rawText);
       const stl = box.querySelector("#livesetupstatus"); if (stl) stl.innerHTML = live.statusHtml || "";
       return;
     }
-    box.innerHTML = `<div class="livesetup-title">Live cast</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>SeaSave TCP/IP out (host:port, more ports with commas) <input name="tcp" value="${esc(d.tcp || "")}" size="48"></label><button type="button" data-seasave-range title="Try every port in SeaSave's standard 49160–49168 range">49160–49168</button><button type="submit">apply</button>
+    box.innerHTML = `<div class="livesetup-title">${uh("Live cast")}</div><div id="livesetupstatus">${live.statusHtml || ""}</div><form class="livecfgform" id="livecfgform"><label>${uh("SeaSave TCP/IP out (host:port, more ports with commas)")} <input name="tcp" value="${esc(d.tcp || "")}" size="48"></label><button type="button" data-seasave-range title="${uh("Try every port in SeaSave's standard 49160–49168 range")}">49160–49168</button><button type="submit">${uh("apply")}</button>
         <span role="alert" id="livecfgerror"></span></form><div id="livedetails">${details}</div>`;
     box.querySelector("[data-seasave-range]").onclick = () => {
       const input = box.querySelector("[name=tcp]");
@@ -511,9 +514,9 @@
       try {
         const response = await fetch("api/live", { method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tcp: f.get("tcp") }) });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || `Configuration failed (${response.status})`);
+        if (!response.ok) throw new Error(result.error || ui("Configuration failed ({v0})", {v0: (response.status)}));
         live.data = result; drawLive($("#castplots")); pollLive();
-      } catch (e) { error.textContent = e.name === "AbortError" ? "Request timed out; check settings before retrying." : `Could not apply settings: ${e.message}`; }
+      } catch (e) { error.textContent = e.name === "AbortError" ? ui("Request timed out; check settings before retrying.") : ui("Could not apply settings: {v0}", {v0: (e.message)}); }
       finally { clearTimeout(timeout); button.disabled = false; }
     };
   }
@@ -521,28 +524,28 @@
     const st = host.querySelector("#livestatus"), body = host.querySelector("#livebody");
     if (!st || !body) return;
     const d = live.data;
-    if (!d) { st.innerHTML = `<span class="muted">live feed unavailable (server not reachable)</span>`; return; }
+    if (!d) { st.innerHTML = `<span class="muted">${uh("live feed unavailable (server not reachable)")}</span>`; return; }
     const cast = live.which === "last" ? (d.last || d.current) : (d.current || d.last);
-    const which = cast === d.current ? "in the water" : cast === d.last ? (cast.end_reason ? `last cast (${esc(cast.end_reason)})` : "last cast") : null;
+    const which = cast === d.current ? ui("in the water") : cast === d.last ? (cast.end_reason ? ui("last cast ({v0})", {v0: (esc(cast.end_reason))}) : ui("last cast")) : null;
     // the subtitle: the time now, when data last arrived, and LIVE while
     // scans are coming in (connected but idle: CONNECTED; otherwise OFFLINE)
     const age = d.last_packet_age_s;
     const flowing = d.tcp_state === "connected" && age != null && age < 10;
     const announced = !!d.fields?.length;                          // Seasave sends its field list when it is really serving
     const state = !d.tcp ? "OFF" : flowing ? "LIVE" : d.tcp_state === "connected" ? (announced ? "CONNECTED" : "PORT OPEN") : d.tcp_state === "probing" ? "PROBING" : "OFFLINE";
-    const updated = d.packets && age != null ? `last updated ${age < 60 ? age.toFixed(0) + " s" : (age / 60).toFixed(0) + " min"} ago` : "no data yet";
-    const why = !d.tcp ? "no source set" : state === "PORT OPEN" ? `Seasave at ${d.active || d.tcp} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off` : `Seasave at ${d.active || d.tcp}: ${d.tcp_state}`;
-    const feed = `${stampL(Date.now())} ${tzAbbr()} · ${updated} · <span class="livestate ${state.toLowerCase().replace(" ", "-")}" title="${esc(why)}">${state}</span>`;
+    const updated = d.packets && age != null ? ui("last updated {v0} ago", {v0: (age < 60 ? age.toFixed(0) + " s" : (age / 60).toFixed(0) + " min")}) : ui("no data yet");
+    const why = !d.tcp ? ui("no source set") : state === "PORT OPEN" ? ui("Seasave at {v0} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off", {v0: (d.active || d.tcp)}) : ui("Seasave at {v0}: {v1}", {v0: (d.active || d.tcp), v1: (d.tcp_state)});
+    const feed = `${stampL(Date.now())} ${tzAbbr()} · ${updated} · <span class="livestate ${state.toLowerCase().replace(" ", "-")}" title="${esc(why)}">${esc(ui(state))}</span>`;
     const cols = (cast?.columns || d.columns || []).filter((c) => !LIVE_SKIP.has(c.toLowerCase()));
     live.statusHtml = `<div class="livestatus"><span class="dot ${flowing ? "on" : ""}"></span><span>${feed}</span>
-        ${cast ? `<span class="muted">· ${which} · ${cast.n.toLocaleString()} scans kept${cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""}${cast.direction ? ` · ${cast.direction === "down" ? "↓ descending" : cast.direction === "up" ? "↑ ascending" : "holding"}` : ""}</span>` : ""}
+        ${cast ? `<span class="muted">${uh("· {v0} · {v1} scans kept{v2}{v3}", {v0: (which), v1: (cast.n.toLocaleString()), v2: (cast.max_p ? ` · max ${cast.max_p.toFixed(0)} ${cast.depth_like ? "m" : "dbar"}` : ""), v3: (cast.direction ? ` · ${cast.direction === "down" ? uh("↓ descending") : cast.direction === "up" ? uh("↑ ascending") : uh("holding")}` : "")})}</span>` : ""}
         </div>`;
-    const choices = `<div class="livevars">${d.current && d.last ? ` <span class="muted">show:</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">in water</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">last</button>` : ""}</div>`;
+    const choices = `<div class="livevars">${d.current && d.last ? ` <span class="muted">${uh("show:")}</span> <button type="button" class="chip ${live.which === "current" ? "on" : ""}" data-w="current">${uh("in water")}</button><button type="button" class="chip ${live.which === "last" ? "on" : ""}" data-w="last">${uh("last")}</button>` : ""}</div>`;
     if (st._choices !== choices) { st.innerHTML = choices; st._choices = choices; }
     for (const b of st.querySelectorAll("[data-w]")) b.onclick = () => { live.which = b.dataset.w; drawLive(host); };
     liveCfgForm($("#casttable"), d);
     if (!cast || !cast.t.length) {
-      body.innerHTML = `<div class="empty">${d.tcp_state === "connected" && !announced ? `Seasave at ${esc(d.tcp)} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).` : d.no_pressure ? "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m]." : d.packets ? "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m." : d.tcp_state === "connected" ? "Connected to Seasave; the plot begins when acquisition starts and the package goes in." : d.tcp ? `Seasave at ${esc(d.tcp)} is not answering (${esc(d.tcp_state)}); retrying.` : "No Seasave source set — use ⚙."}</div>`;
+      body.innerHTML = `<div class="empty">${d.tcp_state === "connected" && !announced ? uh("Seasave at {v0} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).", {v0: (esc(d.tcp))}) : d.no_pressure ? uh("Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m].") : d.packets ? uh("Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m.") : d.tcp_state === "connected" ? uh("Connected to Seasave; the plot begins when acquisition starts and the package goes in.") : d.tcp ? uh("Seasave at {v0} is not answering ({v1}); retrying.", {v0: (esc(d.tcp)), v1: (esc(d.tcp_state))}) : uh("No Seasave source set — use ⚙.")}</div>`;
       return;
     }
     const P = cast.cols[cast.pressure_col || d.pressure_col] || [], lat = UW.M.latest?.lat ?? 70;
@@ -566,7 +569,7 @@
       const lower = enabled[Math.floor(enabled.length / 2)];
       ordered.splice(lower ? ordered.indexOf(lower) : 0, 0, CHART);
     }
-    const controls = `<div class="single-layout"><div class="single-parameters" aria-label="Parameters above Chart use upper axes; parameters below use lower axes">${ordered.map((v,i) => `<div class="parameter ${v === CHART ? 'chart-divider' : ''}" draggable="true" data-i="${i}">${v === CHART ? '<span class="chip chart-chip">Chart</span>' : varChips([v],live.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${v === CHART ? 'Chart' : esc(v)} up" ${i === 0 ? 'disabled' : ''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${v === CHART ? 'Chart' : esc(v)} down" ${i === ordered.length-1 ? 'disabled' : ''}>▼</button></div>`).join('')}</div><div id="liveoverlay"></div></div>`;
+    const controls = `<div class="single-layout"><div class="single-parameters" aria-label="${uh("Parameters above Chart use upper axes; parameters below use lower axes")}">${ordered.map((v,i) => `<div class="parameter ${v === CHART ? 'chart-divider' : ''}" draggable="true" data-i="${i}">${v === CHART ? `<span class="chip chart-chip">${uh("Chart")}</span>` : varChips([v],live.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="${uh("Move {v3} up", {v3: (v === CHART ? uh("Chart") : esc(v))})}" ${i === 0 ? 'disabled' : ''}>▲</button><button class="nudge" data-d="1" aria-label="${uh("Move {v5} down", {v5: (v === CHART ? uh("Chart") : esc(v))})}" ${i === ordered.length-1 ? 'disabled' : ''}>▼</button></div>`).join('')}</div><div id="liveoverlay"></div></div>`;
     if (body._controls !== controls || !body.querySelector('#liveoverlay')) {
       body.innerHTML = controls; body._controls = controls;
       const move = (from,to) => { if(to<0 || to>=ordered.length || from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.live.order',ordered);drawLive(host); };
@@ -578,9 +581,9 @@
       }
       for (const b of body.querySelectorAll('.singlevar')) b.onclick=()=>{live.vars=live.vars.includes(b.dataset.v)?live.vars.filter(v=>v!==b.dataset.v):[...live.vars,b.dataset.v];store.set('casts.live.vars',live.vars);drawLive(host);};
     }
-    drawOverlay(body.querySelector('#liveoverlay'), "live-plot", "Live cast", { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li], scope:[live.which,cast.started],
+    drawOverlay(body.querySelector('#liveoverlay'), "live-plot", ui("Live cast"), { depth, vars: cast.cols, units: {}, splitAt: imax, nowDepth: depth[li], scope:[live.which,cast.started],
       upperAxes: ordered.slice(0,ordered.indexOf(CHART)), axisOrderTopDown:true,
-      sub: `${depth[li] != null ? depth[li].toFixed(1) + " m now" : ""}${cast.started ? " · started " + fmtTs(cast.started * 1000).slice(11) : ""}` }, ordered.filter(v=>v!==CHART&&live.vars.includes(v)));
+      sub: `${depth[li] != null ? depth[li].toFixed(1) + ui(" m now") : ""}${cast.started ? ui(" · started ") + fmtTs(cast.started * 1000).slice(11) : ""}` }, ordered.filter(v=>v!==CHART&&live.vars.includes(v)));
     // Overlay has no draggable/minimisable panels, so binding on each poll
     // only replaces its reset and depth-scale handlers.
     wireCastPanels(host, () => drawLive(host));
@@ -589,7 +592,7 @@
   // ---- single: one selected cast in the same overlay
   async function renderSingle(host, data) {
     const pick = data.find((d) => d.id === single.id) || data[data.length - 1];
-    if (!pick) { host.innerHTML = '<div class="empty">Select a cast from the list or the map.</div>'; return; }
+    if (!pick) { host.innerHTML = `<div class="empty">${uh("Select a cast from the list or the map.")}</div>`; return; }
     single.id = pick.id;
     const sheet = pick.log_url || castById(pick.id)?.log_url;
     const profs = profilesOf(pick);                        // a tow's selected dips, or the one profile
@@ -605,10 +608,10 @@
     }
     const upperAxes = ordered.slice(0, ordered.indexOf(CHART));
     host.innerHTML = `<div class="livebar">
-      ${sheet ? `<div><a class="chip" href="${esc(sheet)}" target="_blank" rel="noopener">Rosette sheet ↗</a></div>` : ''}
-      ${data.length > 1 ? `<div class="livevars"><span class="muted">Select Cast:</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
-      ${profs.length > 1 ? `<div class="livevars"><span class="muted">dip:</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
-      <div class="single-layout"><div class="single-parameters" aria-label="Parameters above Chart use upper axes; parameters below use lower axes">${ordered.map((v,i)=>`<div class="parameter ${v===CHART?'chart-divider':''}" draggable="true" data-i="${i}">${v===CHART?'<span class="chip chart-chip" title="Move Chart to divide upper and lower axes">Chart</span>':varChips([v],single.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="Move ${v===CHART?'Chart':esc(v)} up" ${i===0?'disabled':''}>▲</button><button class="nudge" data-d="1" aria-label="Move ${v===CHART?'Chart':esc(v)} down" ${i===ordered.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div id="singlebody"></div></div>`;
+      ${sheet ? `<div><a class="chip" href="${esc(sheet)}" target="_blank" rel="noopener">${uh("Rosette sheet ↗")}</a></div>` : ''}
+      ${data.length > 1 ? `<div class="livevars"><span class="muted">${uh("Select Cast:")}</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
+      ${profs.length > 1 ? `<div class="livevars"><span class="muted">${uh("dip:")}</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
+      <div class="single-layout"><div class="single-parameters" aria-label="${uh("Parameters above Chart use upper axes; parameters below use lower axes")}">${ordered.map((v,i)=>`<div class="parameter ${v===CHART?'chart-divider':''}" draggable="true" data-i="${i}">${v===CHART?`<span class="chip chart-chip" title="${uh("Move Chart to divide upper and lower axes")}">${uh("Chart")}</span>`:varChips([v],single.vars,'singlevar')}<button class="nudge" data-d="-1" aria-label="${uh("Move {v3} up", {v3: (v===CHART?uh("Chart"):esc(v))})}" ${i===0?'disabled':''}>▲</button><button class="nudge" data-d="1" aria-label="${uh("Move {v5} down", {v5: (v===CHART?uh("Chart"):esc(v))})}" ${i===ordered.length-1?'disabled':''}>▼</button></div>`).join('')}</div><div id="singlebody"></div></div>`;
     const move=(from,to)=>{if(to<0||to>=ordered.length||from===to)return;const [v]=ordered.splice(from,1);ordered.splice(to,0,v);store.set('casts.single.order',ordered);renderSingle(host,data)};
     let drag=null;
     for(const row of host.querySelectorAll('.parameter')){
@@ -620,9 +623,9 @@
     for (const b of host.querySelectorAll("[data-id]")) b.onclick = () => { single.id = b.dataset.id; single.dip = null; renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
     const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
-    drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? `${castLabel(pick)} · dip #${prof.index + 1}` : castLabel(pick),
+    drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? ui("{v0} · dip #{v1}", {v0: (castLabel(pick)), v1: (prof.index + 1)}) : castLabel(pick),
       { depth: depths(prof), vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, drawn(prof, v)])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
-        scope:[pick.id,single.dip], upperAxes, axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ` · bottom ${Math.round(prof.bottom_m || pick.bottom_m)} m` : ""}` }, ordered.filter(v=>v!==CHART&&single.vars.includes(v)));
+        scope:[pick.id,single.dip], upperAxes, axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ui(" · bottom {v0} m", {v0: (Math.round(prof.bottom_m || pick.bottom_m))}) : ""}` }, ordered.filter(v=>v!==CHART&&single.vars.includes(v)));
     wireCastPanels(host, () => renderSingle(host, data));
   }
 
@@ -639,7 +642,7 @@
     if (casts.kind === "live" && casts.mode === "section") { casts.mode = "single"; store.set("casts.mode", casts.mode); for (const x of $("#castmode").querySelectorAll("button")) x.classList.toggle("on", x.dataset.m === casts.mode); }
     $("#castrow2").hidden = casts.mode !== "section";           // the section's own x axis and the variable it colours by
     if (casts.kind === "live") { $("#castmeta").textContent = ""; return renderLive(host); }
-    if (!sel.length) { host.innerHTML = '<div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div>'; $("#castmeta").textContent = ""; return; }
+    if (!sel.length) { host.innerHTML = `<div class="empty">${uh("Select casts from the list, or click stations and tow tracks on the map.")}</div>`; $("#castmeta").textContent = ""; return; }
     let data;
     try {
       data = (await Promise.all(sel.map((c) => castData(c.id)))).filter(Boolean);
@@ -650,7 +653,7 @@
     if (seq !== plotSeq || stamp !== UW.M.generated_utc) return false;
     UW.setLoadError("Casts", false);
     const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
-    $("#castmeta").textContent = `${data.length} selected · ${dips} profile${dips === 1 ? "" : "s"}`;
+    $("#castmeta").textContent = ui("{v0} selected · {v1} profile{v2}", {v0: (data.length), v1: (dips), v2: (dips === 1 ? "" : "s")});
     if (casts.mode === "profiles") renderProfiles(host, data); else if (casts.mode === "single") renderSingle(host, data); else renderSection(host, data);
   }
 
@@ -676,7 +679,7 @@
   const yT = (d) => d == null ? null : casts.dscale === "sqrt" ? Math.sqrt(Math.max(0, d)) : d;
   const DEPTH_TICKS = [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
   function depthAxis(maxD, extra = {}) {
-    const ax = { ...THEME.yaxis, title: { text: "depth (m)", font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
+    const ax = { ...THEME.yaxis, _uwIdentity:'depth (m)', title: { text: ui("depth (m)"), font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
       autorange: false, range: [yT(maxD), 0], ...extra };
     if (casts.dscale === "sqrt") { const t = DEPTH_TICKS.filter((d) => d <= maxD); ax.tickvals = t.map(yT); ax.ticktext = t.map(String); }
     return ax;
@@ -698,8 +701,8 @@
   // Multi a click on a title picks the panel, Temperature to begin with.
   function castPanelHtml(id, title, unit, wideable = true, movable = false, depth = true, on = true) {
     return `<section class="panel card castplot ${castPanelState.wide.has(id) ? "wide" : ""} ${on ? "on" : ""}" data-cp="${esc(id)}" data-var="${esc(title)}" ${movable ? 'draggable="true"' : ""}>
-      <div class="head">${movable ? '<span class="handle" title="drag onto another graph to swap places">⋮⋮</span>' : ""}<h3 ${movable ? 'title="click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them"' : ""}>${esc(title)}</h3><div class="tools"><span class="now">${esc(unit)}</span>
-        <button class="reset" title="reset zoom">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="compress the depth axis (square root) — applies to every cast graph">⇅</button>` : ""}${movable ? '<button class="min" title="minimise to the top bar">—</button>' : ""}${wideable ? '<button class="wide" title="expand">⤢</button>' : ""}</div></div>
+      <div class="head">${movable ? `<span class="handle" title="${uh("drag onto another graph to swap places")}">⋮⋮</span>` : ""}<h3 ${movable ? `title="${uh('click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them')}"` : ""}>${esc(ui(variableLabel(title)))}</h3><div class="tools"><span class="now">${esc(unit)}</span>
+        <button class="reset" title="${uh("reset zoom")}">⟲</button>${depth ? `<button class="dscale ${casts.dscale === "sqrt" ? "on" : ""}" title="${uh("compress the depth axis (square root) — applies to every cast graph")}">⇅</button>` : ""}${movable ? `<button class="min" title="${uh("minimise to the top bar")}">—</button>` : ""}${wideable ? `<button class="wide" title="${uh("expand")}">⤢</button>` : ""}</div></div>
       <div class="plot" id="${esc(id)}"></div></section>`;
   }
   function wireCastPanels(host, rerender, vars = []) {
@@ -751,10 +754,10 @@
     const vars = all.filter((v) => !castPanelState.min.has(v));
     const minimised = all.filter((v) => castPanelState.min.has(v));
     if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
-    const legendHtml = () => castPanelHtml("cp-legend", LEGEND, `${data.length} cast${data.length === 1 ? "" : "s"}`, true, true, false, false)
+    const legendHtml = () => castPanelHtml("cp-legend", LEGEND, ui("{v0} cast{v1}", {v0: (data.length), v1: (data.length === 1 ? "" : "s")}), true, true, false, false)
       .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
       .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
-    const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="restore">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
+    const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="${uh("restore")}">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
       vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("");
     const rebuilt = host._profileMarkup !== markup || !host.querySelector('.castplot,.castdock');
     if (rebuilt) { host.innerHTML = markup; host._profileMarkup = markup; }
@@ -776,7 +779,7 @@
           });
           const bts = casts.bottles ? (p.bottles || []).filter((b) => b.p != null || b.depth_m != null) : [];
           if (bts.length) traces.push({
-            type: "scatter", mode: "markers", name: `${p.label} bottles`, showlegend: false,
+            type: "scatter", mode: "markers", name: ui("{v0} bottles", {v0: (p.label)}), showlegend: false,
             x: bts.map((b) => valueAt(p, v, b.p ?? b.depth_m)), y: bts.map((b) => yT(bottleDepth(b, p.lat ?? d.lat))),
             text: bts.map((b) => `${esc(p.label)}<br>${bottleText(b)} · ${Math.round(bottleDepth(b, p.lat ?? d.lat))} m`), hoverinfo: "text",
             marker: { size: 7, color: colour, line: { color: C.marker, width: 1 } },
@@ -878,11 +881,11 @@
     // A–Z: by station id, numbers in order (CardS-2 before CardS-10), then time
     const stationOf = (d) => String(d.station ?? d.parent?.station ?? d.label ?? "");
     if (az) withVar = [...withVar].sort((a, b) => stationOf(a).localeCompare(stationOf(b), undefined, { numeric: true, sensitivity: "base" }) || (a.time || "").localeCompare(b.time || ""));
-    if (withVar.length < 2) { host.innerHTML = `<div class="empty">A section needs at least two profiles with ${esc(v)} — ${withVar.length} selected.</div>`; return; }
+    if (withVar.length < 2) { host.innerHTML = `<div class="empty">${uh("A section needs at least two profiles with {v0} — {v1} selected.", {v0: (esc(v)), v1: (withVar.length)})}</div>`; return; }
     const save = $("#savetransect");
     save.disabled = false;
     save.onclick = async () => {
-      const label = prompt("Transect name (shared with everyone on the ship)", `Transect ${allTransects().length + 1}`)?.trim();
+      const label = prompt(ui("Transect name (shared with everyone on the ship)"), ui("Transect {v0}", {v0: (allTransects().length + 1)}))?.trim();
       if (!label) return;
       const times = withVar.map((d) => d.time).filter(Boolean).sort();
       const legs = [...new Set(withVar.map((d) => d.parent?.leg || d.leg).filter(Boolean))];
@@ -898,7 +901,7 @@
       if (!(await shareTransect(transect))) {          // the server did not take it: this browser keeps it
         const next = [...casts.transects, transect];
         try { localStorage.setItem("uw:casts.transects", JSON.stringify(next)); }
-        catch { alert("This browser could not save the transect. Check available storage and try again."); return; }
+        catch { alert(ui("This browser could not save the transect. Check available storage and try again.")); return; }
         casts.transects = next;
       }
       casts.kind = "TRS"; casts.search = ""; $("#castsearch").value = "";
@@ -926,7 +929,7 @@
     }
     const tms = withVar.map((d, i) => d.time ? Date.parse(d.time + (d.time.endsWith("Z") ? "" : "Z")) : i);
     const xs = byTime ? tms.map((t) => UW.shipAxis(t)) : km;
-    const xTitle = byTime ? `ship time (${UW.tzAbbr()})` : custom ? "distance along the custom order (km)" : az ? "distance along the stations A–Z (km)" : "distance along section (km)";
+    const xTitle = byTime ? ui("ship time ({v0})", {v0: (UW.tzAbbr())}) : custom ? ui("distance along the custom order (km)") : az ? ui("distance along the stations A–Z (km)") : ui("distance along section (km)");
     const xFmt = (i) => byTime ? fmtTs(tms[i]) : `${km[i].toFixed(0)} km`;
     const unit = withVar[0].units[v] || "";
     // Resample onto a regular x grid so the section interpolates between
@@ -951,12 +954,12 @@
     // the legend: a column of chips to the left of the plot, always
     // movable (drag, or ▲ ▼); moving one switches the axis to custom and
     // keeps that order, and a link restores time order
-    const entry = (d, i) => `<span class="chip reorder" draggable="true" data-i="${i}" title="drag, or ▲ ▼, to lay the profiles in your own order"><b>${i + 1}</b><span class="lbl">${esc(d.label)}<small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span><span class="nudges"><button type="button" class="nudge" data-d="-1" title="move up" ${i === 0 ? "disabled" : ""}>▲</button><button type="button" class="nudge" data-d="1" title="move down" ${i === withVar.length - 1 ? "disabled" : ""}>▼</button></span></span>`;
-    host.innerHTML = `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? '<a href="#" class="timeorder">↺ time order</a>' : ""}</div>` +
-      castPanelHtml("cs-plot", `${v} section`, `${withVar.length} profiles · ${km.at(-1).toFixed(0)} km · ${unit}${smoothW ? ` · smoothed over ${smoothW} m` : ""}`, false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide') + "</div>";
+    const entry = (d, i) => `<span class="chip reorder" draggable="true" data-i="${i}" title="${uh("drag, or ▲ ▼, to lay the profiles in your own order")}"><b>${i + 1}</b><span class="lbl">${esc(d.label)}<small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span><span class="nudges"><button type="button" class="nudge" data-d="-1" title="${uh("move up")}" ${i === 0 ? "disabled" : ""}>▲</button><button type="button" class="nudge" data-d="1" title="${uh("move down")}" ${i === withVar.length - 1 ? "disabled" : ""}>▼</button></span></span>`;
+    host.innerHTML = `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? `<a href="#" class="timeorder">${uh("↺ time order")}</a>` : ""}</div>` +
+      castPanelHtml("cs-plot", uh("{v0} section", {v0: (v)}), uh("{v0} profiles · {v1} km · {v2}{v3}", {v0: (withVar.length), v1: (km.at(-1).toFixed(0)), v2: (unit), v3: (smoothW ? uh(" · smoothed over {v0} m", {v0: (smoothW)}) : "")}), false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide') + "</div>";
     const move = (from, to) => {
       const arr = [...withVar]; const [x] = arr.splice(from, 1); arr.splice(to, 0, x); saveOrder(arr);
-      if (casts.xmode !== "custom") { casts.xmode = "custom"; store.set("casts.xmode", "custom"); $("#castxmode .xcycle").textContent = "Custom"; }
+      if (casts.xmode !== "custom") { casts.xmode = "custom"; store.set("casts.xmode", "custom"); $("#castxmode .xcycle").textContent = ui("Custom"); }
       renderSection(host, data);
     };
     for (const b of host.querySelectorAll(".castlegend .nudge")) b.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); const i = +b.closest(".reorder").dataset.i; move(i, i + (+b.dataset.d)); };
@@ -967,7 +970,7 @@
       el.ondrop = (ev) => { ev.preventDefault(); el.classList.remove("over"); const from = +ev.dataTransfer.getData("text/plain"), to = +el.dataset.i; if (!isNaN(from) && from !== to) move(from, to); };
     }
     const to = host.querySelector(".castlegend .timeorder");
-    if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = "Time"; renderCastPlots(); };
+    if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = ui("Time"); renderCastPlots(); };
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "top" }, thickness: 12, len: .8, tickangle: 0, tickfont: { size: fz(12) }, outlinewidth: 0 },
@@ -1009,7 +1012,7 @@
     };
     for (const b of $("#castmode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.m === casts.mode);
     $("#castvar").onchange = (e) => { casts.variable = e.target.value; store.set("casts.var", casts.variable); renderCastPlots(); };
-    const sx = $("#castxmode .xcycle"), XMODES = ["time", "distance", "az", "custom"], XWORD = { time: "Time", distance: "Distance", az: "A–Z", custom: "Custom" };
+    const sx = $("#castxmode .xcycle"), XMODES = ["time", "distance", "az", "custom"], XWORD = { get time() { return ui("Time"); }, get distance() { return ui("Distance"); }, az: "A–Z", get custom() { return ui("Custom"); } };
     if (!XMODES.includes(casts.xmode)) casts.xmode = "time";
     sx.textContent = XWORD[casts.xmode];
     sx.onclick = () => { casts.xmode = XMODES[(XMODES.indexOf(casts.xmode) + 1) % XMODES.length]; store.set("casts.xmode", casts.xmode); sx.textContent = XWORD[casts.xmode]; renderCastPlots(); };
@@ -1044,7 +1047,7 @@
   const localParts = (t) => { const o = {}; for (const p of _lparts.formatToParts(new Date(t))) o[p.type] = p.value; return o; };
   const dayL = (t) => { const p = localParts(t); return `${p.year}-${p.month}-${p.day}`; };            // YYYY-MM-DD, ship time
   const hmL = (t) => { const p = localParts(t); return `${p.hour}:${p.minute}`; };                       // HH:MM, ship time
-  const tzAbbr = (t = Date.now()) => (new Intl.DateTimeFormat("en-US", { timeZone: LTZ, timeZoneName: "short" }).formatToParts(new Date(t)).find((p) => p.type === "timeZoneName") || {}).value || LTZ;
+  const tzAbbr = (t = Date.now()) => (new Intl.DateTimeFormat(window.UWI18n.locale, { timeZone: LTZ, timeZoneName: "short" }).formatToParts(new Date(t)).find((p) => p.type === "timeZoneName") || {}).value || LTZ;
   const offsetMs = (t) => { const p = localParts(t); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(t / 60000) * 60000; };  // ship time minus UTC
   const localMidnight = (key) => { const g = Date.parse(key + "T00:00:00Z"); return g - offsetMs(g); }; // the instant the ship day begins
   const nextDay = (key) => dayL(localMidnight(key) + 36 * 3600e3);
@@ -1119,14 +1122,14 @@
     for (const r of shown) { const d = isoDay(r) || "undated"; if (!byDayT.has(d)) byDayT.set(d, []); byDayT.get(d).push(r); }
     const sched = [...byDayT.entries()].map(([d, rs]) => {
       const nDone = rs.filter(isFinished).length, open = cal.openDone.has(d);
-      return dayHead(d) + (nDone ? `<tr class="fold"><td colspan="7"><button type="button" class="dayfold-done" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nDone} finished</button></td></tr>` : "") +
+      return dayHead(d) + (nDone ? `<tr class="fold"><td colspan="7"><button type="button" class="dayfold-done" data-day="${esc(d)}" data-count="${nDone}">${open ? '▾ ' : '▸ '}${esc(ui(open ? 'Hide {count} finished' : 'Show {count} finished', {count:nDone}))}</button></td></tr>` : "") +
         rs.map((r) => schedRow(r, rowKey(r), false).replace("<tr ", isFinished(r) && !open ? "<tr hidden " : "<tr ")).join("");
     }).join("");
-    let html = `<section class="card block"><h3>Operations schedule ${esc(s.title || "")}${changesBell()}</h3>` +
+    let html = `<section class="card block"><h3>${uh("Operations schedule {v0}{v1}", {v0: (esc(s.title || "")), v1: (changesBell())})}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
-      (sched ? `<div class="hscroll"><table class="sched">${SCHED_HEAD(false)}${sched}</table></div>` : '<p class="muted">no scheduled operations listed</p>') +
-      `<p class="muted small">Ship intranet: ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
-      ` &nbsp;·&nbsp; calendars: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p>` +
+      (sched ? `<div class="hscroll"><table class="sched">${SCHED_HEAD(false)}${sched}</table></div>` : `<p class="muted">${uh("no scheduled operations listed")}</p>`) +
+      `<p class="muted small">${esc(ui('Ship intranet:'))} ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
+      ` &nbsp;·&nbsp; ${esc(ui('calendars:'))} ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p>` +
       alertsHtml() + `</section>`;
     const wasOpen = host.querySelector("#alerts")?.open;
     host.innerHTML = html;
@@ -1138,18 +1141,18 @@
   function foldDone(host, d, open) {
     if (open) cal.openDone.add(d); else cal.openDone.delete(d);
     for (const tr of host.querySelectorAll(`tr.sched.done[data-day="${CSS.escape(d)}"]`)) tr.hidden = !open;
-    const b = host.querySelector(`.dayfold-done[data-day="${CSS.escape(d)}"]`); if (b) b.textContent = b.textContent.replace(/^\S+ (show|hide)/, open ? "▾ hide" : "▸ show");
+    const b = host.querySelector(`.dayfold-done[data-day="${CSS.escape(d)}"]`); if (b) b.textContent = (open ? '▾ ' : '▸ ') + ui(b.classList.contains('dayfold-done') ? (open ? 'Hide {count} finished' : 'Show {count} finished') : (open ? 'Hide {count} formerly scheduled' : 'Show {count} formerly scheduled'), {count:Number(b.dataset.count)});
   }
   // ---- one table for both views. The Today table and the event log share
   // the columns time · station · operation · alerts · status · dur. · comment
   // and a coloured header row per ship day; the log adds the logged events
   // (their depth in the dur. column) and folds each day's scheduled rows.
-  const SCHED_HEAD = (depth) => `<tr><th title="🔔 this operation · 📢 every operation of this kind">${UW.public ? "" : "alerts"}</th><th>time</th><th title="now · next · later · done · canceled · was scheduled · logged">status</th><th>station</th><th>operation</th><th>dur.</th>${depth ? "<th>depth</th>" : ""}<th>comment</th></tr>`;
+  const SCHED_HEAD = (depth) => `<tr><th title="${uh("🔔 this operation · 📢 every operation of this kind")}">${UW.public ? "" : esc(ui("alerts"))}</th><th>${uh("time")}</th><th title="${uh("now · next · later · done · canceled · was scheduled · logged")}">${uh("status")}</th><th>${uh("station")}</th><th>${uh("operation")}</th><th>${uh("dur.")}</th>${depth ? `<th>${uh("depth")}</th>` : ""}<th>${uh("comment")}</th></tr>`;
   // the status in a word: now (in progress), next (up next), later (upcoming), done, canceled, was (scheduled once), logged
   const statusWord = (r, next) => { const st = (r.status || "").trim().toLowerCase();
     return r.former ? ["was", "was scheduled"] : st === "in progress" ? ["now", "now"] : st === "completed" ? ["done", "done"] : /^cancel/.test(st) ? ["canceled", "canceled"] : st === "coming soon" ? ["soon", "soon"] : st && st !== "scheduled" ? ["later", st] : next ? ["next", "next"] : ["later", "later"]; };
   const NCOLS = (depth) => depth ? 8 : 7;
-  const dayHead = (d, note, depth) => `<tr class="dayhead"><td colspan="${NCOLS(depth)}">${esc(d)}${d === dayL(Date.now()) ? " · today" : ""}${note ? ` <small>${note}</small>` : ""}</td></tr>`;
+  const dayHead = (d, note, depth) => `<tr class="dayhead"><td colspan="${NCOLS(depth)}">${esc(ui(d))}${d === dayL(Date.now()) ? uh(" · today") : ""}${note ? ` <small>${note}</small>` : ""}</td></tr>`;
   const rowKey = (r) => `r:${r.key || `${r.station}|${r.operation}`}`;
   function schedRow(r, k, depth) {
     const nextKey = UW.M.calendar?.now?.next?.key, next = !r.former && r.key === nextKey;
@@ -1157,8 +1160,8 @@
     const when = r.start ? `${esc(r.start)}–${esc(r.end || "")}` : `${isNaN(t0) ? "" : hmL(t0)}–${isNaN(t1) ? "" : hmL(t1)}`;
     const [cls, word] = statusWord(r, next);
     return `<tr class="sched ${r.former ? "former" : ""} ${isFinished(r) ? "done" : ""} ${statusClass(r.status || "upcoming")} ${next ? "next" : ""}" data-key="${esc(k)}" data-day="${esc(isNaN(t0) ? "" : dayL(t0))}">` +
-      `<td class="alerts-cell">${r.former ? "" : bellHtml(r)}</td><td class="mono">${when}</td><td><span class="status s-${cls}" title="${esc(word)}">${esc(word)}</span></td>` +
-      `<td>${r.station ? `<a href="#" class="stnlink" data-station="${esc(r.station)}" title="show ${esc(r.station)} on the map">${esc(r.station)}</a>` : ""}</td><td>${esc(r.operation || "")}</td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td>` +
+      `<td class="alerts-cell">${r.former ? "" : bellHtml(r)}</td><td class="mono">${when}</td><td><span class="status s-${cls}" title="${esc(ui(word))}">${esc(ui(word))}</span></td>` +
+      `<td>${r.station ? `<a href="#" class="stnlink" data-station="${esc(r.station)}" title="${esc(ui('show {station} on the map', {station:r.station}))}">${esc(r.station)}</a>` : ""}</td><td>${esc(r.operation || "")}</td><td>${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}</td>` +
       `${depth ? "<td></td>" : ""}<td class="muted">${esc(r.comment || "")}</td></tr>`;
   }
   // the event log: logged events and scheduled operations (current and
@@ -1186,17 +1189,17 @@
       }
       return best;
     };
-    const evRow = (e, k, d) => { const c = castFor(e); return `<tr class="logged" data-key="${esc(k)}" data-day="${esc(d)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="${e.lat != null ? "show on map" : ""}">` +
-      `<td class="alerts-cell">${c ? `<button type="button" class="viewdata" data-cast="${esc(c.key)}" title="open cast ${esc(c.cast)} on the Casts tab">view data</button>` : ""}</td>` +
-      `<td class="mono">${hm(UW.tms(e.time_utc))}</td><td><span class="status s-logged" title="logged">logged</span></td><td>${esc(e.station || "")}</td><td>${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</td>` +
+    const evRow = (e, k, d) => { const c = castFor(e); return `<tr class="logged" data-key="${esc(k)}" data-day="${esc(d)}" data-lat="${e.lat ?? ""}" data-lon="${e.lon ?? ""}" title="${e.lat != null ? uh("show on map") : ""}">` +
+      `<td class="alerts-cell">${c ? `<button type="button" class="viewdata" data-cast="${esc(c.key)}" title="${esc(ui('open cast {cast} on the Casts tab', {cast:c.cast}))}">${uh("view data")}</button>` : ""}</td>` +
+      `<td class="mono">${hm(UW.tms(e.time_utc))}</td><td><span class="status s-logged" title="${uh("logged")}">${uh("logged")}</span></td><td>${esc(e.station || "")}</td><td>${esc(e.activity || "")}${e.event ? " · " + esc(e.event) : ""}${e.label ? ` <code>${esc(e.label)}</code>` : ""}</td>` +
       `<td></td><td>${e.depth_m != null ? Math.round(+e.depth_m) + " m" : ""}</td><td class="muted">${esc(e.comment || "")}</td></tr>`; };
     // scheduled rows show; the formerly scheduled ones (off the intranet page now) fold per day
     const body = days.map((d) => {
       const items = byDay.get(d).sort((a, b) => b.t - a.t);
       const nEv = items.filter((x) => x.e).length, nSched = items.filter((x) => x.r && !x.r.former).length, nFormer = items.filter((x) => x.r?.former).length, open = cal.openDays.has(d);
       const first = items.find((x) => x.e)?.e, leg = UW.legById(first?.leg)?.label || items.find((x) => x.r)?.r.leg || "";
-      return dayHead(d, `${nEv} events · ${nSched} scheduled${nFormer ? ` · ${nFormer} formerly` : ""}${leg ? " · " + esc(leg) : ""}`, true) +
-        (nFormer ? `<tr class="fold"><td colspan="8"><button type="button" class="dayfold" data-day="${esc(d)}">${open ? "▾ hide" : "▸ show"} ${nFormer} formerly scheduled</button></td></tr>` : "") +
+      return dayHead(d, ui("{v0} events · {v1} scheduled{v2}{v3}", {v0: (nEv), v1: (nSched), v2: (nFormer ? ui(" · {v0} formerly", {v0: (nFormer)}) : ""), v3: (leg ? " · " + esc(leg) : "")}), true) +
+        (nFormer ? `<tr class="fold"><td colspan="8"><button type="button" class="dayfold" data-day="${esc(d)}" data-count="${nFormer}">${open ? '▾ ' : '▸ '}${esc(ui(open ? 'Hide {count} formerly scheduled' : 'Show {count} formerly scheduled', {count:nFormer}))}</button></td></tr>` : "") +
         items.map((x) => x.e ? evRow(x.e, x.k, d) : schedRow(x.r, x.k, true).replace("<tr ", open || !x.r.former ? "<tr " : "<tr hidden ")).join("");
     }).join("");
     return `<div class="evlog" id="evlog"><table class="sched">${SCHED_HEAD(true)}${spanNote(evs.length, evs.length + nHidden, f, "tr", NCOLS(true))}${body}</table></div>`;
@@ -1215,7 +1218,7 @@
   function foldDay(host, d, open) {
     if (open) cal.openDays.add(d); else cal.openDays.delete(d);
     for (const tr of host.querySelectorAll(`tr.sched.former[data-day="${CSS.escape(d)}"]`)) tr.hidden = !open;
-    const b = host.querySelector(`.dayfold[data-day="${CSS.escape(d)}"]`); if (b) b.textContent = b.textContent.replace(/^\S+ (show|hide)/, open ? "▾ hide" : "▸ show");
+    const b = host.querySelector(`.dayfold[data-day="${CSS.escape(d)}"]`); if (b) b.textContent = (open ? '▾ ' : '▸ ') + ui(b.classList.contains('dayfold-done') ? (open ? 'Hide {count} finished' : 'Show {count} finished') : (open ? 'Hide {count} formerly scheduled' : 'Show {count} formerly scheduled'), {count:Number(b.dataset.count)});
   }
   // a click on the timeline scrolls the log to that row (the log's own scroll, not the page's)
   function showLogRow(host, key) {
@@ -1239,7 +1242,7 @@
   const encodeRow = (key) => btoa(unescape(encodeURIComponent(key))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "").slice(0, 64);
   // two bells: this operation, and every operation of this kind (any station)
   const CHANGES_NAME = "changes to the schedule";
-  const bellTitle = (kind, on) => on ? `you follow ${kind} — click to stop` : kind === CHANGES_NAME ? `follow ${kind}: an operation added, taken off, moved or canceled; no reminders` : `follow ${kind}: 15 min heads-up and every change`;
+  const bellTitle = (kind, on) => on ? ui("you follow {v0} — click to stop", {v0: (ui(kind))}) : kind === CHANGES_NAME ? ui("follow {v0}: an operation added, taken off, moved or canceled; no reminders", {v0: (ui(kind))}) : ui("follow {v0}: 15 min heads-up and every change", {v0: (ui(kind))});
   const bellKind = (b) => b.dataset.key === "changes" || b.classList.contains("kind") ? b.dataset.name : "this operation";
   // the bell in the schedule's heading: only when the schedule itself changes
   function changesBell() {
@@ -1253,7 +1256,7 @@
     if (!a.email && !a.telegram_bot) return "";
     const key = r.key || `${r.station}|${r.operation}`, on = followed(key);
     const kind = /transit|steam/i.test(r.operation || "") ? "Transit" : (r.operation || "");     // every transit is one kind, whatever the destination
-    const opKey = `op:${kind}`, opOn = followed(opKey), kindName = kind === "Transit" ? "every transit" : `every ${kind}`;
+    const opKey = `op:${kind}`, opOn = followed(opKey), kindName = kind === "Transit" ? ui("every transit") : ui('every {v0}', {v0:kind});
     return `<button type="button" class="bell ${on ? "on" : ""}" data-key="${esc(key)}" data-name="${esc(`${r.station || ""} — ${r.operation || ""}`.trim())}" title="${esc(bellTitle("this operation", on))}">🔔</button>` +
       (kind ? `<button type="button" class="bell kind ${opOn ? "on" : ""}" data-key="${esc(opKey)}" data-name="${esc(kindName)}" title="${esc(bellTitle(kindName, opOn))}">📢</button>` : "");
   }
@@ -1285,7 +1288,7 @@
     for (const a of host.querySelectorAll("a.stnlink")) a.onclick = (ev) => {
       ev.preventDefault(); ev.stopPropagation();
       const pos = stationPosition(a.dataset.station);
-      if (pos) UW.focusMap(pos.lat, pos.lon, a.dataset.station); else UW.toast?.(`${a.dataset.station}: no position known yet`);
+      if (pos) UW.focusMap(pos.lat, pos.lon, a.dataset.station); else UW.toast?.(ui("{v0}: no position known yet", {v0: (a.dataset.station)}));
     };
   }
   function wireBells(host) {
@@ -1310,10 +1313,10 @@
     const a = UW.M.alerts || {}, key = b.dataset.key, name = b.dataset.name, to = followEmail(), on = bells.rows.has(key), webOn = bells.web.has(key);
     const m = document.createElement("div"); m.className = "bellmenu";
     m.innerHTML = `<div class="bm-title">${esc(name)}</div>` +
-      (a.web ? `<button type="button" class="bm-web">${webOn ? "🖥 stop showing" : "🖥 show"} in this browser's header bar</button>` : "") +
-      (a.email ? (to ? `<button type="button" class="bm-email">${on ? "✉ stop emailing" : "✉ email"} ${esc(to)}</button>` : `<button type="button" class="bm-email">✉ email me… (enter an address below)</button>`) : "") +
+      (a.web ? `<button type="button" class="bm-web">${uh("{v0} in this browser's header bar", {v0: (webOn ? uh("🖥 stop showing") : uh("🖥 show"))})}</button>` : "") +
+      (a.email ? (to ? `<button type="button" class="bm-email">${on ? uh("✉ stop emailing") : uh("✉ email")} ${esc(to)}</button>` : `<button type="button" class="bm-email">${uh("✉ email me… (enter an address below)")}</button>`) : "") +
       (a.telegram_bot ? `<a class="bm-tg" href="https://t.me/${esc(a.telegram_bot)}?start=${encodeRow(key)}" target="_blank" rel="noopener">✈ Telegram @${esc(a.telegram_bot)}</a>` : "") +
-      `<div class="bm-note">${key === "changes" ? "a message when future operations are added, taken off or rescheduled; no completion or status-only notices" : `15 min heads-up and every change${key.startsWith("op:") ? `, for ${esc(name)}${key === "op:Transit" ? " (whatever the destination)" : " at any station"}` : " to this operation"}`}</div>`;
+      `<div class="bm-note">${key === "changes" ? uh("a message when future operations are added, taken off or rescheduled; no completion or status-only notices") : uh("15 min heads-up and every change{v0}", {v0: (key.startsWith("op:") ? uh(", for {v0}{v1}", {v0: (esc(name)), v1: (key === "op:Transit" ? uh(" (whatever the destination)") : uh(" at any station"))}) : uh(" to this operation"))})}</div>`;
     const rect = b.getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     m.style.left = `${Math.max(0, rect.left - hostRect.left)}px`; m.style.top = `${rect.bottom - hostRect.top + host.scrollTop + 4}px`;
     host.style.position = host.style.position || "relative";
@@ -1323,11 +1326,11 @@
     const e = m.querySelector(".bm-email");
     if (e) e.onclick = async (ev) => {
       ev.stopPropagation();
-      if (!to) { bells.pendingRow = { key, name }; close(); const det = host.querySelector("#alerts"); if (det) { det.open = true; det.querySelector("input[name=to]")?.focus(); det.querySelector("#alertmsg").textContent = `enter your email to follow ${name}`; } return; }
-      try { await followByEmail(host, key, name, on); close(); } catch (err) { m.querySelector(".bm-note").textContent = `not saved: ${err.message}`; }
+      if (!to) { bells.pendingRow = { key, name }; close(); const det = host.querySelector("#alerts"); if (det) { det.open = true; det.querySelector("input[name=to]")?.focus(); det.querySelector("#alertmsg").textContent = ui("enter your email to follow {v0}", {v0: (name)}); } return; }
+      try { await followByEmail(host, key, name, on); close(); } catch (err) { m.querySelector(".bm-note").textContent = ui("not saved: {v0}", {v0: (err.message)}); }
     };
     const w = m.querySelector(".bm-web");
-    if (w) w.onclick = async (ev) => { ev.stopPropagation(); try { await followVia(host, "web", key, name, webOn); close(); } catch (err) { m.querySelector(".bm-note").textContent = `not saved: ${err.message}`; } };
+    if (w) w.onclick = async (ev) => { ev.stopPropagation(); try { await followVia(host, "web", key, name, webOn); close(); } catch (err) { m.querySelector(".bm-note").textContent = ui("not saved: {v0}", {v0: (err.message)}); } };
     if (m.querySelector(".bm-tg")) m.querySelector(".bm-tg").onclick = () => setTimeout(close, 100);
   }
 
@@ -1337,16 +1340,16 @@
     const a = alertsCfg();
     if (!a.email && !a.telegram_bot && !a.web) return "";
     const saved = store.get("alerts.email", ""), viaWeb = !saved || store.get("alerts.web", false);
-    return `<details class="alerts" id="alerts"><summary>🔔 Get alerts for scheduled operations</summary>
+    return `<details class="alerts" id="alerts"><summary>${uh("🔔 Get alerts for scheduled operations")}</summary>
       ${a.email || a.web ? `<form id="alertform" class="alertform">
-        <label>via <select name="channel">${a.web ? `<option value="web" ${viaWeb ? "selected" : ""}>this browser's header bar</option>` : ""}${a.email ? `<option value="email" ${viaWeb ? "" : "selected"}>email</option>` : ""}</select></label>
-        <label class="emailfield" ${viaWeb ? "hidden" : ""}>email <input type="email" name="to" ${viaWeb ? "" : "required"} value="${esc(saved)}" placeholder="you@example.org"></label>
-        <label>only operations matching <input name="match" placeholder="e.g. CardS-3, CTD — blank for everything" size="34"></label>
-        <label>warn <select name="lead_min"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 h</option><option value="120">2 h</option></select> ahead</label>
-        <span class="evs"><label><input type="checkbox" name="events" value="upcoming" checked> starting soon</label><label><input type="checkbox" name="events" value="started" checked> started</label><label><input type="checkbox" name="events" value="finished"> finished</label><label><input type="checkbox" name="events" value="moved" checked> time changed</label></span>
-        <button type="submit">subscribe</button><span class="muted" id="alertmsg"></span></form>` : ""}
-      ${a.telegram_bot ? `<p class="muted small">Telegram: message <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.</p>` : ""}
-      <p class="muted small">Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.</p></details>`;
+        <label>${uh("via")} <select name="channel">${a.web ? `<option value="web" ${viaWeb ? "selected" : ""}>${uh("this browser's header bar")}</option>` : ""}${a.email ? `<option value="email" ${viaWeb ? "" : "selected"}>${uh("email")}</option>` : ""}</select></label>
+        <label class="emailfield" ${viaWeb ? "hidden" : ""}>${uh("email")} <input type="email" name="to" ${viaWeb ? "" : "required"} value="${esc(saved)}" placeholder="you@example.org"></label>
+        <label>${uh("only operations matching")} <input name="match" placeholder="${uh("e.g. CardS-3, CTD — blank for everything")}" size="34"></label>
+        <label>${uh("warn")} <select name="lead_min"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 h</option><option value="120">2 h</option></select> ${uh("ahead")}</label>
+        <span class="evs"><label><input type="checkbox" name="events" value="upcoming" checked> ${uh("starting soon")}</label><label><input type="checkbox" name="events" value="started" checked> ${uh("started")}</label><label><input type="checkbox" name="events" value="finished"> ${uh("finished")}</label><label><input type="checkbox" name="events" value="moved" checked> ${uh("time changed")}</label></span>
+        <button type="submit">${uh("subscribe")}</button><span class="muted" id="alertmsg"></span></form>` : ""}
+      ${a.telegram_bot ? `<p class="muted small">${uh("Telegram: message")} <a href="https://t.me/${esc(a.telegram_bot)}" target="_blank" rel="noopener">@${esc(a.telegram_bot)}</a> ${uh("with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.")}</p>` : ""}
+      <p class="muted small">${uh("Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.")}</p></details>`;
   }
   function wireAlerts(host) {
     const f = host.querySelector("#alertform"); if (!f) return;
@@ -1357,18 +1360,18 @@
       ev.preventDefault();
       const fd = new FormData(f), msg = f.querySelector("#alertmsg"), channel = viaWeb() ? "web" : "email";
       const body = { channel, to: channel === "web" ? UW.webId() : fd.get("to"), match: fd.get("match"), lead_min: fd.get("lead_min"), events: fd.getAll("events") };
-      msg.textContent = "saving…";
+      msg.textContent = ui("saving…");
       try {
         const r = await fetch("api/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || r.status);
         if (channel === "web") { store.set("alerts.web", true); askNotify(); } else store.set("alerts.email", j.to);
-        msg.textContent = `subscribed ${channel === "web" ? "this browser" : j.to}: ${j.match || "everything"}, ${j.lead_min} min ahead`;
+        msg.textContent = ui("subscribed {v0}: {v1}, {v2} min ahead", {v0: (channel === "web" ? ui("this browser") : j.to), v1: (j.match || ui("everything")), v2: (j.lead_min)});
         const hostEl = f.closest("#calendar") || document;
-        if (bells.pendingRow) { const pr = bells.pendingRow; bells.pendingRow = null; bells.for = null; bells.webFor = null; try { await followVia(hostEl, channel, pr.key, pr.name, false); msg.textContent += ` · following ${pr.name}`; } catch { /* the bell shows the truth */ } }
+        if (bells.pendingRow) { const pr = bells.pendingRow; bells.pendingRow = null; bells.for = null; bells.webFor = null; try { await followVia(hostEl, channel, pr.key, pr.name, false); msg.textContent += ui(" · following {v0}", {v0: (pr.name)}); } catch { /* the bell shows the truth */ } }
         else { bells.for = null; bells.webFor = null; refreshBells(hostEl); }
         if (channel === "web") UW.pollInapp?.();
-      } catch (e) { msg.textContent = `not saved: ${e.message}`; }
+      } catch (e) { msg.textContent = ui("not saved: {v0}", {v0: (e.message)}); }
     };
   }
   // current rows plus the former ones the history remembers, each with UTC instants
@@ -1429,15 +1432,15 @@
     if (rows.length) traces.push({ type: "bar", orientation: "h", name: "scheduled", base: rows.map((b) => b.d0), x: rows.map((b) => b.duration), y: rows.map(() => "scheduled"), customdata: rows.map((b) => rowKey(b.r)),
       text: rows.map((b) => `${esc(b.r.station)} · ${esc(b.r.operation)} (${esc(b.r.status)})${b.r.former ? " · was scheduled" : ""}<br>${stampL(UW.tms(b.r.start_utc))}–${hmL(UW.tms(b.r.end_utc))} ${tzAbbr()}`),
       hovertemplate: "%{text}<extra></extra>", textposition: "none", marker: { color: rows.map((b) => rgba(barColour(b), b.r.former ? .3 : .8)), line: { color: rows.map(barColour), width: 1 } }, width: .5 });
-    host.innerHTML = castPanelHtml("cal-plot", "Timeline", `${recent.length} events · ${rows.length} scheduled · ${f.label} span · click a point for its log entry`, false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
+    host.innerHTML = castPanelHtml("cal-plot", uh("Timeline"), uh("{v0} events · {v1} scheduled · {v2} span · click a point for its log entry", {v0: (recent.length), v1: (rows.length), v2: (f.label)}), false, false, false).replace('class="panel card castplot', 'class="panel card castplot wide') +
       eventListHtml(evs, s, cal.search.toLowerCase(), f, nHidden);
     wireEventList(host);
     const layout = { ...castLayout(), margin: { l: fz(130), r: 10, t: fz(28), b: fz(58) }, barmode: "overlay",
-      xaxis: { ...THEME.xaxis, type: "date", title: { text: `ship time (${tzAbbr()})`, font: { size: fz(12) } }, tickfont: { size: fz(12) },
+      xaxis: { ...THEME.xaxis, _uwIdentity:'ship time', type: "date", title: { text: ui("ship time ({v0})", {v0: (tzAbbr())}), font: { size: fz(12) } }, tickfont: { size: fz(12) },
                range, autorange: !range },   // only the axis is limited to the span; retain the full log
-      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, fixedrange: true },
+      yaxis: { ...THEME.yaxis, type: "category", categoryorder: "array", categoryarray: ["scheduled", ...types.slice().reverse()], tickfont: { size: fz(12) }, tickmode:'array', tickvals:["scheduled", ...types.slice().reverse()], ticktext:["scheduled", ...types.slice().reverse()].map(uiLabel => ui(uiLabel)), fixedrange: true },
       shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
-      annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: `now ${hmL(now)}`, showarrow: false, font: { size: fz(11), color: C.now } }] };
+      annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: ui("now {v0}", {v0: (hmL(now))}), showarrow: false, font: { size: fz(11), color: C.now } }] };
     UW.reactPlot($("#cal-plot"), traces, layout, CFG, `event-span:${span.start}:${span.end}`).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
     wireCastPanels(host, () => renderTimeline(host, evs, s));
     host.querySelector('[data-cp="cal-plot"] .reset').onclick = () => Plotly.relayout($("#cal-plot"),
@@ -1452,9 +1455,9 @@
     for (const f of cal.data.gcal || []) for (const e of f.events || []) items.push({ ...e, cal: f.key, label: f.label });
     const pump = cal.data.pump_events || [];
     for (let i = items.length - 1; i >= 0; i--) if (items[i].cal === "surprise" &&
-      items[i].summary === "TSG pump off / low intake flow" && pump.some(e => UW.tms(e.time_utc) === UW.tms(items[i].start))) items.splice(i, 1);
+      items[i].summary === ui("TSG pump off / low intake flow") && pump.some(e => UW.tms(e.time_utc) === UW.tms(items[i].start))) items.splice(i, 1);
     for (const e of pump) items.push({start:e.time_utc,end:e.end_utc,summary:e.event,
-      description:e.comment,cal:"pump",label:"TSG intake",leg:e.leg});
+      description:e.comment,cal:"pump",label:ui("TSG intake"),leg:e.leg});
     // the intranet rows are also pushed to the Amundsen Schedule calendar,
     // with "Operation: …" and "Station: …" lines in the description; the row
     // itself is the fresher copy (the public feed lags the push by minutes to
@@ -1468,7 +1471,7 @@
       rowNames.has(rowName(descLine(e, "Station"), descLine(e, "Operation")));
     for (let i = items.length - 1; i >= 0; i--) if (isRowCopy(items[i])) items.splice(i, 1);
     for (const r of rows) items.push({ start: r.start_utc, end: r.end_utc, summary: `${r.former ? "was scheduled" : "scheduled"} · ${r.station} — ${r.operation} (${r.status})`,
-      description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: "intranet schedule", status: r.status, key: r.key });
+      description: [r.comment, `${r.duration_h != null ? r.duration_h.toFixed(1) + " h" : ""}`].filter(Boolean).join("\n"), cal: "intranet", label: ui("intranet schedule"), status: r.status, key: r.key });
     items.forEach((e, i) => { e.id = i; });
     return items.filter((e) => !q || `${e.summary} ${e.description || ""}`.toLowerCase().includes(q));
   }
@@ -1483,15 +1486,15 @@
   }
   function detailHtml(e) {
     const t0 = evStart(e), t1 = evEnd(e);
-    const when = e.all_day ? `${e.start}${e.end && e.end !== e.start ? " → " + e.end : ""} (all day)` :
+    const when = e.all_day ? ui("{v0}{v1} (all day)", {v0: (e.start), v1: (e.end && e.end !== e.start ? " → " + e.end : "")}) :
       `${stampL(t0)} → ${stampL(t1)} ${tzAbbr(t1)} · ${((t1 - t0) / 3600e3).toFixed(1)} h`;
     const pos = /Position:\s*([\d.]+)°([NS]),\s*([\d.]+)°([EW])/.exec(e.description || "");
-    return `<div class="mdetail"><button class="mclose" title="close">✕</button>
+    return `<div class="mdetail"><button class="mclose" title="${uh("close")}">✕</button>
       <div class="mdlabel" style="color:${GCAL_COLOUR[e.cal] || C.muted}">${esc(e.label)}</div>
       <h4>${esc(e.summary || "")}</h4>
       <div class="mdwhen">${esc(when)}</div>
       ${e.description ? `<pre class="mddesc">${esc(e.description)}</pre>` : ""}
-      ${pos ? `<button class="mdmap">show on map</button>` : ""}</div>`;
+      ${pos ? `<button class="mdmap">${uh("show on map")}</button>` : ""}</div>`;
   }
   function wireEntries(host, items) {
     const byId = new Map(items.map((e) => [e.id, e]));
@@ -1510,12 +1513,12 @@
   function calFrame(host, title, body, items, navShift) {
     const feeds = cal.data.gcal || [];
     host.innerHTML = `<section class="card block month">
-      <div class="mhead"><div class="group seg small" id="calspan"><button data-s="days" ${cal.span === "days" ? 'class="on"' : ""}>3 days</button><button data-s="month" ${cal.span === "month" ? 'class="on"' : ""}>Month</button></div>
-        <button id="mprev" title="previous">‹</button><h3>${esc(title)}</h3><button id="mnext" title="next">›</button><button id="mtoday">today</button>
-        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || C.muted}"></i>${esc(f.label)}${f.stale ? " (cached)" : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:${C.muted}"></i>intranet schedule</span></div>
+      <div class="mhead"><div class="group seg small" id="calspan"><button data-s="days" ${cal.span === "days" ? 'class="on"' : ""}>${uh("3 days")}</button><button data-s="month" ${cal.span === "month" ? 'class="on"' : ""}>${uh("Month")}</button></div>
+        <button id="mprev" title="${uh("previous")}">‹</button><h3>${esc(ui(variableLabel(title)))}</h3><button id="mnext" title="${uh("next")}">›</button><button id="mtoday">${uh("today")}</button>
+        <span class="mlegend">${feeds.map((f) => `<i style="border-color:${GCAL_COLOUR[f.key] || C.muted}"></i>${esc(f.label)}${f.stale ? uh(" (cached)") : ""} · ${(f.events || []).length}`).join(" &nbsp; ")} &nbsp; <i style="border-color:${C.muted}"></i>${uh("intranet schedule")}</span></div>
       <div id="mdetailbox" hidden></div>
       ${body}
-      <p class="muted small">Times are ship time (${tzAbbr()}). Open in Google Calendar: ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>`;
+      <p class="muted small">${uh("Times are ship time ({v6}). Open in Google Calendar: {v7}", {v6: (tzAbbr()), v7: ((UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · "))})}</p></section>`;
     for (const b of host.querySelectorAll("#calspan button")) b.onclick = () => { cal.span = b.dataset.s; store.set("cal.span", cal.span); renderCalendar(); };
     $("#mprev").onclick = () => navShift(-1); $("#mnext").onclick = () => navShift(1);
     $("#mtoday").onclick = () => { cal.day = dayL(Date.now()); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); };
@@ -1548,10 +1551,10 @@
       const evs = (byDay.get(k) || []).sort((a, b) => evStart(a.e) - evStart(b.e));
       cells.push(`<div class="mcell ${k === today ? "today" : ""}" data-day="${k}"><div class="mday">${d}</div>` +
         evs.slice(0, 6).map(({ e, cont }) => entryHtml(e, cont)).join("") +
-        (evs.length > 6 ? `<div class="mmore">+${evs.length - 6} more</div>` : "") + `</div>`);
+        (evs.length > 6 ? `<div class="mmore">${uh("+{v0} more", {v0: (evs.length - 6)})}</div>` : "") + `</div>`);
     }
     const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: LTZ });
-    calFrame(host, label, `<div class="mgrid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>`, items,
+    calFrame(host, label, `<div class="mgrid">${[uh("Mon"), uh("Tue"), uh("Wed"), uh("Thu"), uh("Fri"), uh("Sat"), uh("Sun")].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>`, items,
       (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); });
     // a day number opens that day in the 3-day view
     for (const c of host.querySelectorAll(".mcell[data-day] .mday")) c.onclick = () => { cal.day = c.parentElement.dataset.day; cal.span = "days"; store.set("cal.day", cal.day); store.set("cal.span", "days"); renderCalendar(); };
@@ -1590,13 +1593,13 @@
         return `<div class="dblock mev ${statusClass(e.status)}" data-id="${e.id}" style="top:${(s / hours * 100).toFixed(2)}%;height:${Math.max(2.9, (t - s) / hours * 100).toFixed(2)}%;left:${(e._lane / e._nl * 100).toFixed(1)}%;width:${(100 / e._nl - 1).toFixed(1)}%;z-index:${2 + i};border-color:${GCAL_COLOUR[e.cal] || C.muted}" title="${esc(e.label)}\n${hmL(evStart(e))} ${esc(e.summary)}">${esc(shortSummary(e.summary))}</div>`;
       }).join("");
       const nowLine = k === today ? `<div class="dnow" style="top:${((now - d0) / (d1 - d0) * 100).toFixed(2)}%"><span>${hmL(now)}</span></div>` : "";
-      const head = new Date(d0 + 43200e3).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: LTZ });
-      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${head}${k === today ? " · today" : ""}</div>
+      const head = new Date(d0 + 43200e3).toLocaleDateString(window.UWI18n.locale, { weekday: "short", month: "short", day: "numeric", timeZone: LTZ });
+      return `<div class="dcol ${k === today ? "today" : ""}"><div class="dhead">${head}${k === today ? uh(" · today") : ""}</div>
         <div class="dallday">${allDay.map((e) => entryHtml(e, false)).join("")}</div>
         <div class="dbody">${Array.from({ length: Math.round(hours) }, (_, h) => `<div class="dhour" style="top:${(h / hours * 100).toFixed(2)}%"></div>`).join("")}${blocks}${nowLine}</div></div>`;
     }).join("");
     const axis = `<div class="daxis"><div class="dhead">${tzAbbr()}</div><div class="dallday"></div><div class="dbody">${Array.from({ length: 24 }, (_, h) => `<div class="dhl" style="top:${(h / 24 * 100).toFixed(2)}%">${String(h).padStart(2, "0")}</div>`).join("")}</div></div>`;
-    const dayLabel = (k, opts) => new Date(localMidnight(k) + 43200e3).toLocaleDateString(undefined, { ...opts, timeZone: LTZ });
+    const dayLabel = (k, opts) => new Date(localMidnight(k) + 43200e3).toLocaleDateString(window.UWI18n.locale, { ...opts, timeZone: LTZ });
     const label = `${dayLabel(keys[0], { month: "short", day: "numeric" })} – ${dayLabel(keys[2], { month: "short", day: "numeric", year: "numeric" })}`;
     calFrame(host, label, `<div class="dgrid">${axis}${cols}</div>`, items,
       (n) => { cal.day = dayL(centre + n * 86400e3 + 43200e3); cal.month = cal.day.slice(0, 7); store.set("cal.day", cal.day); store.set("cal.month", cal.month); renderCalendar(); });
@@ -1691,7 +1694,7 @@
         tr.classList.add("on"); UW.focusMap(r.lat, r.lon, r.station); return;
       }
       const was = casts.sel.has(key);
-      if (!was) UW.focusMap(r.lat, r.lon, `Cast ${r.cast} ${r.station}`);
+      if (!was) UW.focusMap(r.lat, r.lon, ui("Cast {v0} {v1}", {v0: (r.cast), v1: (r.station)}));
       await UW.onStationClick?.(key, { quiet: true, toggle: true });
       renderStations();
       if (!was) $("#stationtable").querySelectorAll("tbody tr:not(.spannote)")[i]?.classList.add("on");
@@ -1832,6 +1835,19 @@
   window.addEventListener("uw:localechange", () => {
     renderTable();
     if (!$("#pane-stations").hidden) renderStations();
+    const sx = $("#castxmode .xcycle");
+    if (sx) sx.textContent = ui({time:'Time',distance:'Distance',az:'A–Z',custom:'Custom'}[casts.xmode]);
+    if (!$("#pane-casts").hidden) {
+      window.UWI18n.preserve($("#pane-casts"), async () => {
+        renderCastList();
+        if (casts.kind === 'live') {
+          // Replace only setup labels, restoring the draft after the repaint.
+          const box = $("#livecfgbox"); if (box) box.replaceChildren();
+          drawLive($("#castplots"));
+        } else await renderCastPlots();
+      }).catch(console.error);
+    }
+    if (!$("#pane-calendar").hidden) window.UWI18n.preserve($("#calendar"), renderCalendar).catch(console.error);
   });
   wireCasts(); wireStations(); wireCalendar(); wireTable();
   const active = document.querySelector("#tabs button.on")?.dataset.tab;

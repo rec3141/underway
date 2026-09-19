@@ -3,7 +3,7 @@
   "locales": {
     "fr-CA": {
       "label": "Français (Canada)",
-      "defaultProfile": "editorial-fr-ca-v3",
+      "defaultProfile": "editorial-fr-ca-v4",
       "overrides": {}
     }
   }

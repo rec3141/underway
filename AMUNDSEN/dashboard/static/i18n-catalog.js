@@ -193,6 +193,772 @@ window.UW_UI_CATALOG = {
         "nav.underway": "Underway",
         "nav.wiki": "Wiki",
         "nav.wikiHint": "the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask",
+        "pages.009a8edd9a274f52": "{v1} works",
+        "pages.022100af42289791": "intranet schedule",
+        "pages.02fe1d590ee931da": "{v0}/{v1} pending",
+        "pages.034313ce1600a793": "Share transect",
+        "pages.03494afd4248c42f": "started",
+        "pages.03867aea70acaf4c": "Evidence",
+        "pages.03cd175b6554aff1": "On the map ·",
+        "pages.03e12025cca65954": "Freshwater",
+        "pages.03f75d69d652a98e": "open the Library in the chat and ask Ada, the librarian, about the region's past",
+        "pages.04352507fd1cc41b": "brash",
+        "pages.04be6dbb797d1f4f": "no source set",
+        "pages.05343e9845302eb7": "finished",
+        "pages.0578b438af18675f": "from the ship: {distance} by air",
+        "pages.05a126f95630959f": " m now",
+        "pages.062f3d6dcebb394b": "depth (m)",
+        "pages.0685824f630ccc8f": "{v0} events",
+        "pages.072a56956c6a4714": "the rock, its fossils and minerals, the landforms",
+        "pages.073c1634c496cdb6": "status",
+        "pages.0844247b432912ea": "PORT OPEN",
+        "pages.08bc837a975bebb2": "move down",
+        "pages.08c7ee7de2124efa": "Open original in new tab ↗",
+        "pages.08e58be1256d79bf": "Select a cast from the list or the map.",
+        "pages.09821b19441052ad": "No Seasave source set — use ⚙.",
+        "pages.09f05ffbbc0a6b04": " (whatever the destination)",
+        "pages.0a040c7f8ef25d76": "Close photo",
+        "pages.0a26f41abd00f95e": "Import failed",
+        "pages.0aea8f23338523f0": "the Library: ask Ada, the librarian, about the region's past",
+        "pages.0afdff4af32c5761": "That subject is not in this build.",
+        "pages.0b4cf4c5aadae0a6": "no nearby photo",
+        "pages.0b4fceb51bb721d7": "now · next · later · done · canceled · was scheduled · logged",
+        "pages.0b707e48a42f2d90": "compress the depth axis (square root) — applies to every cast graph",
+        "pages.0c109e62332e2b1b": "Destination:",
+        "pages.0c214926762f6d8c": "{v0} m above",
+        "pages.0c712d87571a34c4": "Observations without a picture",
+        "pages.0dc3965ee405ed5a": "Camera · slices",
+        "pages.0df6f1cad36c49da": "Show",
+        "pages.0e04cd10f9afd7e5": "Warnings",
+        "pages.0e570ca6fabe24f9": "Source",
+        "pages.0e76960093379060": "History",
+        "pages.0e87632cd46bd490": "date",
+        "pages.0eb650f10c5c5a55": "see {v1} more",
+        "pages.0f044feb6ca7d676": "Operation",
+        "pages.0f4168490e38b844": "water",
+        "pages.0f50505ce224077f": "artifacts",
+        "pages.0f82aca66af91493": "length",
+        "pages.0fa9e71f0805ddfb": "Helicopter",
+        "pages.0fcab6e49f7b0e12": ", for {v0}{v1}",
+        "pages.107b90ff3c1c35ab": "see fewer",
+        "pages.10c4e1cbfd08e46b": "CTD Rosette",
+        "pages.1136887b48e9c564": "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m.",
+        "pages.115aea7bfa2185c7": " at any station",
+        "pages.115ccf9610656d3b": "Station",
+        "pages.1174bbc154b18b75": "· {v2} · {v3} added{v4}",
+        "pages.1189d37778569eaa": "Kinds of subject",
+        "pages.119e66d117ae8f0c": "Maps",
+        "pages.1201f1849a1bb81e": "event{v1}{v2}{v3}",
+        "pages.122ac99e8677a8ae": "The figures are counted when the history is next published.",
+        "pages.125466b821c6448a": "By",
+        "pages.12e246bec539375c": "open cast {v0} on the Casts tab",
+        "pages.130011756125313c": "On",
+        "pages.130ab3f910dec4f9": "secondary source",
+        "pages.13183d47884423b3": " to this operation",
+        "pages.1331275bc537b4c2": "Tags",
+        "pages.13985426c0879573": "dur.",
+        "pages.13a30363eb940c6c": "filtered",
+        "pages.1407f17df7d1a605": "drag onto another graph to swap places",
+        "pages.140bedbf9c3f6d56": "none",
+        "pages.14c29f95db259c77": "Minerals",
+        "pages.14d34edf50ef6c87": "Folder name",
+        "pages.14fce21c65897e07": " · imported by the watch on this folder",
+        "pages.1500405573373612": "Cast",
+        "pages.1516fbf1d4dae387": "Nothing dated to the day on {v0} yet.",
+        "pages.152f4db8f31a90d1": "Camera / ship",
+        "pages.155f816c0407310c": "Submit",
+        "pages.15641d776da60df4": "the weather and the climate, as the expeditions and the stations recorded them",
+        "pages.1598c481fdf5fae1": "calendars:",
+        "pages.166484a88c2688a2": "click to add your own flag",
+        "pages.16a7d2b94a9ab725": "no page yet",
+        "pages.170062ed40915d72": "people named",
+        "pages.181fdd46fc4a7246": "origin",
+        "pages.183383d6bc23ecf9": "Connection interrupted",
+        "pages.18980cbb612c9c6b": "{percent}% ice",
+        "pages.1942c24222fae6d1": "{v0} here{v1}",
+        "pages.1958ce23cca396db": "Times are ship time ({v6}). Open in Google Calendar: {v7}",
+        "pages.19ace23f956719cb": "Licence & time zone",
+        "pages.19cf96fc7bc1ce3a": "/Share folder",
+        "pages.1a0dc227b5aa78f8": "thin",
+        "pages.1a5611bfcb70d17e": "Message not sent: offline",
+        "pages.1a7529ab14fd6195": "Subjects",
+        "pages.1a84458321d6a387": "Baited Cam",
+        "pages.1aa41eb37828e832": "broken ice",
+        "pages.1ae812bf464ce4c7": "model online: ",
+        "pages.1bfa7cb0058d53a8": "{v0}: no position known yet",
+        "pages.1c1c8f677153323a": "Delete this shared transect for everyone",
+        "pages.1c4b8ff60530a1bf": "Provenance",
+        "pages.1cb9a0d8b741fd5d": "show AI",
+        "pages.1cff02b9cde94631": "Lounge",
+        "pages.1d9283d848ea941a": "later",
+        "pages.1daaa38f33cd860e": "Where",
+        "pages.1dc2adc71fdc6add": "Live cast",
+        "pages.1df151056c8c592d": "Hide {count} finished",
+        "pages.1e6245009d677035": "Pictures",
+        "pages.1e80a09b5207e374": "e.g. CardS-3, CTD — blank for everything",
+        "pages.1e95c3df798b1771": "{v11}click photo for fullscreen",
+        "pages.1ea59e15ab7b5c46": "{v0}{v1} (all day)",
+        "pages.1ed0b446e0b33e50": "new photographs here are imported every ten minutes",
+        "pages.1f25d33066b92af4": "the ice at sea, year by year, and its vocabulary",
+        "pages.1f914c4386c0676e": "CONNECTED",
+        "pages.1fb561bcf13a11bf": "Loading the wiki…",
+        "pages.1fcebdec11222f9d": "the ship",
+        "pages.1ff9a5f8b4bd530e": "Mapping",
+        "pages.200d5e550cbca47d": "That event is not in this build.",
+        "pages.2031be00edf5f5d8": "Camera · ice type",
+        "pages.20ac95a440783c19": "nobody else has the page open",
+        "pages.20dd35463a5cd047": "Imports Status",
+        "pages.215b2f215791b683": "That page is not in this build.",
+        "pages.2194340e961ab3bd": "Import finished",
+        "pages.21b2eed1e328a2c6": "images",
+        "pages.21b3be752f52de62": "no such topic",
+        "pages.21bffccd4f5d79e6": "Failed images are skipped until their contents change.",
+        "pages.2245d25ec0254f2f": "{v0} section",
+        "pages.226bbb8ba2342b46": "No camera data in this span for the selected legs",
+        "pages.22e919dd71885a5b": "works cited",
+        "pages.2305f9a93e7e3775": "{v0} · dip {v1}",
+        "pages.2348f99874421257": "open",
+        "pages.24626cb1dc15eb75": "classified",
+        "pages.246c9aa43eb5384e": "{v0} collections, one a topic. Open one for its {v1}.",
+        "pages.24b309ef05a800b9": "Drop Camera",
+        "pages.25781429f18f9f88": "in water",
+        "pages.25b165146228c719": "{v0} found",
+        "pages.26d9b3b1f470ca66": "live feed unavailable (server not reachable)",
+        "pages.277aafc886922dcd": "Ice camera",
+        "pages.27873558b00fcb84": "undated",
+        "pages.27cfa197e044ed68": "no model loaded: the crew cannot answer (",
+        "pages.27e789d55ec5ccc8": "ask Doc, the naturalist · Enter to send",
+        "pages.281c7066818e5645": "the human past, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another",
+        "pages.282bfa6b4079b6f2": "No photos yet. Choose Submit to add some.",
+        "pages.286bda0d997c8009": "The transect could not be shared ({v0}); it stays in this browser",
+        "pages.28867ed59d573718": "{v0}/{v1} saved. {v2}. Keep this page open and retry; saved photos will not be uploaded again.",
+        "pages.298624751ccc85f9": "Importing {v0} photograph{v1}{v2}{v3}",
+        "pages.2999a8e2b16d5bf1": "Upload photos",
+        "pages.2a1a6355ed7e30b0": "Ice",
+        "pages.2b4b2eadf7b2aece": "calm",
+        "pages.2b639f5f3fe0f87f": "Open rosette sheet",
+        "pages.2b70854526b7a869": "🖥 stop showing",
+        "pages.2ba1eba95fdf0902": "Nothing observed within {v0} km of the ship yet.",
+        "pages.2bec0153da8f8918": "Buoyancy frequency",
+        "pages.2c41a2181609b1a1": "back to the map",
+        "pages.2c4561b1bd59416b": "MVP tow starts",
+        "pages.2c4bef225b218e2c": "click photo for fullscreen",
+        "pages.2c635b368009f7d5": "{v0} selected · {v1} profile{v2}",
+        "pages.2cff9baabf56ca00": "Import",
+        "pages.2d2c4b6f7e573acf": "private room with a crew member",
+        "pages.2d5e8600a4fba66e": "sensitive",
+        "pages.2de5247a982a1cd6": "Nothing here yet.",
+        "pages.2e12c729cccf7bc1": "Uploading {v0}/{v1}: {v2} · {v3}% transferred",
+        "pages.2f04d6855ac0ab3f": "Flagged for review by {v0} · {v1}",
+        "pages.2f05e7541d123e42": "reference {v2}",
+        "pages.2f546e465f038b8a": "Choose a folder above",
+        "pages.2f55863e032e37f9": "Previous photo",
+        "pages.2f59d4b8f473d38e": "{v0} bottles",
+        "pages.2fa21517ba5fd27b": "Barge",
+        "pages.308a267453114d9c": "Share this transect with everyone on the ship",
+        "pages.30e950fb0aeb06fc": "Nothing of this kind in that collection.",
+        "pages.30f5934e62499bea": "typing…",
+        "pages.310ca503ef36f177": "Month",
+        "pages.310ff200149b44a3": "close",
+        "pages.3143319cd5502e27": "the build's own BibTeX file",
+        "pages.314ae71b8c8dc9c9": "Artifacts",
+        "pages.318d4e44fa3151e6": "only an admin can withdraw it now",
+        "pages.3194ed03862a55fd": "track readings",
+        "pages.3223e57d9ea5de4e": "follow {v0}: 15 min heads-up and every change",
+        "pages.325e9f7b656e6135": "That observation is not in this build.",
+        "pages.328143c3c16d54dc": "{v0} m up",
+        "pages.3297e071e7639648": "Loading the record…",
+        "pages.32f3b45fdf19ffc4": "icy bits",
+        "pages.3316348dbadfb7b1": "read",
+        "pages.3350122289eea311": "not closed",
+        "pages.336074805fc85398": "time",
+        "pages.33b93476cf597a33": "Time",
+        "pages.33f5e62de396abb6": " · {v0} unchanged failures skipped",
+        "pages.34fd3ab8d65068d6": "last cast ({v0})",
+        "pages.350be3643ce78043": "Organisation",
+        "pages.352cfc749e55222e": "Gallery",
+        "pages.3547cb112ac4489a": "last",
+        "pages.355801a28de02d98": "Camera · Texture (PC1)",
+        "pages.35e0d0360a0af6d1": "LIVE",
+        "pages.360719440e92c924": "3 days",
+        "pages.3660315a9af3df25": "page",
+        "pages.3664895579f0a7e6": "Export",
+        "pages.36887b74f7a93c6f": "Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.",
+        "pages.36cb81396286c63c": "Camera · ice fingerprints",
+        "pages.36d67c4fc158725e": "Ship intranet:",
+        "pages.373ede1bd510a97a": "Seasave at {v0} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off",
+        "pages.385cfdbc00ec3203": "unit",
+        "pages.387d96a031862484": "{v0} photo{v1} selected · {v2} MiB. Ready to upload.",
+        "pages.388afb1dcec1e796": "Using this credit and licence.",
+        "pages.389bd9a6782fe030": "grease ice",
+        "pages.38cca6bea010af8a": "OFF",
+        "pages.38e3607df174e5f3": "grease",
+        "pages.38f0bf30197b182f": "CCGS Amundsen · live · {v0} {v1} · heading {v2}{v3}",
+        "pages.39e0f5efdc39ec10": "height",
+        "pages.39e36c36e2bfc590": "thin ice floe",
+        "pages.3a757c6d4218cbda": "Taxa",
+        "pages.3b1acb93404de012": "Loading {v0} selected casts with bottle firings…",
+        "pages.3b73900b8d29f963": "Explore",
+        "pages.3c1091f0d39e5e69": "Transect {v0}",
+        "pages.3cb30133ed1b1fe6": "changes to the schedule",
+        "pages.3e10134259ab3285": "Transmission",
+        "pages.3e5b90ae053ff3e7": "Chart",
+        "pages.3e8f1b9fcd487c52": " is here",
+        "pages.3ea5bb4ae53b1c00": "Rosette sheet ↗",
+        "pages.3eb40bdff9eccb86": "Oxygen saturation",
+        "pages.3ec2008b04aa3ec8": "Preparing a new upload folder…",
+        "pages.3f1a2c73953d1a3a": "New selection",
+        "pages.3f54bcf820c1238b": "offline: no model loaded, and the chat never loads one itself. ",
+        "pages.3f996df8de74b85b": "{v0}AI crew{v1}, answer when mentioned:",
+        "pages.4043b0d02cbdf281": "Seasave at {v0}: {v1}",
+        "pages.40458bfe83b031b7": "Show {count} finished",
+        "pages.4099a2c228b17acc": "Open access",
+        "pages.41426fd2dfbef5bd": "ship time ({v0})",
+        "pages.41970d6661b348dd": "map ↗",
+        "pages.41cf6794ba4200b8": "source",
+        "pages.41d624f9bf379d48": "click to withdraw",
+        "pages.426efff5200235a2": "at the holding institution, on the web",
+        "pages.4275e3786215385b": "Multicorer",
+        "pages.436d201fdbc72ab9": "Aboard the ship",
+        "pages.437da9f58f045cb6": "starting soon",
+        "pages.441d39221a44cb6d": "brash ice",
+        "pages.44678314632642d7": "Choose up to 300 photos and 2 GiB per batch.",
+        "pages.451215ee74092d80": "this page's address",
+        "pages.45989de49fb7f66d": "Details",
+        "pages.45f7859648d9536e": "Mess",
+        "pages.4601ca97bc8099ca": "This browser could not save the transect. Check available storage and try again.",
+        "pages.46085764706995c9": "JPEG, PNG or WebP · 300 photos · 64 MiB each · 2 GiB total.",
+        "pages.46234d79a919e6b7": "Could not apply settings: {v0}",
+        "pages.462fc526de8ab1c3": "and {v0} more",
+        "pages.46393f6573e4995e": "→ new subfolder",
+        "pages.46624cb945249939": "back to the view before",
+        "pages.4662c556e5b9ad1c": "this browser",
+        "pages.469e93b518d319d4": "show on map",
+        "pages.4758a9bf0c2b3fcf": "Mooring",
+        "pages.47e908691c1f5010": "All {v0}",
+        "pages.485150da6a173a27": "Current flags: {count}.",
+        "pages.48b2ed9682896933": "✉ stop emailing",
+        "pages.48e0ef1e260d7b6d": "Texts",
+        "pages.490b7567ec0072e0": "hide AI",
+        "pages.494ca78f7374e46f": "Custom",
+        "pages.4960990121f22e16": "Below it",
+        "pages.4975878cc8a1f73b": " ({v0} already in the journal)",
+        "pages.497f6e6d2e54b567": "by sea: working it out…",
+        "pages.49febf4604a554f8": "the sky: aurora, the polar night and the midnight sun, eclipses and comets",
+        "pages.4a04d6e7bb315a27": "the Lounge: the AI crew's room, where they talk among themselves",
+        "pages.4a754148b88a68e1": "soon",
+        "pages.4b0ab9f9f992bdf9": "name first",
+        "pages.4b6bad1ea4905ab0": "move up",
+        "pages.4c149b191dbab4cf": "the ship's own copy",
+        "pages.4c3f03bb625194b7": "primary source",
+        "pages.4c4e436f9a453c77": "Glossary",
+        "pages.4c8692dac9206cdf": "Ask a Q",
+        "pages.4cb0b250c6250d52": "ice",
+        "pages.4cb4ea25583c2564": "year",
+        "pages.4d327af41f96c23c": "via",
+        "pages.4d5ccfb86e516115": "Saved {v0} photo{v1} to /Share/{v2}.",
+        "pages.4d65c72b83973371": "message ",
+        "pages.4da69789232ebb31": " · {v0} already in the journal, passed over",
+        "pages.4df96d3a4505b128": "Add your credit and licence below.",
+        "pages.4e1f28fc70610f11": "No bottle firings match.",
+        "pages.4e4632bbe56e64fb": "Oceanography",
+        "pages.4e64a73f31de9de2": "↓ descending",
+        "pages.4eeb9335576b12a0": "Astronomy",
+        "pages.4f302ec94335124c": "Camera · ice composition",
+        "pages.512b07c166e7f90b": "now {v0}",
+        "pages.525f2f103bb29c7e": "Ice Station",
+        "pages.52abdcd0fb406ecd": "follow {v0}: an operation added, taken off, moved or canceled; no reminders",
+        "pages.52e48c371494add8": "the picture's own page",
+        "pages.5418cb6eb6746abe": "Connected to Seasave; the plot begins when acquisition starts and the package goes in.",
+        "pages.546940feb432bb66": "on the web ↗",
+        "pages.547801ae4e93ff14": "Meteorology",
+        "pages.54cda0543a402949": "Geology",
+        "pages.552127973f8424e1": "Flag",
+        "pages.5550ce1e131e8f75": "show the AI crew's messages again",
+        "pages.55efb93d341ef10e": "Close slideshow",
+        "pages.5650875646bee33e": "Sea ice",
+        "pages.56630f4b80ceb0f1": "Also flag",
+        "pages.57230d1daa6720c2": "Operations schedule {v0}{v1}",
+        "pages.573850785e407d7b": "Private to the ship",
+        "pages.5830d6da56e44d4f": "{v0} of {v1} bottle firings shown",
+        "pages.58339f45df960408": "Wed",
+        "pages.59cbdb2816208517": "Open fullscreen slideshow",
+        "pages.5a044a1351ce03c1": "Orange outline: analyzed ROI",
+        "pages.5a452459503be70d": "position",
+        "pages.5a99e746347b5bf9": "Ask Ada",
+        "pages.5b7e6bf2dc4a32a6": "method",
+        "pages.5bd724fab3969c96": "No wiki has been published yet.",
+        "pages.5c3ce8d496e2626b": "OFFLINE",
+        "pages.5c71b8cd7822a418": "Choose a folder",
+        "pages.5ce44dd77dae789f": "Uploading…",
+        "pages.5d1670193536d43f": "Sound velocity",
+        "pages.5e3147ab51e0084c": "Photos",
+        "pages.5edd3b1f5d3b8966": "Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.",
+        "pages.5ef5ef0364b6939c": "all",
+        "pages.5f369686bd9e7606": "hide the AI crew's messages and names",
+        "pages.5ff56800f7898c03": "A section needs at least two profiles with {v0} — {v1} selected.",
+        "pages.606606668b367101": "Close this conversation with {v0}? Its temporary history will be cleared for both participants.",
+        "pages.607e651096291705": "dip:",
+        "pages.60ae4bd5abd3bd13": "The record, in numbers",
+        "pages.60f308c1f079c289": "Nothing in the wiki near the ship yet.",
+        "pages.60f55cbfdbdc61d3": "Surface types",
+        "pages.612ca4821653bae2": "{v0} events · {v1} scheduled · {v2} span · click a point for its log entry",
+        "pages.6144cdc4cbc52ef1": "Monster Net",
+        "pages.6150f7fe79c4deef": "{v0} in this browser's header bar",
+        "pages.61695ef35daa3cc1": "In this place{v2}",
+        "pages.61d73e9ff0008b26": "the file the picture was rendered from",
+        "pages.6267eb92dbfb52e8": "· {v0} · {v1} scans kept{v2}{v3}",
+        "pages.62a2fed3d6e08c44": "pending",
+        "pages.6362b3d21b11ef29": "{v0} works cited by the history, {v1} by the natural record{v2}.",
+        "pages.63d39b201b616eeb": "the original · {v1}",
+        "pages.640c2380690e2137": "Reading the share…",
+        "pages.649f0e5314000410": "Configuration failed ({v0})",
+        "pages.653aa4c034f7667f": "Landforms",
+        "pages.653ad8478a323db5": "Vessels",
+        "pages.657980dc1fbd697d": "{v0} profiles · {v1} km · {v2}{v3}",
+        "pages.65afe1537c5ddabd": "Upload Selected Photos",
+        "pages.661ff40a07e037bb": "Queued",
+        "pages.66936de3e986716c": "New subfolder for each upload. Originals stay unchanged. Keep this page open and your phone awake.",
+        "pages.66c475876c2bb759": "event · {v1}{v2}{v3}",
+        "pages.66dab40cea1dea5c": "Fri",
+        "pages.670803ab46a99495": "Amundsen schedule",
+        "pages.674fc4afa9e75877": "Camera · ice concentration",
+        "pages.67e605eb007842fc": "looking it up…",
+        "pages.68969b0ccff55b72": "Clear {v0} on this device? Others keep their copy.",
+        "pages.68971283841aecdf": "Subject",
+        "pages.694050382b6961b9": "Box Core",
+        "pages.69b5c442dbf98bee": "Camera · Patchiness (PC4)",
+        "pages.69bb0178a84c8298": "Upload failed ({v0})",
+        "pages.69dbf100b46a548c": "Colorfulness",
+        "pages.69e4a02609393ab9": " · under {v0}",
+        "pages.6aef76c6cb359f6f": "scheduled",
+        "pages.6afd7d06ff48ae82": "with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.",
+        "pages.6b2923e0d3ac1560": "what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal",
+        "pages.6b4ca2530b1a7e95": "{v0} dates · {v1} spans · from {v2}; scroll to zoom, drag to pan, click a point for its row",
+        "pages.6babc9a17d120bf7": "No narrative pages yet; the artifacts below are what the crew has entered so far.",
+        "pages.6cf20dab38bc6692": "File limits",
+        "pages.6d0a8f2e8eb29b90": "); the operator has been told",
+        "pages.6d3add25948633a5": "That is not a place on the map.",
+        "pages.6da0633528deaa01": "previous",
+        "pages.6dea9f2833032c42": "last updated {v0} ago",
+        "pages.6e3da9a2a9be2af0": "full text",
+        "pages.6ec675dc06f63b40": "the Deck: Ada and Doc together, the history and the nature",
+        "pages.6ec6fd018d8f2587": "day {v0} of {v1}",
+        "pages.6f6cdd1488b7f202": "Follow journal import",
+        "pages.6f8f5f94a7c5b0b5": " · started ",
+        "pages.701008902fbdae6f": "No such part of the domain.",
+        "pages.706f0fd28dff4dd7": "No observations of it in the record yet.",
+        "pages.70b49dd024b048a1": "no topic",
+        "pages.70d1108086ae0c39": "click the mark to remove it",
+        "pages.71843f6b5b4296b7": "narrative pages",
+        "pages.7255c8f0c852b753": "Hydrography",
+        "pages.72cd96e4062019eb": "Open full-size photo",
+        "pages.73a78f135698be34": "Camera · slice mean RGB",
+        "pages.73a95a4f5f81d150": "the rivers and the lakes, and what lives in them",
+        "pages.73e44c202e92a779": "Delete the shared transect “{v0}” for everyone?",
+        "pages.7458199fe97a1840": "French",
+        "pages.7592cb718abb8814": "also written",
+        "pages.75b474a2f6adf608": "No photos selected.",
+        "pages.763a1a9880efcdbb": "{v0} things on the map share this spot. Pick one.",
+        "pages.765aab1602f02fd8": "none received yet — Seasave sends it when the connection opens",
+        "pages.765c1dd134a4327a": "Nothing of this kind in the record yet.",
+        "pages.770711b477e8da40": "view data",
+        "pages.772c6953848bf5b1": "observation",
+        "pages.7743ce348d9284d6": "draft",
+        "pages.789e8de747b02a7b": "nilas",
+        "pages.79a9f4f6d201a55d": "Rights reserved",
+        "pages.7a6e9e2b5d0ecb83": "by sea: {reason}",
+        "pages.7aa72a235586990d": "every observation of {v3}",
+        "pages.7b0a3d74494a4f50": "Add photos",
+        "pages.7b1291e7ed8a6f3e": "thick",
+        "pages.7b915f4a299822c6": "Parameters above Chart use upper axes; parameters below use lower axes",
+        "pages.7baa99652be2c7c7": "logged",
+        "pages.7bc83b0eaff9cd7b": "close this conversation: its history is erased and the room leaves the row",
+        "pages.7c35ea2a8c62aeba": "no data yet",
+        "pages.7c3f78c0fe8cf198": "distance along track (km)",
+        "pages.7c62dde8e91db1cf": "Lander",
+        "pages.7c706e7a8b983a5e": "How this history was made",
+        "pages.7c723452a98e32c9": "On this day · {v0}",
+        "pages.7ca0d6c7afeb2c2d": "on the map",
+        "pages.7ca7dea906800f87": "Water",
+        "pages.7cc9fa7e6f62a347": " · following {v0}",
+        "pages.7cf40a646358bdfe": "the crew are still at work on this page",
+        "pages.7da11212ed340ea7": "Thu",
+        "pages.7db20897053bb278": "People",
+        "pages.7de82e541d02427d": "a private room with someone here",
+        "pages.7de8c035259e0769": "a sensitive site: the position is published coarsened and the place left blank",
+        "pages.7e61847d61d65d9e": "Topic",
+        "pages.7e8af09bf79ba0de": "Choose a /Share folder to import.",
+        "pages.7f0dfafd2c31b54d": "Ship photograph",
+        "pages.7fa67f0e7001ab10": "Ask Ada answers from these pages with a local model on the ship: it cites the pages it was given and is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner; flags go to the layer's author.",
+        "pages.813579ae9a07b8ad": "The flag could not be saved: {v0}",
+        "pages.813801934f98fd75": "Select Cast:",
+        "pages.815f6bde537466ee": "talk to the crew · Enter to send",
+        "pages.8178ac72b28d77fc": "licence",
+        "pages.81a42333e9588930": "✉ email me… (enter an address below)",
+        "pages.82152a91cf8f494f": "private with {v0}",
+        "pages.82244417f956ac7c": "email",
+        "pages.836851d6bddf7650": " (cached)",
+        "pages.8513a9ecd7d7a0c9": "not sent",
+        "pages.855421f02843acdb": "{v0}'s photographs{v1}",
+        "pages.856801b740b24d2c": "and {v0} more: narrow the search",
+        "pages.85b93fb74f25c215": "Plankton Net",
+        "pages.85c3f9fa6f300eea": "Animals",
+        "pages.85ebc236cf26a104": " offline",
+        "pages.870d0f550c052952": "on the ship · {v1}",
+        "pages.8821ee7638dd486a": "↑ ascending",
+        "pages.886fb735a1b9c903": "reset zoom",
+        "pages.88980154513d7413": "Tracks",
+        "pages.889eacd6e13fa54a": "Deck",
+        "pages.88d7c52212ef2f1e": "Next: add to journal ↓",
+        "pages.88f9b975979fbdbf": "Import from:",
+        "pages.892b302902eaa39f": "selected tows",
+        "pages.894bb2b7ac07d55d": "Next photo",
+        "pages.8954bdd0658bdc1b": "Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.",
+        "pages.8968c716fb239760": "ice floe",
+        "pages.89a97309c8f1dde7": "distance along the stations A–Z (km)",
+        "pages.89e0968cb624a276": "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m].",
+        "pages.8af13d3a800670e9": "Gravity Core",
+        "pages.8b218f6aa2a8fa66": "Patchiness",
+        "pages.8b270ed732edc5c6": "{v0} cast{v1}",
+        "pages.8c0fc3e67ce6edbf": "show:",
+        "pages.8c181da097acc01c": "only operations matching",
+        "pages.8c4463e5d14f4ff3": "No matching underway distances in this span",
+        "pages.8d14f6e72de8f18a": "Events",
+        "pages.8d9ec6044a90f019": "Keep importing from this /Share folder",
+        "pages.8dc37869d63b05bd": "Quotes",
+        "pages.8e2c7ac508139a02": "offline",
+        "pages.8e2f078d59f675b4": " · bottom {v0} m",
+        "pages.8ed17198774cfa83": "thick ice floe",
+        "pages.8f301fe89e95c0c6": "time changed",
+        "pages.8fde4d9f78c0ecce": "this operation",
+        "pages.8ff81d3b055eeb94": "Ship (Eastern)",
+        "pages.9040f9be99523563": "Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.",
+        "pages.9046da16aea909ba": "Pages",
+        "pages.909cef7017a9aeed": "Telegram: message",
+        "pages.90a50f14e9672fab": "Ship intranet: {v0}",
+        "pages.9111d254873bb676": "click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them",
+        "pages.913a4cb91be20332": "clear",
+        "pages.915e352c6674b610": "{v0} \"{v1}\" for review.\nWhat should be looked at? (optional)",
+        "pages.9190eab60709df3a": "Nothing observed on {v0} in the record yet.",
+        "pages.923037ebcf5db471": "every {v0}",
+        "pages.92a13b6f6d226c75": "Flag this item for content review. For interface problems, use Feedback in the header.",
+        "pages.92b5025fa8382d1c": "Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.",
+        "pages.93c6b664dce6c207": "Browse…",
+        "pages.94038397ceeb4d30": "selected dips",
+        "pages.9429b1dc65906b5e": "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal",
+        "pages.943077f0507ddf71": "Oxygen",
+        "pages.944eae254aeae6c5": "Counted {v0}{v1}{v2}.",
+        "pages.945d2c03508adc66": "saving…",
+        "pages.947a239ce828c1a1": "✉ email",
+        "pages.948958cfdb09405c": "the Library: ask Ada about the region's past",
+        "pages.948fcefe5345439c": "the whole record",
+        "pages.94a03054e2d4553d": "Geomagnetism",
+        "pages.95538be430df3ed6": "Total ice",
+        "pages.969ccbd3cf6300ec": "Email",
+        "pages.97a5e41b45ddd2b2": "apply",
+        "pages.983a042d392d0565": "the depths and the charts",
+        "pages.9842a2a9342d3ad4": "the ice on land: glaciers, ice caps, ice shelves and ice islands",
+        "pages.9888984a6cace5f0": "Delete saved transect “{v0}”?",
+        "pages.98ca0d518997f8a4": "none yet",
+        "pages.98f4bb619464284d": "Bottle measurements could not be loaded. Close and reopen to retry.",
+        "pages.99522e3aa1235d50": "Also the event",
+        "pages.9976c76f151ed9cb": "PROBING",
+        "pages.99b2318698af4c73": "subscribed {v0}: {v1}, {v2} min ahead",
+        "pages.99c40ab405926cb5": "Date",
+        "pages.9b4ef3e5b7b4d175": "station",
+        "pages.9baf01819b22e507": "last raw scans",
+        "pages.9bf5a24e4aa77998": "operation",
+        "pages.9c585c8ddefd2720": " · today",
+        "pages.9cb84ab470f4d318": "Camera · Colorfulness (PC3)",
+        "pages.9cd0e357245fb95d": "the {v0}: a private room with {v1} ({v2})",
+        "pages.9cd578a09eb38dcb": "{v0} m below the surface",
+        "pages.9d131a2c668765f8": "show {station} on the map",
+        "pages.9d88cdb29acfce7d": "Observed near the ship{v2}",
+        "pages.9dcff98e275f0cb9": "Timeline",
+        "pages.9df916869e8fc20e": "Delete this transect (saved in this browser)",
+        "pages.9dfd3ad250c8ef49": "{v1} observations · scroll to zoom, drag to pan, click a point for its row",
+        "pages.9ee78ce2f0ecac99": "conservation status",
+        "pages.9eeead76de41e46b": "; {v0} questions answered by a person",
+        "pages.9f28dfaff8c0e4e6": "Bibliography",
+        "pages.a04d3b26e64dc84d": "← Gallery",
+        "pages.a077ad4b78f92338": "Delete transect",
+        "pages.a0a44ed8cfc32b7e": "everything",
+        "pages.a0bba63812466406": "Weather",
+        "pages.a0d37bfc114917be": "No dates to chart.",
+        "pages.a0daef01ab98f9cb": "not available",
+        "pages.a12151313ac5e31a": "Page error: {v0} ({v1}:{v2})",
+        "pages.a129311710bd6586": "Seasave at {v0} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).",
+        "pages.a12af7a862beae85": "Transect name (shared with everyone on the ship)",
+        "pages.a178f6d7069a2b24": "bottle {v0}{v1}",
+        "pages.a19de0c38d4dff59": "🔔 Get alerts for scheduled operations",
+        "pages.a20d1e00196bf7a8": "{v0}/{v1} added{v2}{v3}",
+        "pages.a20e4b867b4749ca": "{v0} unchanged failed images skipped.",
+        "pages.a310ada4cbd505c9": "dip {v0}",
+        "pages.a3b0e9926d07b2eb": "TM Rosette",
+        "pages.a47e0c2bd7bba951": "TSG pump off / low intake flow",
+        "pages.a488c7ae2d2e3bbd": "Ask Doc",
+        "pages.a4903f732746e9e1": "Next image",
+        "pages.a4b898101968a83f": "🖥 show",
+        "pages.a4c3ed04a95a3da1": "done",
+        "pages.a4e224f5c4bdc48f": "Your import",
+        "pages.a4fa51e13388f6a2": "Camera · mean RGB",
+        "pages.a5119a3101d7daef": "1 h centered mean",
+        "pages.a52981ae3b44bf34": "{v0} topics, {v1} narrative pages and {v2} artifacts: {v3}. Every item is credited and sourced.",
+        "pages.a599f2439ba9b7aa": "{v0} BCE",
+        "pages.a60f8bdaa027343c": "no scheduled operations listed",
+        "pages.a6ad6e106668be7b": "a message when future operations are added, taken off or rescheduled; no completion or status-only notices",
+        "pages.a6d6ce3d5aba07c2": "Camera track unavailable",
+        "pages.a6f85eb7e8dcedb4": "Select casts from the list, or click stations and tow tracks on the map.",
+        "pages.a7bcf53bf6b49f82": "Agassiz Trawl",
+        "pages.a86329cc29043c6f": "{distance} by sea",
+        "pages.a9491f4c1bf7b0cf": "subject",
+        "pages.a971f5ed9bbf6db8": "; {v0} pages are still drafts",
+        "pages.aa63925edf225e26": "warn",
+        "pages.aafecb99525ba917": "ask Ada, the librarian · Enter to send",
+        "pages.ab03a958ec35ded7": "Select all shown casts",
+        "pages.ac20a57bfde0bbc4": "Hide",
+        "pages.ac41c0821578e6fb": "TSG intake",
+        "pages.ac8af0eab24ec35a": " · {v0} skipped",
+        "pages.accc2a1a15657ccc": "Fossils",
+        "pages.ad03eb5e16bba9a9": "no answer",
+        "pages.adcb8c7fb22e1991": "A private room with…",
+        "pages.ae0f63e1d1e490ed": "ice type",
+        "pages.ae7e8457b92d22a1": "Camera · Brightness (PC2)",
+        "pages.ae906fb992e31fe3": "; the {v0} are left out while its label is off",
+        "pages.aea1058d135f60df": "Biology",
+        "pages.aec02cbd799774af": "No such import.",
+        "pages.aed812ff76f64d4e": "{v4} {v5} axis",
+        "pages.b04472d9603795ac": "the Deck: ask Ada and Doc together, the history and the nature",
+        "pages.b0bf3d89f0028773": "in the water",
+        "pages.b1809383ab754a8a": "the ship's own journal",
+        "pages.b21fb709e2a23a63": " · {v0} formerly",
+        "pages.b22d2bea6e200f71": "a private room with ",
+        "pages.b23a6a8439c0dde5": "unknown",
+        "pages.b321eb029090b9e5": "natural record's",
+        "pages.b4099f32ab116a72": "No camera products for the selected legs",
+        "pages.b48662b9e514ae3a": "minimise to the top bar",
+        "pages.b4debe034df4866d": "Add to journal · {v0} photo{v1}",
+        "pages.b4e413c3cde61c41": "the MLA list as plain text",
+        "pages.b51aabf677e8fb9d": "{v0} m down",
+        "pages.b5dd173791aafe8a": "Move Chart to divide upper and lower axes",
+        "pages.b62350e7c82dc25e": "Click to cycle Texture → Brightness → Colorfulness → Patchiness → mean RGB. Names are provisional PC interpretations.",
+        "pages.b62f2399a1bd8dbd": "show {v0} on the map",
+        "pages.b72804afefc37b62": "Sky",
+        "pages.b7bdf7a2d6e73e58": "Distance",
+        "pages.b7be5a1363b39659": "RIS, for EndNote, Zotero and Mendeley",
+        "pages.b89edc48066641a6": "Temperature (°C)",
+        "pages.b8e1f80bd70ae078": "event",
+        "pages.b9256368a77e50fd": "{v0} subjects · {v1} observations",
+        "pages.b929855f23c3c9af": "pressure (dbar)",
+        "pages.b949729ec3f8834e": "Move {v3} up",
+        "pages.b9517046d8b64220": "Salinity",
+        "pages.b9535ce95cb158b0": "CCGS Amundsen · latest · {v0} {v1} · heading {v2}",
+        "pages.b958ce8b871ab36b": "Temperature",
+        "pages.b9846addccd73468": "message {v0} · Enter to send",
+        "pages.b9d894793c5e2abb": "Move {v5} down",
+        "pages.b9fe1464783e1c0d": "Time zone",
+        "pages.ba118bf7fc9c1aed": "English",
+        "pages.bb1de97207977776": "Photograph",
+        "pages.bb7bdd421882faae": "open cast {cast} on the Casts tab",
+        "pages.bb7e51c6d02be309": "was here",
+        "pages.bdd51a4f2a7836d9": "{names}: looking it up…",
+        "pages.be4bd4d451cbc7c6": "Show {count} formerly scheduled",
+        "pages.be7e2f20129365c2": "Images",
+        "pages.bed45cabd8e2a30e": "This spot",
+        "pages.c17608dbad847751": "the field: declination, dip, the Magnetic Pole's wander, the storms",
+        "pages.c19c477ad5130258": "watched · {v0}",
+        "pages.c240afd2442d27f7": "{v0}{v1} dips",
+        "pages.c2ca254ef2542b13": "Selected camera ROI",
+        "pages.c3f695f1d7db291a": "Upload more photos",
+        "pages.c44bb2fd516909da": "comment",
+        "pages.c48bdea7d72e8b87": "was scheduled",
+        "pages.c4aa4acda87aa4a5": "every transit",
+        "pages.c4c14eab715fcabd": "ask Ada and Doc · Enter to send",
+        "pages.c5f3df2e12190da5": "in {v0}",
+        "pages.c60d3aa541eb71eb": "Transmission (%)",
+        "pages.c648253f20e04217": "Camera unavailable; keeping previous results",
+        "pages.c6c1c9a9c8543f1e": "next",
+        "pages.c6daff2ebeeabc38": "all {v0} entries",
+        "pages.c71ce8ccf3b44932": "Nature",
+        "pages.c72c2990894df721": "Try every port in SeaSave's standard 49160–49168 range",
+        "pages.c76be7d10fcb8932": "every observation of {v1}",
+        "pages.c76e27598822c367": "Fluorescence",
+        "pages.c7fa887aa9c79864": "Nothing of this domain in the wiki yet.",
+        "pages.c83415aca7938877": "Cast {v0} {v1}",
+        "pages.c85dc98747c8a8ea": "small waves",
+        "pages.c89256104794b1a3": "{v0} · dip #{v1}",
+        "pages.c8c685977afa0c3c": "Photo slideshow",
+        "pages.c8eee30499cf09b3": "Select at least one parameter.",
+        "pages.c9e0f9cc8260bce0": "the Mess: everyone; the crew answer when @mentioned",
+        "pages.ca31dbf7d5c0699c": "All observations",
+        "pages.ca7981b46ecf2c17": "Off",
+        "pages.ca8b598502b154d6": "this browser's header bar",
+        "pages.cab62652ad5f9647": "{v0} events · {v1} scheduled{v2}{v3}",
+        "pages.cae7d57bc067a514": "Stop",
+        "pages.caf85b0888d78f1f": "Sources",
+        "pages.cb8448ba3d502c89": "the backbone this subject resolves in",
+        "pages.cb8ffbcc2ae32b99": "MVP tows",
+        "pages.cbff5a3278aa8fc3": " · {v0} failed",
+        "pages.cc9056c6599cc0c6": "nobody else here",
+        "pages.ccd7d1e38d7fd793": "With credit",
+        "pages.ccf0b0d00167c7a2": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.",
+        "pages.cd42404d52ad55cc": "value",
+        "pages.cd8e53a08c5c8f05": "No matching navigation distance",
+        "pages.cdd9848714e8c437": "✓ {v0} photo{v1} saved to the share",
+        "pages.ce1355534ad93ddc": " · no picture yet",
+        "pages.ce7bf15a4a858bbf": "Close ✕",
+        "pages.ce8daf5d393a0f6a": "Photo unavailable — archive may be offline",
+        "pages.ced37498aeda0f51": "Photo upload progress",
+        "pages.ced67718ea0f31eb": "Domains",
+        "pages.cf1950b217a2b3d0": "MVP tow {v0}{v1}",
+        "pages.cf35b1a611636def": "new ice",
+        "pages.cf4166250b80a26c": "Plain text",
+        "pages.cffa02277adca6d9": " directly",
+        "pages.cffe53b675508c2d": "Camera · concentration",
+        "pages.d04736cd97fa7bf6": "In-situ Pumps",
+        "pages.d052579c6a317b1b": "This device",
+        "pages.d0674e0dede8a26b": "Camera photo",
+        "pages.d0a27ca03da4cfae": "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature",
+        "pages.d0b4034c6ca7ee87": "ahead",
+        "pages.d0e4b71fd8ecada7": "ship's journal",
+        "pages.d0ebd0e0e70f967c": "Keeping last good camera data",
+        "pages.d1e87d017416983b": "Phone photos",
+        "pages.d1eb39b09bf52b68": "Tue",
+        "pages.d239e9cf6a51335b": "Observation",
+        "pages.d2828ad9fd1d87a7": "TM cast",
+        "pages.d30af076b0dc85cc": "Me",
+        "pages.d3d5b27efc6d23af": "Import progress",
+        "pages.d3e10052c069b15b": "Seasave at {v0} is not answering ({v1}); retrying.",
+        "pages.d40e7693103b69eb": "The ship's photographs and journal are kept aboard and are not part of the web copy.",
+        "pages.d4722ec916c36606": "drag, or ▲ ▼, to lay the profiles in your own order",
+        "pages.d4fe9d8548a4254a": "The ship's position is not known to this build.",
+        "pages.d5386bd82e57020a": "Crew Change",
+        "pages.d54828eeb2ee6063": "back to the corner",
+        "pages.d5ed3e44e2a2090c": "and {v0} more among the",
+        "pages.d6d3697ef52964df": "no casts match",
+        "pages.d714a2c2d7f78d0d": "The shared transect could not be deleted: the server did not answer",
+        "pages.d74ba0b0e6d85b62": "Observations found",
+        "pages.d78de925a8786731": "expand",
+        "pages.d7cfab3c32d024a0": "Waypoint",
+        "pages.d7dbbada1efae15b": "{names}: typing…",
+        "pages.d8139bafdcf0d338": "show dips",
+        "pages.d881b670fbaca077": "Saved folder",
+        "pages.d969baa927520fc6": "Ice composition",
+        "pages.da8187d488c1966a": "Oxygen (µM)",
+        "pages.dafa26c784788bf2": "Seasave's field list (SBE_ConvertedDataSettings){v0}",
+        "pages.db01be4b3343ff62": "Piston Core",
+        "pages.db18f17fe5320076": "Sun",
+        "pages.dc20b3d5d2cddf82": "Library",
+        "pages.dc5414e0bf56f5c6": "Camera · ROI",
+        "pages.dc79a80410c9d9c9": "Cast {v0}",
+        "pages.dca3bf165aacec42": "{v0}/{v1} added · {v2} skipped · {v3} failed",
+        "pages.dca8f84dac93f654": "the water column: soundings, temperature, salinity, currents, tides",
+        "pages.dcca230522f1a31b": "near {v0}",
+        "pages.dcd1d5223f73b3a9": "Name",
+        "pages.dcd33cf5d38eeaae": "Texture, Brightness, Colorfulness, Patchiness are provisional interpretations of PC1–4, not ice concentration.",
+        "pages.ddb2e5cbcd7b1935": "Awaiting classification",
+        "pages.dde8fbebbc93ceb6": "distance along the custom order (km)",
+        "pages.de1ad6abb8b174a1": "not saved: {v0}",
+        "pages.de5236ee1561d9d4": "Objects",
+        "pages.deb3e366c077c228": "alerts",
+        "pages.dec0f004eaa07c2a": "width",
+        "pages.ded32129b05bfc16": "depth",
+        "pages.dfacd10042a687d3": "the living things: mammals, birds, fish, plants, the small and the microbial",
+        "pages.e02f54320811fd1b": "; the folder is watched",
+        "pages.e09008f4974d3204": "{v2} pages · {v3} artifacts",
+        "pages.e0cea039e3bd9fd0": "Nothing in the ship's journal yet.",
+        "pages.e0f4f767ac88a930": "today",
+        "pages.e22820fcf5cd90e3": "Topics",
+        "pages.e28411a3404d21f9": "Texture",
+        "pages.e41f1d834710df8c": "observer",
+        "pages.e41f85820609af08": "🔔 this operation · 📢 every operation of this kind",
+        "pages.e45364b658fdec30": "Phenomena",
+        "pages.e50876e696ee13c5": "{v0} photograph{v1} · {v2} folder{v3}{v4}",
+        "pages.e50ce529488d0317": " · smoothed over {v0} m",
+        "pages.e53dac9f89ee8092": "↺ time order",
+        "pages.e5562777f5e784e4": "last cast",
+        "pages.e597f24f4aae5734": " are here and may speak first",
+        "pages.e5d5b971139eefeb": "ship",
+        "pages.e5e165ea54b51893": "Salinity 2 (PSU)",
+        "pages.e5e59d10f196504b": "bits",
+        "pages.e5eae2271d99a903": "no route",
+        "pages.e6d9a8233ef32df5": "Watched folders",
+        "pages.e72014bef788bed9": "Temperature 2 (°C)",
+        "pages.e77b141e2388d56c": "holding",
+        "pages.e81a63d211338c97": "you follow {v0} — click to stop",
+        "pages.e93daa00ef5f0748": "Rock units",
+        "pages.e9da50bc16479c66": "the topic's page",
+        "pages.ea8001efadfe6198": "the Lab: ask Doc about the living things, the ice, the water and the sky",
+        "pages.eadcedd5ec01e36d": "Add to the journal",
+        "pages.eb38ca40211a0821": "Nothing here.",
+        "pages.eb4a38ec6dc1d1ad": "clear this room on this device; others keep their copy",
+        "pages.eb5cfb73677d98eb": "Places",
+        "pages.ebee3b57d3e9bab0": "open this folder",
+        "pages.ebf44d5d8d142770": "dip {v4}",
+        "pages.ec811d30a89ce96d": "Brightness",
+        "pages.ed5eb9a37e2d8231": "now",
+        "pages.ed658a0ab4a7a906": "Nothing in the record yet.",
+        "pages.ed763ac7a693c701": "15 min heads-up and every change{v0}",
+        "pages.edb465624291e405": "note",
+        "pages.ee0e0c08095f7418": "Page error: {v0}",
+        "pages.ef3550a6f13c8263": "Gallery navigation",
+        "pages.efd63f646209f611": "interactive resource · no picture yet",
+        "pages.f053cefc9f544e4e": "Import status below.",
+        "pages.f09247433bef8304": "Image preview",
+        "pages.f0a859a7ecd77183": "Previous image",
+        "pages.f12fde684b2ed4c6": "canceled",
+        "pages.f20b6db009508832": "Observer",
+        "pages.f26efd3574998b71": "View results",
+        "pages.f2d7acfded4a9937": "open as a side bar",
+        "pages.f3157fe6b942d681": " are here",
+        "pages.f329e3a317eee6a8": "restore",
+        "pages.f3ec8e880a46c8a6": "Licence",
+        "pages.f40d7f51f69edfaf": "Mon",
+        "pages.f40fd562f6307872": "subscribe",
+        "pages.f4197b25d1dd1811": "whitecaps",
+        "pages.f45fc1dfdc96db27": "Field",
+        "pages.f48165421ff2aad8": "Request timed out; check settings before retrying.",
+        "pages.f4ca95577b56fd90": "Choose a /Share destination below.",
+        "pages.f4dd2c090ecd15ef": "no such kind",
+        "pages.f4e8c9fafcc6d66e": "+{v0} more",
+        "pages.f545fe7e666cbe0a": "Withdraw the flags {v0} people have raised on \"{v1}\"?",
+        "pages.f62c6abeb9378840": "On the timeline",
+        "pages.f65419496aa9e119": "distance along section (km)",
+        "pages.f665b70e7794848b": "Retry Remaining Photos",
+        "pages.f67521d9d0048cae": "Not started: {v0}",
+        "pages.f67cb1850d1b7e77": "Narratives",
+        "pages.f6e0f16188d43020": "Ship camera context with ROI outline",
+        "pages.f71081fb0af48ae6": "Break",
+        "pages.f7d5c55c6d3b2b59": "Snow Catcher",
+        "pages.f7d94bc957deb737": " · {v0} fields",
+        "pages.f807f07af9999249": "ROI unavailable for these image dimensions",
+        "pages.f82e5d44ddc42e5f": "Observed on this day · {v0}",
+        "pages.f86c74e7c90e56af": "Glaciology",
+        "pages.f87558869bcf8816": "Observations",
+        "pages.f8a9e5642d494b00": "Tucker Net",
+        "pages.f8cf83a76a98df2d": "What",
+        "pages.f903d47fe50eceb0": "CSL-JSON, for citation processors and Zotero",
+        "pages.f97e9da0e3b879f0": "Other",
+        "pages.f9e4378d7a0820f3": "Import from",
+        "pages.fa0d22242363adcc": " · {v0} dips",
+        "pages.fa91ff493a7ab5b9": "{v0} AD",
+        "pages.fb9d60f69a60736c": "Mentioned in",
+        "pages.fbe6adbf8a8a945c": "enter your email to follow {v0}",
+        "pages.fc10a785607b6a35": "SeaSave TCP/IP out (host:port, more ports with commas)",
+        "pages.fc3cd8012131af0e": "Mean RGB (0–255)",
+        "pages.fc80b6fe040ec37c": "Hide {count} formerly scheduled",
+        "pages.fce182ecc225a516": "The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.",
+        "pages.fcf7ed654535baea": "ship time ({zone})",
+        "pages.fd0dd42cc4b9bac3": "Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.",
+        "pages.fd11f75c77ed5eff": "shared by {v0}",
+        "pages.fd22ac67438ab38f": " · the routes from north to south, by where each began",
+        "pages.fd572435b2d4ec12": "Not yet in the journal.",
+        "pages.fdeb71b569e0034d": "Sat",
+        "pages.fe1390825c9e7347": "also called",
+        "pages.fed33eed5cc86f86": "message · Enter to send",
+        "pages.fee60d38cb840402": "Community Visit",
+        "pages.ff0139d07c592e9a": "confidence",
         "provenance.basemap": "Basemap: {layers}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally.",
         "provenance.basemap.depth": "depth bands",
         "provenance.basemap.natural": "Natural Earth 10 m coastline, land and glaciers",
@@ -643,6 +1409,772 @@ window.UW_UI_CATALOG = {
         "nav.underway": "Mesures en route",
         "nav.wiki": "Wiki",
         "nav.wikiHint": "le passé et la nature de la région : voyages, personnes, lieux et artéfacts, roche, glace, eau, ciel et êtres vivants, sur la carte et dans un wiki, avec l’équipage à qui poser vos questions",
+        "pages.009a8edd9a274f52": "Ouvrages : {v1}",
+        "pages.022100af42289791": "horaire de l’intranet",
+        "pages.02fe1d590ee931da": "{v0}/{v1} en attente",
+        "pages.034313ce1600a793": "Partager le transect",
+        "pages.03494afd4248c42f": "commencée",
+        "pages.03867aea70acaf4c": "Documents à l’appui",
+        "pages.03cd175b6554aff1": "Sur la carte ·",
+        "pages.03e12025cca65954": "Eaux douces",
+        "pages.03f75d69d652a98e": "ouvrir la bibliothèque dans le clavardage et interroger Ada, la bibliothécaire, sur le passé de la région",
+        "pages.04352507fd1cc41b": "sarrasins",
+        "pages.04be6dbb797d1f4f": "aucune source configurée",
+        "pages.05343e9845302eb7": "terminée",
+        "pages.0578b438af18675f": "depuis le navire : {distance} à vol d’oiseau",
+        "pages.05a126f95630959f": " m actuellement",
+        "pages.062f3d6dcebb394b": "profondeur (m)",
+        "pages.0685824f630ccc8f": "{v0} événements",
+        "pages.072a56956c6a4714": "les roches, leurs fossiles et minéraux, les formes du relief",
+        "pages.073c1634c496cdb6": "état",
+        "pages.0844247b432912ea": "PORT OUVERT",
+        "pages.08bc837a975bebb2": "déplacer vers le bas",
+        "pages.08c7ee7de2124efa": "Ouvrir l’original dans un nouvel onglet ↗",
+        "pages.08e58be1256d79bf": "Sélectionnez un profil dans la liste ou sur la carte.",
+        "pages.09821b19441052ad": "Aucune source Seasave configurée — utilisez ⚙.",
+        "pages.09f05ffbbc0a6b04": " (quelle que soit la destination)",
+        "pages.0a040c7f8ef25d76": "Fermer la photo",
+        "pages.0a26f41abd00f95e": "Échec de l’importation",
+        "pages.0aea8f23338523f0": "la bibliothèque : interrogez Ada, la bibliothécaire, sur le passé de la région",
+        "pages.0afdff4af32c5761": "Ce sujet ne figure pas dans cette version.",
+        "pages.0b4cf4c5aadae0a6": "aucune photo à proximité",
+        "pages.0b4fceb51bb721d7": "en cours · suivante · à venir · terminée · annulée · anciennement prévue · consignée",
+        "pages.0b707e48a42f2d90": "comprimer l’axe de profondeur (racine carrée) — s’applique à tous les graphiques de profils",
+        "pages.0c109e62332e2b1b": "Destination :",
+        "pages.0c214926762f6d8c": "{v0} m au-dessus",
+        "pages.0c712d87571a34c4": "Observations sans image",
+        "pages.0dc3965ee405ed5a": "Caméra · bandes",
+        "pages.0df6f1cad36c49da": "Afficher",
+        "pages.0e04cd10f9afd7e5": "Avertissements",
+        "pages.0e570ca6fabe24f9": "Source",
+        "pages.0e76960093379060": "Histoire",
+        "pages.0e87632cd46bd490": "date",
+        "pages.0eb650f10c5c5a55": "voir {v1} autres",
+        "pages.0f044feb6ca7d676": "Opération",
+        "pages.0f4168490e38b844": "eau",
+        "pages.0f50505ce224077f": "documents et objets",
+        "pages.0f82aca66af91493": "longueur",
+        "pages.0fa9e71f0805ddfb": "Hélicoptère",
+        "pages.0fcab6e49f7b0e12": ", pour {v0}{v1}",
+        "pages.107b90ff3c1c35ab": "voir moins",
+        "pages.10c4e1cbfd08e46b": "Rosette CTD",
+        "pages.1136887b48e9c564": "Des acquisitions arrivent, mais l’instrument n’est pas encore à l’eau — le graphique commence lorsqu’il dépasse 2 m.",
+        "pages.115aea7bfa2185c7": " à n’importe quelle station",
+        "pages.115ccf9610656d3b": "Station",
+        "pages.1174bbc154b18b75": "· {v2} · ajoutées : {v3}{v4}",
+        "pages.1189d37778569eaa": "Types de sujets",
+        "pages.119e66d117ae8f0c": "Cartes",
+        "pages.1201f1849a1bb81e": "événement{v1}{v2}{v3}",
+        "pages.122ac99e8677a8ae": "Les chiffres seront calculés à la prochaine publication de l’histoire.",
+        "pages.125466b821c6448a": "Par",
+        "pages.12e246bec539375c": "ouvrir le profil {v0} dans l’onglet Profils",
+        "pages.130011756125313c": "Activé",
+        "pages.130ab3f910dec4f9": "source secondaire",
+        "pages.13183d47884423b3": " à cette opération",
+        "pages.1331275bc537b4c2": "Mots-clés",
+        "pages.13985426c0879573": "durée",
+        "pages.13a30363eb940c6c": "filtré",
+        "pages.1407f17df7d1a605": "glisser sur un autre graphique pour échanger leur position",
+        "pages.140bedbf9c3f6d56": "aucun",
+        "pages.14c29f95db259c77": "Minéraux",
+        "pages.14d34edf50ef6c87": "Nom du dossier",
+        "pages.14fce21c65897e07": " · importées par la surveillance de ce dossier",
+        "pages.1500405573373612": "Profil",
+        "pages.1516fbf1d4dae387": "Aucun élément daté du {v0} pour le moment.",
+        "pages.152f4db8f31a90d1": "Caméra / navire",
+        "pages.155f816c0407310c": "Soumettre",
+        "pages.15641d776da60df4": "la météo et le climat, tels que consignés par les expéditions et les stations",
+        "pages.1598c481fdf5fae1": "calendriers :",
+        "pages.166484a88c2688a2": "cliquer pour ajouter votre signalement",
+        "pages.16a7d2b94a9ab725": "aucune page pour le moment",
+        "pages.170062ed40915d72": "personnes nommées",
+        "pages.181fdd46fc4a7246": "origine",
+        "pages.183383d6bc23ecf9": "Connexion interrompue",
+        "pages.18980cbb612c9c6b": "{percent} % de glace",
+        "pages.1942c24222fae6d1": "Personnes présentes : {v0}{v1}",
+        "pages.1958ce23cca396db": "Les heures sont celles du navire ({v6}). Ouvrir dans Google Agenda : {v7}",
+        "pages.19ace23f956719cb": "Licence et fuseau horaire",
+        "pages.19cf96fc7bc1ce3a": "Dossier /Share",
+        "pages.1a0dc227b5aa78f8": "mince",
+        "pages.1a5611bfcb70d17e": "Message non envoyé : hors ligne",
+        "pages.1a7529ab14fd6195": "Sujets",
+        "pages.1a84458321d6a387": "Caméra appâtée",
+        "pages.1aa41eb37828e832": "glace fragmentée",
+        "pages.1ae812bf464ce4c7": "modèle en ligne : ",
+        "pages.1bfa7cb0058d53a8": "{v0} : position encore inconnue",
+        "pages.1c1c8f677153323a": "Supprimer ce transect partagé pour tout le monde",
+        "pages.1c4b8ff60530a1bf": "Provenance",
+        "pages.1cb9a0d8b741fd5d": "afficher l’IA",
+        "pages.1cff02b9cde94631": "Salon",
+        "pages.1d9283d848ea941a": "à venir",
+        "pages.1daaa38f33cd860e": "Lieu",
+        "pages.1dc2adc71fdc6add": "Profil en direct",
+        "pages.1df151056c8c592d": "Masquer les opérations terminées ({count})",
+        "pages.1e6245009d677035": "Images",
+        "pages.1e80a09b5207e374": "p. ex. CardS-3, CTD — laisser vide pour tout recevoir",
+        "pages.1e95c3df798b1771": "{v11}cliquer sur la photo pour l’afficher en plein écran",
+        "pages.1ea59e15ab7b5c46": "{v0}{v1} (toute la journée)",
+        "pages.1ed0b446e0b33e50": "les nouvelles photographies de ce dossier sont importées toutes les dix minutes",
+        "pages.1f25d33066b92af4": "la glace en mer, année après année, et son vocabulaire",
+        "pages.1f914c4386c0676e": "CONNECTÉ",
+        "pages.1fb561bcf13a11bf": "Chargement du wiki…",
+        "pages.1fcebdec11222f9d": "le navire",
+        "pages.1ff9a5f8b4bd530e": "Cartographie",
+        "pages.200d5e550cbca47d": "Cet événement ne figure pas dans cette version.",
+        "pages.2031be00edf5f5d8": "Caméra · type de glace",
+        "pages.20ac95a440783c19": "personne d’autre n’a cette page ouverte",
+        "pages.20dd35463a5cd047": "État des importations",
+        "pages.215b2f215791b683": "Cette page ne figure pas dans cette version.",
+        "pages.2194340e961ab3bd": "Importation terminée",
+        "pages.21b2eed1e328a2c6": "images",
+        "pages.21b3be752f52de62": "thème inconnu",
+        "pages.21bffccd4f5d79e6": "Les images en échec sont ignorées tant que leur contenu ne change pas.",
+        "pages.2245d25ec0254f2f": "Coupe de {v0}",
+        "pages.226bbb8ba2342b46": "Aucune donnée de caméra pour cette période et les étapes sélectionnées",
+        "pages.22e919dd71885a5b": "ouvrages cités",
+        "pages.2305f9a93e7e3775": "{v0} · plongée {v1}",
+        "pages.2348f99874421257": "ouvrir",
+        "pages.24626cb1dc15eb75": "classé",
+        "pages.246c9aa43eb5384e": "Collections : {v0}, une par thème. Ouvrez-en une pour voir ses {v1}.",
+        "pages.24b309ef05a800b9": "Caméra descendue",
+        "pages.25781429f18f9f88": "à l’eau",
+        "pages.25b165146228c719": "Résultats : {v0}",
+        "pages.26d9b3b1f470ca66": "flux en direct indisponible (serveur inaccessible)",
+        "pages.277aafc886922dcd": "Caméra de glace",
+        "pages.27873558b00fcb84": "sans date",
+        "pages.27cfa197e044ed68": "aucun modèle chargé : l’équipage ne peut pas répondre (",
+        "pages.27e789d55ec5ccc8": "interroger Doc, le naturaliste · Entrée pour envoyer",
+        "pages.281c7066818e5645": "le passé humain, des Tuniit aux navires du siècle dernier : voyages tracés sur la carte, hivernages et immobilisations dans les glaces sur la chronologie, personnes et lieux dans des pages reliées entre elles",
+        "pages.282bfa6b4079b6f2": "Aucune photo pour le moment. Choisissez Soumettre pour en ajouter.",
+        "pages.286bda0d997c8009": "Impossible de partager le transect ({v0}); il reste dans ce navigateur",
+        "pages.28867ed59d573718": "{v0}/{v1} enregistrées. {v2}. Gardez cette page ouverte et réessayez; les photos déjà enregistrées ne seront pas téléversées de nouveau.",
+        "pages.298624751ccc85f9": "Importation : {v0} photographie{v1}{v2}{v3}",
+        "pages.2999a8e2b16d5bf1": "Téléverser des photos",
+        "pages.2a1a6355ed7e30b0": "Glace",
+        "pages.2b4b2eadf7b2aece": "calme",
+        "pages.2b639f5f3fe0f87f": "Ouvrir la fiche de rosette",
+        "pages.2b70854526b7a869": "🖥 ne plus afficher",
+        "pages.2ba1eba95fdf0902": "Aucune observation à moins de {v0} km du navire pour le moment.",
+        "pages.2bec0153da8f8918": "Fréquence de flottabilité",
+        "pages.2c41a2181609b1a1": "retour à la carte",
+        "pages.2c4561b1bd59416b": "Départs des remorquages MVP",
+        "pages.2c4bef225b218e2c": "cliquer sur la photo pour l’afficher en plein écran",
+        "pages.2c635b368009f7d5": "{v0} sélectionnés · {v1} profil{v2}",
+        "pages.2cff9baabf56ca00": "Importation",
+        "pages.2d2c4b6f7e573acf": "salle privée avec un membre de l’équipage",
+        "pages.2d5e8600a4fba66e": "sensible",
+        "pages.2de5247a982a1cd6": "Rien ici pour le moment.",
+        "pages.2e12c729cccf7bc1": "Téléversement {v0}/{v1} : {v2} · {v3} % transféré",
+        "pages.2f04d6855ac0ab3f": "Signalé pour révision par {v0} · {v1}",
+        "pages.2f05e7541d123e42": "référence {v2}",
+        "pages.2f546e465f038b8a": "Choisissez un dossier ci-dessus",
+        "pages.2f55863e032e37f9": "Photo précédente",
+        "pages.2f59d4b8f473d38e": "bouteilles de {v0}",
+        "pages.2fa21517ba5fd27b": "Barge",
+        "pages.308a267453114d9c": "Partager ce transect avec tout le monde à bord",
+        "pages.30e950fb0aeb06fc": "Aucun élément de ce type dans cette collection.",
+        "pages.30f5934e62499bea": "rédaction en cours…",
+        "pages.310ca503ef36f177": "Mois",
+        "pages.310ff200149b44a3": "fermer",
+        "pages.3143319cd5502e27": "le fichier BibTeX de cette version",
+        "pages.314ae71b8c8dc9c9": "Documents et objets",
+        "pages.318d4e44fa3151e6": "seul un administrateur peut maintenant le retirer",
+        "pages.3194ed03862a55fd": "mesures du trajet",
+        "pages.3223e57d9ea5de4e": "suivre {v0} : préavis de 15 min et chaque modification",
+        "pages.325e9f7b656e6135": "Cette observation ne figure pas dans cette version.",
+        "pages.328143c3c16d54dc": "à {v0} m d’altitude",
+        "pages.3297e071e7639648": "Chargement des données…",
+        "pages.32f3b45fdf19ffc4": "fragments de glace",
+        "pages.3316348dbadfb7b1": "pages consultées",
+        "pages.3350122289eea311": "non fermée",
+        "pages.336074805fc85398": "heure",
+        "pages.33b93476cf597a33": "Temps",
+        "pages.33f5e62de396abb6": " · échecs inchangés ignorés : {v0}",
+        "pages.34fd3ab8d65068d6": "dernier profil ({v0})",
+        "pages.350be3643ce78043": "Organisation",
+        "pages.352cfc749e55222e": "Galerie",
+        "pages.3547cb112ac4489a": "dernier",
+        "pages.355801a28de02d98": "Caméra · texture (PC1)",
+        "pages.35e0d0360a0af6d1": "EN DIRECT",
+        "pages.360719440e92c924": "3 jours",
+        "pages.3660315a9af3df25": "page",
+        "pages.3664895579f0a7e6": "Exporter",
+        "pages.36887b74f7a93c6f": "Utilisez des photos JPEG, PNG ou WebP de 64 Mio ou moins chacune. Les fichiers HEIC et les vidéos ne sont pas encore pris en charge.",
+        "pages.36cb81396286c63c": "Caméra · signatures de glace",
+        "pages.36d67c4fc158725e": "Intranet du navire :",
+        "pages.373ede1bd510a97a": "Seasave à {v0} accepte la connexion, mais n’a rien envoyé, même pas sa liste de champs : l’acquisition est probablement arrêtée ou TCP/IP Out est désactivé",
+        "pages.385cfdbc00ec3203": "unité",
+        "pages.387d96a031862484": "Sélection : {v0} photo{v1} · {v2} Mio. Prêt à téléverser.",
+        "pages.388afb1dcec1e796": "Avec cette attribution et cette licence.",
+        "pages.389bd9a6782fe030": "sorbet",
+        "pages.38cca6bea010af8a": "ARRÊT",
+        "pages.38e3607df174e5f3": "sorbet",
+        "pages.38f0bf30197b182f": "NGCC Amundsen · en direct · {v0} {v1} · cap {v2}{v3}",
+        "pages.39e0f5efdc39ec10": "hauteur",
+        "pages.39e36c36e2bfc590": "floe mince",
+        "pages.3a757c6d4218cbda": "Taxons",
+        "pages.3b1acb93404de012": "Chargement de {v0} profils sélectionnés avec fermetures de bouteilles…",
+        "pages.3b73900b8d29f963": "Explorer",
+        "pages.3c1091f0d39e5e69": "Transect {v0}",
+        "pages.3cb30133ed1b1fe6": "les modifications à l’horaire",
+        "pages.3e10134259ab3285": "Transmission",
+        "pages.3e5b90ae053ff3e7": "Graphique",
+        "pages.3e8f1b9fcd487c52": " est présent",
+        "pages.3ea5bb4ae53b1c00": "Fiche de rosette ↗",
+        "pages.3eb40bdff9eccb86": "Saturation en oxygène",
+        "pages.3ec2008b04aa3ec8": "Préparation d’un nouveau dossier de téléversement…",
+        "pages.3f1a2c73953d1a3a": "Nouvelle sélection",
+        "pages.3f54bcf820c1238b": "hors ligne : aucun modèle chargé; le clavardage n’en charge jamais lui-même. ",
+        "pages.3f996df8de74b85b": "{v0}Équipage IA{v1}, répond aux mentions :",
+        "pages.4043b0d02cbdf281": "Seasave à {v0} : {v1}",
+        "pages.40458bfe83b031b7": "Afficher les opérations terminées ({count})",
+        "pages.4099a2c228b17acc": "Accès libre",
+        "pages.41426fd2dfbef5bd": "heure du navire ({v0})",
+        "pages.41970d6661b348dd": "carte ↗",
+        "pages.41cf6794ba4200b8": "source",
+        "pages.41d624f9bf379d48": "cliquer pour retirer",
+        "pages.426efff5200235a2": "sur le site de l’institution dépositaire",
+        "pages.4275e3786215385b": "Multicarottier",
+        "pages.436d201fdbc72ab9": "À bord du navire",
+        "pages.437da9f58f045cb6": "début imminent",
+        "pages.441d39221a44cb6d": "sarrasins",
+        "pages.44678314632642d7": "Choisissez au plus 300 photos et 2 Gio par lot.",
+        "pages.451215ee74092d80": "adresse de cette page",
+        "pages.45989de49fb7f66d": "Détails",
+        "pages.45f7859648d9536e": "Carré",
+        "pages.4601ca97bc8099ca": "Ce navigateur n’a pas pu enregistrer le transect. Vérifiez l’espace disponible et réessayez.",
+        "pages.46085764706995c9": "JPEG, PNG ou WebP · 300 photos · 64 Mio chacune · 2 Gio au total.",
+        "pages.46234d79a919e6b7": "Impossible d’appliquer les paramètres : {v0}",
+        "pages.462fc526de8ab1c3": "et {v0} autres",
+        "pages.46393f6573e4995e": "→ nouveau sous-dossier",
+        "pages.46624cb945249939": "retour à la vue précédente",
+        "pages.4662c556e5b9ad1c": "ce navigateur",
+        "pages.469e93b518d319d4": "afficher sur la carte",
+        "pages.4758a9bf0c2b3fcf": "Mouillage",
+        "pages.47e908691c1f5010": "Tout : {v0}",
+        "pages.485150da6a173a27": "Signalements actuels : {count}.",
+        "pages.48b2ed9682896933": "✉ ne plus envoyer de courriels à",
+        "pages.48e0ef1e260d7b6d": "Textes",
+        "pages.490b7567ec0072e0": "masquer l’IA",
+        "pages.494ca78f7374e46f": "Personnalisé",
+        "pages.4960990121f22e16": "Sous-catégories",
+        "pages.4975878cc8a1f73b": " (déjà dans le journal : {v0})",
+        "pages.497f6e6d2e54b567": "par mer : calcul en cours…",
+        "pages.49febf4604a554f8": "le ciel : aurores, nuit polaire et soleil de minuit, éclipses et comètes",
+        "pages.4a04d6e7bb315a27": "le salon : la salle de l’équipage IA, où ses membres discutent entre eux",
+        "pages.4a754148b88a68e1": "bientôt",
+        "pages.4b0ab9f9f992bdf9": "saisir votre nom d’abord",
+        "pages.4b6bad1ea4905ab0": "déplacer vers le haut",
+        "pages.4c149b191dbab4cf": "exemplaire du navire",
+        "pages.4c3f03bb625194b7": "source primaire",
+        "pages.4c4e436f9a453c77": "Glossaire",
+        "pages.4c8692dac9206cdf": "Poser une question",
+        "pages.4cb0b250c6250d52": "glace",
+        "pages.4cb4ea25583c2564": "année",
+        "pages.4d327af41f96c23c": "par",
+        "pages.4d5ccfb86e516115": "Enregistrement terminé : {v0} photo{v1}, dans /Share/{v2}.",
+        "pages.4d65c72b83973371": "écrire à ",
+        "pages.4da69789232ebb31": " · déjà dans le journal et ignorées : {v0}",
+        "pages.4df96d3a4505b128": "Ajoutez l’attribution et la licence ci-dessous.",
+        "pages.4e1f28fc70610f11": "Aucune fermeture de bouteille ne correspond.",
+        "pages.4e4632bbe56e64fb": "Océanographie",
+        "pages.4e64a73f31de9de2": "↓ descente",
+        "pages.4eeb9335576b12a0": "Astronomie",
+        "pages.4f302ec94335124c": "Caméra · composition de la glace",
+        "pages.512b07c166e7f90b": "maintenant {v0}",
+        "pages.525f2f103bb29c7e": "Station sur glace",
+        "pages.52abdcd0fb406ecd": "suivre {v0} : opération ajoutée, retirée, déplacée ou annulée; aucun rappel",
+        "pages.52e48c371494add8": "page de l’image",
+        "pages.5418cb6eb6746abe": "Connexion à Seasave établie; le graphique commence au démarrage de l’acquisition, une fois l’instrument à l’eau.",
+        "pages.546940feb432bb66": "sur le Web ↗",
+        "pages.547801ae4e93ff14": "Météorologie",
+        "pages.54cda0543a402949": "Géologie",
+        "pages.552127973f8424e1": "Signaler",
+        "pages.5550ce1e131e8f75": "réafficher les messages de l’équipage IA",
+        "pages.55efb93d341ef10e": "Fermer le diaporama",
+        "pages.5650875646bee33e": "Glace de mer",
+        "pages.56630f4b80ceb0f1": "Signaler aussi",
+        "pages.57230d1daa6720c2": "Horaire des opérations {v0}{v1}",
+        "pages.573850785e407d7b": "Confidentiel à bord",
+        "pages.5830d6da56e44d4f": "Fermetures de bouteilles affichées : {v0} sur {v1}",
+        "pages.58339f45df960408": "mer.",
+        "pages.59cbdb2816208517": "Ouvrir le diaporama en plein écran",
+        "pages.5a044a1351ce03c1": "Contour orange : région d’intérêt analysée",
+        "pages.5a452459503be70d": "position",
+        "pages.5a99e746347b5bf9": "Interroger Ada",
+        "pages.5b7e6bf2dc4a32a6": "méthode",
+        "pages.5bd724fab3969c96": "Aucun wiki n’a encore été publié.",
+        "pages.5c3ce8d496e2626b": "HORS LIGNE",
+        "pages.5c71b8cd7822a418": "Choisir un dossier",
+        "pages.5ce44dd77dae789f": "Téléversement…",
+        "pages.5d1670193536d43f": "Vitesse du son",
+        "pages.5e3147ab51e0084c": "Photos",
+        "pages.5edd3b1f5d3b8966": "Messages directs temporaires — conservés en mémoire seulement, pas dans la base de données du clavardage. Effacés au redémarrage du serveur, à la fermeture de la conversation ou après 30 minutes sans message. Sans chiffrement de bout en bout.",
+        "pages.5ef5ef0364b6939c": "tout",
+        "pages.5f369686bd9e7606": "masquer les messages et les noms de l’équipage IA",
+        "pages.5ff56800f7898c03": "Une coupe nécessite au moins deux profils avec {v0} — profils sélectionnés : {v1}.",
+        "pages.606606668b367101": "Fermer cette conversation avec {v0}? Son historique temporaire sera effacé pour les deux participants.",
+        "pages.607e651096291705": "plongée :",
+        "pages.60ae4bd5abd3bd13": "Les données en chiffres",
+        "pages.60f308c1f079c289": "Aucun élément du wiki près du navire pour le moment.",
+        "pages.60f55cbfdbdc61d3": "Types de surface",
+        "pages.612ca4821653bae2": "Événements : {v0} · opérations prévues : {v1} · période : {v2} · cliquez sur un point pour voir l’entrée du journal",
+        "pages.6144cdc4cbc52ef1": "Filet Monster",
+        "pages.6150f7fe79c4deef": "{v0} dans la barre d’en-tête de ce navigateur",
+        "pages.61695ef35daa3cc1": "À cet endroit{v2}",
+        "pages.61d73e9ff0008b26": "fichier ayant servi à produire l’image",
+        "pages.6267eb92dbfb52e8": "· {v0} · acquisitions conservées : {v1}{v2}{v3}",
+        "pages.62a2fed3d6e08c44": "en attente",
+        "pages.6362b3d21b11ef29": "Ouvrages cités par l’histoire : {v0}; par les données sur la nature : {v1}{v2}.",
+        "pages.63d39b201b616eeb": "l’original · {v1}",
+        "pages.640c2380690e2137": "Lecture du dossier partagé…",
+        "pages.649f0e5314000410": "Échec de la configuration ({v0})",
+        "pages.653aa4c034f7667f": "Formes du relief",
+        "pages.653ad8478a323db5": "Navires",
+        "pages.657980dc1fbd697d": "Profils : {v0} · {v1} km · {v2}{v3}",
+        "pages.65afe1537c5ddabd": "Téléverser les photos sélectionnées",
+        "pages.661ff40a07e037bb": "En attente",
+        "pages.66936de3e986716c": "Un nouveau sous-dossier est créé pour chaque téléversement. Les originaux restent inchangés. Gardez cette page ouverte et votre téléphone actif.",
+        "pages.66c475876c2bb759": "événement · {v1}{v2}{v3}",
+        "pages.66dab40cea1dea5c": "ven.",
+        "pages.670803ab46a99495": "Horaire de l’Amundsen",
+        "pages.674fc4afa9e75877": "Caméra · concentration de glace",
+        "pages.67e605eb007842fc": "recherche en cours…",
+        "pages.68969b0ccff55b72": "Effacer {v0} sur cet appareil? Les autres conservent leur copie.",
+        "pages.68971283841aecdf": "Sujet",
+        "pages.694050382b6961b9": "Carottier-boîte",
+        "pages.69b5c442dbf98bee": "Caméra · hétérogénéité (PC4)",
+        "pages.69bb0178a84c8298": "Échec du téléversement ({v0})",
+        "pages.69dbf100b46a548c": "Intensité des couleurs",
+        "pages.69e4a02609393ab9": " · sous {v0}",
+        "pages.6aef76c6cb359f6f": "prévue",
+        "pages.6afd7d06ff48ae82": "avec /start, puis /only CardS-3 ou /lead 60 pour personnaliser les avis, ou /changes pour recevoir seulement les modifications à l’horaire.",
+        "pages.6b2923e0d3ac1560": "l’archipel et ses phénomènes : roches, glace, eau, ciel, météo, champ magnétique et êtres vivants, d’après les sources, avec le journal du navire",
+        "pages.6b4ca2530b1a7e95": "Dates : {v0} · périodes : {v1} · depuis {v2}; molette pour zoomer, glisser pour déplacer la vue, cliquer sur un point pour voir sa ligne",
+        "pages.6babc9a17d120bf7": "Aucun récit pour le moment; les documents et objets ci-dessous sont ceux saisis par l’équipage jusqu’ici.",
+        "pages.6cf20dab38bc6692": "Limites des fichiers",
+        "pages.6d0a8f2e8eb29b90": "); l’opérateur a été avisé",
+        "pages.6d3add25948633a5": "Ce lieu n’est pas sur la carte.",
+        "pages.6da0633528deaa01": "précédent",
+        "pages.6dea9f2833032c42": "dernière mise à jour il y a {v0}",
+        "pages.6e3da9a2a9be2af0": "texte intégral",
+        "pages.6ec675dc06f63b40": "le pont : Ada et Doc ensemble, l’histoire et la nature",
+        "pages.6ec6fd018d8f2587": "jour {v0} sur {v1}",
+        "pages.6f6cdd1488b7f202": "Suivre l’importation dans le journal",
+        "pages.6f8f5f94a7c5b0b5": " · début : ",
+        "pages.701008902fbdae6f": "Cette section du domaine n’existe pas.",
+        "pages.706f0fd28dff4dd7": "Aucune observation de ce sujet dans les données pour le moment.",
+        "pages.70b49dd024b048a1": "aucun thème",
+        "pages.70d1108086ae0c39": "cliquer sur le repère pour le retirer",
+        "pages.71843f6b5b4296b7": "récits",
+        "pages.7255c8f0c852b753": "Hydrographie",
+        "pages.72cd96e4062019eb": "Ouvrir la photo pleine grandeur",
+        "pages.73a78f135698be34": "Caméra · RVB moyen des bandes",
+        "pages.73a95a4f5f81d150": "les rivières et les lacs, et les organismes qui y vivent",
+        "pages.73e44c202e92a779": "Supprimer le transect partagé « {v0} » pour tout le monde?",
+        "pages.7458199fe97a1840": "Français",
+        "pages.7592cb718abb8814": "autres graphies",
+        "pages.75b474a2f6adf608": "Aucune photo sélectionnée.",
+        "pages.763a1a9880efcdbb": "Éléments de la carte à cet endroit : {v0}. Choisissez-en un.",
+        "pages.765aab1602f02fd8": "aucun reçu — Seasave les envoie à l’ouverture de la connexion",
+        "pages.765c1dd134a4327a": "Aucun élément de ce type dans les données pour le moment.",
+        "pages.770711b477e8da40": "voir les données",
+        "pages.772c6953848bf5b1": "observation",
+        "pages.7743ce348d9284d6": "ébauche",
+        "pages.789e8de747b02a7b": "nilas",
+        "pages.79a9f4f6d201a55d": "Droits réservés",
+        "pages.7a6e9e2b5d0ecb83": "par mer : {reason}",
+        "pages.7aa72a235586990d": "toutes les observations de {v3}",
+        "pages.7b0a3d74494a4f50": "Ajouter des photos",
+        "pages.7b1291e7ed8a6f3e": "épaisse",
+        "pages.7b915f4a299822c6": "Les paramètres au-dessus de Graphique utilisent les axes supérieurs; ceux en dessous utilisent les axes inférieurs",
+        "pages.7baa99652be2c7c7": "consignée",
+        "pages.7bc83b0eaff9cd7b": "fermer cette conversation : son historique est effacé et la salle disparaît de la barre",
+        "pages.7c35ea2a8c62aeba": "aucune donnée pour le moment",
+        "pages.7c3f78c0fe8cf198": "distance le long du trajet (km)",
+        "pages.7c62dde8e91db1cf": "Plateforme benthique",
+        "pages.7c706e7a8b983a5e": "Comment cette histoire a été constituée",
+        "pages.7c723452a98e32c9": "Ce jour-là · {v0}",
+        "pages.7ca0d6c7afeb2c2d": "sur la carte",
+        "pages.7ca7dea906800f87": "Eau",
+        "pages.7cc9fa7e6f62a347": " · suivi de {v0}",
+        "pages.7cf40a646358bdfe": "l’équipage travaille encore sur cette page",
+        "pages.7da11212ed340ea7": "jeu.",
+        "pages.7db20897053bb278": "Personnes",
+        "pages.7de82e541d02427d": "une salle privée avec une personne présente",
+        "pages.7de8c035259e0769": "site sensible : la position publiée est approximative et le lieu n’est pas indiqué",
+        "pages.7e61847d61d65d9e": "Thème",
+        "pages.7e8af09bf79ba0de": "Choisissez un dossier de /Share à importer.",
+        "pages.7f0dfafd2c31b54d": "Photographie du navire",
+        "pages.7fa67f0e7001ab10": "Demandez à Ada répond à partir de ces pages au moyen d’un modèle local à bord : il cite les pages qui lui ont été fournies et ne constitue pas lui-même une source. Tout élément qui semble erroné peut être signalé à l’aide du petit drapeau dans le coin de sa fiche; les signalements sont transmis à l’auteur du volet.",
+        "pages.813579ae9a07b8ad": "Impossible d’enregistrer le signalement : {v0}",
+        "pages.813801934f98fd75": "Sélectionner un profil :",
+        "pages.815f6bde537466ee": "parler à l’équipage · Entrée pour envoyer",
+        "pages.8178ac72b28d77fc": "licence",
+        "pages.81a42333e9588930": "✉ m’envoyer un courriel… (saisir une adresse ci-dessous)",
+        "pages.82152a91cf8f494f": "en privé avec {v0}",
+        "pages.82244417f956ac7c": "courriel",
+        "pages.836851d6bddf7650": " (en cache)",
+        "pages.8513a9ecd7d7a0c9": "non envoyé",
+        "pages.855421f02843acdb": "Photographies de {v0}{v1}",
+        "pages.856801b740b24d2c": "et {v0} autres : précisez la recherche",
+        "pages.85b93fb74f25c215": "Filet à plancton",
+        "pages.85c3f9fa6f300eea": "Animaux",
+        "pages.85ebc236cf26a104": " hors ligne",
+        "pages.870d0f550c052952": "à bord · {v1}",
+        "pages.8821ee7638dd486a": "↑ remontée",
+        "pages.886fb735a1b9c903": "réinitialiser le zoom",
+        "pages.88980154513d7413": "Trajets",
+        "pages.889eacd6e13fa54a": "Pont",
+        "pages.88d7c52212ef2f1e": "Suivant : ajouter au journal ↓",
+        "pages.88f9b975979fbdbf": "Importer depuis :",
+        "pages.892b302902eaa39f": "remorquages sélectionnés",
+        "pages.894bb2b7ac07d55d": "Photo suivante",
+        "pages.8954bdd0658bdc1b": "Les alertes d’en-tête restent dans ce navigateur et s’effacent avec ✕. Chaque courriel d’alerte contient un lien de désabonnement. Les heures sont celles du navire.",
+        "pages.8968c716fb239760": "floe",
+        "pages.89a97309c8f1dde7": "distance selon les stations A–Z (km)",
+        "pages.89e0968cb624a276": "La sortie TCP/IP de Seasave ne transmet ni pression ni profondeur de l’instrument (« Depth, NMEA » correspond à la profondeur du fond mesurée par l’échosondeur). Dans Seasave : Configure Outputs › TCP/IP Out › Select Variables, ajoutez Pressure [db] ou Depth [salt water, m].",
+        "pages.8af13d3a800670e9": "Carottier à gravité",
+        "pages.8b218f6aa2a8fa66": "Hétérogénéité",
+        "pages.8b270ed732edc5c6": "{v0} profil{v1}",
+        "pages.8c0fc3e67ce6edbf": "afficher :",
+        "pages.8c181da097acc01c": "seulement les opérations correspondant à",
+        "pages.8c4463e5d14f4ff3": "Aucune distance en route correspondante pour cette période",
+        "pages.8d14f6e72de8f18a": "Événements",
+        "pages.8d9ec6044a90f019": "Continuer à importer depuis ce dossier /Share",
+        "pages.8dc37869d63b05bd": "Citations",
+        "pages.8e2c7ac508139a02": "hors ligne",
+        "pages.8e2f078d59f675b4": " · fond à {v0} m",
+        "pages.8ed17198774cfa83": "floe épais",
+        "pages.8f301fe89e95c0c6": "heure modifiée",
+        "pages.8fde4d9f78c0ecce": "cette opération",
+        "pages.8ff81d3b055eeb94": "Navire (heure de l’Est)",
+        "pages.9040f9be99523563": "Tout le contenu de cet onglet a été recherché et rédigé par des agents IA à partir des sources indiquées pour chaque élément, puis vérifié; le compte rendu du projet accompagne les données, mais ne figure pas encore dans cette version.",
+        "pages.9046da16aea909ba": "Pages",
+        "pages.909cef7017a9aeed": "Telegram : écrivez à",
+        "pages.90a50f14e9672fab": "Intranet du navire : {v0}",
+        "pages.9111d254873bb676": "cliquer pour sélectionner ce graphique : Maj + molette zoome en x, Ctrl + molette zoome en profondeur; glisser pour déplacer la vue",
+        "pages.913a4cb91be20332": "effacer",
+        "pages.915e352c6674b610": "{v0} « {v1} » pour révision.\nQue faut-il vérifier? (facultatif)",
+        "pages.9190eab60709df3a": "Aucune observation du {v0} dans les données pour le moment.",
+        "pages.923037ebcf5db471": "chaque {v0}",
+        "pages.92a13b6f6d226c75": "Signaler cet élément pour révision du contenu. Pour un problème d’interface, utilisez Commentaires dans l’en-tête.",
+        "pages.92b5025fa8382d1c": "Le fuseau horaire s’applique lorsque la photo n’en indique aucun. Caméra / navire utilise celui de la caméra, puis l’heure du navire.",
+        "pages.93c6b664dce6c207": "Parcourir…",
+        "pages.94038397ceeb4d30": "plongées sélectionnées",
+        "pages.9429b1dc65906b5e": "ouvrir le laboratoire dans le clavardage et interroger Doc, le naturaliste; une observation rapportée à Doc est ajoutée au journal",
+        "pages.943077f0507ddf71": "Oxygène",
+        "pages.944eae254aeae6c5": "Décompte du {v0}{v1}{v2}.",
+        "pages.945d2c03508adc66": "enregistrement…",
+        "pages.947a239ce828c1a1": "✉ envoyer un courriel à",
+        "pages.948958cfdb09405c": "la bibliothèque : interrogez Ada sur le passé de la région",
+        "pages.948fcefe5345439c": "l’ensemble des données",
+        "pages.94a03054e2d4553d": "Géomagnétisme",
+        "pages.95538be430df3ed6": "Glace totale",
+        "pages.969ccbd3cf6300ec": "Courriel",
+        "pages.97a5e41b45ddd2b2": "appliquer",
+        "pages.983a042d392d0565": "les profondeurs et les cartes marines",
+        "pages.9842a2a9342d3ad4": "la glace terrestre : glaciers, calottes glaciaires, plateformes de glace et îles de glace",
+        "pages.9888984a6cace5f0": "Supprimer le transect enregistré « {v0} »?",
+        "pages.98ca0d518997f8a4": "aucun pour le moment",
+        "pages.98f4bb619464284d": "Impossible de charger les mesures des bouteilles. Fermez puis rouvrez pour réessayer.",
+        "pages.99522e3aa1235d50": "Événement associé",
+        "pages.9976c76f151ed9cb": "RECHERCHE",
+        "pages.99b2318698af4c73": "abonnement de {v0} : {v1}, préavis de {v2} min",
+        "pages.99c40ab405926cb5": "Date",
+        "pages.9b4ef3e5b7b4d175": "station",
+        "pages.9baf01819b22e507": "dernières acquisitions brutes",
+        "pages.9bf5a24e4aa77998": "opération",
+        "pages.9c585c8ddefd2720": " · aujourd’hui",
+        "pages.9cb84ab470f4d318": "Caméra · intensité des couleurs (PC3)",
+        "pages.9cd0e357245fb95d": "{v0} : salle privée avec {v1} ({v2})",
+        "pages.9cd578a09eb38dcb": "{v0} m sous la surface",
+        "pages.9d131a2c668765f8": "afficher {station} sur la carte",
+        "pages.9d88cdb29acfce7d": "Observé près du navire{v2}",
+        "pages.9dcff98e275f0cb9": "Chronologie",
+        "pages.9df916869e8fc20e": "Supprimer ce transect enregistré dans ce navigateur",
+        "pages.9dfd3ad250c8ef49": "Observations : {v1} · molette pour zoomer, glisser pour déplacer la vue, cliquer sur un point pour voir sa ligne",
+        "pages.9ee78ce2f0ecac99": "statut de conservation",
+        "pages.9eeead76de41e46b": "; questions auxquelles une personne a répondu : {v0}",
+        "pages.9f28dfaff8c0e4e6": "Bibliographie",
+        "pages.a04d3b26e64dc84d": "← Galerie",
+        "pages.a077ad4b78f92338": "Supprimer le transect",
+        "pages.a0a44ed8cfc32b7e": "tout",
+        "pages.a0bba63812466406": "Météo",
+        "pages.a0d37bfc114917be": "Aucune date à représenter.",
+        "pages.a0daef01ab98f9cb": "indisponible",
+        "pages.a12151313ac5e31a": "Erreur de la page : {v0} ({v1}:{v2})",
+        "pages.a129311710bd6586": "Seasave à {v0} accepte la connexion, mais n’envoie rien : démarrez l’acquisition et vérifiez Configure Outputs › TCP/IP Out.",
+        "pages.a12af7a862beae85": "Nom du transect (partagé avec tout le monde à bord)",
+        "pages.a178f6d7069a2b24": "bouteille {v0}{v1}",
+        "pages.a19de0c38d4dff59": "🔔 Recevoir des alertes pour les opérations prévues",
+        "pages.a20d1e00196bf7a8": "{v0}/{v1} ajoutées{v2}{v3}",
+        "pages.a20e4b867b4749ca": "Images en échec inchangées ignorées : {v0}.",
+        "pages.a310ada4cbd505c9": "plongée {v0}",
+        "pages.a3b0e9926d07b2eb": "Rosette TM",
+        "pages.a47e0c2bd7bba951": "Pompe TSG arrêtée / faible débit d’admission",
+        "pages.a488c7ae2d2e3bbd": "Interroger Doc",
+        "pages.a4903f732746e9e1": "Image suivante",
+        "pages.a4b898101968a83f": "🖥 afficher",
+        "pages.a4c3ed04a95a3da1": "terminée",
+        "pages.a4e224f5c4bdc48f": "Votre importation",
+        "pages.a4fa51e13388f6a2": "Caméra · RVB moyen",
+        "pages.a5119a3101d7daef": "moyenne centrée sur 1 h",
+        "pages.a52981ae3b44bf34": "Thèmes : {v0}; récits : {v1}; documents et objets : {v2} — {v3}. Chaque élément indique son auteur et sa source.",
+        "pages.a599f2439ba9b7aa": "{v0} av. J.-C.",
+        "pages.a60f8bdaa027343c": "aucune opération prévue",
+        "pages.a6ad6e106668be7b": "un message lorsque des opérations à venir sont ajoutées, retirées ou replanifiées; aucun avis de fin ni de simple changement d’état",
+        "pages.a6d6ce3d5aba07c2": "Trajet de caméra indisponible",
+        "pages.a6f85eb7e8dcedb4": "Sélectionnez des profils dans la liste, ou cliquez sur les stations et les trajets de remorquage sur la carte.",
+        "pages.a7bcf53bf6b49f82": "Chalut Agassiz",
+        "pages.a86329cc29043c6f": "{distance} par mer",
+        "pages.a9491f4c1bf7b0cf": "sujet",
+        "pages.a971f5ed9bbf6db8": "; pages encore à l’état d’ébauche : {v0}",
+        "pages.aa63925edf225e26": "prévenir",
+        "pages.aafecb99525ba917": "interroger Ada, la bibliothécaire · Entrée pour envoyer",
+        "pages.ab03a958ec35ded7": "Sélectionner tous les profils affichés",
+        "pages.ac20a57bfde0bbc4": "Masquer",
+        "pages.ac41c0821578e6fb": "Admission TSG",
+        "pages.ac8af0eab24ec35a": " · ignorées : {v0}",
+        "pages.accc2a1a15657ccc": "Fossiles",
+        "pages.ad03eb5e16bba9a9": "aucune réponse",
+        "pages.adcb8c7fb22e1991": "Une salle privée avec…",
+        "pages.ae0f63e1d1e490ed": "type de glace",
+        "pages.ae7e8457b92d22a1": "Caméra · luminosité (PC2)",
+        "pages.ae906fb992e31fe3": "; {v0} ne sont pas inclus lorsque ce volet est désactivé",
+        "pages.aea1058d135f60df": "Biologie",
+        "pages.aec02cbd799774af": "Cette importation n’existe pas.",
+        "pages.aed812ff76f64d4e": "{v4} l’axe {v5}",
+        "pages.b04472d9603795ac": "le pont : interrogez Ada et Doc ensemble sur l’histoire et la nature",
+        "pages.b0bf3d89f0028773": "à l’eau",
+        "pages.b1809383ab754a8a": "le journal du navire",
+        "pages.b21fb709e2a23a63": " · anciennement prévues : {v0}",
+        "pages.b22d2bea6e200f71": "une salle privée avec ",
+        "pages.b23a6a8439c0dde5": "inconnu",
+        "pages.b321eb029090b9e5": "données sur la nature",
+        "pages.b4099f32ab116a72": "Aucun produit de caméra pour les étapes sélectionnées",
+        "pages.b48662b9e514ae3a": "réduire dans la barre du haut",
+        "pages.b4debe034df4866d": "Ajouter au journal · {v0} photo{v1}",
+        "pages.b4e413c3cde61c41": "la liste MLA en texte brut",
+        "pages.b51aabf677e8fb9d": "à {v0} m de profondeur",
+        "pages.b5dd173791aafe8a": "Déplacez Graphique pour séparer les axes supérieurs et inférieurs",
+        "pages.b62350e7c82dc25e": "Cliquer pour passer de Texture → Luminosité → Intensité des couleurs → Hétérogénéité → RVB moyen. Ces noms sont des interprétations provisoires des composantes principales.",
+        "pages.b62f2399a1bd8dbd": "afficher {v0} sur la carte",
+        "pages.b72804afefc37b62": "Ciel",
+        "pages.b7bdf7a2d6e73e58": "Distance",
+        "pages.b7be5a1363b39659": "RIS, pour EndNote, Zotero et Mendeley",
+        "pages.b89edc48066641a6": "Température (°C)",
+        "pages.b8e1f80bd70ae078": "événement",
+        "pages.b9256368a77e50fd": "Sujets : {v0} · observations : {v1}",
+        "pages.b929855f23c3c9af": "pression (dbar)",
+        "pages.b949729ec3f8834e": "Déplacer {v3} vers le haut",
+        "pages.b9517046d8b64220": "Salinité",
+        "pages.b9535ce95cb158b0": "NGCC Amundsen · dernières données · {v0} {v1} · cap {v2}",
+        "pages.b958ce8b871ab36b": "Température",
+        "pages.b9846addccd73468": "écrire à {v0} · Entrée pour envoyer",
+        "pages.b9d894793c5e2abb": "Déplacer {v5} vers le bas",
+        "pages.b9fe1464783e1c0d": "Fuseau horaire",
+        "pages.ba118bf7fc9c1aed": "Anglais",
+        "pages.bb1de97207977776": "Photographie",
+        "pages.bb7bdd421882faae": "ouvrir le profil {cast} dans l’onglet Profils",
+        "pages.bb7e51c6d02be309": "était ici",
+        "pages.bdd51a4f2a7836d9": "{names} : recherche en cours…",
+        "pages.be4bd4d451cbc7c6": "Afficher les opérations anciennement prévues ({count})",
+        "pages.be7e2f20129365c2": "Images",
+        "pages.bed45cabd8e2a30e": "Cet endroit",
+        "pages.c17608dbad847751": "le champ magnétique : déclinaison, inclinaison, déplacement du pôle magnétique et tempêtes",
+        "pages.c19c477ad5130258": "surveillé · {v0}",
+        "pages.c240afd2442d27f7": "{v0}{v1} plongées",
+        "pages.c2ca254ef2542b13": "Région d’intérêt sélectionnée de la caméra",
+        "pages.c3f695f1d7db291a": "Téléverser d’autres photos",
+        "pages.c44bb2fd516909da": "commentaire",
+        "pages.c48bdea7d72e8b87": "anciennement prévue",
+        "pages.c4aa4acda87aa4a5": "chaque transit",
+        "pages.c4c14eab715fcabd": "interroger Ada et Doc · Entrée pour envoyer",
+        "pages.c5f3df2e12190da5": "en {v0}",
+        "pages.c60d3aa541eb71eb": "Transmission (%)",
+        "pages.c648253f20e04217": "Caméra indisponible; conservation des résultats précédents",
+        "pages.c6c1c9a9c8543f1e": "suivant",
+        "pages.c6daff2ebeeabc38": "les {v0} entrées",
+        "pages.c71ce8ccf3b44932": "Nature",
+        "pages.c72c2990894df721": "Essayer tous les ports de la plage standard 49160–49168 de SeaSave",
+        "pages.c76be7d10fcb8932": "toutes les observations de {v1}",
+        "pages.c76e27598822c367": "Fluorescence",
+        "pages.c7fa887aa9c79864": "Aucun élément de ce domaine dans le wiki pour le moment.",
+        "pages.c83415aca7938877": "Profil {v0} {v1}",
+        "pages.c85dc98747c8a8ea": "petites vagues",
+        "pages.c89256104794b1a3": "{v0} · plongée no {v1}",
+        "pages.c8c685977afa0c3c": "Diaporama",
+        "pages.c8eee30499cf09b3": "Sélectionnez au moins un paramètre.",
+        "pages.c9e0f9cc8260bce0": "le carré : ouvert à tous; l’équipage répond aux @mentions",
+        "pages.ca31dbf7d5c0699c": "Toutes les observations",
+        "pages.ca7981b46ecf2c17": "Désactivé",
+        "pages.ca8b598502b154d6": "la barre d’en-tête de ce navigateur",
+        "pages.cab62652ad5f9647": "Événements : {v0} · opérations prévues : {v1}{v2}{v3}",
+        "pages.cae7d57bc067a514": "Arrêter",
+        "pages.caf85b0888d78f1f": "Sources",
+        "pages.cb8448ba3d502c89": "référentiel dans lequel ce sujet est identifié",
+        "pages.cb8ffbcc2ae32b99": "Remorquages MVP",
+        "pages.cbff5a3278aa8fc3": " · échecs : {v0}",
+        "pages.cc9056c6599cc0c6": "personne d’autre ici",
+        "pages.ccd7d1e38d7fd793": "Avec attribution",
+        "pages.ccf0b0d00167c7a2": "Salle partagée — toute personne sur ce tableau de bord peut lire les messages, y compris les visiteurs sans nom. Pour une conversation directe, choisissez une personne ou une IA dans la liste.",
+        "pages.cd42404d52ad55cc": "valeur",
+        "pages.cd8e53a08c5c8f05": "Aucune distance de navigation correspondante",
+        "pages.cdd9848714e8c437": "✓ Enregistrement terminé dans le dossier partagé : {v0} photo{v1}",
+        "pages.ce1355534ad93ddc": " · aucune image pour le moment",
+        "pages.ce7bf15a4a858bbf": "Fermer ✕",
+        "pages.ce8daf5d393a0f6a": "Photo indisponible — l’archive est peut-être hors ligne",
+        "pages.ced37498aeda0f51": "Progression du téléversement des photos",
+        "pages.ced67718ea0f31eb": "Domaines",
+        "pages.cf1950b217a2b3d0": "Remorquage MVP {v0}{v1}",
+        "pages.cf35b1a611636def": "nouvelle glace",
+        "pages.cf4166250b80a26c": "Texte brut",
+        "pages.cffa02277adca6d9": " directement",
+        "pages.cffe53b675508c2d": "Caméra · concentration",
+        "pages.d04736cd97fa7bf6": "Pompes in situ",
+        "pages.d052579c6a317b1b": "Cet appareil",
+        "pages.d0674e0dede8a26b": "Photo de la caméra",
+        "pages.d0a27ca03da4cfae": "ouvrir le pont dans le clavardage, où Ada et Doc répondent ensemble : Ada pour l’histoire, Doc pour la nature",
+        "pages.d0b4034c6ca7ee87": "à l’avance",
+        "pages.d0e4b71fd8ecada7": "journal du navire",
+        "pages.d0ebd0e0e70f967c": "Conservation des dernières données de caméra valides",
+        "pages.d1e87d017416983b": "Photos du téléphone",
+        "pages.d1eb39b09bf52b68": "mar.",
+        "pages.d239e9cf6a51335b": "Observation",
+        "pages.d2828ad9fd1d87a7": "Profil TM",
+        "pages.d30af076b0dc85cc": "Moi",
+        "pages.d3d5b27efc6d23af": "Progression de l’importation",
+        "pages.d3e10052c069b15b": "Seasave à {v0} ne répond pas ({v1}); nouvelle tentative.",
+        "pages.d40e7693103b69eb": "Les photographies et le journal du navire sont conservés à bord et ne font pas partie de la version Web.",
+        "pages.d4722ec916c36606": "glisser ou utiliser ▲ ▼ pour ordonner les profils",
+        "pages.d4fe9d8548a4254a": "La position du navire n’est pas connue dans cette version.",
+        "pages.d5386bd82e57020a": "Relève d’équipage",
+        "pages.d54828eeb2ee6063": "revenir dans le coin",
+        "pages.d5ed3e44e2a2090c": "et {v0} autres parmi les",
+        "pages.d6d3697ef52964df": "aucun profil ne correspond",
+        "pages.d714a2c2d7f78d0d": "Impossible de supprimer le transect partagé : le serveur n’a pas répondu",
+        "pages.d74ba0b0e6d85b62": "Observations trouvées",
+        "pages.d78de925a8786731": "agrandir",
+        "pages.d7cfab3c32d024a0": "Repère",
+        "pages.d7dbbada1efae15b": "{names} : rédaction en cours…",
+        "pages.d8139bafdcf0d338": "afficher les plongées",
+        "pages.d881b670fbaca077": "Dossier enregistré",
+        "pages.d969baa927520fc6": "Composition de la glace",
+        "pages.da8187d488c1966a": "Oxygène (µM)",
+        "pages.dafa26c784788bf2": "Liste des champs de Seasave (SBE_ConvertedDataSettings){v0}",
+        "pages.db01be4b3343ff62": "Carottier à piston",
+        "pages.db18f17fe5320076": "dim.",
+        "pages.dc20b3d5d2cddf82": "Bibliothèque",
+        "pages.dc5414e0bf56f5c6": "Caméra · région d’intérêt",
+        "pages.dc79a80410c9d9c9": "Profil {v0}",
+        "pages.dca3bf165aacec42": "{v0}/{v1} ajoutées · ignorées : {v2} · échecs : {v3}",
+        "pages.dca8f84dac93f654": "la colonne d’eau : sondages, température, salinité, courants et marées",
+        "pages.dcca230522f1a31b": "près de {v0}",
+        "pages.dcd1d5223f73b3a9": "Nom",
+        "pages.dcd33cf5d38eeaae": "Texture, luminosité, intensité des couleurs et hétérogénéité sont des interprétations provisoires des composantes PC1–4, pas des concentrations de glace.",
+        "pages.ddb2e5cbcd7b1935": "En attente de classification",
+        "pages.dde8fbebbc93ceb6": "distance selon l’ordre personnalisé (km)",
+        "pages.de1ad6abb8b174a1": "non enregistré : {v0}",
+        "pages.de5236ee1561d9d4": "Objets",
+        "pages.deb3e366c077c228": "alertes",
+        "pages.dec0f004eaa07c2a": "largeur",
+        "pages.ded32129b05bfc16": "profondeur",
+        "pages.dfacd10042a687d3": "le vivant : mammifères, oiseaux, poissons, plantes, petits organismes et microbes",
+        "pages.e02f54320811fd1b": "; le dossier est surveillé",
+        "pages.e09008f4974d3204": "Pages : {v2} · documents et objets : {v3}",
+        "pages.e0cea039e3bd9fd0": "Le journal du navire est encore vide.",
+        "pages.e0f4f767ac88a930": "aujourd’hui",
+        "pages.e22820fcf5cd90e3": "Thèmes",
+        "pages.e28411a3404d21f9": "Texture",
+        "pages.e41f1d834710df8c": "observateur",
+        "pages.e41f85820609af08": "🔔 cette opération · 📢 toutes les opérations de ce type",
+        "pages.e45364b658fdec30": "Phénomènes",
+        "pages.e50876e696ee13c5": "{v0} photographie{v1} · {v2} dossier{v3}{v4}",
+        "pages.e50ce529488d0317": " · lissage sur {v0} m",
+        "pages.e53dac9f89ee8092": "↺ ordre chronologique",
+        "pages.e5562777f5e784e4": "dernier profil",
+        "pages.e597f24f4aae5734": " sont présents et peuvent entamer la discussion",
+        "pages.e5d5b971139eefeb": "navire",
+        "pages.e5e165ea54b51893": "Salinité 2 (PSU)",
+        "pages.e5e59d10f196504b": "fragments",
+        "pages.e5eae2271d99a903": "aucun itinéraire",
+        "pages.e6d9a8233ef32df5": "Dossiers surveillés",
+        "pages.e72014bef788bed9": "Température 2 (°C)",
+        "pages.e77b141e2388d56c": "stable",
+        "pages.e81a63d211338c97": "vous suivez {v0} — cliquez pour arrêter",
+        "pages.e93daa00ef5f0748": "Unités géologiques",
+        "pages.e9da50bc16479c66": "page du thème",
+        "pages.ea8001efadfe6198": "le laboratoire : interrogez Doc sur le vivant, la glace, l’eau et le ciel",
+        "pages.eadcedd5ec01e36d": "Ajouter au journal",
+        "pages.eb38ca40211a0821": "Rien ici.",
+        "pages.eb4a38ec6dc1d1ad": "effacer cette salle sur cet appareil; les autres conservent leur copie",
+        "pages.eb5cfb73677d98eb": "Lieux",
+        "pages.ebee3b57d3e9bab0": "ouvrir ce dossier",
+        "pages.ebf44d5d8d142770": "plongée {v4}",
+        "pages.ec811d30a89ce96d": "Luminosité",
+        "pages.ed5eb9a37e2d8231": "en cours",
+        "pages.ed658a0ab4a7a906": "Aucune donnée pour le moment.",
+        "pages.ed763ac7a693c701": "préavis de 15 min et chaque modification{v0}",
+        "pages.edb465624291e405": "note",
+        "pages.ee0e0c08095f7418": "Erreur de la page : {v0}",
+        "pages.ef3550a6f13c8263": "Navigation dans la galerie",
+        "pages.efd63f646209f611": "ressource interactive · aucune image pour le moment",
+        "pages.f053cefc9f544e4e": "État de l’importation ci-dessous.",
+        "pages.f09247433bef8304": "Aperçu de l’image",
+        "pages.f0a859a7ecd77183": "Image précédente",
+        "pages.f12fde684b2ed4c6": "annulée",
+        "pages.f20b6db009508832": "Observateur",
+        "pages.f26efd3574998b71": "Voir les résultats",
+        "pages.f2d7acfded4a9937": "ouvrir dans une barre latérale",
+        "pages.f3157fe6b942d681": " sont présents",
+        "pages.f329e3a317eee6a8": "rétablir",
+        "pages.f3ec8e880a46c8a6": "Licence",
+        "pages.f40d7f51f69edfaf": "lun.",
+        "pages.f40fd562f6307872": "s’abonner",
+        "pages.f4197b25d1dd1811": "moutons",
+        "pages.f45fc1dfdc96db27": "Champ",
+        "pages.f48165421ff2aad8": "Délai de réponse dépassé; vérifiez les paramètres avant de réessayer.",
+        "pages.f4ca95577b56fd90": "Choisissez une destination dans /Share ci-dessous.",
+        "pages.f4dd2c090ecd15ef": "type inconnu",
+        "pages.f4e8c9fafcc6d66e": "+{v0} autres",
+        "pages.f545fe7e666cbe0a": "Retirer les signalements de {v0} personnes concernant « {v1} »?",
+        "pages.f62c6abeb9378840": "Sur la chronologie",
+        "pages.f65419496aa9e119": "distance le long de la coupe (km)",
+        "pages.f665b70e7794848b": "Réessayer les photos restantes",
+        "pages.f67521d9d0048cae": "Non démarrée : {v0}",
+        "pages.f67cb1850d1b7e77": "Récits",
+        "pages.f6e0f16188d43020": "Vue de la caméra du navire avec contour de la région d’intérêt",
+        "pages.f71081fb0af48ae6": "Pause",
+        "pages.f7d5c55c6d3b2b59": "Piège à neige marine",
+        "pages.f7d94bc957deb737": " · {v0} champs",
+        "pages.f807f07af9999249": "Région d’intérêt indisponible pour ces dimensions d’image",
+        "pages.f82e5d44ddc42e5f": "Observé ce jour-là · {v0}",
+        "pages.f86c74e7c90e56af": "Glaciologie",
+        "pages.f87558869bcf8816": "Observations",
+        "pages.f8a9e5642d494b00": "Filet Tucker",
+        "pages.f8cf83a76a98df2d": "Description",
+        "pages.f903d47fe50eceb0": "CSL-JSON, pour les outils bibliographiques et Zotero",
+        "pages.f97e9da0e3b879f0": "Autres",
+        "pages.f9e4378d7a0820f3": "Importer depuis",
+        "pages.fa0d22242363adcc": " · {v0} plongées",
+        "pages.fa91ff493a7ab5b9": "{v0} apr. J.-C.",
+        "pages.fb9d60f69a60736c": "Mentionné dans",
+        "pages.fbe6adbf8a8a945c": "saisissez votre courriel pour suivre {v0}",
+        "pages.fc10a785607b6a35": "Sortie TCP/IP de SeaSave (hôte:port, ports supplémentaires séparés par des virgules)",
+        "pages.fc3cd8012131af0e": "RVB moyen (0–255)",
+        "pages.fc80b6fe040ec37c": "Masquer les opérations anciennement prévues ({count})",
+        "pages.fce182ecc225a516": "Le volet nature ne figure pas encore dans cette version : les sujets et observations arriveront à la prochaine synchronisation après leur publication sur grid. Le journal du navire est déjà disponible.",
+        "pages.fcf7ed654535baea": "heure du navire ({zone})",
+        "pages.fd0dd42cc4b9bac3": "Estimations expérimentales par caméra. Eau de mer filtrée = 0 %; les données en attente sont inconnues. Cliquez pour voir la région d’intérêt.",
+        "pages.fd11f75c77ed5eff": "partagé par {v0}",
+        "pages.fd22ac67438ab38f": " · les routes du nord au sud, selon leur point de départ",
+        "pages.fd572435b2d4ec12": "Pas encore dans le journal.",
+        "pages.fdeb71b569e0034d": "sam.",
+        "pages.fe1390825c9e7347": "autres noms",
+        "pages.fed33eed5cc86f86": "message · Entrée pour envoyer",
+        "pages.fee60d38cb840402": "Visite communautaire",
+        "pages.ff0139d07c592e9a": "confiance",
         "provenance.basemap": "Fond de carte : {layers}; lieux habités provenant de GeoNames (CC BY 4.0; Nunavut, T.N.-O., Labrador, nord du Québec, de l’Ontario et du Manitoba, et Groenland); toutes les données sont servies localement.",
         "provenance.basemap.depth": "bandes de profondeur",
         "provenance.basemap.natural": "littoral, terres et glaciers de Natural Earth 10 m",
@@ -902,1723 +2434,4787 @@ window.UW_UI_CATALOG = {
       },
       "provenance": {
         "calendarControls.calendar": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "727181e2e1586d2ca54157de3f85aa63268b8bdcc72197e0fd8ac921e16d22c8"
         },
         "calendarControls.filter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "124c45c63830e9ddb4a70ed32ba0b311d3d961ac31e0a893f3f5aba6e80fe39f"
         },
         "calendarControls.filterPlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dfe0194b6c13c5268fa3935809b79db807e33c90372c098002e6ec7abc1026e5"
         },
         "calendarControls.log": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "68b5fdd769581bf77774fd776846ab35f743141e660c0aa0944e59fbca97caa1"
         },
         "calendarControls.today": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5397d8be1e29249b78a1dad485a7dfc8cf9cbf685f8f7084a1dea271ab8dcd67"
         },
         "castsControls.all": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "663175a9c461a96d6f0252fc22dbb8ed4951e7a6fc0e31546823bcc69d6021d1"
         },
         "castsControls.allHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5aef06fe35a840ab07b405a12b71f16b1307ff147615144a20323d696b9c954e"
         },
         "castsControls.bottles": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4d2de0313fbf40cdedf8f290b50733abd17cc4679b74a37dcb9039285c7fdae7"
         },
         "castsControls.bottlesHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "acfcbb5700610bd97df2e417eed806df7a21de64c309eb3bbae99aaebf8e2b99"
         },
         "castsControls.clear": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5d7b40098782a1c4da2536feba807de901986d8ec9c14063fcf154dc8fc82ebb"
         },
         "castsControls.deselect": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "764ae74f349deb740545ebd8f6458cf7d5be332056d6ce92b234e95cc8c2f7a7"
         },
         "castsControls.download": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "49e0cd8db9595fa12ea7eab24332c96aaf24bb8155ea9fee4026ee093f69dfe0"
         },
         "castsControls.downloadBottles": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "789674caa85635205e5a862efe0ad4f721c937fd1862c6b3a25213c89521f2cc"
         },
         "castsControls.filter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "be979082ef055eb56168075333fab5e4c9e3d71503f8e7a450fe032d78d4346b"
         },
         "castsControls.filterBottles": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ca27b3491e34689f85cc5fa888bd74a30cabf0abc68f11fea74660b17e048ca4"
         },
         "castsControls.filterBottlesPlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7be971301a971c868dfaf1e57d35760e73a69c2b4920e698f9ebf97938ad3334"
         },
         "castsControls.filterPlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f44ebb2b20bc1d76101e60cf7844ed186b2ecd78e4d3110a7db0ebf0ba353dde"
         },
         "castsControls.fired": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5125b41db6fb5d1464b84860c803aafceee2b94becf7bd2b3aee0a5b9a36767c"
         },
         "castsControls.graph": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9fc8ec77543df8e92d5dd96669c21dfc33f09bfb6bbfcd941dc33e3b0b88415b"
         },
         "castsControls.live": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5871bc6d2f460a90a054ecbe3bd96008135044f8e97093ee2ce1f657f123e8fa"
         },
         "castsControls.liveHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cd8b14c2c091730d79ddac371cfae45636b7813c5aa31d9f851cc7868c2bc996"
         },
         "castsControls.multi": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f3a1bfdbd4bc7f5dd3f0b642625c38d59778442d1a579647846550944c110b41"
         },
         "castsControls.multiHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "46d8047a3aca29dea8990d504b4d448d839663c13547e84d59f7562035841b1d"
         },
         "castsControls.mvpHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "45cdfe45f0befffff2cba7125667a9f3095e48826bb8a24b372b65f584c848d5"
         },
         "castsControls.rosette": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8425e1ea2b5fec6881dbb90e5234ee305b2704b248b07d068596d8d1d4e5e09a"
         },
         "castsControls.rosetteHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1e59819c803bfd0d18798e345a185a60d712a1f89c86ebec551b083363af3539"
         },
         "castsControls.saveHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0616d89e91459c655819c44de5fc7b073c870af2a5462091fd9e08835313ac1c"
         },
         "castsControls.saveTransect": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f092d8bb3681c4e6e776aa7c2eab5234ff7f34b6cb311f3ec1ea56962cbe506f"
         },
         "castsControls.section": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dba6a7b56cf7083fa449cf5ebf367dc47556f7fc8e450685383e031fe19c3c26"
         },
         "castsControls.sectionHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e72212e6cdc9b7bf69f13d54a4cf48d6fd51dcf37c989febda879620bc0cbf05"
         },
         "castsControls.single": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "62ab2eb3c775da95a62c7e81d5911f9685537a9ec50d8412a890e15852e07a94"
         },
         "castsControls.singleHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "892195aa30e8dddb952516a3bc679ec49423124c8c2c521d939bf999e876e520"
         },
         "castsControls.smooth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "354c8bc5c8da5a6e2b56de7fd4d16d8ab097e990867a13b2d951e0499001fd9f"
         },
         "castsControls.smoothHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6f1267fdd64248deff14eb179d905589df5206a0804d7c81f7f506d08ca36b78"
         },
         "castsControls.tmHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8d9ffb73e6d0a2e421a151174a9c7ce64c627093652064ffc74c4a9c4bfa7c5a"
         },
         "castsControls.trsHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b533944b6223b8063472f83ddbd120a9613a2a5067a97ac167f368aff04d0e28"
         },
         "castsControls.type": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ead00d3aebdbcf93a5ff525ac56635833a1e61a851403cdadb9ad24d52a0f2ba"
         },
         "castsControls.xAxis": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "be74e418224816019771091dc66639ed1ce747fd9a16bc58954fc45ba7c96ded"
         },
         "castsControls.xAxisHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2e776d16e96113f4409fd0ae2cc8aada1b7e5b16e264ad165bb2afdeae34ff69"
         },
         "chatControls.chat": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f23b44fad04bf1daabe7dc9d5cb5e12374ae01d1a4992be126d00c7517ebe606"
         },
         "chatControls.close": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8aaff708e18d8ad4510ed65e19c15dd43bb71e016dfb022d6704d7274d6abcef"
         },
         "chatControls.emoji": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fd27220610820ce40e0e68642208c7dbf02b34aeec3ceb39e0a65b9d560e6143"
         },
         "chatControls.message": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "be1af94c8c00110d748345ea5e25cfc3aca39055ab9101ab1d8d551928445819"
         },
         "chatControls.messagePlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "41c41e3b573d0e847eafdb010448e603065a21f8f9662df5eb30ac0163e1f9df"
         },
         "chatControls.name": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6ffe58b85cad95f1e86f1afebc4ffba738ef6c5520811cb5f393f6c0234ffcb0"
         },
         "chatControls.nameHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4945c0c092ec97af9735e288ca1321447e88015fc140af4b4973eae1b6a2a5b9"
         },
         "chatControls.rooms": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0b349ab281e96f4190296618c3db62e5018db24dbc3b4562f2e41a7b955017c8"
         },
         "chatControls.send": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9e27aae53b6b23f2670ea46090b960264264ae9ecc7c5e1e1c55a49deda01c2b"
         },
         "chatControls.sidebar": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9050ef69abf9d37141750baa65543d0cb9610cc77a01c7bcff7badfdc2acd9cb"
         },
         "export.close": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fab9f8264a496eb4d8786f64d2e01455a030e7fb30fd2040097af1b39d5dd7c4"
         },
         "export.downloaded": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "07c3dc6f454931e1fecc33d8c09e5b2c30ffc1b0d38afe72ec880926d7e90339"
         },
         "export.failed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ab50288de0f1c19c77582b82e2e19710b9bbe733c88df4c084c88c192a5057d4"
         },
         "export.graph": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cdbcd82d1c3389c726bd7a1db652f3d41391a51750af59f6870cbe4443d027df"
         },
         "export.graphAria": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "987f0b125533fd58549e3625e1834ce58cecfa81c2a6f77b41510276c4a8d16d"
         },
         "export.graphHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6ccc0e1d01c6da9de09bc5cdbd9348fc992408d59919cc16debea5f74d3d3feb"
         },
         "export.graphNote": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "61e14dc8e3fc1f0aec56e2c1306d12b2984413178c856b2d38d9662871009ce0"
         },
         "export.height": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d2e45a3fb81911e9fc2fa724b115dce19ec74249f797ef0d7f337fd92aa61110"
         },
         "export.instructions": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0c625cc63ecc27f014ed6c3ef5b504f8dfbc30765612252cee4632b3afb28e32"
         },
         "export.map": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "af8156ce27f173343c173962b83bc0e51ca46cd637f5b51a9ff643d8a378a550"
         },
         "export.mapNote": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "92a9b42af49fb04f5e7828357d410740088c0d8f15deb64a5c51659fde21996f"
         },
         "export.png": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "18ee8f84824605884ff1e97a2873eba9c67f8f1117acb01c4c8b49eac381c186"
         },
         "export.preparing": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c0ad6badebcad1afe26f122f8d43b7ba578bf68e94072fae81c5b463fdaa18de"
         },
         "export.previewFailed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "469e80a6ef68ec826b7e8a04ad0f3bfc3f5914626eb0e2fce178b62f2658e8ac"
         },
         "export.scale": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f7dd6f7182e98acec1998f5200b0e491fe6f0cea7602a4b186fcd42aa24e6684"
         },
         "export.svg": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ca255af12c1234a7ba459871905e13faaf41e009b68a4e70135730852b59e9cb"
         },
         "export.title": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "57c79941d434f05e035e00be230274866b615faf8fae2a24c703763db8e5949f"
         },
         "export.width": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4089506e6297472e81a4b9038623edaed45f05af565e54fe6b9b432d5cf27756"
         },
         "feedback.appearance": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c8edaebadf8b420aefc9b3d563b947dadc41431f7aceb5851b23807f984013f5"
         },
         "feedback.cancel": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c0774c185060fc1366ab0c01488af84eb5e4e1f4f59229431e064de73e0de6c5"
         },
         "feedback.close": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d7cf5045c01b2eb981a4b2640ddf66c8de124d3874c0df894afd23a04e256eca"
         },
         "feedback.description": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0e28906e9396bea599ee3265497e698b7b396311f2b6235b0d0846a4ee030933"
         },
         "feedback.failed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "914181f747bf8bce18ac710b5fcdb3dc1023a50abb95f70e03cfe8b0d796dc88"
         },
         "feedback.message": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bcb48426b380e3a12e7b39815764401d7ec438714aee0856d73e3ba71eb404a6"
         },
         "feedback.name": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "054f5295852d87ef86f68da89049b788dcf2711aaee000d6fced5fe448a06cb8"
         },
         "feedback.open": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ce7780b9cd7ed16ab07522a43df16151da4d53270a0fc3fa4ce8cb933e6a7db5"
         },
         "feedback.retry": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d72e69c5f4186da2af85b3f984e79b0087c0e4a2c4db10b2088be8051a3733a9"
         },
         "feedback.saved": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "53650c5ce8e5674b3016441c9d262382709a9231ea2e38c10ff6820d957ec70b"
         },
         "feedback.saving": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f4deded561fb1e5e8f351ba312628db90c66ea0aec713ea97cfb5ee8deee5886"
         },
         "feedback.submit": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "92c6b4f43d18117532731f8af99383bdb59108fefc4765bb0a51e139a5f82e63"
         },
         "feedback.timeout": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "717c72bcfeda390d8a0ee5ae5a8ee5726d93891fc52c216668bcab7c2d0b3c8c"
         },
         "feedback.title": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dc2cb10466760ba8379f24ac1c596132d925dd77e7dbc5fad490549b97c3ee0d"
         },
         "iceChart.close": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d7cf5045c01b2eb981a4b2640ddf66c8de124d3874c0df894afd23a04e256eca"
         },
         "iceChart.concentration": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f51fc898000d27a6c96b5b605739a997dc07d2ba8aeffa9e973ec86c965567fd"
         },
         "iceChart.dayAfter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "63d5cb1854eaae22b6d622afd07c0c5c04e4351846710a72b47b2893b72afd0c"
         },
         "iceChart.dayBefore": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "406bea934e0aeee90210c695682ce9b403d9efe1f53408002f2909a8d2e51aa8"
         },
         "iceChart.daysAfter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "554c1ba7ac92de4b4cfdbe2591fc2fa786a79ab60a52ebce24ecbbc10feb6f9e"
         },
         "iceChart.daysBefore": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8283d6721b0c01c7386d5c7159723d8161609b22c79a7fb01fe7df5828b6433f"
         },
         "iceChart.eggLabel": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bdc216c469bf0f8abcf164619e433c8b60b8c16bbdbfb61207e57ea208a7eb7d"
         },
         "iceChart.form": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4bc29200ba36bf2e01ed39266c0754f099edd42510ddb1d0f2cbc3fc372d5761"
         },
         "iceChart.guide": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ecacab4579cabcf40c3a8571d1a2f2f6fc5bec10fc8aa738c48a7bb1d964b7e1"
         },
         "iceChart.iceType": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8d2dd8fab19784e9ca664bf752d8f3dde17703e72ea2113b5fbb61425258d86d"
         },
         "iceChart.latest": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d289c6e7ba8e539dbd4465b52579288c73b97ea0751ecbb472ac4f556364a325"
         },
         "iceChart.licence": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "06fce056c84afb2d1e3b71835e1f1b7bb46717dfc33d3d9496c9853af9ce47a0"
         },
         "iceChart.loadingImage": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c1fa485f3e11b114976028cf483f1b561d8514690f5ab709c1a1c9b38b0d8685"
         },
         "iceChart.loadingPolygons": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f4926077c8bb137ed716985d7198a458365ebd0b5e0876a6403c19f5b6715eb4"
         },
         "iceChart.noBefore": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cb2fa0fdb9efb803ce1b5e4505410918974bd02c3d8948e00930aa5d6355243a"
         },
         "iceChart.noCharts": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8c65c00cb053eaeefaf06e304bce4e858a6235e54028930db6057b2995f04dea"
         },
         "iceChart.notReported": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f068c5abb9b6ffd680f70e69d13bece341ca4fb65510d37692dd0e666795a68d"
         },
         "iceChart.note": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c7b0f0a77cb984b3eb7c82bcfdab1abd4f6dec53060a90b787f33dc3bc3bb99b"
         },
         "iceChart.original": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d5fa9cd6b6edd62f772d5515591573b3a09d1c3613d6f9296025b2e943d053c9"
         },
         "iceChart.polygonHelp": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4d5c0ac583c65c7223da53d6e1f90bbcb200636062c67aab11ad7b4cea518da9"
         },
         "iceChart.rasterHelp": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4e9598302b8a2c2e0a082773ec84d8b9605faa119c3566d2190dcb25abd20dd0"
         },
         "iceChart.region.eastCoast": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2250f5f98e99088dbb79b38cf7e2cdce754c7f28c60d0cbdc78a3d4bb6c40656"
         },
         "iceChart.region.eastern": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6feed7019422808eb83756804a4dbfa27e11d64b207aa14624245b8eea9ac54a"
         },
         "iceChart.region.eureka": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d7466d51c2fcfadaf6eb9258ec7eee6f8d5fdf8e9e8bf37844108e32c2154528"
         },
         "iceChart.region.greatLakes": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "93b74fa9156bcb357f415b89ad26b1793ea3c5553f031513dcf7251f25170da5"
         },
         "iceChart.region.hudson": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fe489d6e033f4d3c824e3bcfb6ebc2272f6f19bbcc021e67180faf3c286b5790"
         },
         "iceChart.region.western": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d1632809a392bd9304ab9371ba16a10d49f7c27532f0e4b49d6161ac594cae87"
         },
         "iceChart.sameDate": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "93c1208a3d5030c085b0527e5b224d346cbb73e101650c3a81adfde3c60e2b34"
         },
         "iceChart.sigrid": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "87bc100869608c8dbffa5697b850e4a9e9c8cad98bbc0f8ee12a9649f8799132"
         },
         "iceChart.sourceCodes": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "de0a6e9716511408a16241bbe2f8b2d33a66533c6ec03a6e93eb02bf69a9822f"
         },
         "iceChart.stage": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "eb76774de8cd5ad9805dee20473f58db4586d71a88e7d9efa5e54074d826518e"
         },
         "iceChart.timeout": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7c9482b38622cce477dc4b22f5a7ef3fcc4a6da2e1a73a263965296006780e47"
         },
         "iceChart.title": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d4f2955608cacab90722c39a319924e2403c18bb07779ef5d2410adcfc7df2f3"
         },
         "iceChart.total": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "65842179bf8735b3af7e2f5c41efe6309223cf3bfd2708e51b198fc4337a06e8"
         },
         "iceChart.trace": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7f5e24c89ef0e13b576859a67dc648f7e2763057703fe332b879434891e64af7"
         },
         "iceChart.unavailable": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b7941fa5a8768fd84918b00e09f5f92499a763fe682f4549c7f943f0db4635d1"
         },
         "iceChart.unknown": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "14c4849191d018fc8b00b02dc1e49d9f8b36a152066023b3b4c609b2f62ba328"
         },
         "iceChart.unknownReported": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4230b234def290db4186a0a3c4b93e1de9883a4ba5fee86af2aa8609f6d7dd4e"
         },
         "iceChart.validAfter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "aee0081a3bbc8551619c296b855d6907631d4b923c2034f139e72731e0f44390"
         },
         "locale.coverage": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bed3bb53122a1e0c66982c8ff94c1ff370b9d5f7e9d5e4a9e6112281587bde80"
         },
         "locale.label": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1fa24b4905737a8d50bea61de9ec162133f53321a179217978509e68fea74309"
         },
         "map.full": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6451fa4f00c6faa4c2e450595ff5fb4cba4b4c50ca7ced033a2147b603a904f2"
         },
         "map.half": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "de72d746b6ac5e5d3285542e35d083e15255d700a2ecb9d95b76a478fc7fdd04"
         },
         "map.mode": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1e7d781811a6a3aaf2d7dd81f8ca0fed1f6cf2c72bd2982d92da2493746dfbf8"
         },
         "map.next": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "96cbc9f1769cc0d450a6225906bd54ac1d7d638074b19d1d5148e2d3daf52f33"
         },
         "map.none": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9502d7e99171815e19c5ddb5079acad2c59ff1eea1b396866902261a2d808035"
         },
         "mapControls.chartDate": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0070093bc312c5915569a0dfa097bdfc7617afc5bf46aceef9c978e07e0d67f6"
         },
         "mapControls.close": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "97959247360c5f0b8faf336aea5eba322af7be295958302fdb8a3fe8c6eb8ab8"
         },
         "mapControls.closeDetails": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9386ed418c937020a88392ab09eb0240118803779a48e5570e33eb7099a9dcf4"
         },
         "mapControls.details": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "3adafe6e57c51565ac5976941daeb91384730b896019eee0d21f33c26b04a384"
         },
         "mapControls.events": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "298dd7c15c671332526dcc22c0d64d73aa377cb75ff0034ec6efd854b7404239"
         },
         "mapControls.eventsHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9b4428ea50e277150d6991bc6026b9b1eecb0087a2cde85e6c106625e3d56539"
         },
         "mapControls.export": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f372c0c181bb85b387df4bbe82500dcb90cf4115f8c2cdb67b25214a1995c22b"
         },
         "mapControls.exportHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e68fb1188c6eb59e382051424e3eb5c504a4d39687bd151de0f4fabaa4f941b5"
         },
         "mapControls.fit": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "79e4bc7d611f45a1e26dc9ca0d609afc651b6acfcaa4b48c9510aa8746ab70f2"
         },
         "mapControls.history": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4a420f71fffa9e49c8005d8a8715c7bc2f5de506928eeeb96a0dae0b93966d70"
         },
         "mapControls.historyHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ca64e116a6d1f398ced2f596d5644d215bc7599b64512cc8e9b38876e70b3bff"
         },
         "mapControls.iceCharts": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ebf2f854057e5e0141e7e035f0046f369ea745c9ef5b0f2fc42fe1bab0097782"
         },
         "mapControls.iceChartsHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e26f6bcab5d26b00f8f80b5222bdf0d8be725bc495b82d93f0cc35ba48796e17"
         },
         "mapControls.iceLegend": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d14af537d8c2b75e197b27db089c2c48e658dea6d02e2d71643fb6ea91054011"
         },
         "mapControls.iceService": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b3a221e776f2f48bc55a6454aab347c09f8feae7ba7d07d771b4186e3803c914"
         },
         "mapControls.maximize": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "36398f51b93e782b549fe1b1575d624bdf06080eb683f22581566ce92e3ad4cc"
         },
         "mapControls.maximizeHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c8b3f5b0f29f48cb7eda22743905a9b3cc3e98b456eb9c87f40c1f919d765b47"
         },
         "mapControls.minimize": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2958f1da361295bf783a5fab76bb67f517a60cb2315a0ad4b73d07be54c4319c"
         },
         "mapControls.minimizeHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7d7246ba2fe39c43d4b45cb0d02165e77ad88f726e377b2eb84bbb809c37a326"
         },
         "mapControls.names": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a526d38d3b5fd3e311136ed973eaf3e4a3a190bd116a8a356a4c61c5457e4548"
         },
         "mapControls.namesHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "99e9f66c7420e31b977c075e92ef5d0109dea9d0806b5ce67d72f2d3e838d638"
         },
         "mapControls.nature": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "701cd0238c91724a48556fb7a0b05b5c35d56d64f8f24496c4eb4fa3d27033f1"
         },
         "mapControls.natureHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "af48c69829d59a685ded928b80c43bf832044b409bfa133499e4d2ad1c7e9c77"
         },
         "mapControls.nextDay": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ef3a19517d2938555d40d86908381f5a0e2406fbd07d72500a2fea05a4d16165"
         },
         "mapControls.nextImage": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e50caab78602ab43b56cd514233b2534db1438edbfea56cd8812cfec4bc665bd"
         },
         "mapControls.opacity": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e22c1012f8e4f2e30f97b8dac2f7c58d1dcd6ba9ba3d8fcf05b01b85986cc452"
         },
         "mapControls.photos": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a9e5b4262fdbf3e9976ccf6fdb6266fefb140f7f2779b217ea073e3a8efe415b"
         },
         "mapControls.photosHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1d4f15d3c73ee4550aea0d17507984d551aedfec24783aadd57007ecef07f0e8"
         },
         "mapControls.plan": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "007a63bd7c1e2b55a093eb99f9ff09df21ebb194e901aab83feab04097579d4d"
         },
         "mapControls.planHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9c6bf8a1beea27686fc341a7fe5e68ef7f99696d1f034328d56e95cedbc95a21"
         },
         "mapControls.previousDay": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4e52c975e1425a8ca752b71e3e7d7e0cca91fddd8253af676b46e19718fdd58c"
         },
         "mapControls.previousImage": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "422fc81726ef0ea55943b6066f59cc97ab1c1443e8380669739c2e2bbf81b7c4"
         },
         "mapControls.region": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9e054fac4c366657285e662c46af52d190100dc9a6f4feefffb0a1544fd6fa5a"
         },
         "mapControls.reset": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2e56893af6d21cdc66ad2c70413d7baec54ffb2152d832410dfff80a61028006"
         },
         "mapControls.retryChart": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c37eaef3254b9453676bb8f65b5871686ddddd39237ffc614b0d5f4355e538db"
         },
         "mapControls.satelliteHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0a57c02f561d1d213d6e648afae11fe1ae3155b067c203c174c0168b71aac497"
         },
         "mapControls.scale": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c2d6164ea9ba878ce2b84e19ef3c9612ddba00cb80550b48d96369207a2d9fa9"
         },
         "mapControls.shipLayers": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "239caef76b6bc3098a691d6f5cec20b38e0f9fc59c03d9c82a21ab8ed33ea1b1"
         },
         "mapControls.stations": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d18dd3f9da1a1accfbf4b91544331c7ac6d507f50f351d840ba9f5dacd032e8d"
         },
         "mapControls.stationsHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "43681b12104876fed7244834ae3289fef7f2cfa727051dde42f4f6f17fe03738"
         },
         "mapControls.stationsShort": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5463d964d4d599d9a3ed6fc66c89e9a9c3d5e78fbdaf5925b0945191cf4cfef7"
         },
         "mapControls.track": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "43ca97343510d96ef8222eaf8091ed6dc1ecd918808cd07f37a0ba1aa5e11084"
         },
         "mapControls.trackHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dc2f3daceb625bf12e4ee018a614ecaf3bef35ae19af1132aafaa805686ecc31"
         },
         "mapLegend.label": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "32fbbb2b6f65c195d5827ec97b4980d5960aa92ff21f5ecba2023b82e63e2d23"
         },
         "mapLegend.range": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "865ec5a854f97e899f50048ef253d63ad8d4a80af219c3d56a54abb299fb9ffe"
         },
         "nav.casts": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "140f1a302bf74cb3d59ed96108696ab3bc0af6e3c32134124dae554443c1787d"
         },
         "nav.chat": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0adf70d5dd00616bc4a78d9209f566ec31667ade9fe377893925b0835ee8fbb0"
         },
         "nav.chatHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f23b44fad04bf1daabe7dc9d5cb5e12374ae01d1a4992be126d00c7517ebe606"
         },
         "nav.extras": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a7d90efdaaff500066cc16f499b15a7b34ea86a3d50c87a32f5fdf472de7826f"
         },
         "nav.games": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c3be8704e916f83d0e22ec6d8b210bcdeb2e0afbb03867c15cece984cfbfc3b2"
         },
         "nav.label": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "229c1f769b91b4acf9d869c35a6755a5617260edcd3ae508559a980a35d37774"
         },
         "nav.map": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "af8156ce27f173343c173962b83bc0e51ca46cd637f5b51a9ff643d8a378a550"
         },
         "nav.mapHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a73bb45b55e0182a301b2e58395761798003739ae6d1de2747d472994befe8f5"
         },
         "nav.photos": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a9e5b4262fdbf3e9976ccf6fdb6266fefb140f7f2779b217ea073e3a8efe415b"
         },
         "nav.photosHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a5009e8e0cc568d46fc01b39dc166aefba425d0a09c92c57a7384bafff0d24f9"
         },
         "nav.schedule": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c044f2c18e86a7303f5e1b3b34469e4b9674e82d9021d16a4c038d93f465c05f"
         },
         "nav.science": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "514201eca61518621e8cd4538895e621394ee497064a64f5f4617314cf1b4513"
         },
         "nav.sources": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "267b19cf16b7766daab3a293014090996f6cda3b1e4fb0b1d4512ee748782883"
         },
         "nav.stations": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d18dd3f9da1a1accfbf4b91544331c7ac6d507f50f351d840ba9f5dacd032e8d"
         },
         "nav.underway": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1cc64840a7962d0b69e82f717ac88dc8e2eddd6af3f4056d1883bb0884fa112a"
         },
         "nav.wiki": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e31fc311a4e657e93fefa9b6434a9f5f08a94553cd50188c51f37b2a8c932b80"
         },
         "nav.wikiHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "53f3e0c3f0b944772c6ca5d1576f9f2049ba7e238b39be08c0a1be856cf2805d"
         },
+        "pages.009a8edd9a274f52": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "75839277d072063eadc4936c927606f678ecf553553c6433cde0bb0b86d7fbdf"
+        },
+        "pages.022100af42289791": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4e3497d1f85bec643df96025cf40abc0879937135cf2f7f1bc3b5484db2e4cb9"
+        },
+        "pages.02fe1d590ee931da": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5600ea5126372061a4955eb2bfcc1c90979c43fb230c5fc53c4ffc6c3207d725"
+        },
+        "pages.034313ce1600a793": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "eb96546e6e2205d5559a56eed3114bbf8c8a9aa56bd4072b75b26ac7d2a46c06"
+        },
+        "pages.03494afd4248c42f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "66967c3c8be87735db13483ffcf1634b42ed82f19718e488c07e01322ef6d23b"
+        },
+        "pages.03867aea70acaf4c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2c611b1bef6310aa1d67696a2915e73226bf63a62842a959a8292b533841872a"
+        },
+        "pages.03cd175b6554aff1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4bf843685c18d8dde2c9625c0466111bf92d5a7bcd4dbe06dcb7f2e4cd87b5ad"
+        },
+        "pages.03e12025cca65954": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9a97d12108517e6f6fa045c77bc6d7e341473a643662869037a7af797fa75e63"
+        },
+        "pages.03f75d69d652a98e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "79bb8145f61f7e9e638f67353bc1245051117ed535be75a5734ba503501796e3"
+        },
+        "pages.04352507fd1cc41b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bd9288bdebc670500e16e580adac5fda6d8233e737e91bc259517cadca69e075"
+        },
+        "pages.04be6dbb797d1f4f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f34aaef147884f872792a67260df673e901727378800fbb3790a9e81cad2e899"
+        },
+        "pages.05343e9845302eb7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "90fc64195972fafd281e48fad08e72110ae816975649efec66e63b1e8c7bc719"
+        },
+        "pages.0578b438af18675f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7ecc6ac6db1498934c2c87723b265d0507eda7a280c083bd541aa17bcafc288c"
+        },
+        "pages.05a126f95630959f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0df6637e59bd9a58184a2488532ae16bd796c4ef975c61baa56e95724d8d4cd6"
+        },
+        "pages.062f3d6dcebb394b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1d90bd55e9c4701a129ff24f14208ea16870725dcbb8f08e7caadf53d0356363"
+        },
+        "pages.0685824f630ccc8f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "619fe11e466e4d24913f9935cf9dcd3fef1e7e075da5e587220dd05bddd8986d"
+        },
+        "pages.072a56956c6a4714": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ce5a8b36cbdcbf486f315cc2ad48c72b61c7d3402c38cf8f633de6126310e21e"
+        },
+        "pages.073c1634c496cdb6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cfc31bcc34ed7f4cc7895026ae8a54f0494f73757e9f914d0f6ed90f9bc34f51"
+        },
+        "pages.0844247b432912ea": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d3f327c03eeae88f81644ba0ef60634c9107a158d917b8ab1e742c183cec7d4"
+        },
+        "pages.08bc837a975bebb2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d170ef4a68df47ed96987eac3c1bbdaccd3d0e710227e8026dd81b43a4fee711"
+        },
+        "pages.08c7ee7de2124efa": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5140823c52beb65e161899ed4c0b196668a831a3b780a871a4785eef37add5bf"
+        },
+        "pages.08e58be1256d79bf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7789245e2795903dba9ecd354fbf7eb511d1c6866d182b41c865e376097ff72c"
+        },
+        "pages.09821b19441052ad": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "569bfe2628e7f42fbddc24be60ad68ac872633f405ccfa8aa525dc0280594bee"
+        },
+        "pages.09f05ffbbc0a6b04": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f0289a87887177592cd5af7a7b5fe5b65acc317841a52120797bc874c3030fdd"
+        },
+        "pages.0a040c7f8ef25d76": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "92a3228b45ae1ecb21bf13b755f8cdcd066406b9bf45ebdcde7b9477316b7786"
+        },
+        "pages.0a26f41abd00f95e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "18d844d9dfc4136b3caac812969a534d6557db10be130c97d22a7d5e6e90bfcb"
+        },
+        "pages.0aea8f23338523f0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3da7714a88cae54b77305f2fee30dc3deb634b5d514acd27ada56f358a5a6418"
+        },
+        "pages.0afdff4af32c5761": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f2658fbe6543f396f8cb2137a6bbe1e057430ccadfbc179c6a9b2d58241071f2"
+        },
+        "pages.0b4cf4c5aadae0a6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bb71427ef433a3262c5084a5afef5af4524ad755d36017db5955fdf80edba046"
+        },
+        "pages.0b4fceb51bb721d7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7583af4322a66d92abaa02b7fb8a0dd90bf12acff05714d56820fa8e4832e804"
+        },
+        "pages.0b707e48a42f2d90": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2e28c1a13b1f8e4189f1016bcf24a5765bc5e089bf1c871cdd418047271d5fee"
+        },
+        "pages.0c109e62332e2b1b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "df30fb35e270e7e93dddf3965bd02e72d5c963a2d51780a8f6d4428f1d0e7bf5"
+        },
+        "pages.0c214926762f6d8c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "083df13245a3fe25f3535a468648ac9840279fb86a78a3a3616115c2320889c9"
+        },
+        "pages.0c712d87571a34c4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "36c133a1552de361f6fa5d5f82ec6692b31d45d5b96332ea431d008763e3b4c2"
+        },
+        "pages.0dc3965ee405ed5a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b84bf43df44eb4ae592344522141c8957c9a9b8d5036b1adee7c2ea83e77450b"
+        },
+        "pages.0df6f1cad36c49da": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "827e0c6ac9936b6914c7689b2bdd41e808231e5e3a50f60094cecfe4686541b2"
+        },
+        "pages.0e04cd10f9afd7e5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7e1647f9ce51509e9895491789fc39e59a5180f4a9d50997fa27e653a48b60f6"
+        },
+        "pages.0e570ca6fabe24f9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6165ee130f0082e83c5dbe4e93c65bccc46ae9edddd01edc9586c280109ad96f"
+        },
+        "pages.0e76960093379060": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4a420f71fffa9e49c8005d8a8715c7bc2f5de506928eeeb96a0dae0b93966d70"
+        },
+        "pages.0e87632cd46bd490": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e9a1b6946539eafb0979c6151fc2848d28154453cac162b73845b2a28144c7b4"
+        },
+        "pages.0eb650f10c5c5a55": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "82111d7e76158f03546c9cc02a1845b2ca06d5d900d56a1448f956ce4392123a"
+        },
+        "pages.0f044feb6ca7d676": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "47a812ce52a75916e9fcae46a83dd21eab779afcf4acef78a5916ff3a193b33b"
+        },
+        "pages.0f4168490e38b844": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "052fdc28470c05f0617024d9d4bfadb983883339541598fabf68e7f0c171323f"
+        },
+        "pages.0f50505ce224077f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6f1976ed2d6afc323ffcda382e46573747c082a645fec10f71a70390cd9eac16"
+        },
+        "pages.0f82aca66af91493": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "30f825decffd0dc7f2f4a7e3b65fd154fb6bccf6bf5eb834d02154107cdf4d82"
+        },
+        "pages.0fa9e71f0805ddfb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f345e9bd7721b67da857aac61b8c653a09fd1e717551dbed18b0d36572ea0de0"
+        },
+        "pages.0fcab6e49f7b0e12": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9fea42d411ac4205b97114584fb220881173e57297f2dde125ee417cc107cbe9"
+        },
+        "pages.107b90ff3c1c35ab": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e9211e9f9969ad348874d9f49dda34d6d762377b702a0e454b1271dcd082c3bf"
+        },
+        "pages.10c4e1cbfd08e46b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1b2ed57ac2fb9056ab9b7f317914f452a16d5bf2a62b7149a56b87973657cb48"
+        },
+        "pages.1136887b48e9c564": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "efbb29480edc777711513a7441c0ccd86864c228a14212577067e406c0d7d431"
+        },
+        "pages.115aea7bfa2185c7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b6334806220f485270fd5063d68fe40a6afb3cd40a2fd7fff693e3b7f7c8b8a8"
+        },
+        "pages.115ccf9610656d3b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fe3f73c2f472e0abdb836e22b727d313945b0d4699f2ce5c5bd0217d495278fb"
+        },
+        "pages.1174bbc154b18b75": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4e4274b89dcea05977dc2eb612ee4dc6eb83069ce762ddc93b103c75be1b4660"
+        },
+        "pages.1189d37778569eaa": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b9eec25d1c49254e127a97e3f0099eec8445acf127e0f11f2fe7b1e37e5bf943"
+        },
+        "pages.119e66d117ae8f0c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9f080469585b3c95a66ff898f589fada324a6cf12791690593ab7092d173accc"
+        },
+        "pages.1201f1849a1bb81e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8a2572fca8a077db364d9cce841762c53faefcca0b544d9f4b37bcf324b07405"
+        },
+        "pages.122ac99e8677a8ae": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ae43428816b5957928947ae467c1c65231874e84a919e0ca871cf675b0df23e3"
+        },
+        "pages.125466b821c6448a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "52f4ba0ab12f01311247079e43a7f79a897050e1dcbc9f26ca28b4c0b21dac73"
+        },
+        "pages.12e246bec539375c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "edd13d8fa500e2a9399f7afcf1b72dd67020d4ca96b910a52adac38c5b12e39c"
+        },
+        "pages.130011756125313c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9cc01faad79c28daaa443d582cd5f5177d925c9cb57b11209b542fa6764b0504"
+        },
+        "pages.130ab3f910dec4f9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5833a439a5adc22ae32b2a105bb4b04b499f06f64861e82e2b8b0fe51234505d"
+        },
+        "pages.13183d47884423b3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cc5448534d95a08455f5ba939ee0685618b0445a42cb00a5da47efe78363f73e"
+        },
+        "pages.1331275bc537b4c2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3f913eb2574a9ff5f196388b13af09668001697924377581420f3f9a344150f7"
+        },
+        "pages.13985426c0879573": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "430edc7a365d3147761e12d29a8af60434d81206b95438afcf38fa32341c7c70"
+        },
+        "pages.13a30363eb940c6c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "482cb692565df0943ce0bc6cc1e8bb6b51362a60c5de5b650e8caa9f0db29bd5"
+        },
+        "pages.1407f17df7d1a605": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "518e216415c29f034823b6da5dab41b57446261693c3a6cbd8dae94ff840d1f8"
+        },
+        "pages.140bedbf9c3f6d56": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "30a0924a3360be687d1df9fcbbfdff62c01bc0fd14036ab9076cf7f451568666"
+        },
+        "pages.14c29f95db259c77": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b0a486a8c438d2c3ab7e0826bf746fe39b70d727a8cb5664d5647fe0e0282864"
+        },
+        "pages.14d34edf50ef6c87": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "92cf9044e79d262f0c4e6c61a8a53540fd5b7227a0b120af54c91f6ab1be1d54"
+        },
+        "pages.14fce21c65897e07": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "79ae0620408155a2e72b54e0fc0f18451c82226aef3fea62b51215db72f64b4e"
+        },
+        "pages.1500405573373612": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "250cceb9c8e86a14403b684670cc7acc1b27995ee62bebde2b5027e0dce6dd7a"
+        },
+        "pages.1516fbf1d4dae387": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1ef83e31965f5e56219afbed8dbef99c22219da58ac59066bd959aa19cf5e9fb"
+        },
+        "pages.152f4db8f31a90d1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bbeaf694625f28924268ac9b57e72f4abe8b613fb5f30e7450f3df8b5abf25fd"
+        },
+        "pages.155f816c0407310c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fe9973322bb4c612b0b45713e15a9b24ca02776741d37741f442618a3100dbce"
+        },
+        "pages.15641d776da60df4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fbbd77101969f24be874e3081ac2e482c719a5125a0463c315327e8f856051ee"
+        },
+        "pages.1598c481fdf5fae1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ebb05ea2dd376dc0e54bc82647cdcd07c840855fb2eb68c4af9f9fde2c882f51"
+        },
+        "pages.166484a88c2688a2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2ecbc97ec82d012bbd7a2d1b9d4f1d62bea8ec291d2179e4aeccc5ec1f3a1d3d"
+        },
+        "pages.16a7d2b94a9ab725": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2d5ffe3990cef2dbdf73f6c1c536dae53479951af48e1e0ced8848ee171cd64b"
+        },
+        "pages.170062ed40915d72": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "92ad59742b3ef7c8e13b1154f58a2953d01f354df1b0b3accf9c524399c47bce"
+        },
+        "pages.181fdd46fc4a7246": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "98ade16cf21887101748f3ac7ca453fc41e49eb6ae3a48cae91f1c225d4fc000"
+        },
+        "pages.183383d6bc23ecf9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5e6655999d000dfe7f31b0014a5edfc64479c095f09a7cac9d5335d49f268cfe"
+        },
+        "pages.18980cbb612c9c6b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "67e07fd7ceb44b9695d97fb5908f94c1712ab5c4b79efc20704c9ecab24b62bd"
+        },
+        "pages.1942c24222fae6d1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "447a6a88061f27b5d724edc1478f7d86c8c5d0ab4af51ff80a526d4d09119a11"
+        },
+        "pages.1958ce23cca396db": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d52db6b6b7144e348fbe3c1be1ff393b6386cba63a02604c1c29c763e501209b"
+        },
+        "pages.19ace23f956719cb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e593f1f4f9410b311283d348c8f9436680b0338f5a66ae041a4f8ae504038dbe"
+        },
+        "pages.19cf96fc7bc1ce3a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e1f2ede4542e3339ae0311c9f8ef2e2b39acce106536d50fd2c38142daacc0e3"
+        },
+        "pages.1a0dc227b5aa78f8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a33d36a7f9de58090eccb7d54fa9cad26d0fea0e4707b0894db01b774b944476"
+        },
+        "pages.1a5611bfcb70d17e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "032b6f7cb347b6398e8879558caf377caca52812f7f51917ac6e57335a4e7dad"
+        },
+        "pages.1a7529ab14fd6195": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e75e25ff30ff2e207cdd8e9165ac5eacb5fa53ca56c1de5b7b42cfac5cbf4381"
+        },
+        "pages.1a84458321d6a387": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fbd90f2512e9def49dfcc73dea80e054cddc55dee4d870ceec0e9d182e7cc2a3"
+        },
+        "pages.1aa41eb37828e832": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5c2d630d48c7d2e6aabe6089d97c13ddfe1d870c5eeb124fa78a4ad8178968c2"
+        },
+        "pages.1ae812bf464ce4c7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "798abbf9682626f736da98101f9e19f00c323acf16331e3a4ecbcea2b8b154aa"
+        },
+        "pages.1bfa7cb0058d53a8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "22e8a01c305aac75194b13556c04422890b6321e4f1c47d816f943ab406e9399"
+        },
+        "pages.1c1c8f677153323a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "db3afd38bc69738f2f2fefe35830109caae7c5efdf0b9a95751e73ecc0fbe804"
+        },
+        "pages.1c4b8ff60530a1bf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e80bdeda7b7626265acc5efb01deca4eaa471ddb6184a9cf859e0313526e9f4d"
+        },
+        "pages.1cb9a0d8b741fd5d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dd811d512934150d86445b9251c1b15dc9fc4b0299f0f256205540262b75ce40"
+        },
+        "pages.1cff02b9cde94631": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a6a0e8bf816cbcb9c7f19b0bb4d7ab16d8ecaa58110f5c86224b62abd28cb484"
+        },
+        "pages.1d9283d848ea941a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "03fa3c711c3abd7a72387c2b602c3ac99332afadaf0c401b57c520ba83b19809"
+        },
+        "pages.1daaa38f33cd860e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "411ed77afa450e987af364bc0fee3d61e1cc2a53f9f069cdb2f5620f8bce7c0c"
+        },
+        "pages.1dc2adc71fdc6add": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2b7a735e6f503ddb06e028e292324ca146fd7ff1afe3cba316274f085464694d"
+        },
+        "pages.1df151056c8c592d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b1681bcfef6b3106c554aad3b37850a8f5b7f5e85446b0ce63c3f704d957d53c"
+        },
+        "pages.1e6245009d677035": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "48b9699523a596b6bfbfc09919f57e2279a7c33dd08e6e6e9f76f4d7e8ac18d8"
+        },
+        "pages.1e80a09b5207e374": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d9491595b1e18ff191582e83ae1729cc13defb3443d6e165daea86cd3413a683"
+        },
+        "pages.1e95c3df798b1771": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "00a84b32f6c3ae976bbda1d15b1e2dae6731c01d12805701861c88b1adf4963e"
+        },
+        "pages.1ea59e15ab7b5c46": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0c15906944e5a2b258edf2c1211a67381e83d02e94b40117b6dc050dae331a25"
+        },
+        "pages.1ed0b446e0b33e50": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bd964dd2916b8dbe05bcf3a9b25d82e0855cd7c90d6d638172d5a8fd980e3dab"
+        },
+        "pages.1f25d33066b92af4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bea034b6a809ad0bdd5a06071be39bed93b0bccfdfcb8262d8ff629c6d4dcadc"
+        },
+        "pages.1f914c4386c0676e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "64a117658687895b4fafdea39c36ec65a9172a8c31ed3b24e80fd96bdb8fad1b"
+        },
+        "pages.1fb561bcf13a11bf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1ea42074f000022ebce97451890eaf0861e1079b51ebc9c1602477dabe0702ea"
+        },
+        "pages.1fcebdec11222f9d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ab8e31bd993ad9e747697e9789fb7cef2af544f3d8f74a16dd1dde4a829e1dd1"
+        },
+        "pages.1ff9a5f8b4bd530e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6312020ceef0ea4985c73fd82271c820e7c577d78dedf0cea1164a597afeaca7"
+        },
+        "pages.200d5e550cbca47d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a8ab99a163ff3c663e40fce3f522a23bffcac28d35e73f95a4e98e661ebdb769"
+        },
+        "pages.2031be00edf5f5d8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "99e3e1e81a92132463888fd278b657a832f1e154f2d96186cd33ce622f34133f"
+        },
+        "pages.20ac95a440783c19": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5d990048f2332707eb6bec64c5c2635c6ef3e6fea2c041889061a7117ac7a7b2"
+        },
+        "pages.20dd35463a5cd047": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "af971e379520124ba1e24065d197e536050315cbacc86310875402e9f74af7f8"
+        },
+        "pages.215b2f215791b683": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2d4b815f38af0a68fa22a7e99ccc53c0148ab406beb7e6af890e16e56ac0e516"
+        },
+        "pages.2194340e961ab3bd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2e9c75472a6ff2d8191a82d92e7a614b0d5c14e144adb573502920030f554585"
+        },
+        "pages.21b2eed1e328a2c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f35467d0872646a6c0c6388a2305875fde70a3723b9c6144306e53f08fb98086"
+        },
+        "pages.21b3be752f52de62": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9ffd1a0baf17b31e5de62a2c8fff4eafa70c94bff999bb480d27ca2732f477dc"
+        },
+        "pages.21bffccd4f5d79e6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "54bcc32964a116ed817210c0426f9615f1590e9439f5fdc53910ccd7daf16caa"
+        },
+        "pages.2245d25ec0254f2f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "49dbefad475d0dc32d6600355450557da40269cde40db9990c28d3926fe60102"
+        },
+        "pages.226bbb8ba2342b46": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4072f5705f30ec1954e14b8e33e1fa559c329c1481512c62d2c2a834b79828c6"
+        },
+        "pages.22e919dd71885a5b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "22eccfc243764d3280e78473c6609afde811032d522b2cd4c81f1aea81d453a3"
+        },
+        "pages.2305f9a93e7e3775": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8e36daa06267ca993a85271b587be775c432f2d5ecff0ca71501df3f85cd3af0"
+        },
+        "pages.2348f99874421257": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "35ff74aeea25311f4fe759a6b762c8cd41a79adb23dd5615b92cf215175a63e5"
+        },
+        "pages.24626cb1dc15eb75": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0e6615a24e65e0a8c4ba4ec7d75b50504d7185e2ae308e86d3cfd6c3262f24e8"
+        },
+        "pages.246c9aa43eb5384e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "17606c863b4391a1e68e7ecdb70034aafad9cc5b8be21ca2790a807554380f33"
+        },
+        "pages.24b309ef05a800b9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ee1c8e712684b105f12f6c3eeb52ab1867b7d1d8c0fc1520e4ae6f886e92e93f"
+        },
+        "pages.25781429f18f9f88": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5e46196c97c9b9f4b9c86436fc656e89fbc2a35ada40864383e63000fda1a06b"
+        },
+        "pages.25b165146228c719": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "54a1048f250e71e918986720cca06d5e0564fcf1d750313239d765a17532319b"
+        },
+        "pages.26d9b3b1f470ca66": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6e95f7210811e71c398e8d5674bad6943b772c5710a59e853d804ee262f3f9ee"
+        },
+        "pages.277aafc886922dcd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "37c9b2706ff4b218f95f2f4fe8267f14168bd639ee02c7290bd45bbad9624891"
+        },
+        "pages.27873558b00fcb84": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2842c9322d57b04eb07bb21644af4034298d4228e40006947325783a8bd4ae1b"
+        },
+        "pages.27cfa197e044ed68": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6988f5612f94b30e581b40f0d8ee229e798803b2e76d032b628d38ca3e8a6242"
+        },
+        "pages.27e789d55ec5ccc8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1dbbb16a6f2f6a595b5a0b3c966f0dc849af8398178839aa34cbebe7958107cb"
+        },
+        "pages.281c7066818e5645": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d9649905cb5840bea98dfbb3f9596af9eb887da5a5c45dccee5245b71b00bb4"
+        },
+        "pages.282bfa6b4079b6f2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "20b6ca863ad38ec3e50710895f243fc87055b81d6ef28ee259466dae7c7f9d0d"
+        },
+        "pages.286bda0d997c8009": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b557ffd04d0cc93b8231882962585d0f312582a40a374cf6f6f77e5a7e683320"
+        },
+        "pages.28867ed59d573718": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d541e76d68b6c698fe386082faeb4b07bb909b78ba038027c9a8268564efd005"
+        },
+        "pages.298624751ccc85f9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "83df8e222f7e5187d3e4fc952f21fe93e36193a8ddb21b91934d417e6065314d"
+        },
+        "pages.2999a8e2b16d5bf1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1576650722efdcacc6c3c7db507b98c6a87e91fa2b5e7d427501fa3300fd990d"
+        },
+        "pages.2a1a6355ed7e30b0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "05ae21f19aa234790c32054fe2c26ad5a52a78c21b97d38747e76c02e486c5ff"
+        },
+        "pages.2b4b2eadf7b2aece": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "123eb098a72052d21c62c9991ab3d36155d7e0108039495c2497f3a8f5d20aa7"
+        },
+        "pages.2b639f5f3fe0f87f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "45c9fc7f1e2671331998a12c5e884cae50c0aa810c736efb161bf8bdd721ebb7"
+        },
+        "pages.2b70854526b7a869": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3bd2b12b2cfdb614c2c05cbd21a2d1e8a85c919b82c762cc41b49689d2a827c3"
+        },
+        "pages.2ba1eba95fdf0902": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9a9d0602cc65350d2004fa472ab5a10e628e7cf71afc2bf35c177f3e0ddcf3a2"
+        },
+        "pages.2bec0153da8f8918": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e3e00a6a548bed17046888ebdce6067200e3d14cff741855ae77c48c801e79f4"
+        },
+        "pages.2c41a2181609b1a1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2452720ab9f1f7bad99b5e60e7a86e572e52fc36edb217e5fc6dee1f6e327a9b"
+        },
+        "pages.2c4561b1bd59416b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "09f954f0938fd652c2f1cd0081d2326ef961133affa77d2710e4d583b702cbc3"
+        },
+        "pages.2c4bef225b218e2c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6dbb8145068668c26dde59cb6ddd55925762a6dac5995f2254e0c36fae11accc"
+        },
+        "pages.2c635b368009f7d5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9223268b093a85b548eba23af727de872ce2bc65d3557da188e4b11272096421"
+        },
+        "pages.2cff9baabf56ca00": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "177b228ef7d8cf7a01e22cf6ad51e352f3432d0b38dcc6d70d522be55140dbf7"
+        },
+        "pages.2d2c4b6f7e573acf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f69881ade02173ac5b37bb2f9f1ad5d72f50a09bf594fa5ea6897126da2b74e6"
+        },
+        "pages.2d5e8600a4fba66e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "294c1d09adfde168ec89af5c4b6b5706a406ad85b293b9d318614ef3f5ec8661"
+        },
+        "pages.2de5247a982a1cd6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f2da702ff6483a172304f43e53ec1d6ceab378baee710a23de2e1c7dc2456e52"
+        },
+        "pages.2e12c729cccf7bc1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "927db5e586ae686905f623afdd8a6c78ecd5993b027d047183f6a0ccb5ac9087"
+        },
+        "pages.2f04d6855ac0ab3f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "43d03525b38fa33546f7e322a181085726900101add675e92f8cf7ceb562aea6"
+        },
+        "pages.2f05e7541d123e42": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "61224210376252f8a01f513b5138ac3c16791a50592685f0d37aa63edec001a4"
+        },
+        "pages.2f546e465f038b8a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "095c6be2986edb4d9c78e38450df44d58ea2fa2036534892ba583a331071cd4f"
+        },
+        "pages.2f55863e032e37f9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5b4c4a9c42de00d9f57b04d46ee391fb280b93343b8ae6f8a25e0a49d7c626da"
+        },
+        "pages.2f59d4b8f473d38e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "abcda904499033cb2ef87692f9b90f9706fef6d000ae6d434947010bd13b1c89"
+        },
+        "pages.2fa21517ba5fd27b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1f6c288a92dd53224855ae0decb2a65a3b2f8aaffe36700fd600a867bcc66c00"
+        },
+        "pages.308a267453114d9c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3eafffa79555b9bcc5703a148e5aeacbe2405525a84fb1ea49f5909409bf9950"
+        },
+        "pages.30e950fb0aeb06fc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ff932aa7466e27d8efdb169f39ce261d2be4e739cb50ab11b397154771a32854"
+        },
+        "pages.30f5934e62499bea": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "de5adcc24151a982b13be126c0e6d07db81b1f0084c3d66a41c9a4dcde04cb6b"
+        },
+        "pages.310ca503ef36f177": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "84e37a928e8ebb3635ba03ca35c599cff9928b9eba35523f970790b8029a6354"
+        },
+        "pages.310ff200149b44a3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "97959247360c5f0b8faf336aea5eba322af7be295958302fdb8a3fe8c6eb8ab8"
+        },
+        "pages.3143319cd5502e27": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cbbc7edbc9bde83ac55c3b182702db5fb6abc431ff5108253b2db1369029d4b7"
+        },
+        "pages.314ae71b8c8dc9c9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "680bf7875d0b55eb640207076e7b95230cd3eb66759cfff0d32625b3de5876dd"
+        },
+        "pages.318d4e44fa3151e6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "721d6045e3e01cbb48811ce41798f7dca8818c00812886ab518f5ce25a9f48a8"
+        },
+        "pages.3194ed03862a55fd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8df0d052705342909e4861bbe60ee25f6acff9036b3d32b2a0c39f7391a309f9"
+        },
+        "pages.3223e57d9ea5de4e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7d16c7f0a4c57768d42720cbba5da7bd6504108cc860435c0dfa07b19aae1dae"
+        },
+        "pages.325e9f7b656e6135": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9f062300a51b04be117485a0bf6b05695be70781256ca9449e186f9c0b58048b"
+        },
+        "pages.328143c3c16d54dc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7c472affbfb334fe2d23d6261e9c7f8ada19a7a5716f5e16420c324ba5638f00"
+        },
+        "pages.3297e071e7639648": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d4245a358a50c130f510566b242678ad7dbbe8df0a760246cff6cb6596e337e3"
+        },
+        "pages.32f3b45fdf19ffc4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d7eea7459f7d0f71743d53f9d35276323e6cd95c1432607524f157beba6ae43f"
+        },
+        "pages.3316348dbadfb7b1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6f3658822a73dc4c1d09ba64a062d0d1ef89fb250f5f5923c3a1755c2f63b1db"
+        },
+        "pages.3350122289eea311": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a5591a5b60ab63856fb008678f56417aa05ca3d26130670f7384f3021cb77c31"
+        },
+        "pages.336074805fc85398": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c894b67229a62ab939dfc6751a724f15796ea75e507dc495312e6f01a9d44f4e"
+        },
+        "pages.33b93476cf597a33": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bbf063c475b0d107605ddac47c920394773ea795f9ac2d25e3925d19c36d089f"
+        },
+        "pages.33f5e62de396abb6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b64344d19293b419fda0613a5a0336ef12157f34597058cfd65ef14644a99c67"
+        },
+        "pages.34fd3ab8d65068d6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e48697007a2ad9d766d0a2b67326dab5426088dc1bb060f6b19fe9fcfc7e824c"
+        },
+        "pages.350be3643ce78043": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "42c1cab9961a4276dc916108ab7556ff294387b9b2a2e42ef0646f0f7fe6d6bf"
+        },
+        "pages.352cfc749e55222e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e87e6bd9a7d6d66736a798e522a38d4420f932e19dd9e38b8e347570715bfcd8"
+        },
+        "pages.3547cb112ac4489a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "aea417d7da77838ab7f1c3245068e7b3f7f1a0be40a30c8ddd99c03f7d6c9584"
+        },
+        "pages.355801a28de02d98": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e777edf26e04b98a5a0922694d7a07f6c0775bf0817423c469e70c8aea6d1808"
+        },
+        "pages.35e0d0360a0af6d1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8ddd7aeeb37d23d80477501902bb8a8151dfef4277f766394cd65997163eeb48"
+        },
+        "pages.360719440e92c924": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ea30530871f8814d43e818c1bd7b22b06997f29e4390964e9da1a6b1bb70e988"
+        },
+        "pages.3660315a9af3df25": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "861424bc7e8c804146c9e7eb0b516385deb10194de8c499a610211cee07832d8"
+        },
+        "pages.3664895579f0a7e6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "99926cd22134f3db4c679056a93501a7ed9a27dd3028be1a72de2150fb7bce40"
+        },
+        "pages.36887b74f7a93c6f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "482ef1718bacea8f7f5510de510a6397a9fcc1988654f79f71720306bf3de4d9"
+        },
+        "pages.36cb81396286c63c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "19a6bd4265b51232a0459200bd3339ee4c2720408b594523597c26f558c0e17a"
+        },
+        "pages.36d67c4fc158725e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "124e180bd4c57a0411edcedab5a93ea52ffdd4248413708c652a2db0e959176a"
+        },
+        "pages.373ede1bd510a97a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0bcbd6811f72830985bf81837aeb7b003ea815b762ae7e6c948f474d9563148e"
+        },
+        "pages.385cfdbc00ec3203": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f5ed203d0a3d577629eb40b1223fe79f193591f7ae9bcee1af637fdcf2457444"
+        },
+        "pages.387d96a031862484": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ebf23e4796bba4740dae179570217c80c8d807d5ff0e480ea7fe3eaefb4ab696"
+        },
+        "pages.388afb1dcec1e796": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e8802eafcaa2bdd9606a042e8340759dbd3ec56eb7c152292ea15f23cc490068"
+        },
+        "pages.389bd9a6782fe030": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "46e1115d98b8d58d7fe3715d1b85ca53fd0d87e9dd33faddb26dae26731b4a38"
+        },
+        "pages.38cca6bea010af8a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "83473d7d2ef745affa7c4720b40f8067942d9a60843bb757f35bcfed8b73338a"
+        },
+        "pages.38e3607df174e5f3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b50ff1b370f785cdbb3541d282876c293b212c341ab1ad2eff84f9dce7843a10"
+        },
+        "pages.38f0bf30197b182f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d94ef160a26bac518d4c67c8841361e520d6283cc0277a8f12eb7cf2824d0462"
+        },
+        "pages.39e0f5efdc39ec10": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8b5658567f285926d924ad4ec20a81d403258437c56e11fd6eaf3cc6330f7a4b"
+        },
+        "pages.39e36c36e2bfc590": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "aec8bead8f5c373a8cb3c1ee7b9ecbececd97ad854cfa0ccf14202c536ceb3e4"
+        },
+        "pages.3a757c6d4218cbda": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "91ed43fcd430ff2a946ad39481d27cc6340617a7adc8bce52c2c0757c01fc2c2"
+        },
+        "pages.3b1acb93404de012": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1d06726b7de61b03887c7d8d22c097aa7541081114a3dc4f1af498e56858f37d"
+        },
+        "pages.3b73900b8d29f963": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e3abd89f854ecdf2057ff5efc6248d1047d33d11db8b2ccbec8aedd1c2c45cdc"
+        },
+        "pages.3c1091f0d39e5e69": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2392ee173b3ce37fb9508bc363928123b4570cfbeb51675e79a1010ef471c5e9"
+        },
+        "pages.3cb30133ed1b1fe6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f1d059ed2b677abd93ef2849e5dcec4407cbd03936d36ea6d16d88617ea6ebc6"
+        },
+        "pages.3e10134259ab3285": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5e1db3868e0da40c22b90b954d6c15d44aa0d110404689c1ab55c63082aa3fe3"
+        },
+        "pages.3e5b90ae053ff3e7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5785588a36f89781d63a5e073742021fdaa7f9558cdeb79b9158c46fc414b223"
+        },
+        "pages.3e8f1b9fcd487c52": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "79212fceaf46ff9012708c6b8a11d0fcdf175ed91775a09644cfae0ab1e75a29"
+        },
+        "pages.3ea5bb4ae53b1c00": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "456c3ac7ad7050843ed6efd332f59dd665b5d683eb3535a44c6b5b1c616d4dd9"
+        },
+        "pages.3eb40bdff9eccb86": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0e82b996908e1ee44b3fc51f65eab08cf9faed5f07b361f09eb4e314ba002c53"
+        },
+        "pages.3ec2008b04aa3ec8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6fe1b7bf2f6dc611cfe1923e803eb8c8418b172b9febf9a149051d5a84f209a6"
+        },
+        "pages.3f1a2c73953d1a3a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1a434c9d0c2e1b5df551a918c385f72dc7ff4f2f7b180fdea773e0bb635deeb8"
+        },
+        "pages.3f54bcf820c1238b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2ace8a695adc5a059970421e993b04be848d05a98b669f8042609893f7b17c1b"
+        },
+        "pages.3f996df8de74b85b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b2eadd680af2f2179b593ae4d18c6f158de52838af7405286ae56154f86627a7"
+        },
+        "pages.4043b0d02cbdf281": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "119afd72b0a34dde3a44c975d2d2152cdd4c87658b829dd6fce228eea1afc04f"
+        },
+        "pages.40458bfe83b031b7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d742b91fbca72e2038baadf3049d91c488164613138cfca30ae8572e7a1763ae"
+        },
+        "pages.4099a2c228b17acc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1e59e9e7b947046a0d91147dec516bb478f95a2920467f1838747e6b61cf3ed2"
+        },
+        "pages.41426fd2dfbef5bd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d13ddaa4a8806a141947f9b7469a2892100357fae2140673c8d361cbc03eb501"
+        },
+        "pages.41970d6661b348dd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7bcf539566963c44e38940cd8fa96db82639cbf5569e733af43eff64dc4efc27"
+        },
+        "pages.41cf6794ba4200b8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "073171f7f5e1438ae632cb252bda87d19e1bfab1a0ba309e91bdd645886f24ea"
+        },
+        "pages.41d624f9bf379d48": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9d5c8a4e10c250da03d9493c3c116fc763d85e3a60bdce250ae5b95fa2eb6397"
+        },
+        "pages.426efff5200235a2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "139fbedbf06c73c205b1a831013f7f68308b269a3fae120ba97ff57f4233db6d"
+        },
+        "pages.4275e3786215385b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "60234e8a5c11b03538274735ffb6d90ac150f351ca84b684cfa923bf009786de"
+        },
+        "pages.436d201fdbc72ab9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2b0b11c769b5da2d4028163bbcf6e27664356d523532e60e55bf98e3feed0eff"
+        },
+        "pages.437da9f58f045cb6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2aea1c60f372b348e46613cb691707b3431792f699f74ae3605e0b5c0bc8ec0b"
+        },
+        "pages.441d39221a44cb6d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "65098c0b8841b4b005b67388755b27c7f044d6d9ff5157a5b9241674ea2bf18a"
+        },
+        "pages.44678314632642d7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1dc6edfe60ffeac13e59cb7ef36cb5c0db4aaadd91d1ce16db79d09dcd0875ae"
+        },
+        "pages.451215ee74092d80": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "604e14ad846b92e546188552b0a08a0959e84db5648972b5562d0b71da471f38"
+        },
+        "pages.45989de49fb7f66d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ebc7bf40f12e237ea22047135a6283ad553d28145e437123173175174e8a40c0"
+        },
+        "pages.45f7859648d9536e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7f8aae30d669359c2fb95c8d32dc7485fbd5b619de7db6b3a0affa67152dc5a5"
+        },
+        "pages.4601ca97bc8099ca": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4a33010432e4030c34976782393198e7e529b291d281c264185d0d45c9f5803d"
+        },
+        "pages.46085764706995c9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f981d95fcfd5c4d2422cb607eb5e7e69dcf2dde10c3fe1f1ddfa3f551481ee58"
+        },
+        "pages.46234d79a919e6b7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8e32942f83facfc013355c0bfa0369b7f9a9ac970819f4fb963714ac9c2d8cc5"
+        },
+        "pages.462fc526de8ab1c3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "aadad7b6aa27a215f1b4c2899c3bb1210904b68919d3c97f5b73b515a4e6b5d9"
+        },
+        "pages.46393f6573e4995e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2bc1849731639046d09368db5852f87379b52c24886122d0fef9f7049ea67a55"
+        },
+        "pages.46624cb945249939": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bed6994cc55476e06e7301fac4c23cb01696af89923c3520437a7c2dbd167a27"
+        },
+        "pages.4662c556e5b9ad1c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2736adbc0becc6f1926a87922dbc20a51e11e6ba5ef90e2fd6319303d04bd53a"
+        },
+        "pages.469e93b518d319d4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0d27cef64e4f75abf4479a82219570d13efe643dc7a9ec479f8bcc337ebe8b78"
+        },
+        "pages.4758a9bf0c2b3fcf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "44f9a9ad206ce0ee38a88698907eb13d2fcb9e1e918b3e1c30aa9ca36599c720"
+        },
+        "pages.47e908691c1f5010": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "278910681acf52c0628b1da706726db1074f90176c0feac3ab645d8a969168a2"
+        },
+        "pages.485150da6a173a27": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1eb4f9f37e9d3e7ae4e00bd8c448ffaf0f909394051e8746f3b1e80c5bdd6043"
+        },
+        "pages.48b2ed9682896933": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e18db529e36de80d5e79c6dc02e771d63e06ddcf2501ff5e16206f4ca2b718fb"
+        },
+        "pages.48e0ef1e260d7b6d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "63f7d7ae41f7a0eb1114209ec42f0ab9383900a9b34f685250c1b2ef1f41389d"
+        },
+        "pages.490b7567ec0072e0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "71bb43888d511ff2021eeefea46c1f157c296fc926885ff413c2e1078791df8e"
+        },
+        "pages.494ca78f7374e46f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9e9715d52410c86f17b09946c1bb2c7ab8dac48224542b6df591413838a28522"
+        },
+        "pages.4960990121f22e16": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fda0bb77ac91fb7a6f193c7947ab1bcb2b27cb2f3eabc930490c88393960c453"
+        },
+        "pages.4975878cc8a1f73b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f0e7121c38507cb2cad3c30f1d23be85572e0e0e51e05ab8b992a06c62e7ec02"
+        },
+        "pages.497f6e6d2e54b567": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dbceb3055ad98dbfe06c100d32825935d7e841c994b05e43103f7d603c4c57df"
+        },
+        "pages.49febf4604a554f8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bc7c63ef4305c4c5d3e7ebaaa2ca550b57fe202a666b5759ee8dda40a3969943"
+        },
+        "pages.4a04d6e7bb315a27": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e69c23bbfa88effc862e7b78b4c015235f7d5c2b3137647e8e1b798d50457d5d"
+        },
+        "pages.4a754148b88a68e1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5b7913205bbe43101863ad5b60ae10b467d4b604459841ac93661dc358af3822"
+        },
+        "pages.4b0ab9f9f992bdf9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "25d14f746a090f85fb4010f84dbc22220366bc695fa8130fb08041a22191a2c3"
+        },
+        "pages.4b6bad1ea4905ab0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d4b910b8e22a7ca25b0a7133a0cda08d0cc990566a1e1d831c2a9ba2e41df448"
+        },
+        "pages.4c149b191dbab4cf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "90d070d924b1345d91d2d64e0b8977bc21a7dae0a8bc517b28ff5540f7f69062"
+        },
+        "pages.4c3f03bb625194b7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e8162d767ffdd90a0844a2b57357dc19a804fa73aa82a4d44a0903770511043f"
+        },
+        "pages.4c4e436f9a453c77": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5f8e5ecf2f63ad1fff9f81d63952cfb1aa022511b6e4e9d2977c93b4b038c539"
+        },
+        "pages.4c8692dac9206cdf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5fe37503241e317f2c4322f424b90e3c5b571260c31a7c77e66bd1eb2f5c1812"
+        },
+        "pages.4cb0b250c6250d52": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2971a5bd3940af03f0411a51566dae95bb0abf5fc50b513980906d6a2150c4fd"
+        },
+        "pages.4cb4ea25583c2564": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2992f9abc1d6e757b4b15fafa0b37e9d753f9d0d34e72b9b643e4fae8cf4a098"
+        },
+        "pages.4d327af41f96c23c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3940acae5272eb4f4c0bc154b02b0ab7bf9a774fea1211bf7942bdfb3a796bf5"
+        },
+        "pages.4d5ccfb86e516115": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a0d155595b9b666e4d5c6a95b1c617b057b870212d057bab41583409401a7f75"
+        },
+        "pages.4d65c72b83973371": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fb7ed72ae1271c8d5baad4695f8deb09d5ab58d76844985a10e6dc814fa9286d"
+        },
+        "pages.4da69789232ebb31": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d60e48518c5c2fe06476b9b55d0a0b2b3d8bb9853793521fa68255e954f3634b"
+        },
+        "pages.4df96d3a4505b128": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b91c2debe6189647af9efb56807e3ba39b6f7903bea4038a7c3220e88b8ab05e"
+        },
+        "pages.4e1f28fc70610f11": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ec55d33cdbe7ccbd6cc3fb6e45c5fa3120195f546c8d691d804178305408d6dc"
+        },
+        "pages.4e4632bbe56e64fb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "17f9146a704abaa943884c2bd58bf03bbed50d94b14646fdc66ee420f740f43a"
+        },
+        "pages.4e64a73f31de9de2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8bf4cf5b5e4e3ede50cca448e052290f9b91d6e02941b2c3da347e3e58213f67"
+        },
+        "pages.4eeb9335576b12a0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6a9dadd556c90016d922230b3803136dc29acaccfca3d219823353868d85a3aa"
+        },
+        "pages.4f302ec94335124c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e0e514cec6cdda7b1b3d6c36b569ef82c49171e45f34f77f4d40c9bda2f82b4f"
+        },
+        "pages.512b07c166e7f90b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "714f1b870cca6ee23bb00e80274e9ebfcbb34d736559747be56b9b0ae1283b7e"
+        },
+        "pages.525f2f103bb29c7e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ad8c33ae2a41160e7a2dd227d357b7ef3c471e443c81ad89fb549461d98096ce"
+        },
+        "pages.52abdcd0fb406ecd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6b88d688768847f43fb7cd4ca267fe8d65e452fe18bc417660b4a88eb6489ecd"
+        },
+        "pages.52e48c371494add8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e19d3835a3d2a520d5b5cd3446a7d8d7beb1fbdc112487edc572c5787a88b220"
+        },
+        "pages.5418cb6eb6746abe": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "04537f0d36449fc43c71db7c475938a5f32848ab1354be59226f8b9d89cc9f78"
+        },
+        "pages.546940feb432bb66": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9d631c6dcb92d3078c4a916a0d76fd1a9fdd73989fb5964cbed896e326568db9"
+        },
+        "pages.547801ae4e93ff14": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3e89fb9873745e525f687b1fbfa9add6cbd79e860b704084253c3c2ab4a342d6"
+        },
+        "pages.54cda0543a402949": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c64eea9fb50d25816e6919b4696155fea6258149555e3b36a066c35b8abc23ca"
+        },
+        "pages.552127973f8424e1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "730c418d8748b19bf5f6a00aecfb9ee5ea173b81e3a0b57d9e28e8c7ed59a644"
+        },
+        "pages.5550ce1e131e8f75": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d6325ad59471fda4286fee794f4ffd2a0c7c0a2f53cfb07f7c563c83cb2b7fd3"
+        },
+        "pages.55efb93d341ef10e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9b8c95820f32b0d8dd36b4b203024bd8c1fb294280223de07a9de4ca9e5fda63"
+        },
+        "pages.5650875646bee33e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e3a05122705606db28651dab2da4df2efaa3a30aa60e9baebecd4149c1ce2373"
+        },
+        "pages.56630f4b80ceb0f1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c925d4d37ecf051ce603cfb150e96a6f0376ea68f13714b05615fdd7c260682e"
+        },
+        "pages.57230d1daa6720c2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a837c646ec3dcaac2ce3f0440d67b53760a81e75a39093698693a4ea3de04bc3"
+        },
+        "pages.573850785e407d7b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0d8599c753b95386a660369fdbc93ff5dbff9a2aa599356b03ce92d9137d8337"
+        },
+        "pages.5830d6da56e44d4f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "33d230c49b9c46003b3bba9bb23a8ea4970657270d277d676773fd49032987f7"
+        },
+        "pages.58339f45df960408": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7c0a58f1477f8a7ec1ce4a9d0d1d4ec2aec3f285f0746877acb0deae5d55ec39"
+        },
+        "pages.59cbdb2816208517": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2e59a84659718b76ce44326dfea71c88176a2d38939ddfa02b21597a728f9775"
+        },
+        "pages.5a044a1351ce03c1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0e98c182dba59526c91da9b5c27f0b00d8f1e1e276ddf385365539fd5e33402c"
+        },
+        "pages.5a452459503be70d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5451aeb61846edd4e611e957432ca04d758f651ffecb87c94ad12ac6054cb656"
+        },
+        "pages.5a99e746347b5bf9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6f5e5512c401ac683e23ce8fb28dfade74287b60201e3bcf8d491c299954da2c"
+        },
+        "pages.5b7e6bf2dc4a32a6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "12f3c6c9d85294863df47508b4e53c504d212504bc2e2438a836feb18101e404"
+        },
+        "pages.5bd724fab3969c96": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4223100f07eb700348773ace59a387f7e22d00c6df0bfd8902f3c78c2544cceb"
+        },
+        "pages.5c3ce8d496e2626b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e7743dc6252d98b02aed5a0081bb01f3c097bb395f88972fdab1c433fcc3ca8d"
+        },
+        "pages.5c71b8cd7822a418": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bb61e81a37addcdbe9973683b505320138a1c929f59ab8a00c3bee62fba326bb"
+        },
+        "pages.5ce44dd77dae789f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "756844bbc7a4b1cf836afc783a37e5b995f0beaf78bf478c5d85649d58c58a7a"
+        },
+        "pages.5d1670193536d43f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a6d7a47173ea408b001fbcbf22c57d30dea8220c3e4b64a74272a6a31b3648a0"
+        },
+        "pages.5e3147ab51e0084c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a9e5b4262fdbf3e9976ccf6fdb6266fefb140f7f2779b217ea073e3a8efe415b"
+        },
+        "pages.5edd3b1f5d3b8966": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6abdfa7cefcdb9a213532ebf99506a674ea6eb2b7795f7a3e6d2497582a6305f"
+        },
+        "pages.5ef5ef0364b6939c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5cf7504d9781301d83347546cdabc01a03c9638ab5b36c0a9203911078a0d1a4"
+        },
+        "pages.5f369686bd9e7606": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9f3c9233ae46e5da3d0ee0d6ccc8e955e83fd3d476493b827ea63154a1e31bb7"
+        },
+        "pages.5ff56800f7898c03": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "26359e73c8584b8cb0d48c4033da9632db91b6b8a15e53aacb493e1778cf4221"
+        },
+        "pages.606606668b367101": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0076595deec6f6c013287a15afc500dcb7ba3c45b61ebbb8f30574cc92550e1c"
+        },
+        "pages.607e651096291705": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2fb409daec7d4b2c33b28dca12b77e0a7bbbcf43d88b392f86ff3d18b6d3582c"
+        },
+        "pages.60ae4bd5abd3bd13": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7fad710f175afeb00d1f497cd2962a8d09b8705aeb78a33f61a8919ff2cbd06a"
+        },
+        "pages.60f308c1f079c289": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b6283694f65feda56bd85802b39e8fc61c1af02bb76c5b4ac5f438e2e90151b7"
+        },
+        "pages.60f55cbfdbdc61d3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "214ac28385bbbbee8cbd004cd860cb3b489e5760a98e3444febab6dda4e880b8"
+        },
+        "pages.612ca4821653bae2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4da603e8b742d4098384d90f273399bd0f626e1dee3bba612258ab83e3f0f5b4"
+        },
+        "pages.6144cdc4cbc52ef1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "46a0580e7271cac1eb15fba00b4beca25c47e4a0528974dbd8683f664b6e87dc"
+        },
+        "pages.6150f7fe79c4deef": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "590dcbb83f2b797400858e58ead1f6896830c3348754f20b83d921b4d96c9b7d"
+        },
+        "pages.61695ef35daa3cc1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c699da8d1120e26c3b452cc68b1cbf91aa34b69cd8a974e7cf1d3336f7b50082"
+        },
+        "pages.61d73e9ff0008b26": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0dc1a4afbc51e3c84448a38826990d55fcd819cab8769ac2bbf3d006eca9427e"
+        },
+        "pages.6267eb92dbfb52e8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b7a5cbcca99d3ca497ca4f0e14a6df18e5d327e1f16cc05f81e2922f96c05e30"
+        },
+        "pages.62a2fed3d6e08c44": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "12adac54ac6f7140109391b670b3cbcd51f083d8f5ee62ce26857c794ed67d36"
+        },
+        "pages.6362b3d21b11ef29": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e616d73a03a98e8633cef05f6f0fd2833aac94dd61a317911d1736dfc04237d5"
+        },
+        "pages.63d39b201b616eeb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8eb7d6600700a980594c61697d8b067ea7a0ae5d4de0068d29fefca4223e356f"
+        },
+        "pages.640c2380690e2137": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "106c42c8f57a0403d180f28c222487000e6b834eae3aee1ad085ddec7fcc7fb2"
+        },
+        "pages.649f0e5314000410": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d8f66c1cf073b6a6a3a321d92aadf74c652aba69aa7b34deaff8e38c15f428d0"
+        },
+        "pages.653aa4c034f7667f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e16ea43d20470707647adf3c2206173342e0ec7335327206a9267707a5632dc3"
+        },
+        "pages.653ad8478a323db5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e79a491f9862883b241946dae929056dd9ba971e16055b9b6017afd0f9d6d694"
+        },
+        "pages.657980dc1fbd697d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "feb910612a56c29d27f46decc651f95d2a20e24d22a49b3f4d4c6a9d7cdac11d"
+        },
+        "pages.65afe1537c5ddabd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "55f28a4fb40ab6c16c49cccef383fea88033e65793381d18f54dd82194ad18e7"
+        },
+        "pages.661ff40a07e037bb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bc904a659b36de44adac0db64cddf094c7528aed6b2626f2f01f64d0c97bb7a8"
+        },
+        "pages.66936de3e986716c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "074a6b701da2e2227d2dfc281fbb0f2bb942b0ac257d68ad25494d9997822e86"
+        },
+        "pages.66c475876c2bb759": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "31da7b8d6c5f15aac05275c0d5ab9d5743d4c8dbff5ff40a7303cd94c0db7117"
+        },
+        "pages.66dab40cea1dea5c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "58a8584e4913db31a7866e81492b4630d5eccaf3404095375bc5249547575379"
+        },
+        "pages.670803ab46a99495": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e464e1ee3956bd0e08aed746dfe6c8db6481c97f5421cb35451f771b77c129a0"
+        },
+        "pages.674fc4afa9e75877": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "427690977eb1770b1f567de5a4a9bc26ee32f44bcea9b73fd7b40dbdce8b1ba6"
+        },
+        "pages.67e605eb007842fc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4c0726340f1ddd0e6a00c9011490d24ae0a380adba7691b315ac07fdef77c825"
+        },
+        "pages.68969b0ccff55b72": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c629eff334af20b29aff88f918c34294a9727447c08eb35b86cbe7e034dbee82"
+        },
+        "pages.68971283841aecdf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0036e68889501d062f412dd5d856ef33451b187c63e042548966b8ed0fa6ccb6"
+        },
+        "pages.694050382b6961b9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "409b62ad7e5dc4dd01d2e233c4aef9f0cb42f4331205c452b9056e2e5c2599fc"
+        },
+        "pages.69b5c442dbf98bee": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3436b1829944dd223931cd16e9a85a6aa57525b721d26337c58afa5c53078dec"
+        },
+        "pages.69bb0178a84c8298": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d6c3a8bbcd52e1125fb486d2d1bddb827970f6bc2c65dc80aa783728e4c38409"
+        },
+        "pages.69dbf100b46a548c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4d95daf7a1a0bd6021506f2963b6091249ba5e2806527601c24602f02441dc6a"
+        },
+        "pages.69e4a02609393ab9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ce13cacd6d055ec2c962a01b1ce748e2b34c018fc166e90ec82b07a8a828fa1f"
+        },
+        "pages.6aef76c6cb359f6f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "09a86d3bd7e0dd0740f408cb020348a4333e5936a709cdbfa01e4b9c089b2fab"
+        },
+        "pages.6afd7d06ff48ae82": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "386e8581e3a40f0c5b9696d40eb29edc9a6da953e9ff7d6594208a67dae6c8c9"
+        },
+        "pages.6b2923e0d3ac1560": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e3fd92dbc01059268bbea457418e002cee82544a6cdddf925c7ee72510328b54"
+        },
+        "pages.6b4ca2530b1a7e95": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "677f931f4a3186fdbb1e57d6e1b11b2b30294cf3902ee0e373bdec881d1d4c2b"
+        },
+        "pages.6babc9a17d120bf7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a6e9bfb81148f72a433510edd74c3de5b44583fc44d983c269da5253152838af"
+        },
+        "pages.6cf20dab38bc6692": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "04ffc0ad6f323124c5fff031218b228e7479edc39d563792ce4c3dc5d151107b"
+        },
+        "pages.6d0a8f2e8eb29b90": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e04e9bf7cb6f30ee4c5ab6d95e70c351c4ab84da0b5d6ebde267c75781bcd5d1"
+        },
+        "pages.6d3add25948633a5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f2020efd42fb80cbee6d21efa0ead5639816588bea36369f8658523727ee90de"
+        },
+        "pages.6da0633528deaa01": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "add8076723729edca952b047527f439296ee90a741f1e4a935a6dbbfc2251813"
+        },
+        "pages.6dea9f2833032c42": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e8b005895af3b633e7c03699a36f5d5d837cd90a3a4537846ab0fd6d72430cf8"
+        },
+        "pages.6e3da9a2a9be2af0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2d8a2338e053f20fc3f2764ded5d0b33f547d3f4fc78ede179c7c23647169bef"
+        },
+        "pages.6ec675dc06f63b40": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "622710ad55ce85b3c0e472bb241f18d8053f43c3d2b3ab853999539c50d9d665"
+        },
+        "pages.6ec6fd018d8f2587": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2c06a115de902743df285b76d2508bc8d3dfa138fd077ff12707ce81b6a0abc7"
+        },
+        "pages.6f6cdd1488b7f202": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "69c8b53ca54d7a095d8ac37b2b0341f9390330c5c3774c53bccbc2201ea6b30b"
+        },
+        "pages.6f8f5f94a7c5b0b5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3f7864129cf46e383f93c612ff43a9ae9b277713b78052a84288024b82f1be62"
+        },
+        "pages.701008902fbdae6f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fbf25bd6a3345eb92f09f62852d8edce26733df2e7c3bcc4c0e4c346abcdcbf8"
+        },
+        "pages.706f0fd28dff4dd7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "adc8dddaa29353d8d87eea265bfb4664e85db03e6918b407b3735aad07ff8019"
+        },
+        "pages.70b49dd024b048a1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b3402cd0c3c1dbe647e9664010abdf3d35be2fdd9fd5cec15565af4c5508306b"
+        },
+        "pages.70d1108086ae0c39": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "98d05c23c86da3323c829c39c341bfa1285261a37b2a0c0574d67e465544bb5a"
+        },
+        "pages.71843f6b5b4296b7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "19cebab3504bff101d2bce4e5b5404f102809bf9697ed147bc6755f06a326ca3"
+        },
+        "pages.7255c8f0c852b753": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "eff1065ac253579b78c249bcbb8dcfb62c3ccc9787bfd57c2098f673a1f71ac5"
+        },
+        "pages.72cd96e4062019eb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "af120935560bf88554f102623ec6504d094acde1428cc5b0499324b69c5dcad5"
+        },
+        "pages.73a78f135698be34": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0d04689e24e45e7f322871075fb57103a05643b0e4ec9586083a21b8bdd7eb1b"
+        },
+        "pages.73a95a4f5f81d150": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "58990f623dd0678a58f7b59c83bfe45e7e2cedfeff9983212edfa935ff9dbb33"
+        },
+        "pages.73e44c202e92a779": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "305848d221e5701bd5b0aa510dafb83d9c936f4defe5b6ff309313b18e559488"
+        },
+        "pages.7458199fe97a1840": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "092033938ca2debb340be95266c500b7ee4739facaf97f9a059b190a19cee0f5"
+        },
+        "pages.7592cb718abb8814": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bf26aac93403a75e41847a32daadb2a42aefe24766e649d9a2a8ba86f40e4d71"
+        },
+        "pages.75b474a2f6adf608": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "adddd879797e556ab31e683a4fb7043e6d7b5c514ecd27157d5cca2f4d0dc50e"
+        },
+        "pages.763a1a9880efcdbb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "36fe10646e307d70f1d3810d58e88a70c12ff8a820e7bce093b89921e961bcb9"
+        },
+        "pages.765aab1602f02fd8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7731a45d082a1077c68aa3e152f7f3eeee7929674c1a0f296b0cb05a5ccfcc1f"
+        },
+        "pages.765c1dd134a4327a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2762e5cb2fc7243b197a33ef40f0071d8e05c61a648adc75d4cb79e41940956c"
+        },
+        "pages.770711b477e8da40": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3f201e719f8f367732dfeb372bd6ed7b7981c7abc29ba9a18003592f2bddd6f1"
+        },
+        "pages.772c6953848bf5b1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6bdb95cbfd647dc56d6b1d241787c6a3aafffe36896105fbb416fa8c1e6711ff"
+        },
+        "pages.7743ce348d9284d6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6ae048f08fcab44bfbc8463f074bfdb40f94c6bdf56d3aad9a7e1c05e5d5b5c1"
+        },
+        "pages.789e8de747b02a7b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d85e92b6cf1a0b17c05b45ee84bfd68fdb4b501fa80ac3468ef7f208f80f3b5e"
+        },
+        "pages.79a9f4f6d201a55d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "31a6a740dc73808b1ec2d98ee6fbe037103239ca7958fefe63857317ac6ba282"
+        },
+        "pages.7a6e9e2b5d0ecb83": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2944150006c34ed4ab8dcc519780667d77cd4009462461a67c369a8157ec3b8e"
+        },
+        "pages.7aa72a235586990d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2dad9b7136101cabb1285788584d0118f76e76c2ddaf2a186a66ab2c84f4a7d7"
+        },
+        "pages.7b0a3d74494a4f50": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cce1c5227c2ff166e5387d164618f2c08483c8663da203764987a2986e21227c"
+        },
+        "pages.7b1291e7ed8a6f3e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "957d2abfd69b53590a7fda52d215b4f1a388a7c924c29caf54cf1ae9017d0d5d"
+        },
+        "pages.7b915f4a299822c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "595d3d692a7eba7af1fb5d8795dd7905bea696032dcea36ee7f3562ebe0e1c3f"
+        },
+        "pages.7baa99652be2c7c7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "59b79ac6ee3b613ad5f50471bd4d839290dd455ff82e97cadad4879e3d4d22d0"
+        },
+        "pages.7bc83b0eaff9cd7b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8de24f75b2a70f894120a06450889fe50994843279f32c60916076600af5b983"
+        },
+        "pages.7c35ea2a8c62aeba": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7a7096a1bdadef81799e73fb941ae8078bbd61f2c6ce489efe0f38841a4ee361"
+        },
+        "pages.7c3f78c0fe8cf198": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "562be432802c785fa6c6f77145ec887a272d4e725658b40e6e391a37fae0cea7"
+        },
+        "pages.7c62dde8e91db1cf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6473579f1a263fa6a2db47b7dee9ded523e246ca6b7e7aad9a5b994f39651f7d"
+        },
+        "pages.7c706e7a8b983a5e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "85e301c20f715b81da1e8a3254c033f4a455de11c4a65e8efeb7d213878e7646"
+        },
+        "pages.7c723452a98e32c9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b75f33453458f08fc80cb6ddf62d758b6906d8635c60b9cea39c3bca4d9f49ee"
+        },
+        "pages.7ca0d6c7afeb2c2d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6aacb1d707328856df1ef335ba264419a9b66dd763d7f58b2122d2d29e3c60eb"
+        },
+        "pages.7ca7dea906800f87": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "04e2fe221ac3b26ea8a04a86a453e2790a325eb5a957a2ef2a1d03be4009d9bc"
+        },
+        "pages.7cc9fa7e6f62a347": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d2b582d037b53ad3a2d90ed413daff5d7134542257f69b243c31b00b08ba384a"
+        },
+        "pages.7cf40a646358bdfe": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e4089d48c8239a4d8df4ae5a13dee22a4bcae1edfaeb30e915bcba745a2ea5a4"
+        },
+        "pages.7da11212ed340ea7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "229ee2f88df979720bd1ef62414afe3fbdd35202c883faf0b07d50f27a8386d7"
+        },
+        "pages.7db20897053bb278": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d4bc0ae2931e67d54aeb4c2c2a0a1f0d7a239be8bea18038391e2cb0719e65f5"
+        },
+        "pages.7de82e541d02427d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "035a80914562933b13ccaa1b41495b592954e41fb0d48cdd3799539ef4e408cd"
+        },
+        "pages.7de8c035259e0769": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8f35df38f7afecfd7b654a886a6c99b5fcd471c644fdb7ce1c2ab88f1913cba7"
+        },
+        "pages.7e61847d61d65d9e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "12036bc68048b2cac1e366bee88e86b953c87c5be82c5fcff5bf81bb55a6bc51"
+        },
+        "pages.7e8af09bf79ba0de": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f28d743a4d973b1d3b2698a46fb7a65996027afb8851e35db5c44b034612888c"
+        },
+        "pages.7f0dfafd2c31b54d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9b9231807423f2ccc5a1f1518dab15446bb775b1bb48dee25c36af1f89a2ab37"
+        },
+        "pages.7fa67f0e7001ab10": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d30bb54febd77bebe5e7dd4f1909213ce4816ca9d2fdf2a579c39ca3453f5f2b"
+        },
+        "pages.813579ae9a07b8ad": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5d9a6e5873f6f51e9d2572022f559456087a7af9aab636a891acce252630908f"
+        },
+        "pages.813801934f98fd75": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "36a22c58bf88b1f9074deb70d1701c2b09f9ee65d6d328d6799fa519bd3dfa24"
+        },
+        "pages.815f6bde537466ee": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "62420e194211004ce0bb719e9cfbfd9b2165d3bf68c4cb3365a2fbed1e5eaeed"
+        },
+        "pages.8178ac72b28d77fc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0438180f5806e64fd0afd002ff214e9323709e42c45d71f4167391afe33f7e44"
+        },
+        "pages.81a42333e9588930": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4c7753023591896282889bc8f8e4038929a93b2998864f4261089f9d4a177bd7"
+        },
+        "pages.82152a91cf8f494f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "46dd464fa6d296c0c5213f95ebae3dbe182b75af480eff0131497ff999959bef"
+        },
+        "pages.82244417f956ac7c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d55b99efba68c4d57a901b891ddbaa9d1d8ad6c52dd62390b00204efc3170441"
+        },
+        "pages.836851d6bddf7650": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a285670c005f6aabe4af26e94dfafdd6a9dcdee22edd9596992a75327b9ea5ed"
+        },
+        "pages.8513a9ecd7d7a0c9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1c5ea515c22576b18a592ffafc14133ae53a4730a0c7079a517ad796b6dd82e9"
+        },
+        "pages.855421f02843acdb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c141915efcccefb1907738caeb3ba2abc0313a17b57f684243edee85880d9957"
+        },
+        "pages.856801b740b24d2c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f8f62072da10085231f0e5ba66b8eab17a2ed1c114641054f6321eddd8c9ccb1"
+        },
+        "pages.85b93fb74f25c215": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7f770c820eac76c1c74e3d606f6a01cd7f58ffd1acca2c74fb9ec30c937b6100"
+        },
+        "pages.85c3f9fa6f300eea": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0bcf7907aa35435d0aeba148f780f232e66d62796305406b9088c3b0cfe6242c"
+        },
+        "pages.85ebc236cf26a104": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "48be39a904d9b270ae034da3cae4325764ab1eac5c0bfddb4a348b702419a22a"
+        },
+        "pages.870d0f550c052952": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cc1af47747f58789d1e32daf107aee497ac5996a1c45c0fb1c6a8159204ebaa2"
+        },
+        "pages.8821ee7638dd486a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9f4728ed5a52ce7cdd280fdd8deba2980d842d95df78f3cb2264c62d28fce716"
+        },
+        "pages.886fb735a1b9c903": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b63976d08698832b0939f4455e40f7826cda2bad4da273fb4c95c551df29062d"
+        },
+        "pages.88980154513d7413": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "711cf9dcbf2818128af3a0889a4f4eb7d0ae65b3016c669d1ca957018b6bfa48"
+        },
+        "pages.889eacd6e13fa54a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f3aa561772702108e9c80f451d21673b0b0bfcb91115724095e290071e8c0e68"
+        },
+        "pages.88d7c52212ef2f1e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8769db52b9dbed3976a671608b81e06f83c112a3e2097a4af0dfe8cc8ab65091"
+        },
+        "pages.88f9b975979fbdbf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4662e321cbb578be51551e22df16b7d615a911215cf2d340618c327b3b102c04"
+        },
+        "pages.892b302902eaa39f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cae271c1e6884865b0d119cc8a05de8135c3484a1041003a323f8a13f2f07bb4"
+        },
+        "pages.894bb2b7ac07d55d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4013ce9062ba3ce44c7fa2de0e1cf03b0e86b1ee8f9e0da2b427dcd11f5436b0"
+        },
+        "pages.8954bdd0658bdc1b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "695bf6c00398b13cccd416af861216f054562242046b8be6866f6060b6071acb"
+        },
+        "pages.8968c716fb239760": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "626bdd57b3f94afbf2f918c9ea2e01aa2813fbd521f00a2ed7757ac5e61b873f"
+        },
+        "pages.89a97309c8f1dde7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8f38eb583b645d4f8dcd38a753c796caabe332654825b32ddd30eab7c50d182f"
+        },
+        "pages.89e0968cb624a276": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1eb9afea0ebe59d77459af12116f9aa8b6dd38c2afa28a9523230b8a8e0161cc"
+        },
+        "pages.8af13d3a800670e9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cb304dc37ed79388c4456e8689c4db2f5592a3987447688f7f59a6945fcf382d"
+        },
+        "pages.8b218f6aa2a8fa66": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1955884419b8117cf794a3b992f2e6d25d13f2358db3408d4f6888851d37f082"
+        },
+        "pages.8b270ed732edc5c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1c84d53d4428e4eac1414aecbe1bc3dd4bab443d80ed94f524ff6b843ec6b7bf"
+        },
+        "pages.8c0fc3e67ce6edbf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7fec3fa8a073bbc141199a23bb46f38407563c7b682add23f56417954ed4e85f"
+        },
+        "pages.8c181da097acc01c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "76188c435f3898a6d10b9b64425c879adb25d71965f200019d532a6fcbf4fad0"
+        },
+        "pages.8c4463e5d14f4ff3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3b88515d85b971903e9ac2177ebde6ab0d3231271adb0b3dd6f18a15525a7fbb"
+        },
+        "pages.8d14f6e72de8f18a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "298dd7c15c671332526dcc22c0d64d73aa377cb75ff0034ec6efd854b7404239"
+        },
+        "pages.8d9ec6044a90f019": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7e95432088aab9c70a0ce115ff9177b78b3251dd177854779171c608d231cd5d"
+        },
+        "pages.8dc37869d63b05bd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bb6ded7d9ab97e91d3154ffa2eb5663a3b043fe3d83ebd47b4e34d4181455422"
+        },
+        "pages.8e2c7ac508139a02": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c866b7bf3478c1248961bc693bdbca181c516f5651f58d53ebb4a842a56b65e7"
+        },
+        "pages.8e2f078d59f675b4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "09d2ea5bf608e040fcc95755ac8ddbf96ffec0b64881ad61189ee3c29206ce3c"
+        },
+        "pages.8ed17198774cfa83": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c292b0e3a9682b042e57e59bb7735c13e98b93f3f1404f6f9eaa2a5136ea19ff"
+        },
+        "pages.8f301fe89e95c0c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c3bd1426bcdfbbda3d72ffc1fb1b6c70a45622c3d522456a1c4f430e378fdb4c"
+        },
+        "pages.8fde4d9f78c0ecce": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e6f98133deeda32f436a2f2b43aefdb189a9488a74437f220e029fdb96b6bb98"
+        },
+        "pages.8ff81d3b055eeb94": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "04a5ea2364d192a0b9561d74f3a16101a4316ce6ac3cf8f5c620049cbae54f61"
+        },
+        "pages.9040f9be99523563": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "97016ebedb33285f81e7c01d7009bd790ae219c5581e8d094c15c43d378780de"
+        },
+        "pages.9046da16aea909ba": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "aaa967c95e0e231847d2ab89ad434ca0e3ab8dcbc3c17b0d47ccf1402e805af7"
+        },
+        "pages.909cef7017a9aeed": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d2d0249dddb9dbfd1d4f8a532a2a7320415cfcc5c69590cf6c7c53b4e37f3609"
+        },
+        "pages.90a50f14e9672fab": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7fb0715d1782db43fa921a055f92d403f23d723f5c38f02937d5eafe529f25f2"
+        },
+        "pages.9111d254873bb676": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6fb85156eb6b2e9c5481486806aaa7afebe240c9f3b932aaf7b13a4b849c6f90"
+        },
+        "pages.913a4cb91be20332": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0cd2ab3859aa33eeebc0eab56898584130df70be3a0b19d9985b20ce5340d352"
+        },
+        "pages.915e352c6674b610": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ed0d61466767ab3e39d9924ad0053fdfddad3ccddafa7e40d0c027655d38556d"
+        },
+        "pages.9190eab60709df3a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6c13c5ea03c6a221c310adbf1f86cb1d06e416495b58f0f505e937df042f9c27"
+        },
+        "pages.923037ebcf5db471": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3edfee6d5eeaa8ecaa5bcd8d281b9dc776a71f4967fabfe7880e480d348a1d2b"
+        },
+        "pages.92a13b6f6d226c75": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7a339834e327126f0b0313da50b51ae603077b4b8d3d6f3a20e71f96a2ea4c22"
+        },
+        "pages.92b5025fa8382d1c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d0f35e7c93305444abb93554d01d675a6892c7200374c39b4bde732afe94b0c"
+        },
+        "pages.93c6b664dce6c207": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4fe5725cba97a30b66ceb94b96bd27228e523c25bc98cfad739fccbca7569286"
+        },
+        "pages.94038397ceeb4d30": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7be105ba7807dc8d6d70e29eefe01701d295d8901ba8db0d17f7add2b8019b00"
+        },
+        "pages.9429b1dc65906b5e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "72ce603457363a6dd72584e3dd278dbca36f766cee796ef9322fea539565197b"
+        },
+        "pages.943077f0507ddf71": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6f6e966d0d1ab030ef41b316a4fbda2b4b4fbc5d73787c8e1345c0b024716442"
+        },
+        "pages.944eae254aeae6c5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f459400b94e1d015531be2f7b6c40799248e284b7e424c4e6c2eb334f204c3d8"
+        },
+        "pages.945d2c03508adc66": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f4b325fcd4c4de339775c4fa2f6b2b5d2e68091309dd250e3e26645cd6cdedc9"
+        },
+        "pages.947a239ce828c1a1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "95ed1cc4a345ec63e64f33b5fae9e27f935d67bf873f9bc1549875d0c42001af"
+        },
+        "pages.948958cfdb09405c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "459647a9b4ec0429930aadb65bd6f33b66823b97388ec22d0ba9dd17d409d2c6"
+        },
+        "pages.948fcefe5345439c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "47085c2270c20a821e9b818d9b2d1b63cbf769cdf9bb78b0c4ad4fcc0499f879"
+        },
+        "pages.94a03054e2d4553d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b13bebf580e76b9c6ba92b7496dc4498fd9c47ac68dcbf5d14d1a4acac2726c3"
+        },
+        "pages.95538be430df3ed6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b670745bb46ece52e6813c39a1c6348092fbf5123dba248b0a26974f111fac07"
+        },
+        "pages.969ccbd3cf6300ec": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0b57e967ff55ce5d934b1ac35a1e4a404e69444be35dba221b8a345b161d4ec6"
+        },
+        "pages.97a5e41b45ddd2b2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2de92c8721196a7a472d40b9df3aad617a2e72ad9ff6c6a9f21040f0729156e6"
+        },
+        "pages.983a042d392d0565": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "230fbb4bc9e9e11d403450e78cf55ccf17970a4d964961b1b3c92c8924f36cd6"
+        },
+        "pages.9842a2a9342d3ad4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0c5fdbdf4491821e833d9835624ebf5e120506a8991a14382baa7c261dea033b"
+        },
+        "pages.9888984a6cace5f0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7eea8fe625e75d11a3db9c5d771fad837c614ef2e3b3b10ff7a69b2951cebe08"
+        },
+        "pages.98ca0d518997f8a4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9a9e205b1a4bef11d6df3d6f13e60d8d3907e4449e4c4ea6d62caa452c14de18"
+        },
+        "pages.98f4bb619464284d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b8e763aed6c82f8f68862de83ecdb161235f55eaab607ec639500ad714e329f7"
+        },
+        "pages.99522e3aa1235d50": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "58c11d7cd4bcdf7f823f6fa3d86f2ff503e559ea958f33c4d964253df1148dff"
+        },
+        "pages.9976c76f151ed9cb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2c8c446f0a7776c75507b19bc8ba74e46e201eadd17cbbca2d02dc7668435cc9"
+        },
+        "pages.99b2318698af4c73": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cbb6da81fd6097e97f5e21c690b7959464ba7b90956bed6307412ab430a2d580"
+        },
+        "pages.99c40ab405926cb5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "98d68066d929abb678894e7c4822d395585b13a0eb8d40156dccb8fcf55a85a8"
+        },
+        "pages.9b4ef3e5b7b4d175": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8f828bb048390ff73ad81ad2807d5e6e1b420414c34b2b586bb662ecd2a6bdf9"
+        },
+        "pages.9baf01819b22e507": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "83ec019e0f0be82fd629e3cda9a74a0feb10f18728dcf5cbb1d0e2a299d48d10"
+        },
+        "pages.9bf5a24e4aa77998": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "063bd51742f1ca8f53066539d5ff51551e71684917181d906c49789759c4bfff"
+        },
+        "pages.9c585c8ddefd2720": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d3d10dfe401e9fb23d984ab9a7540af6c939602a4fb6ac58698f7ede1d42f2f2"
+        },
+        "pages.9cb84ab470f4d318": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d771964ded578436ad5f431207688c765b6a8c33a65ad77d8337fd7acfa3d913"
+        },
+        "pages.9cd0e357245fb95d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "486b13e41d999ab2ddea1bfffff589952334afe531bfec98e7f52f90bf5e1c61"
+        },
+        "pages.9cd578a09eb38dcb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bd5073ed306074c8239a788458f24b7cc7e0c3e7fb7ab4501d7db5c7a2b2c445"
+        },
+        "pages.9d131a2c668765f8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e7a8ef9f1674af9b7ed91c64453b1ae8ccd8039fd20223f0eacce3f8c164893b"
+        },
+        "pages.9d88cdb29acfce7d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0641f4d40c48924261a71160e8a14942bd211267d45007d3d7b08d1b250cbc4d"
+        },
+        "pages.9dcff98e275f0cb9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "704ef8cfcddd04e5ce1112b0ae45b45ed09fdeb1164f6467a0412dd3287c0b15"
+        },
+        "pages.9df916869e8fc20e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d3cf43e418754b1a5d227d66ec03dd22e34aea158ec987ecadd7dfc9d616e889"
+        },
+        "pages.9dfd3ad250c8ef49": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8cd7b92a70a92e469ab2851a027b9ee07ed2573ec8e10e9eb669bc7ff3dbce90"
+        },
+        "pages.9ee78ce2f0ecac99": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "84d27a90063832463ad893765af429801b809353b45ace30e8e555f629430d91"
+        },
+        "pages.9eeead76de41e46b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3bb7687c9f457b724bb67d9b3b9e149c176f82bdfe5187b5d67b8ab2abd1469f"
+        },
+        "pages.9f28dfaff8c0e4e6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8f8f3a8163b8ec5c08fcd9f5e25f2884c87cb91338fcb476a4554e00f713d6a2"
+        },
+        "pages.a04d3b26e64dc84d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "656df74c27fda49eea8e80d6c8a277003137a8d479b2541e1583d706b55d8dc4"
+        },
+        "pages.a077ad4b78f92338": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b4021567e8cf6ee380bfc18147b13a5dfda13160270cd7f769be229475aca2ba"
+        },
+        "pages.a0a44ed8cfc32b7e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "67c9b74c9c4f235e0486c744f5e94770d1e8e425e1e1601dc1e774cb1daf419f"
+        },
+        "pages.a0bba63812466406": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a1100ef1041993bdbd480e769e1c29c3f795565caa21d6830bfb6504ed2b611e"
+        },
+        "pages.a0d37bfc114917be": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7d2bd299dc2a0fbcb4d241163dfffe4ed9eb4bf318a9de8abe8de9c018c7e4d4"
+        },
+        "pages.a0daef01ab98f9cb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ba8579a39205df666fde37d74d28c92c7c4e60abf4128c179e1770117abea1b3"
+        },
+        "pages.a12151313ac5e31a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9d43193b326f91a24a4f70b4bc4a760fb9d05b0d1a9e37280ec7caa50843c34d"
+        },
+        "pages.a129311710bd6586": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b76f8158f8e3ec5b012c402b3ed62fb0d710b351e37b4bffbbc2337554744c00"
+        },
+        "pages.a12af7a862beae85": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dc0b2e9ae197648e6a813ef316b1841e9907ce557560ef24e6115911b4b190d1"
+        },
+        "pages.a178f6d7069a2b24": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "84e951ecfef8427d292eaa4193e46435f9f1f98362949bccd399ac02507ce088"
+        },
+        "pages.a19de0c38d4dff59": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "449ae0a794283af7cb1aa25f2b4034fa265694cc00b2a0e49a1aa6649a8a52ce"
+        },
+        "pages.a20d1e00196bf7a8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ee6d392749a4880c1040bd63222fc724a14825f0a185d0042e78bdf88f623fc1"
+        },
+        "pages.a20e4b867b4749ca": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "88b8c60e94f40386137aa180b6b7f77dbadf646b797389cf2f8478e3fb26fd59"
+        },
+        "pages.a310ada4cbd505c9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9763546ffd82673593aae5f8f56c918fedef4fcb7f98b6a73f1961248ad01f07"
+        },
+        "pages.a3b0e9926d07b2eb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5382358b15b8e71efcdd9cf35a8b0dd44079df7e6d922f8b324ee29057b4277f"
+        },
+        "pages.a47e0c2bd7bba951": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cc744d69e9363c395e021554f94fe09215a44180b8c9695c5619bffd648f2981"
+        },
+        "pages.a488c7ae2d2e3bbd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "df66d84e84ab5e6de1f33ae222165a5fb3ea892c3a207a199d053ac89b7798fd"
+        },
+        "pages.a4903f732746e9e1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c17893d51d2ddfd826eefc834d180461f89fc3ca5d811d528ffbfc656213daa3"
+        },
+        "pages.a4b898101968a83f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b5fbc3cae8629e73fa694b835fd8a30d5157e53d7d153eae12089f0a6c2e043a"
+        },
+        "pages.a4c3ed04a95a3da1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "58bf5b5478e5d1fb7441daeff9fd1ed60a4ad5fbfabc64715cd8608f3f59f6da"
+        },
+        "pages.a4e224f5c4bdc48f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5b3380994d08a872ecdd60f8935feb681ec478783a40e7fe3754b85ea19fb693"
+        },
+        "pages.a4fa51e13388f6a2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d283479a899677dfba4cde9c7b36837c69bb1ef52b3f8fede8b916541a27cb4"
+        },
+        "pages.a5119a3101d7daef": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1879a08b498a299994f00d66115d56954e7342dc5246f91f2e5521ac01ec049f"
+        },
+        "pages.a52981ae3b44bf34": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "000c234dc196e1d8c9eeeee12352eff747631771bffee5f2f19c36bb9ecf4279"
+        },
+        "pages.a599f2439ba9b7aa": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0fcdc598dd2b139a56a067e576faef826307831e2ba60ccb9b9f4afa61f8757f"
+        },
+        "pages.a60f8bdaa027343c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "42cca31df27015cdff673490a213da62f37a1dba94dfb45f21136435abf9072c"
+        },
+        "pages.a6ad6e106668be7b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "66dc204b5ae2c807c9200883d9d0148849cfb79d12196cde1bd3c09f8e2ba856"
+        },
+        "pages.a6d6ce3d5aba07c2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ad4a14f893fb0b2e0501ad924890b936043ef63ea2e5f1f1c1a735e5fa801ec1"
+        },
+        "pages.a6f85eb7e8dcedb4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0bad88bb9307f1178492de2c4e980ebf0ab6075a263ae6f97f10358975b07720"
+        },
+        "pages.a7bcf53bf6b49f82": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1a05cf7df25d624e3b70a62be92387ede42ad6a6f609b332d002a0bd7bcda873"
+        },
+        "pages.a86329cc29043c6f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5fe871d4bdda0797d3143c00e208dd330b9f1dc6e4e613f36a233b18da582c29"
+        },
+        "pages.a9491f4c1bf7b0cf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "38fc6472e03ee504e7264c4f3290cf953722d1c1aae66dfbcee6bf6098edc651"
+        },
+        "pages.a971f5ed9bbf6db8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dec73f5cc995a1ac6657183c2ada21bab0779bebb27b338cdf05a22a8200c420"
+        },
+        "pages.aa63925edf225e26": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "044ac6d152a5f0dfe71dc47ff67627c16a1a8b97cac0b441c6c2eec6682246d0"
+        },
+        "pages.aafecb99525ba917": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d6bd32aa2878d0d310d828ce380b5332f587c16e3c1015e2e3a7748cb06196d5"
+        },
+        "pages.ab03a958ec35ded7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "804c4c6f78f70411be69fde8ba48497ccfd6577610b0e4b5879fbb4c5efbcd14"
+        },
+        "pages.ac20a57bfde0bbc4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "591087ea83a48eade707829e9c9a60eff64cced919542264bf16d50e54ea6096"
+        },
+        "pages.ac41c0821578e6fb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "85a73d608089ae799cdcc8bf14448b74a4d8d8bed75ac8814bf099deac29c813"
+        },
+        "pages.ac8af0eab24ec35a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "071e5d738550434b5644e2172c821ea07b9e54ec8df4f1a208d6d9b59ededc8c"
+        },
+        "pages.accc2a1a15657ccc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "429cf6bb60ab1370992da6015493c92851dc55e3e6e8e08fa7f0975c92f0b599"
+        },
+        "pages.ad03eb5e16bba9a9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "99b1cef634e6794a138ee35ba2efaab30015680e6c4b5de65debb140264d585b"
+        },
+        "pages.adcb8c7fb22e1991": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "39d47e4edccfd22ad0655176dee7399918a68abc2eeb560f4232291c6f195b7a"
+        },
+        "pages.ae0f63e1d1e490ed": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e0d686e7da4a5db4d787e8813b56ffa50e9345ef4e972aeee9dd0cc30b60ff57"
+        },
+        "pages.ae7e8457b92d22a1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "565697f845fac1ae7b9cbe8cd840682b43c16878ecb06c8614b5afb07c970566"
+        },
+        "pages.ae906fb992e31fe3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e3fbba8f79859cb9086156ee75290a99e6d54413ae104d10267a73f7708c3a1e"
+        },
+        "pages.aea1058d135f60df": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b3c063ddefe4ab40731bbe3175d83677b8d7de41d719703cd3dccc4e4d17abaa"
+        },
+        "pages.aec02cbd799774af": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e93a63e8eb06155107193198f9c2deca7f2af8ca79f06e1ea47327ed24645fc8"
+        },
+        "pages.aed812ff76f64d4e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8607a59fdac9ccc38f53affd451113ef413a09c8c0d63cc8f03f767631143e1a"
+        },
+        "pages.b04472d9603795ac": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4b2d3175884432db60f4f7c32256e71a3d693725b6904ada481def4cda84d120"
+        },
+        "pages.b0bf3d89f0028773": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3e773ac42a525d0db6ab1663eacccfb4842403abd9fdb99c096c1fc4fdf12d7b"
+        },
+        "pages.b1809383ab754a8a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a5afdf8ef441daccb1204af6d7e492b3c66a9ba8d9c6015a388d107f47ded7ac"
+        },
+        "pages.b21fb709e2a23a63": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2bb8da499d5a5006fe8e7c4db08c962b5da834ae869b69fb6c50d8373f7e9787"
+        },
+        "pages.b22d2bea6e200f71": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7893816e7b48ff9ebcb1a97397d63e2b4cd47ac9d6e74bd06d187388a2e742ba"
+        },
+        "pages.b23a6a8439c0dde5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "eb8bf0d80db323992f6b634aab492b1e6d9e96a8e87a511c2a0db75ab929452c"
+        },
+        "pages.b321eb029090b9e5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e04fcd5f0c221e581222a49a909adec671908b9918bc9dc16a00789bb6bb0585"
+        },
+        "pages.b4099f32ab116a72": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "16e84dd1fc8cb7df0f1c6eaefd872a0a5ecc39fdad0607d1acbef03c14647bfc"
+        },
+        "pages.b48662b9e514ae3a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c0d36b8b77c1888a7a942c3d5b5692d476f1207b945ceb1e6032ac527cd42bbe"
+        },
+        "pages.b4debe034df4866d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "db25fb0b2dd84410177955d9d22ac31bdc5e4f48f7ffeeab1a3c596b890accdd"
+        },
+        "pages.b4e413c3cde61c41": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e9e97142aa30ff9b4fd45db4c300d9dc8e1744df6e7b80b61af9768b72de11d5"
+        },
+        "pages.b51aabf677e8fb9d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8e7cc5001328e562dc014a73e50e967a743bd04a013790d334c75a744794b4a2"
+        },
+        "pages.b5dd173791aafe8a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e1e3a4b0b5d9ae6be0849765c1f96a8580881e064b8cf1f31b1427bb07006a09"
+        },
+        "pages.b62350e7c82dc25e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9e42d331369d1b9b5a7298045eae654f1c501cb19a66b626a6d734770b32ade2"
+        },
+        "pages.b62f2399a1bd8dbd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4c50c6c99ba0b873b7cc49919d2b0d38bed129cfa0635d93ff5226f1d9b8cacb"
+        },
+        "pages.b72804afefc37b62": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cd6c31c72565a084ac799955962e1525ce052386d410cacc405d6167e3e1dea7"
+        },
+        "pages.b7bdf7a2d6e73e58": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fe7ddb094aa8ff4d4b0d74f87c433fd2b1dd1761b095f1b693c37161edaa48c4"
+        },
+        "pages.b7be5a1363b39659": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "169626ed12441eaf6840628ff9f6218cc4842e21142b49c0c39522fd2e264bf4"
+        },
+        "pages.b89edc48066641a6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3fa3c06a732fc15a8f224d74a4a18affd911b50a4c674d425cd4483a81f8a3f7"
+        },
+        "pages.b8e1f80bd70ae078": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8f6e29cfb2f0df76f9f90f221edf3a7b4cfc6ba2e409bb0a78a2c031afd78580"
+        },
+        "pages.b9256368a77e50fd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4687b6796f91a6c51ed079c731c31480fcb124b5e57d2c5c196f7eeb477185c8"
+        },
+        "pages.b929855f23c3c9af": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5d86fd90a17af20e35772c7236aa7b0042bb1a637c63f2e8bf898f3664d4b813"
+        },
+        "pages.b949729ec3f8834e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "16a5fc5517c1be053c3a80e63aa2630666d0c6a42ca5add21bbfbfac94b756a2"
+        },
+        "pages.b9517046d8b64220": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3a95733228aa27d96c772176aa894428c330328a9c6caa7b606b844fb2ca1491"
+        },
+        "pages.b9535ce95cb158b0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6c8eedf0841ee61d1e37d1eede29ea02d80555ef5fe182e0f995bec302a5055b"
+        },
+        "pages.b958ce8b871ab36b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2af7521d862949e1103b80431d74c06a13291382d89d4ad2be5e6001fef7939e"
+        },
+        "pages.b9846addccd73468": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "15b1941768d5d8bece8bcadf0a63525a795d184a42461922e9a80e4f15ff3511"
+        },
+        "pages.b9d894793c5e2abb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c28a6b8c8f8e19a255c81a00b67171569f5b69757ba3befbeca9cad6565ad755"
+        },
+        "pages.b9fe1464783e1c0d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e94338cd48280ff41a6c8ddaeb7eb5bccd2e2b817383cb91cf40a5cac84e3144"
+        },
+        "pages.ba118bf7fc9c1aed": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "32889a931b08ba01dadfc309df2ec6bd7b8234aa9a8db49ffd49818f3b3aa1c6"
+        },
+        "pages.bb1de97207977776": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a169dc45f90312bdefec8aafa9f357860c9f0a1db13de3eb6d8a23a0eb10e2b2"
+        },
+        "pages.bb7bdd421882faae": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fec008840571491163575ef8fb017e6baef71953015b81c7c876eaa59b740ed5"
+        },
+        "pages.bb7e51c6d02be309": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cd58f4acd255ea1991985cab6073646b8e62f896ce389b96033d270a44d9d4a0"
+        },
+        "pages.bdd51a4f2a7836d9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b367ae28f7443aaf033f2fd957aeaa65d7ef34e2a77fbe8b51157f1672a1306c"
+        },
+        "pages.be4bd4d451cbc7c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c2074d9990afd804a7bf65320b67679e5f6c7627472463072b4170653c946941"
+        },
+        "pages.be7e2f20129365c2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "941b085d3176f81fff8147e5e7c3797dab41904b699111bd01d67580d4d16390"
+        },
+        "pages.bed45cabd8e2a30e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "06ff5622e05ed04e9685d07495b87a013e1629f2d989bcb28c4910ef8b08a698"
+        },
+        "pages.c17608dbad847751": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cab6ce10711a57b3c529ae2d80dd124629cb6e1b1b6ead4e3207ed7f56f10eb7"
+        },
+        "pages.c19c477ad5130258": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "34781aca9733bc434d9ab77c08128127ad00bd774e100a7844ad658bcd863a43"
+        },
+        "pages.c240afd2442d27f7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "03a94c536f116b037862860034a1190ab0825b04a5f40488e511da01baf28b3e"
+        },
+        "pages.c2ca254ef2542b13": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "df8f6a8fe8aadd3058540ca16862a0b9216679d80f19f1a0cd22d4829c10eb6f"
+        },
+        "pages.c3f695f1d7db291a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e288cc3349623a0f639ae6e6e287eb66a3ee231a080b9b26f3edeefc7a2ff901"
+        },
+        "pages.c44bb2fd516909da": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1ac494e5da5f59dffa0bc7b9c26331d2c9262baf4cbff0eb0d95bada13befcbf"
+        },
+        "pages.c48bdea7d72e8b87": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d48a9253467915d88c1ff1108e3811aa41cfe7567424bee3135261ea513b541d"
+        },
+        "pages.c4aa4acda87aa4a5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "968de4a42b137bdf43bbad39f32e0b52b1ef91b601db902f2cc84f8e1aecfcc5"
+        },
+        "pages.c4c14eab715fcabd": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d0013fb35f24ad0641bb4210b30a32d5d32f5a0d7e44163bbb11e3a0c832746d"
+        },
+        "pages.c5f3df2e12190da5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "48102c1145e70726c8b952557764670a2d3d8191c6efee836b5cad9eae71e8a0"
+        },
+        "pages.c60d3aa541eb71eb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c8c9957f216cc5c4930215dc8b447708259762eb0456ddc0d18b53214839b6ed"
+        },
+        "pages.c648253f20e04217": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6504b20c86211a904df47806c2026295ae15ae563be31d638a4ed46bba9497bd"
+        },
+        "pages.c6c1c9a9c8543f1e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ca1733b5cdea2efcd28cb357b253498f97440592edd06d89895c4abcb5cfaae5"
+        },
+        "pages.c6daff2ebeeabc38": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f9d5acdfe499547ced6af633c5ca8ab086c3d9ad1b8049f3a8991b57d4a671dc"
+        },
+        "pages.c71ce8ccf3b44932": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "701cd0238c91724a48556fb7a0b05b5c35d56d64f8f24496c4eb4fa3d27033f1"
+        },
+        "pages.c72c2990894df721": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4e45e0ccd72175bb6c1a97271c652a17804c830acc269407127fcfb5de3b855c"
+        },
+        "pages.c76be7d10fcb8932": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4ef3db0d59ddc4eab6218db7bf8aec25066886159f55745949bf4c70a5e90bea"
+        },
+        "pages.c76e27598822c367": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a39c066461edbc95aa4c7fe71c64424bb3de75b4c5071a7fa3441c3808082255"
+        },
+        "pages.c7fa887aa9c79864": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4f8c27922277fd6f06c44b5799364f1c5505f83a647ccfe36b1c023cb63f8abd"
+        },
+        "pages.c83415aca7938877": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c689d5a25aa62f8669175d6a7eac29d8ef519a1f5a46667ed75ad51a7da15c36"
+        },
+        "pages.c85dc98747c8a8ea": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dd1ef73d8d2ff1a66d260143aeb74968a3820f60e811a222bd8d83d3fd619d60"
+        },
+        "pages.c89256104794b1a3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f9f2944e594cfbb40a017f3b893f3282b572958eaa1817e2bf53955882d518c0"
+        },
+        "pages.c8c685977afa0c3c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8a8bdd5e66df5b038897562675d07e9e6d04707f35aaa50be203e130271dfca8"
+        },
+        "pages.c8eee30499cf09b3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0aee66b25bd727809601506a4aeb032e5d8ac2867b5232b90e0e8103f0cecf6c"
+        },
+        "pages.c9e0f9cc8260bce0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "eaa58b0c5f23624b67b7c91e6b027e611d28e506917e2f0a2ec3c6c2b6ddc558"
+        },
+        "pages.ca31dbf7d5c0699c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "27051473e190efe9f386974c32ee7a1159dc6eeef5901717625d620b5abfd328"
+        },
+        "pages.ca7981b46ecf2c17": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "50accd740fa2e73672bf5a001c51fa3ae563dd2f6bea130a310ebef0abb93de3"
+        },
+        "pages.ca8b598502b154d6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "37a0e6a66fa872be695d47e66678463fae532fd5b13ef6e34109be7e6780631b"
+        },
+        "pages.cab62652ad5f9647": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "004ead9e39cea8ded2216623031e854262743d5a58e3e360a39b2a298f6d980c"
+        },
+        "pages.cae7d57bc067a514": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4a784e3e95a08715513ca46cee31eccacff2cae8533a976da4e173138d137776"
+        },
+        "pages.caf85b0888d78f1f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "267b19cf16b7766daab3a293014090996f6cda3b1e4fb0b1d4512ee748782883"
+        },
+        "pages.cb8448ba3d502c89": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "928e7cff0c17697f6a859184588b963aa3b6fee000e6e84f2f57b71c917801ca"
+        },
+        "pages.cb8ffbcc2ae32b99": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "10edd8c5c051cc4d7a3d25fc925c6642d8530d5c18200c5145ab309228b762b7"
+        },
+        "pages.cbff5a3278aa8fc3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "460f1b889d4d41a3f2955d483879ccb41a16d6fb226cf0d223c976115e7e6c92"
+        },
+        "pages.cc9056c6599cc0c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bdde4c9915524c6d46014144f7f9c0b5bbf43d76bc6744e9c060fa1d60657aca"
+        },
+        "pages.ccd7d1e38d7fd793": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c667ea9d8b0af65d54af25640198b1ce29b9e124a0d048e2b755f66351f68a9c"
+        },
+        "pages.ccf0b0d00167c7a2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "62c8433bf3788f02f0b8652ac9076d7cbd565ed6992f218c143521825e4b6118"
+        },
+        "pages.cd42404d52ad55cc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a0b7821a11db531982044ca5ca2e788e2d749d6b696cd3aa4172342f584f2ee1"
+        },
+        "pages.cd8e53a08c5c8f05": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e374da027e33f1dfc04a2f94ab3cbf9353170921a737f30df91d6390042dff26"
+        },
+        "pages.cdd9848714e8c437": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "015aae82dcfe1482e499e37041a224a5f10a770662568775050579d9aea247d1"
+        },
+        "pages.ce1355534ad93ddc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c806f6eab08c3222687529218111dd66620d60d5ae1250845af31b74dec488da"
+        },
+        "pages.ce7bf15a4a858bbf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1dcca91e3b2c20d5c0d5cfccf0cd4bd3a6b0cf53ebb54cbc31fb59fc689e6a6e"
+        },
+        "pages.ce8daf5d393a0f6a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5d60457f249f52b22cdd188074e35eaf9e550edc64a230512fa1ab99db319f4a"
+        },
+        "pages.ced37498aeda0f51": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ed323ff7c5df7cfa366ef0a2853cb15538080c74d6532b07ab3c3b03098b9679"
+        },
+        "pages.ced67718ea0f31eb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "48c65aeb7a484de3da0cf38363e257f25eda89edcb63fbd196ab24a84863f3ab"
+        },
+        "pages.cf1950b217a2b3d0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f381ae5f72222806891ef1664dc51ac7877243dd82e0252d20488e924336addc"
+        },
+        "pages.cf35b1a611636def": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "03a2fd6d0d9548bde64435362a32c1a235b8e3f10c22e05f8961815530902304"
+        },
+        "pages.cf4166250b80a26c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f6b3cac052a27d2661e35a531befae276f2e0c289438f454360e7775c34459bd"
+        },
+        "pages.cffa02277adca6d9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c0aebd8d0c9626415bfed641030a1d6ddddd7889a422e4bd23b5e92475ac9834"
+        },
+        "pages.cffe53b675508c2d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ac01abe53e33049228df27ec4453f12c5ec3177ae92d196fc678d8abafecac1b"
+        },
+        "pages.d04736cd97fa7bf6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "18ae08928de512fa63e8334226d48d3e9ad92cad1309c6076a2b35c127f60b37"
+        },
+        "pages.d052579c6a317b1b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b3c2cb2eb7703f467ddc4fd4b10ddea43fc30ff9039ab7056668ebbbbfba5db4"
+        },
+        "pages.d0674e0dede8a26b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0082cc146ea5db175e4e59880759305c6c2a515b08c9a143a76503037fcf2024"
+        },
+        "pages.d0a27ca03da4cfae": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "41756f5eb5398209c18c00e588887652d3d5c4187cb3f83f023079b20091decc"
+        },
+        "pages.d0b4034c6ca7ee87": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5e4256d1d4d15fc3ba6b93bc5d3dc9b9a0a9564617c30291ce9f938c1a5583f0"
+        },
+        "pages.d0e4b71fd8ecada7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "133bc0ce6ccbc89440ef54dd7fed953ed41d824bb8dc8e33ff8fb6e329e28172"
+        },
+        "pages.d0ebd0e0e70f967c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bafedcf31d380d4a6e7e8c832ef63e559aab533953cae4a1cd88a1eb0c3459e4"
+        },
+        "pages.d1e87d017416983b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7675197ba5bb98bc0a7fa961fd0a229c93ea52fddec97c2c35b55f7302cba3aa"
+        },
+        "pages.d1eb39b09bf52b68": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e56f3ced175f2bf28f7c04aa33d339995f73a6553033d6ea0270449f9d15ec9f"
+        },
+        "pages.d239e9cf6a51335b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c4a6f6ba9024a0dbab79416f13405fe844b0c7bf192602e88e513be9a52d79d8"
+        },
+        "pages.d2828ad9fd1d87a7": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0ace39fd3527295cdbe8252f2c89bad60686672fd4a572f302fe6d9c11a9ae91"
+        },
+        "pages.d30af076b0dc85cc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9e01bfe951d1e18b142bb26f79e1439c02685d2010a6e6292e6494741e8a9337"
+        },
+        "pages.d3d5b27efc6d23af": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c4d25271deb0599150aa6e61baf338005ccadbf41957df84b166a8d94add29a5"
+        },
+        "pages.d3e10052c069b15b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5da8fbb9a8844e36aead36f08b2bf7ee3884bc2ef0469a53113fb996ec9b0398"
+        },
+        "pages.d40e7693103b69eb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cdc7030d9d5eb57891108fa2122e0545734019e97d06cc7230a83b4bdab3f565"
+        },
+        "pages.d4722ec916c36606": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "cd1f059c9130e6f166e87255d6306dded987ad970456d389e88f9c2dcbe9c8fc"
+        },
+        "pages.d4fe9d8548a4254a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8885c67b07462115af4b2792954048bfb0a98fdc0a42545fae775cd1a1e2f812"
+        },
+        "pages.d5386bd82e57020a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f050d4702ade0e58adaff817dad71db8bd347d61b5403d366d5962c0362e954a"
+        },
+        "pages.d54828eeb2ee6063": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "683d4f81112d45f5a070b89e396b868819bdf4e714721732fd167afa0780ce90"
+        },
+        "pages.d5ed3e44e2a2090c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "56708a4cc8f7beb73ef5807c766095e03ef2265e81fb5b224312cac935127a39"
+        },
+        "pages.d6d3697ef52964df": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9611072ac4056b989f654ab0bfcccb89a18626c15c9cb2b9697c36090bd05950"
+        },
+        "pages.d714a2c2d7f78d0d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ced0044fd7c4747e14c96b2d2ecdbf9c3cf3790ebade771e8d5cf9d6fd53a127"
+        },
+        "pages.d74ba0b0e6d85b62": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dff3f473eee894120529fd8219b0172a6d62c0a5c6aa70bee04cb02aab61a955"
+        },
+        "pages.d78de925a8786731": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c540e753e0ced66679ed87e011030c15c2ca342d741d076a0c4bdfd10b7ae8d3"
+        },
+        "pages.d7cfab3c32d024a0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a01ff9cf29ba22c07635a574d09d690a56a1a577b82bf7364b0d3044d68f0677"
+        },
+        "pages.d7dbbada1efae15b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d6fb5e29fd96e236194853474795cdbced16862f4dfeb68e2fef6e10e922b9ad"
+        },
+        "pages.d8139bafdcf0d338": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a2d62dbc8e617784f1daa7d6286ddf5b42e023d117f8b35b7b35bc691753ac44"
+        },
+        "pages.d881b670fbaca077": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "af554747be89d22101caf9fe05bda455eae26eaa3cf9c828c66884e9cf921e22"
+        },
+        "pages.d969baa927520fc6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d883262d5a306b49579f6c1d3b43a7eee01b84d72a0bf543dc1dcc69590f37be"
+        },
+        "pages.da8187d488c1966a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fa0159299133dd15704c2b907f94f711c571cf1d0b0310917303cb88ab92cdee"
+        },
+        "pages.dafa26c784788bf2": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2e077fc265a0069c00a886171c7e1df6ff44aa7adab6b78f850ccfd047995680"
+        },
+        "pages.db01be4b3343ff62": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a4e85c6675ffc4c21b656b021c16055353bee341cd6544fcd9ad658957f51a94"
+        },
+        "pages.db18f17fe5320076": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "724823b55e6b5e8a547ad7e17ede06037471f9d38268e20ca6001adf523489b4"
+        },
+        "pages.dc20b3d5d2cddf82": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8d211c78417ed1b0ce6c638b89d82c5c468fa607007197b7e7ef9612c9f6a7b1"
+        },
+        "pages.dc5414e0bf56f5c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "048a4b313455b80596941c7da01cbbc48e079d111433c4b5ee935c1532e6c978"
+        },
+        "pages.dc79a80410c9d9c9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f185918588ebe5121ae546b8e4939e13652654d15ffa51c5d750cca8e35c84e9"
+        },
+        "pages.dca3bf165aacec42": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d567c962ff914446ff7f711c5700c76bb05cfc1586022b3b06b0b897fdefa8c"
+        },
+        "pages.dca8f84dac93f654": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "198575be05ad7da00b23f20957c8a4a64dacf06a5cae3f5d07fa875c141507e3"
+        },
+        "pages.dcca230522f1a31b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ef6babb7a512ef2db1ced4b1fca63ae700199ba8813fd6169e9efd58bee2b942"
+        },
+        "pages.dcd1d5223f73b3a9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6cc5df35f0338e230e9e633ead9991f08f62cab45a3264978daedc6747867305"
+        },
+        "pages.dcd33cf5d38eeaae": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "aa06f6a962be0d24829e824dfd3dd640db0343e7c9d7e9d95e2c10f271d9ffbe"
+        },
+        "pages.ddb2e5cbcd7b1935": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7066832976f19c67f3b75f95109c5e4b950d7e3412b89a9b150f7249a8c34baf"
+        },
+        "pages.dde8fbebbc93ceb6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "39b027884453db3a9f29f9d18c1eed7cc994c3159060174e596fd42eb8e6fc28"
+        },
+        "pages.de1ad6abb8b174a1": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e76795c8ef9861e2d1f588695c7cdfa11c488ef8741bc62a56b8362eb7efee49"
+        },
+        "pages.de5236ee1561d9d4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bd83205d3faf4a6fb51b33732315fe760f02d8de3e6241fe3a059a675f34f7ff"
+        },
+        "pages.deb3e366c077c228": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5e1dc54fcf6c78be39446f660aa339ffef9793956e5cd51c714457ada14d3b76"
+        },
+        "pages.dec0f004eaa07c2a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "da5c95ddcb317376a73094ec16b74d27677c21edc21c3665903ccb8d70fe1d32"
+        },
+        "pages.ded32129b05bfc16": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2b15586361a05ac1b791e79b926149053c88a133fd089f6666b8448fa28fce7f"
+        },
+        "pages.dfacd10042a687d3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "28a8e96f04d9837d1ff54cde9297aebffd9440723021cd27909940e3922f8879"
+        },
+        "pages.e02f54320811fd1b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2e70691c87ff0eafd7ac93e3c478fcb6cfbb94486991fa1d7b59bbf429129686"
+        },
+        "pages.e09008f4974d3204": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5908d1af3eda37df8f301ec51f41d4090601c928cef1061491383be9bb3c934e"
+        },
+        "pages.e0cea039e3bd9fd0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4e8878792f14da444be001080152d804a22023ba0ce80e4525d9644e13a04ad8"
+        },
+        "pages.e0f4f767ac88a930": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "90d9362909f9a91f7e4487eaa3ce51877d6f638b870c55004207083590ee53dd"
+        },
+        "pages.e22820fcf5cd90e3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "92fbe22362dcd5f8997ed0bd46c98f040e7336d9e3e0ca578cb74660bbb690bd"
+        },
+        "pages.e28411a3404d21f9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "21f43fcde3217ea01a40e8833db1c497ad9301995e7a7a80072dace83ab03c8e"
+        },
+        "pages.e41f1d834710df8c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4f73b463c81e12752d12634d9f4fdde701a99d2851927124eb9773d6d49df416"
+        },
+        "pages.e41f85820609af08": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "57446c0538914bd2e5d29dcca742678403c8f7db98b2681f6fca64469232a912"
+        },
+        "pages.e45364b658fdec30": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8aee2399732d2db1429c3402fcfd45c243d3b08c7200b43179dfef48a8ace84e"
+        },
+        "pages.e50876e696ee13c5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "289ad6fefd4305266b5f8d12c2fd5da2c52ac682fe2062e4b7e961a663c9347e"
+        },
+        "pages.e50ce529488d0317": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a48e7d4762a5d960c7e46a7c2121cd2a28422cee7131bf228720df21faa47e40"
+        },
+        "pages.e53dac9f89ee8092": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f47f7476e153d19636b4300d8fdc7882f99b7265a8976cd027613a560fd6cd1f"
+        },
+        "pages.e5562777f5e784e4": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "507a0e3a97baf31ee9732c781d64042b52fccabc3bcc2893242a59ade537d105"
+        },
+        "pages.e597f24f4aae5734": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "25171412316bc39e014568a00e0720f353f22bf39f9f2adffddd8693eae33f3c"
+        },
+        "pages.e5d5b971139eefeb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c2d0c9e24dacb62fe122572b1ae64a4a89c55ebad3e2f63890e67268e28a5683"
+        },
+        "pages.e5e165ea54b51893": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9e92797eb0e5291ed07fcabf4acb1b6d6c6eac97afe289bcc7a844576532417d"
+        },
+        "pages.e5e59d10f196504b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6ef93997660245e2f932c1121df539fefb3dfeaf6aa28e7a9b47c947e033e926"
+        },
+        "pages.e5eae2271d99a903": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0e3367d39b95a67f4367089415865efe3f97bccb1775b93d81f8a832addd2b08"
+        },
+        "pages.e6d9a8233ef32df5": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5812e9635b9cefe24e76ed9d4bb067d1b3b1de2ffc4fad3f0c5bcd92f7405e25"
+        },
+        "pages.e72014bef788bed9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7c001f14829ae9c8f2e82cdd501ec9cf32fcbaf746864f06fd04ff6024fb8a2a"
+        },
+        "pages.e77b141e2388d56c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5811cb035e4f05a23a4d8d6ff52b3b7a803ec1b80993105fef362e145bfe7de4"
+        },
+        "pages.e81a63d211338c97": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f5bea1ace2d166599339cfa8c504432b311837bf957f06bc3a613b865626f49d"
+        },
+        "pages.e93daa00ef5f0748": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0532e8b77e522aea7fc7a3b0fc255f6d1046a9ff0bb7e8712fed5368f81965dd"
+        },
+        "pages.e9da50bc16479c66": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "15a39f687b129629bfbbab51d4f1ad565ab4fc4c56dcfba4f442c1bdeb62137c"
+        },
+        "pages.ea8001efadfe6198": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2dd7ac7ca95d0725f306d0099ca8dfb2ba47a6f8cfbbec605bc0f5f2717dfb88"
+        },
+        "pages.eadcedd5ec01e36d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "74983131756d468a4e209fa5d4f7d171d533c9d88162f30a9efee0d688c83c52"
+        },
+        "pages.eb38ca40211a0821": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "81666dc92cadc0f40e432039fbc6f6f5df1731dcb8b3f34990619d1a1aae3a2f"
+        },
+        "pages.eb4a38ec6dc1d1ad": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a70443402d91bfe320cb8dc34bc968efb2530158f8442c03e316d0259a7784bc"
+        },
+        "pages.eb5cfb73677d98eb": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c4d3010e78fdc5d29c33dfe059e1c4756ce103285cf52552cffbe406a2f0d0da"
+        },
+        "pages.ebee3b57d3e9bab0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1ee4855b1c143407cdb5e8c2ab97e7321d7e28669b6a85950195e183980a5f1e"
+        },
+        "pages.ebf44d5d8d142770": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6a3fec148aef32e6e944ab809c2476562e02e919f2d16b2346810736c41dbd13"
+        },
+        "pages.ec811d30a89ce96d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5b8a4c2434e061133addd1f2aea5481501b90f7ece3097f884fa93c799954dd6"
+        },
+        "pages.ed5eb9a37e2d8231": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4fe80800db95694b05c4bd2510c6707d08c003b41ce06a39641b1a2c619902f1"
+        },
+        "pages.ed658a0ab4a7a906": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1f63094db2192ef89f44f52fc445c5366cd799fccd786ec6802e125165985be9"
+        },
+        "pages.ed763ac7a693c701": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ca12d9f503c0d7167efa56f4445bf15c254b4207893da54071bce22a6d43cb91"
+        },
+        "pages.edb465624291e405": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "86a431bb16ad4fc733f6a10364bdc60497b32ce829109d65a18aed9cc8cf1b54"
+        },
+        "pages.ee0e0c08095f7418": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "29678cd36879fd0274bd849915016a0dd4d7c4171e599c1f02db1aedfd692916"
+        },
+        "pages.ef3550a6f13c8263": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d41fbf884ed5763a4451bd8513413693643a55315f08c525cf03ee18efca1297"
+        },
+        "pages.efd63f646209f611": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dc12c9917e73314bcb4628088065306e371b589c0574bb6c208f396fc500bb39"
+        },
+        "pages.f053cefc9f544e4e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7811c3662ba8d1f3fd93f756c190b33d0c1190b274a36c18eb42dbd605dfdbb2"
+        },
+        "pages.f09247433bef8304": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c33e92a2e1f5cd68beaad9a77ac14c700ba9c36e2d630109aceba03d90519948"
+        },
+        "pages.f0a859a7ecd77183": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d7865950175a9c63c26f604fdd51e5527b1266d4db1b48a46526fc4d143fce8"
+        },
+        "pages.f12fde684b2ed4c6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2223d0ff70906fd893a4e3e842f3ef0514b7fbb296895b25fe29190cf77dfff5"
+        },
+        "pages.f20b6db009508832": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "a4fbfe6cdd3b1c06694323b259cf9e631fdbc0af5aef2221e593d9cf4618ef6b"
+        },
+        "pages.f26efd3574998b71": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "720e3fbddd9091208d94b86d7c2662929850d00c7c4802d5455a96840e6fa8c8"
+        },
+        "pages.f2d7acfded4a9937": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "9050ef69abf9d37141750baa65543d0cb9610cc77a01c7bcff7badfdc2acd9cb"
+        },
+        "pages.f3157fe6b942d681": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "518dd9d0816988cf847829c531ea96be99095f1b15fc738647ad3347e9f527cd"
+        },
+        "pages.f329e3a317eee6a8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "594d02943a868eac9f7fce095e30b349c8ec342b7c82cc990c8d7290aea278e9"
+        },
+        "pages.f3ec8e880a46c8a6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b3677a041b78afe845b1e47a0f3ec07164d51249b48150b1a90aec3fe7d34c99"
+        },
+        "pages.f40d7f51f69edfaf": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "70c2826483175d0c5e1efb91a4b1f56dafcf7e9ce8c573e502c79095321b3920"
+        },
+        "pages.f40fd562f6307872": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "eb95a6f44eaa1b3f0560088df2c7f985adb64c4143af9e98a82e9f16bc876b0e"
+        },
+        "pages.f4197b25d1dd1811": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "fff7bc255f066c737d2ed5ebf69335e3f3f5747f51fe841c36b76737cd74dba4"
+        },
+        "pages.f45fc1dfdc96db27": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "20c3bd63c947c393b50a6b38ff42d3a15b85ba8097b293670c4a276ed791c281"
+        },
+        "pages.f48165421ff2aad8": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "809e63151ace50c5fa29cf8aba6aab3d0c943cdd76f5e524fe30283fc51d390e"
+        },
+        "pages.f4ca95577b56fd90": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3d2a40ebf03868290a4349c3bb51c1125b41fb38d8d9127d7c3d5cd1cdd3358e"
+        },
+        "pages.f4dd2c090ecd15ef": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1e88d86a02aa20018f8b3755fa0ec4a3205cc7aed962e39576f2f4d4711e3d0e"
+        },
+        "pages.f4e8c9fafcc6d66e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8b5b6582265cdd1fd243998fc30b58a727218cd7c1dd744d370ef403a274580f"
+        },
+        "pages.f545fe7e666cbe0a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f9dcfaea7638e61d3d234077f624c53753d8074327c13f26365e537586036c92"
+        },
+        "pages.f62c6abeb9378840": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3c8a4e9650bb7bfb3672d4b87bc6184e27db7de357a85694bbc39717063e913a"
+        },
+        "pages.f65419496aa9e119": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f7beba631c0369184d4b25b94db2751d56a624baaf903f61c621db066dba454d"
+        },
+        "pages.f665b70e7794848b": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1b727fedb02e3d428d022fefcc12cfc5f14c765281ba9967d66886e38102cc1e"
+        },
+        "pages.f67521d9d0048cae": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "763b681bb6439cc78f836605df91abbb4e02a53fb4919852025ba7e4a0b578ac"
+        },
+        "pages.f67cb1850d1b7e77": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "bad41b8b646a9a60c78944c63b94ebe3f9b49ad640d2d19f0c57d8b9859974cd"
+        },
+        "pages.f6e0f16188d43020": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7f2cfa66be376bafe2882bfff8e40402cba9d02909c8dc83a88aa91c2ab7b412"
+        },
+        "pages.f71081fb0af48ae6": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "2c2815df4f724abee50f8363fbad5531cf7998c7edeeea6b05653f428594dcd1"
+        },
+        "pages.f7d5c55c6d3b2b59": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "abdc9c36223316509c30de474ff144e7c6e5b6a5d4a230ce1517c7cd958daaac"
+        },
+        "pages.f7d94bc957deb737": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "b7bd4a835cb09d283062f53e98c05e1e20983fc20a9e2c6558480f9ae19eed4f"
+        },
+        "pages.f807f07af9999249": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6d9b30f751aa92b2415c81170c39d5b7b6f83b53f66ff3306a415a6b3398df57"
+        },
+        "pages.f82e5d44ddc42e5f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "86e6e45b046f81a2b95589a5d1786cc0e0418730827863277fa69ca56c85e8ff"
+        },
+        "pages.f86c74e7c90e56af": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ccf87e4e855e5bdcb96f8f09f261fcbfdcc283d3b58577431f217f1175f4af04"
+        },
+        "pages.f87558869bcf8816": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "32adeb4636976ef70191458448641b4e1a1cfaad1c5978a0244ff9985621a60d"
+        },
+        "pages.f8a9e5642d494b00": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "8e8c4dc63b7797e8c8e27ea2e44ad76a9c9b445720a1a2370ebd443a3b5b38db"
+        },
+        "pages.f8cf83a76a98df2d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e64c3b72966fbce1f7d751632d375c20e466c82f2a24c4b5435139f67f93e8a6"
+        },
+        "pages.f903d47fe50eceb0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "93b4bc668cd6af213a2433cade37237b808c6957fad9dcac3f8fbe435144edea"
+        },
+        "pages.f97e9da0e3b879f0": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "1f1260ddd48575a969c70adc961ef191ade3e33f514f9cf80804b56b318b3860"
+        },
+        "pages.f9e4378d7a0820f3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "dbdc7f05a26e6dd65ed5859be3a3f09f055c9bc15be219abf8f6a4eecfb3a826"
+        },
+        "pages.fa0d22242363adcc": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3fcf1bcd85197efdd7e724720d1017a95ba68f5fc3d9de778feab4275afc7bfe"
+        },
+        "pages.fa91ff493a7ab5b9": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5e86fb2630b2faf89283e2df8885a325d84c8acbd52a322c2ab5b1d6a13a7fa2"
+        },
+        "pages.fb9d60f69a60736c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "82af7de7817c853b71460101439a9c96ed2e0d3e4f1363ebd49e2e8e0d194ea6"
+        },
+        "pages.fbe6adbf8a8a945c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ed2323b6c79fca0b467b4da61d5cbc02f6334be2d9be11e5db987155a6ff330e"
+        },
+        "pages.fc10a785607b6a35": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "846fdcff9eceff246374bc166dd2f125371a4bb8b525459c51ec7cbab7f20cbc"
+        },
+        "pages.fc3cd8012131af0e": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e0c7da345fb0d65a4fc27c93ced1fb0718874049cb2ed94c614ebe938070ab46"
+        },
+        "pages.fc80b6fe040ec37c": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "4b929efce1f41037132974be298b4af2b5ef8a7c46d0221d00a89e8c2126413d"
+        },
+        "pages.fce182ecc225a516": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7a93c32423fbc6bfb01eda21b3e0bc0df36f4fa3228730a8b7fdf2e4b628b01d"
+        },
+        "pages.fcf7ed654535baea": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7944b2d7e37121c8538d17a5912754fa0c1a4695b773301ac15fc8e031cbbc83"
+        },
+        "pages.fd0dd42cc4b9bac3": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7dbcefd535d0810e6f91827577ee2a60d790e7b136404649e26cfa759f83d861"
+        },
+        "pages.fd11f75c77ed5eff": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "c3fe72c393f0c37ace4088e5324a101a079dec74d6166a035542064751c7f5b1"
+        },
+        "pages.fd22ac67438ab38f": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "3812e3985aaa8c39110cebfe4804ab8ae7611df5f42226f48e3a893471dacbf7"
+        },
+        "pages.fd572435b2d4ec12": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e2af115e12b93c49ff1d234361f89a884d0dea3cc6ef50a0e4fe6463aa24e33e"
+        },
+        "pages.fdeb71b569e0034d": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0526676fc4a2b7f94602fde12ae11bfd3464bcf868fdc21ba1042ff2ae7be0c8"
+        },
+        "pages.fe1390825c9e7347": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "98abf4a4595e6ea7bd945965b5a901d1a86573a8378d98cd3f369f35fd559e8a"
+        },
+        "pages.fed33eed5cc86f86": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "41c41e3b573d0e847eafdb010448e603065a21f8f9662df5eb30ac0163e1f9df"
+        },
+        "pages.fee60d38cb840402": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d7d5f8ada4e62ef0a7fb330a16bef80d20ac72882a533d6c2d254d9e3eb28821"
+        },
+        "pages.ff0139d07c592e9a": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "526009817ef4263771aef512967c933ca4cf34a4de819784bc6f28606bfeabdf"
+        },
         "provenance.basemap": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6c80043fc4da87c5be7648b359c7c62832b07a5a16f6a61dbb4d9eef6f4acb66"
         },
         "provenance.basemap.depth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "68b165af0accd6c8d884c1e18dcf7b45bbc42feecfdd188205c02e914e2b5944"
         },
         "provenance.basemap.natural": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f3700a85eb6ce2195783c7672c537df6939bd6537df50a1db1f4930a1eb4c1d6"
         },
         "provenance.basemap.raster": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e19c739e0a465ccd8a96f96a3e4ab8481b9a472800df058e29c6c40a0fa1a8a3"
         },
         "provenance.basemap.vector": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2905f26ac18ed2e7a15ae708745b26d769d7fb363bd84e8abdf399632fbc21ba"
         },
         "provenance.column": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2687e69421d759dabe88ea4b8de6cf8bdbf43ed9c1eea1d53aa44a0ce0dd6a3e"
         },
         "provenance.derived": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d9aa02abdaa560f0bd5e8e28f468a4b24a375d5594fc62109e73c52a45ef6002"
         },
         "provenance.globe": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "41eaa40e87aa7543ccf6c02016f8d4414cfa8170f2fc867736f27b221dfdb610"
         },
         "provenance.heat": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "37c997b7b8c4191719fa615db136b2b3fa52ff8eaed36e4f101ff08df9b6bbe1"
         },
         "provenance.inputs": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d84b7f5a0195eeb4b0c19456c3ba5243bdc3f9d003d2615c90c77b06d93806aa"
         },
         "provenance.map.unavailable": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ae7766198f1921c24d3a9de49bd2549124ca820e5854fd1f469f91356565bdf9"
         },
         "provenance.names": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9202303ec8b95b45965a1b3d28490b2a5e82394776b877f4849dc7163e2340b1"
         },
         "provenance.none": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "30a0924a3360be687d1df9fcbbfdff62c01bc0fd14036ab9076cf7f451568666"
         },
         "provenance.notComputed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1dee25f9b8a6eabeb1da98ed32f7a2ea23d10340bf1d9c203cefa6ba460aef44"
         },
         "provenance.notFound": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bcbcfc801b4e874b3916c58a51cbe81cc9ab4b5f5f2f6c692558cac3d57f0418"
         },
         "provenance.panel": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e80fdef4566bcfb00d76db82e94e9561bffb9b548df84799625c84ea3f653f64"
         },
         "provenance.plan.drop": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a369b2e402ebe053e2c74e316ed5800edeac9f86613aa20c211958465f1f6a56"
         },
         "provenance.plan.footer": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e63625b611c60f2a719cd5ba0c91e4552882ea9d8ef19a4f60b15759d7b6d21c"
         },
         "provenance.pump.off": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8ce4e80cb1c455580302ba4187b07b3a5e0f4402b4a05d821b6f08637b0db2b1"
         },
         "provenance.pump.trace": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f8419776d364d9e20347d215a9caf53e161d26a6c0601e31452c399a7d408668"
         },
         "provenance.pump.warning": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5569b5878078a82b36592be2be303959abd45392a7df51d855c6e54e0af9047c"
         },
         "provenance.record": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "300bb881854e215b5206c361bbe43fa20163e5370b67f83906985c272ad1d898"
         },
         "provenance.sat.detail": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5249bb691bf21d874265f4d6fbcfe409caf4b8aa68f10e6c1c4a3ad31927335c"
         },
         "provenance.sat.footer": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6e085b660bc638951b2159f5608fc8f2e6531efa9084ebfe29c3850606412bcc"
         },
         "provenance.sat.hint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0a57c02f561d1d213d6e648afae11fe1ae3155b067c203c174c0168b71aac497"
         },
         "provenance.sat.next": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0548898ec20d16512df0d0bd4c51737106f80f237d54c94d670ec5d3efb75a68"
         },
         "provenance.sat.optical": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6e25d9fd81d7ec2f5f3ea4a98f9c9e5c9020219e3218d31bb9c815eea4e1fccd"
         },
         "provenance.sat.radar": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "465c220af45a1ecbabee8930a5de87fb2b9612649b3e85f742c1a4ee7b5dc103"
         },
         "provenance.surprise": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7d050e8cd7eafb486788678569c70d00b50f4a7d9722344110ba137de1ff592c"
         },
         "provenance.times": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5a9d6939d72cf87671d9ee8b8a8fdbd341c4aa720d0ada36eeaeef32f21f8014"
         },
         "provenance.unknown": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "eb8bf0d80db323992f6b634aab492b1e6d9e96a8e87a511c2a0db75ab929452c"
         },
         "provenance.zoom": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "027fc18008638713d083e11bf3e62e35e5029473c7becbfb78b9eeb0095e7a29"
         },
         "scheduleBanner.completed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0c020caae2cb940b99a0564173ea9f6895739d22e53efa2539c545a5347ea363"
         },
         "scheduleBanner.current": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "217d4d83d39a86b4b17a98bcede108735eab1698f51c75090f1af0ca9987f7b9"
         },
         "scheduleBanner.google": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b6a099ecc37f422e1178969f50bc03e91a31e832e28e813f01cc439ecd5bfecd"
         },
         "scheduleBanner.ics": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "267f4806cb6339debdab37a4f7fe3e3124a0596d9689777edeb74c4c10612ffb"
         },
         "scheduleBanner.left": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9761b65bf542f0df40a1d279f9737b3372f3e2cb18f862f1f90a7276cb6d9309"
         },
         "scheduleBanner.next": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a62db742dc3df63f2bf8c4f83e35bff6f7c7fe9843bd8b7447a052d3880e7a7e"
         },
         "scheduleBanner.over": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b2d80be2a03c1b36a5c2b4abeeb976e1aabf4eb98313ecd9a0ca211730e18ca9"
         },
         "shell.all": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5cf7504d9781301d83347546cdabc01a03c9638ab5b36c0a9203911078a0d1a4"
         },
         "shell.colorBy": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "60385992c419cf3c35b4e9d83e964878526cd997f0d7ff77cc0931032c05c45e"
         },
         "shell.colorHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fe5d2ac7036963d170cfb00422f961fd7ac29d077e5f750b751ab7b7f4d2ded9"
         },
         "shell.legsToShow": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5188775a0efbf4e767c13fcdd972e65972e546615780462021384bc6448c95fa"
         },
         "shell.none": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "30a0924a3360be687d1df9fcbbfdff62c01bc0fd14036ab9076cf7f451568666"
         },
         "shell.selectLegSpan": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b72cf745a853f1dd75004ad443082d60ef5ce506e805bf706d3fe9756f4ddb33"
         },
         "shell.showLast": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "da274ba564725cf624a452e1b421043d0d1a67b1103326a3aa7cc8a16e6cf830"
         },
         "shell.showSchedule": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1eb555c2e1e0115bff26288f807cc2de42b22b8a9ac2d7c8b4b91787f9e013e7"
         },
         "shell.span": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "876d79517526a71ef4fc6965aaee12a41aa9b4a583a1e03cb127288e48d614cf"
         },
         "shell.textSize": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "25a5a67ced8600eb58fd4aa344b308e39edf9d8e8e65fd87a63abc54cef20b96"
         },
         "shell.textSizeHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f4ea533bcba6eae4ed1c7cd29490c8a17f45c54f1e38ae6b053fd90c23bacf0b"
         },
         "shell.theme": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "888560be416ca9289b54433e87974cfa0c97bf427c125829f7daef26c38562aa"
         },
         "shell.themeHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7cf8b9b2c6aff5a363c234b21bd0fa16d34c4c505ecb853a44e34b395da4ae48"
         },
         "shell.timeSpan": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f5a9d54a66ca96e893557394c355341cdb49d064e4c6b7907a888448bf7a268c"
         },
         "shell.timeSpanShown": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "060e1a603b6f7d2dfa75d5b5c8f10834bf03a519b69d470948b075ec8654fc9a"
         },
         "shell.xAxis": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8ecd8e8a3e3af21644348ded2cc97a9083c2943731845c06584485b77a223fe8"
         },
         "shell.xAxisAria": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4b91393c34b46e5c0d3c256f1b990151ba459ef4da254e1989596b84371ebe99"
         },
         "shell.xAxisHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "38d47031333118fc51ae0ff69977090ea4450bb7547aa4ce402f3012a63577f5"
         },
         "sources.built": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d2be4314ce23995483a8fcc8f85ed470fd3a3994f7cf17dfc9e03a294d5d18ae"
         },
         "sources.by": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e92ee41907001a1329aa8ba5ff3e911f5b2bd3f4083a39b193dd811501551cc0"
         },
         "sources.calendars": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9137c3b46f1f23293854814f9d2d50621b79f40e0b9a1025ad4f8f7adee33c14"
         },
         "sources.coverage": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ba662b5333cb837e57ecc271ad2a0a7c5c2508c36486fd696d6c47f37296eff6"
         },
         "sources.data": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "87ded849e163296559f58c903786ab52a4c8b128709f1300b74c9922d4dd238f"
         },
         "sources.intranet": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ac632207d39407eaa1038e0e83379c58de161fc9a5f156eddd4437873cbe5407"
         },
         "sources.scroll": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e9997af7c41555dbf1beb90b4ec99edf57b5fb5619d26bda3f8996b630a4bd4c"
         },
         "sources.source": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "073171f7f5e1438ae632cb252bda87d19e1bfab1a0ba309e91bdd645886f24ea"
         },
         "sources.title": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "267b19cf16b7766daab3a293014090996f6cda3b1e4fb0b1d4512ee748782883"
         },
         "sources.webCopy": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "95bd553b6fdb3a7de47377220c79f15e67502bc8afa6a3fad5d04259cec7730b"
         },
         "stationsControls.clearHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ba5b24202e3ef1e8f6a5a64763d6a8954986e5c5a2e4cb0112d0b0101580c7b3"
         },
         "stationsControls.filter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0c5841c34a21f0ccd1b746d9f7eb5d60cb27fac1929dfb820d1dec20142bb12c"
         },
         "stationsControls.filterPlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "803cc5fafcd0dbb8e3ac2c0ba13a8cd6fe3b7dca2674d1c539ab26667788598c"
         },
         "tables.count": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cc3ec73cd71163b2b0ee5faeb2a908226ac15c35c7207d9a626e63ccc47f0ffa"
         },
         "tables.daily": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "544716058286aa31b49630b3b3f0288a211e14535e040a476ece85d2b6b33a30"
         },
         "tables.download": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "27377af46fbb90d5937c3c0c19b1ef59b91fe1c790143bbb24f00d6a109e7866"
         },
         "tables.filter": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6f5a09ee097734f1bf75e4dd238cdeab5f33d0dece8dbdcf9e9eb017b8804805"
         },
         "tables.filterPlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "41cd415dc7303be79613d8e300bed16e6aa78acf09b64029cb78a0a1b880a96c"
         },
         "tables.hourly": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "75fa814a64ac32a24a1760fe9ad909e83dcecadbb3c1c6b1314e22930fb1c53e"
         },
         "tables.max": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9f8bce6a0f469f0a823a32bc247b3419317ad5a7d73802e0d910cf7458989b9b"
         },
         "tables.mean": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2007b8e6447eac966ac34911141251acfb9410ca9631da0434b49ea5002cd627"
         },
         "tables.min": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1c26d9265cb7df4974aba68adfedb98765d646bb57bed0a050150c1b243e7f9f"
         },
         "tables.statistic": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "33bd598e2da1b87764affc2c885cbe7ecd51b447ba20b3795aa3006aebca95ff"
         },
         "tables.title": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d442489e7b1c499e8314e3be178e50d2066f2dddbf0af854844124b525d5278e"
         },
         "underway.age.days": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ec02ff1b9f393efbacb04d6bd33256e7c0c4b115da4e90364ae8572d7c60a773"
         },
         "underway.age.hours": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "00c20095c91b6f9202b0cb186f4c88677ee79eb802ab9dea7cb9069ad72be022"
         },
         "underway.age.minutes": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ed793d5e45f557aa6aac85afcee5955091297e031f1224c9a8584dd7833b9579"
         },
         "underway.age.seconds": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "199cd4c0ae4d7039c938afbd7830e24052a6b6347fb7b31a98d1426a64661472"
         },
         "underway.axis.depth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1d90bd55e9c4701a129ff24f14208ea16870725dcbb8f08e7caadf53d0356363"
         },
         "underway.axis.depthRoot": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7545c9b9efe94334f5bb12dd78e9a2c838505636b5fb739b54eeb306ccab2408"
         },
         "underway.axis.distance": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "562be432802c785fa6c6f77145ec887a272d4e725658b40e6e391a37fae0cea7"
         },
         "underway.axis.time": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7944b2d7e37121c8538d17a5912754fa0c1a4695b773301ac15fc8e031cbbc83"
         },
         "underway.chart.colour": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2f9e8b14f497dc7468654fe94aaae5a01e3bb0a12acebc6492cc8b4b3ca29b81"
         },
         "underway.chart.combined": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b8743d39cd77ce67ab45179673aa818c1e5b74c6b003c8f27feced4e369a4f98"
         },
         "underway.chart.depthRoot": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a95191ba146591e47319730487817691bb101e2824c857d8996a00a3ab34d792"
         },
         "underway.chart.excessHeatHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "901b5a134e360f9c9bb8eb165cf2649ef09e913f3f2a0314534d61d03c1a013c"
         },
         "underway.chart.expand": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c540e753e0ced66679ed87e011030c15c2ca342d741d076a0c4bdfd10b7ae8d3"
         },
         "underway.chart.groupSummary": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c4dd55579acc309610f0d13b007a6f9f57b6308c714e7cec8aa5eb12614a9a63"
         },
         "underway.chart.latest": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2fd19b778049da2f47722a639495f35a2a1fe94ad2f736b48bb34addcb32a7b4"
         },
         "underway.chart.latestROI": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fcec870f76cc9ba5364b5ae2c664f09438394c2b96ea9cdbe9e569452e14b376"
         },
         "underway.chart.log": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fa245291f837e1b8fd02cdb067a34352b4bfb41ff216e4472ec7117d0a055aa3"
         },
         "underway.chart.lowFlow": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "94fba36bd6a77705dd63408d01fe667031ca0119e99f9ae878ff602732f3b656"
         },
         "underway.chart.minimise": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "3658ae922a18aea2e19eeeaa7813f8d4377330a9c5784d0fc91ec2a8a0a7818e"
         },
         "underway.chart.minimiseAction": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "921b6e26031d91545bcaea893fa7e2c11d12ad8c2aa4d9a2683138eadababa9e"
         },
         "underway.chart.minimiseGroup": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "3d83698c28e94bef4e2f50c150fdc31ed62b73f7273195898e6f7b5f4aba5bfe"
         },
         "underway.chart.noObservations": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0299798801a3b7dd6e52ee0cbe20df16a23cddfb8fdfdf85f334297a38397cef"
         },
         "underway.chart.reorder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6c09e21c46037ae92500d2893374d758ec6a737afdba1791adbcf6032d229f23"
         },
         "underway.chart.reset": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b63976d08698832b0939f4455e40f7826cda2bad4da273fb4c95c551df29062d"
         },
         "underway.chart.restoreAction": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "594d02943a868eac9f7fce095e30b349c8ec342b7c82cc990c8d7290aea278e9"
         },
         "underway.chart.restoreGroup": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ec18867321581f2d548e6324ffb9ba9430ee39762f28581c1c8e18a63bcf102b"
         },
         "underway.chart.toggle": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "39c2b3beb876c03c797b5e2300962e35eef89274ffc051421ea530093c139e23"
         },
         "underway.chart.toggleDepth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "47bbe688e3f53852143bbf05b2c15f39431bdedf0c75a4061a2b451a19b4fb91"
         },
         "underway.clearSelection": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5d7b40098782a1c4da2536feba807de901986d8ec9c14063fcf154dc8fc82ebb"
         },
         "underway.clearSelectionCount": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "aefc0f02a50f664f1b08fe558b8b981d34821cd36e97c1bc201a359444e571d9"
         },
         "underway.colourScale": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "283e7539dedf7462d0f10c383cdb5de3c382d8d8e0d58ac63d37c58b6db63924"
         },
         "underway.column.activities": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2d04305bd46965a401c30008646db4c1e5ce3d1b984196ec71c2ed4c1876257a"
         },
         "underway.column.bottles": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "da26c37d598b5c5fcd90b1dcf00a2e89fa157080e37da5d5a8eca9fecd4b51f2"
         },
         "underway.column.bottom": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6d4f15e03b114083a9e7cf56a3d26c66d49d6f0fb82d6ca9d49e69f7f839b042"
         },
         "underway.column.cast": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "038923fa2541552bce51f5a4a632f32e727e73ceeda6ec93192d700bb3d8b431"
         },
         "underway.column.castDepth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "315b5dca88b5adeb43b93b33774dceb9b27207ad95c5e04da1f93217c3714f30"
         },
         "underway.column.comments": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "70446eac9d4c5b628ccb1a84ff3e5eacd863fed5bc9cca7e6e572d78bb930e76"
         },
         "underway.column.label": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bea6e6df225b3c3edb767a70498f641b55093a99e4f35e35f198db29eafeb17b"
         },
         "underway.column.leg": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6406ce1f5643a827a037ea6d9b6f4987d01c08d239598874c04b3e68ef11d612"
         },
         "underway.column.maxDepth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "db09ba60e05134afa74557bc1fdaed3ab5c580d9744de80318ca27519fb145fd"
         },
         "underway.column.source": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "073171f7f5e1438ae632cb252bda87d19e1bfab1a0ba309e91bdd645886f24ea"
         },
         "underway.column.station": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8f828bb048390ff73ad81ad2807d5e6e1b420414c34b2b586bb662ecd2a6bdf9"
         },
         "underway.column.time": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ae91968740d0b69a040232058660f7bd4b1152a754e597e5def5bbaeb8ce632b"
         },
         "underway.column.type": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d0070d5c40cd1aedd1b8d81061cd99af330999196a4200af47d89c42b4f81274"
         },
         "underway.dataAge": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "3891d764d290595775286281afb7f7b50c304b39301926fdf5d5bbecdd38d9da"
         },
         "underway.distance": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fe7ddb094aa8ff4d4b0d74f87c433fd2b1dd1761b095f1b693c37161edaa48c4"
         },
         "underway.empty.data": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4653163328cab2522b37968cfa618e9a32f5016f5c250a77a6e5aa12caf56f7f"
         },
         "underway.empty.legs": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5c13c4ef3475c5efda4317fb73088f910f0087f9ed816552f8466ee07db7ad98"
         },
         "underway.empty.source": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bc0c886bb505b64bec089938e5d832b8d8dacefae52ccb6bec24d6fea6c4417c"
         },
         "underway.empty.track": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "82728f41d028cef55f935d5fb4161c5307da2c21729c0f3751e0366fcf055671"
         },
         "underway.group.Bridge": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1d7d7d4b9026829e38336a44defbc2e528a3709552e2d0888421c4a3ea08fb4a"
         },
         "underway.group.Lab": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e2dff51ede6e5a832d42ea90260f009ea0148a444b321a73b0bd5162f30a6156"
         },
         "underway.group.Met Station": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a2534303ce4cf5e491b3c9c82aa8980ca03293e095a833bacddda06249fdcd9b"
         },
         "underway.group.Other": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1f1260ddd48575a969c70adc961ef191ade3e33f514f9cf80804b56b318b3860"
         },
         "underway.group.Surprise": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "39bfd058c92cf4dd031961869207a59b143c34cebd3e37d8b92ab85ccfb2948f"
         },
         "underway.group.Winches": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f5cfb8c808bb7b3a96b97540a98902ff53d582044189b98a99fda54b3ce18098"
         },
         "underway.hideSchedule": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7cb35d26397cae32ee034dd54cc9f739669e3474f1d0dceb58fad57405fb9fcd"
         },
         "underway.legs.loaded": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "30ea3f8a179d5b3d2975debe0fa2097bb4b39f1df65635c05d1e7fbd25362b21"
         },
         "underway.legs.summary": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6b75ae094c99fa627f1745abdbf12b93cd2416d9dd21c17145406bfac5850dda"
         },
         "underway.live": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8ddd7aeeb37d23d80477501902bb8a8151dfef4277f766394cd65997163eeb48"
         },
         "underway.map.casts": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c415bd58c305c3a9a9c197fda2da43fceb7f2188e863479db36ddacad8c0da5a"
         },
         "underway.map.navigation": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9b774ee056d4f1d01712776ab97e36e78bf8d3db7f2188f6e0d8f2616f724300"
         },
         "underway.map.otherStations": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8ba4820533e9bc1ecd631a34c6e656333de75c51f1cbd34077456ebbd87c29ca"
         },
         "underway.map.stationHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "04df7b24e99d275cd39a21aa9ad5b16d013bd6e7c6736d81577fdb2dbb72fee7"
         },
         "underway.map.summary": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c1c0f214578374bd1a66fffa1e2045e840654546bc2a30a38cb0f849c9fd76df"
         },
         "underway.plan.description": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f96a0526bc1bffeb36cfcb64202a0414c9d1d782d37115cdb3f1e1b12c038e71"
         },
         "underway.refresh": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "92afa19222481f188da2f9ed33341386ad49ff921c00657e3475ccb0bd06fa94"
         },
         "underway.sat.earlier": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4e0a677ac7bfd79ef6c08cb95b92fa36c456db632c9a06d205ca29437cdee8e7"
         },
         "underway.sat.newest": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "110aa761ef405da5e60ac99d7d6723fad808e607de0df18e8e829e651563507b"
         },
         "underway.sat.off": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8b511a3be95d722957d94b5982ba6647c1b87bb36e4121ece87c018ca9930f24"
         },
         "underway.scope.Basemap": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f45488412ad367c141a476bd578f65f680642abbe016b2bded4edbe7787d146f"
         },
         "underway.scope.Casts": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "140f1a302bf74cb3d59ed96108696ab3bc0af6e3c32134124dae554443c1787d"
         },
         "underway.scope.Schedule": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c044f2c18e86a7303f5e1b3b34469e4b9674e82d9021d16a4c038d93f465c05f"
         },
         "underway.scope.Stations": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d18dd3f9da1a1accfbf4b91544331c7ac6d507f50f351d840ba9f5dacd032e8d"
         },
         "underway.scope.Table": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0b982d8e0e671a516a46a9a24f94fe01723774dc396ca29cca22f44ac3226a3c"
         },
         "underway.scope.Track": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "43ca97343510d96ef8222eaf8091ed6dc1ecd918808cd07f37a0ba1aa5e11084"
         },
         "underway.scope.Underway": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1cc64840a7962d0b69e82f717ac88dc8e2eddd6af3f4056d1883bb0884fa112a"
         },
         "underway.showSchedule": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1eb555c2e1e0115bff26288f807cc2de42b22b8a9ac2d7c8b4b91787f9e013e7"
         },
         "underway.size.auto": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9c906b171e4e60e0ba956107713431c5a59659eb75c0caed6cb91037d921cf1a"
         },
         "underway.size.large": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5e3f7814fa359a4780de0606f81ce795e4c0428bcde543a7f2a07894c277c05e"
         },
         "underway.size.normal": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d6abe98982af8cd34cc82d64026d0e487c3d5ba9cf5792f07f58e6e7b8365893"
         },
         "underway.sort": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e4f38a2ecb0e2d08c3e30dcad798386cc5f39fe4c8248d5d6c4cec315ecf94c3"
         },
         "underway.span.all": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5cf7504d9781301d83347546cdabc01a03c9638ab5b36c0a9203911078a0d1a4"
         },
         "underway.span.days": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "22f6c1b816284686edfe58ba7f69114a37b8f5557df87bfff554872f2a09f3b5"
         },
         "underway.span.leg": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "04d01f4ba9f57732dd452de923c9a8196b98760f491d52df513f1dc017b1df40"
         },
         "underway.span.years": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "99a612876597c45d8f02b1b8a49793bfc94be664171b91f70d642a32840f0ec2"
         },
         "underway.stat.max": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9f8bce6a0f469f0a823a32bc247b3419317ad5a7d73802e0d910cf7458989b9b"
         },
         "underway.stat.mean": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2007b8e6447eac966ac34911141251acfb9410ca9631da0434b49ea5002cd627"
         },
         "underway.stat.min": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1c26d9265cb7df4974aba68adfedb98765d646bb57bed0a050150c1b243e7f9f"
         },
         "underway.stat.n": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "46a3ae93aa7a8b988080d6c9a03adc15d0518284b1fc2e498db412676d201d5a"
         },
         "underway.stations.selectAll": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4da8eebc3c167c846b004de41250ca5238947e562c9af80b77e7bc4027c9b460"
         },
         "underway.stations.summary": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d4c31c304a54cf797ba0064978b39d552925a5b4792e417bac528ab216b841ea"
         },
         "underway.status": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0abccbf8c43e5d6f875c0cc0b86d85f447acd8215bf328c9d9e3f325acc6168b"
         },
         "underway.table.allLegs": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ff3b248277605818076b0663c482980813da94bac2b9e9030a8333e84c2301a8"
         },
         "underway.table.hidden": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4169e39d81333f5a02305a2db2e5f4edb0d4b504b0431185abfb2f14dd0339e7"
         },
         "underway.table.rows": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "102687d8ea62889f1204a2d7294e2bea34a9843dff996e4d68f5225ee08b81ff"
         },
         "underway.table.truncated": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b2599c1e17dbaad4db58120fac06db584701b81e67b203a7bc4a370103dad261"
         },
         "underway.theme.auto": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "27ae1101d6a8c4e8ff01310e682e9416284ae695e06d18dcc5a9fd3d45613ea7"
         },
         "underway.theme.claude-dark": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cff7632f51502c833c67f7ed56d8d4d876bd6e89d8068141e922ee591724cc1a"
         },
         "underway.theme.claude-light": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fb98838612084da5e5000d745c16782230cc0a73e2d465588a88c80f5fcd86ae"
         },
         "underway.theme.minimal-dark": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "11af41c11d156393ae3d3442fef5d65974d7dfd6cfb74fa2963db1e110eec3f8"
         },
         "underway.theme.minimal-light": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1d84ddf2b5efcf67549ed560d2bf2c7aee8b50271308874904b8637cd0b10415"
         },
         "underway.theme.navigator": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9c96501a6013720cd60f2825f3137f45f8f5682ce1018c1f537b23075051b7c3"
         },
         "underway.theme.navigator-dark": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9ee8fc303eb3206be086d7093763f2e413d5cbd4278fecf079ca55be688fc87b"
         },
         "underway.time": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bbf063c475b0d107605ddac47c920394773ea795f9ac2d25e3925d19c36d089f"
         },
         "underway.track.all": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "af683a7d5d0b863d4257daf5815d22221456ea84ffda756af5f0418a189b6eb0"
         },
         "underway.track.detailKm": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8cefc85b445284685f80a5d0477a707eb06b5c140a61494ade5a6578bb3753ac"
         },
         "underway.track.detailM": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "46f33de2b054da4bfe510fc3cdced68058e105daeb013b6a74d2c5ea7ce423a4"
         },
         "underway.track.limited": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "490796c180de9c85edf5812cfa8154401fe2bfbe42e716911fcb6085ebced643"
         },
         "underway.track.loading": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1590439eecaec30f0ebb5dbcfd159f53abc0550171778af15411d1cff49da601"
         },
         "underway.track.points": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "19fdb478fe25fbf975403f145f2cd7721ae559683cd5e6b59d19c7351207338c"
         },
         "underway.track.rebuild": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c0a3a8b038c4ddf9f080537a8bf8cf18511211edfe1eba70af865b0ca7f8c2dd"
         },
         "underway.track.unavailable": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6fe76fad1c1dd6d51810e794f0caf67636a5ae7c040506f8cdbe4aad3e8a4c35"
         },
         "underway.updateUnavailable": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b731d8425860189cf259b64e008f0635cd0cd3d50f50aa5b0afde9804709010b"
         },
         "variable.airTemperature": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a34d7a4f894e44e4fa9c7c49f2e1deabec33a4c4fbefac9ac39291e376fda56b"
         },
         "variable.bottomDepth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7787bd4e9ca5051a37cd7989a1f925a0ef2762b75f8133de7af570cfcb091cdd"
         },
         "variable.cableLength": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ffeabf4dc46a8e9cb0f66224a43177fa75d12a1dbdc9b9ac9eeda5a69b9180d3"
         },
         "variable.cableRate": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6291849b40ff01d4d40adf019c94628a9904ab8b836b293f449be1e4b479a69d"
         },
         "variable.distance": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f3f8bf3cadb97a1a6a787a066d1ab9dfd6034b41a3d5c587171db97d9af62860"
         },
         "variable.elapsed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "758708d9eacfb31db256f7eea280cdbfeb3693a553a484b833a36259778dac25"
         },
         "variable.excessHeat": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fe3d56aacbde8b3dfddc37368cf744eb593d1bcaf472cae6ff2c04c85b28a739"
         },
         "variable.fluorescence": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "85ca291327bf3b902bee4f188c1149886b2322a7b26e710fc48428d51be648ce"
         },
         "variable.heading": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6693c87928c58400dac04397f27bf5a0920cff3b1ca0894955a9efcecb369239"
         },
         "variable.humidity": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8e6bb82a46c487fcca9a250ae2552982bdd66167d41c36cff75ec1c21c7696c6"
         },
         "variable.oxygen": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ed0e0eae6695dffeb5d008e42bd51fff2efc91840f49e8ae90f8c84a23e667da"
         },
         "variable.pressure": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0095bb1350ef5ffaf5e25ca59c6ef795ff1d5741a6977af22a9a52dab9963ee9"
         },
         "variable.rollPitch": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4f915196a2ca0e1db288b4255ed474e457ca8dce6f8fe09a17f8cddfbb4e81be"
         },
         "variable.rosetteDepth": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "de8bbc8ba8e96bd7416ba7fdc222ce8b0ec3579cd5846839d66278adaa70eda1"
         },
         "variable.rosetteRate": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4926203b4e9b97681764fda6a645dba7fbf1b7d18e6b3b64ab06690cdd9e3a7e"
         },
         "variable.salinity": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "80e58a59d7627192144166f78e906d3b23f805ad793f522bd8106dbffa375bb6"
         },
         "variable.seaState": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1ca49651b33c136b62ff09995487716850d133c5a5cd53095fd755226081003f"
         },
         "variable.shipSpeed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5afefe1d97f008fc2f1a2e5b36e5d722cd14489fc1e4e23edc3d6348dae9b05b"
         },
         "variable.solar": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d2975ca97a31ed5e8da8ae31006865ec996d6abe55d4837227524fa2ef527c3e"
         },
         "variable.sst": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ab2e9894d8b8d53506c000d9f9816c768cd205dbb3653d0c79fcfdd17f4cc5d7"
         },
         "variable.surprise": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5814e7660848643ae9870560771534b17b73e9529c3fb9556fe7596c8009456d"
         },
         "variable.surprise0": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2b2cc48920e8170219caa241964bfb1589cc0baa6cb85cf475fe3810f3a7f5f5"
         },
         "variable.surprise1": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7c05dc3da6e47ffe8ad3a1d0f23e42e507179e945e36cdaa952c9ed3c8fcce0d"
         },
         "variable.surprise2": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b9c7d3c82256891a8ad669ddad9e652dab115ed036ae90e8accf36c30e3a7401"
         },
         "variable.surprise3": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8bfd21876908b9086b1011882de125486d0315419fb13e63c6890c49e52c5d99"
         },
         "variable.surprise4": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "94282906aa7f9bc5e73a9eed83acc0e9f3defd557b133361e8916d1a6a1f8415"
         },
         "variable.tsgFlow": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "71d5d2f4460a3a19e2d5ea1b8c091ee15104ecee33225322da323733dc4b722c"
         },
         "variable.tsgWarming": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cd46989342ee23219ef06130c42e9817c95cda49aabe952066c25e474638b6dd"
         },
         "variable.windDirection": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "2f6dba1379e129dd6277e4ae9ff4e8c1c5727e6a8c88d46284d34453a3a296e3"
         },
         "variable.windSpeed": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d8ce20d6a8b56fa930685fe7d7e5add86a75c7425a8768601cdbf52a81025dd1"
         },
         "wikiControls.ask": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5fe37503241e317f2c4322f424b90e3c5b571260c31a7c77e66bd1eb2f5c1812"
         },
         "wikiControls.askHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6edbd93269a5e82db1238469c71836b77db5847fe3338f7963b9382e2b5cc704"
         },
         "wikiControls.back": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "311783e36baec58abcb338c8bd49e9403b06e98f50923b5859a637986575b32c"
         },
         "wikiControls.backHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bed6994cc55476e06e7301fac4c23cb01696af89923c3520437a7c2dbd167a27"
         },
         "wikiControls.browse": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "969f89d4a174cbbfc5f1306f22b6b02e0f47c597e182e28fd7cf7ccab95d384b"
         },
         "wikiControls.browseHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "704688d17021b2613626448734665cd5ae0be547f9658b8e02fb7bed2fb1bf5f"
         },
         "wikiControls.close": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "316a5e154c1e025726b9eb5422e04c8b59ff5ac2e0ee3350b906f9897726369a"
         },
         "wikiControls.domains": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "516710bb31d87adf84e2b5de42ae94a39e35d4be786a455d9509837717f45973"
         },
         "wikiControls.explore": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e3abd89f854ecdf2057ff5efc6248d1047d33d11db8b2ccbec8aedd1c2c45cdc"
         },
         "wikiControls.exploreHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bbe1be0b62416cf7d3e9d406eb95445989453695c6adf85a1558ef4c8cd7e426"
         },
         "wikiControls.historyHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "20004a81202eef0c5fb5dd5a8b6e441e95dc7c81156e95bf20006739930215cf"
         },
         "wikiControls.home": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d2187d527809f5324ca15ce87ab5b2f1364f08638da56782c4111c4a89c2cf43"
         },
         "wikiControls.homeHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "98515b352ce4789aa341276b2d4d99e2997ac4030711fc2c61d8a7ad0e98dd61"
         },
         "wikiControls.natureHint": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d0116ba1cc74c9b9e2cfa41c60186d1beb4de774e889eae7bbefd01870d3fb6d"
         },
         "wikiControls.search": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "00632a2dd49086c4744a45d5f951106d7b254ed3466482fef40550b66c52a532"
         },
         "wikiControls.searchPlaceholder": {
-          "profile": "editorial-fr-ca-v3",
+          "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dd38ddfbe9bf44b2776b86d853569a493e97d83dd6768ccb72ff572d2711e2e0"
         }
       }

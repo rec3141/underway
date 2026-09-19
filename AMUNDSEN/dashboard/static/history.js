@@ -12,6 +12,9 @@
  * tabs.js; talks to app.js through window.UW like the other panes. */
 (() => {
   "use strict";
+  const ui = (source, values) => window.UWI18n.text(source, values);
+  const uh = (source, values = {}) => window.UWI18n.html(source, values);
+
   const UW = window.UW;
   const $ = (s) => document.querySelector(s);
   const { store, C, fz } = UW;
@@ -28,7 +31,7 @@
 
   // artifact kinds: a colour each, for the map and the chips — an index into
   // the theme's palette, read when used so a theme change recolours them
-  const kind = (label, i) => ({ label, get colour() { return C.palette[i]; } });
+  const kind = (label, i) => ({ get label() { return ui(label); }, get colour() { return C.palette[i]; } });
   const TYPES = {
     track: kind("Tracks", 1),
     event: kind("Events", 3),
@@ -55,9 +58,9 @@
   const COLLECTED = new Set(["image", "map", "quote", "text", "object", "track"]);
   const DOMAINS_ALL = ["history", "nature"];                  // the pane's two labels
   const KIND_LABEL = { page: "explore" };                  // a narrative page is an Explore page on the site
-  const kindLabel = (k) => KIND_LABEL[k] || k;
+  const kindLabel = (k) => ui(KIND_LABEL[k] || k);
   // a page's standing with the crew: marked while it is a draft, unmarked once checked
-  const statusTag = (s) => s === "draft" ? `<span class="status draft" title="the crew are still at work on this page">draft</span>` : "";
+  const statusTag = (s) => s === "draft" ? `<span class="status draft" title="${uh("the crew are still at work on this page")}">${uh("draft")}</span>` : "";
   const TOPIC_ORDER = [1, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];   // topics take the palette amber first
   const TIMELINE_FROM = 1400;                              // the Events chart opens zoomed to here; the table and the chart hold everything
   const VIG_N = 5;                                         // vignette lines shown before "see more"
@@ -159,10 +162,10 @@
   }
   const flagText = (f) => "⚑" + (f && f.raisers.length > 1 ? f.raisers.length : "");
   function flagTitle(f) {
-    if (!f) return "Flag this item for content review. For interface problems, use Feedback in the header.";
+    if (!f) return ui("Flag this item for content review. For interface problems, use Feedback in the header.");
     const by = f.raisers.map((r) => (r.who || "someone") + (r.note ? ": " + r.note : "")).join("; ");
     const can = hist.admin || (f.mine && f.raisers.length === 1);
-    return `Flagged for review by ${by} · ${can ? "click to withdraw" : f.mine ? "only an admin can withdraw it now" : "click to add your own flag"}`;
+    return ui("Flagged for review by {v0} · {v1}", {v0: (by), v1: (can ? ui("click to withdraw") : f.mine ? ui("only an admin can withdraw it now") : ui("click to add your own flag"))});
   }
   const flagPages = new Map();
   const flagMark = (a) => { if (UW.public) return ""; const f = hist.flags.get(a.id); return `<span class="flag ${f ? "on" : ""}" role="button" tabindex="0" data-flag="${esc(a.id)}" aria-label="${esc(flagTitle(f))}" title="${esc(flagTitle(f))}">${flagText(f)}</span>`; };
@@ -172,11 +175,11 @@
     let on, note = "";
     if (!f || !(hist.admin || f.mine)) {                      // not flagged, or flagged by others: add this device's flag
       on = true;
-      note = window.prompt(`${f ? "Also flag" : "Flag"} "${a.title}" for review.\nWhat should be looked at? (optional)`, "");
+      note = window.prompt(`${f ? ui("Also flag") : ui("Flag")} "${a.title}" for review.\nWhat should be looked at? (optional)`, "");
       if (note === null) return;
     } else if (hist.admin && f.raisers.length > 1) {
       on = false;
-      if (!window.confirm(`Withdraw the flags ${f.raisers.length} people have raised on "${a.title}"?`)) return;
+      if (!window.confirm(ui("Withdraw the flags {v0} people have raised on \"{v1}\"?", {v0: (f.raisers.length), v1: (a.title)}))) return;
     } else if (f.mine && f.raisers.length > 1) { UW.toast?.(flagTitle(f)); return; }
     else on = false;
     try {
@@ -185,7 +188,7 @@
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || r.status);
       takeFlags(j);
-    } catch (e) { UW.toast?.(`The flag could not be saved: ${e.message || e}`); }
+    } catch (e) { UW.toast?.(ui("The flag could not be saved: {v0}", {v0: (e.message || e)})); }
   }
   // the coastline under the route sketches: fetched once, as arrays of [lon, lat]
   let coastLoading = null;
@@ -246,7 +249,7 @@
   function yearLabel(y) {
     if (y == null) return "";
     const n = Math.floor(y);
-    return n <= 0 ? `${-n} BCE` : n < 1000 ? `${n} AD` : String(n);
+    return n <= 0 ? ui("{v0} BCE", {v0: (-n)}) : n < 1000 ? ui("{v0} AD", {v0: (n)}) : String(n);
   }
   // a date as written, with early years spelled out: "-2500" -> "2500 BCE", "0985-06" -> "985 AD, June"
   function dateLabel(iso) {
@@ -255,7 +258,7 @@
     if (!m) return iso;
     const y = +m[1];
     if (y >= 1000) return iso;
-    const tail = m[2] ? ", " + new Date(2000, +m[2] - 1, 1).toLocaleDateString(undefined, { month: "long" }) + (m[3] ? ` ${+m[3]}` : "") : "";
+    const tail = m[2] ? ", " + new Date(2000, +m[2] - 1, 1).toLocaleDateString(window.UWI18n.locale, { month: "long" }) + (m[3] ? ` ${+m[3]}` : "") : "";
     return yearLabel(y) + tail;
   }
   const topicOf = (slug) => hist.index?.topics.find((t) => t.slug === slug);
@@ -305,7 +308,7 @@
         if (t > ymd(a.y, a.m, a.d) && t < ymd(b.y, b.m, b.d)) {
           const day = Math.round((Date.UTC(y, mm - 1, dd) - Date.UTC(a.y, a.m - 1, a.d)) / 864e5);
           const len = Math.round((Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d)) / 864e5) + 1;
-          if (day < 7 || len - day <= 7) out.push({ year: y, kind: `day ${day + 1} of ${len}`, label: r.label, place: r.place, topic: r.topic, lat: r.lat, lon: r.lon, slug: pageFor(r.entity_kind, r.entity_id) });
+          if (day < 7 || len - day <= 7) out.push({ year: y, kind: ui("day {v0} of {v1}", {v0: (day + 1), v1: (len)}), label: r.label, place: r.place, topic: r.topic, lat: r.lat, lon: r.lon, slug: pageFor(r.entity_kind, r.entity_id) });
         }
       }
     }
@@ -313,7 +316,7 @@
       if (a.type !== "track" || !a.waypoints) continue;
       for (const w of a.waypoints) {
         const d = parts(w.date);
-        if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: "was here", label: a.title, place: w.note || "", topic: a.topic, lat: w.lat, lon: w.lon, slug: a.page });
+        if (d && d.m === mm && d.d === dd) out.push({ year: d.y, kind: ui("was here"), label: a.title, place: w.note || "", topic: a.topic, lat: w.lat, lon: w.lon, slug: a.page });
       }
     }
     for (const p of [...(hist.people || []), ...(hist.animals || [])].filter(inDomain)) {
@@ -371,7 +374,7 @@
     const town = nearest(towns, 30); if (town) return town.name;
     const water = nearest(waters, 200), t2 = nearest(towns, 120);
     if (water && (!t2 || water.d < t2.d)) return water.name;
-    if (t2) return `near ${t2.name}`;
+    if (t2) return ui("near {v0}", {v0: (t2.name)});
     return water ? water.name : "";
   }
   // the day's picks: the same five all day, a different five tomorrow; the
@@ -391,17 +394,17 @@
     const today = onThisDay(now);
     const pos = UW.M.latest || {};
     const here = inThisPlace(pos.lat, pos.lon);
-    const dateWord = now.toLocaleDateString(undefined, { month: "long", day: "numeric" });
-    const item = (x, extra) => `<a class="vig" href="#wiki/${esc(x.slug)}" data-slug="${esc(x.slug)}" data-lat="${x.lat ?? ""}" data-lon="${x.lon ?? ""}" data-topic="${esc(x.topic)}"><span class="dot" style="background:${topicColour(x.topic)}"></span>${extra}<span class="txt">${esc(x.label)}${x.kind ? ` <i>${esc(x.kind)}</i>` : x.type === "place" && x.when ? ` <i>${esc(x.when)}</i>` : ""}${x.note ? ` <span class="muted">${esc(x.note)}</span>` : ""}${x.place && !x.note ? ` <span class="muted">${esc(x.place)}</span>` : ""}${x.lat != null ? ` <span class="pin" title="on the map">⌖</span>` : ""}</span></a>`;
+    const dateWord = now.toLocaleDateString(window.UWI18n.locale, { month: "long", day: "numeric" });
+    const item = (x, extra) => `<a class="vig" href="#wiki/${esc(x.slug)}" data-slug="${esc(x.slug)}" data-lat="${x.lat ?? ""}" data-lon="${x.lon ?? ""}" data-topic="${esc(x.topic)}"><span class="dot" style="background:${topicColour(x.topic)}"></span>${extra}<span class="txt">${esc(x.label)}${x.kind ? ` <i>${esc(x.kind)}</i>` : x.type === "place" && x.when ? ` <i>${esc(x.when)}</i>` : ""}${x.note ? ` <span class="muted">${esc(x.note)}</span>` : ""}${x.place && !x.note ? ` <span class="muted">${esc(x.place)}</span>` : ""}${x.lat != null ? ` <span class="pin" title="${uh("on the map")}">⌖</span>` : ""}</span></a>`;
     const fold = (xs, key, line) => {
       const shown = hist.more[key] ? xs : xs.slice(0, VIG_N), rest = xs.length - shown.length;
-      return shown.map(line).join("") + (rest > 0 ? `<button type="button" class="more" data-more="${key}">see ${rest} more</button>` : hist.more[key] && xs.length > VIG_N ? `<button type="button" class="more" data-more="${key}">see fewer</button>` : "");
+      return shown.map(line).join("") + (rest > 0 ? `<button type="button" class="more" data-more="${key}">${uh("see {v1} more", {v1: (rest)})}</button>` : hist.more[key] && xs.length > VIG_N ? `<button type="button" class="more" data-more="${key}">${uh("see fewer")}</button>` : "");
     };
     const todayShown = hist.more.today ? today : pickForDay(today, VIG_N, now);
     const foldPicked = (all, shown, key, line) => shown.map(line).join("") +
-      (all.length > shown.length ? `<button type="button" class="more" data-more="${key}">see ${all.length - shown.length} more</button>` : hist.more[key] && all.length > VIG_N ? `<button type="button" class="more" data-more="${key}">see fewer</button>` : "");
-    const own = `<section class="vigcard"><h3>On this day · ${esc(dateWord)}</h3>${today.length ? foldPicked(today, todayShown, "today", (x) => item(x, `<b>${esc(yearLabel(x.year))}</b>`)) : `<div class="muted small">Nothing dated to the day on ${esc(dateWord)} yet.</div>`}</section>
-      <section class="vigcard"><h3>In this place${here.name ? ` · ${esc(here.name)}` : ""}</h3>${here.items.length ? fold(here.items, "here", (x) => item(x, `<b>${Math.round(x.d)} km</b>`)) : `<div class="muted small">${pos.lat == null ? "The ship's position is not known to this build." : "Nothing in the wiki near the ship yet."}</div>`}</section>`;
+      (all.length > shown.length ? `<button type="button" class="more" data-more="${key}">${uh("see {v1} more", {v1: (all.length - shown.length)})}</button>` : hist.more[key] && all.length > VIG_N ? `<button type="button" class="more" data-more="${key}">${uh("see fewer")}</button>` : "");
+    const own = `<section class="vigcard"><h3>${uh("On this day · {v0}", {v0: (esc(dateWord))})}</h3>${today.length ? foldPicked(today, todayShown, "today", (x) => item(x, `<b>${esc(yearLabel(x.year))}</b>`)) : `<div class="muted small">${uh("Nothing dated to the day on {v0} yet.", {v0: (esc(dateWord))})}</div>`}</section>
+      <section class="vigcard"><h3>${uh("In this place{v2}", {v2: (here.name ? ` · ${esc(here.name)}` : "")})}</h3>${here.items.length ? fold(here.items, "here", (x) => item(x, `<b>${Math.round(x.d)} km</b>`)) : `<div class="muted small">${pos.lat == null ? uh("The ship's position is not known to this build.") : uh("Nothing in the wiki near the ship yet.")}</div>`}</section>`;
     // the observations' two cards beside the documents', while Nature is on
     const obs = domainOn("nature") ? (UW.natureViews?.vignetteCards?.() || "") : "";
     return `<div class="vignettes">${own}${obs}</div>`;
@@ -437,8 +440,8 @@
   }
   // a pair of coordinates as a link that puts the map there
   // (spans, not anchors: they sit inside cards and rows that are links themselves)
-  const coordLink = (lat, lon, label = "") => `<span class="pin coord mono" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" title="on the map">${(+lat).toFixed(3)}, ${(+lon).toFixed(3)}</span>`;
-  const mapLink = (lat, lon, label = "", type = "") => `<span class="pin maplink" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" data-type="${esc(type)}" title="on the map">map ↗</span>`;
+  const coordLink = (lat, lon, label = "") => `<span class="pin coord mono" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" title="${uh("on the map")}">${(+lat).toFixed(3)}, ${(+lon).toFixed(3)}</span>`;
+  const mapLink = (lat, lon, label = "", type = "") => `<span class="pin maplink" role="link" tabindex="0" data-lat="${lat}" data-lon="${lon}" data-label="${esc(label)}" data-type="${esc(type)}" title="${uh("on the map")}">${uh("map ↗")}</span>`;
   function markdown(md) {
     const lines = String(md || "").replace(/\r/g, "").split("\n");
     const out = []; let para = [], list = null, quote = [], table = null;
@@ -476,7 +479,7 @@
   const fmtDate = (a) => dateLabel(a.date_text || a.date_start || "");
   const crumb = (...rest) => `<div class="crumb"><a href="#wiki/" data-slug="">Wiki</a>${rest.map((r) => ` › ${r}`).join("")}</div>`;
   // the last step of a crumb: the page itself, as its own link (the address to pass on)
-  const here = (label, slug) => `<a class="here" href="#wiki/${esc(slug)}" data-slug="${esc(slug)}" title="this page's address">${label}</a>`;
+  const here = (label, slug) => `<a class="here" href="#wiki/${esc(slug)}" data-slug="${esc(slug)}" title="${uh("this page's address")}">${label}</a>`;
   // a route as a small drawing: the line in a box, north up, longitudes
   // shrunk by the cosine of the latitude so the shape is roughly right
   // the coastline is drawn beneath it when it has loaded (ensureCoast)
@@ -527,7 +530,7 @@
     const picture = a.url && /\.(jpe?g|png|gif|tiff?|webp|bmp)$/i.test(a.url);
     if (a.type === "track") media = trackSketch(a);
     else if (picture && (a.type === "image" || a.type === "map")) media = `<img class="thumb" src="${esc(a.thumb || a.url)}" alt="" loading="lazy">`;
-    else if (a.type === "image" || a.type === "map") media = `<span class="thumb none">${a.url ? esc(a.url.split(".").pop().toUpperCase()) + " · no picture yet" : "interactive resource · no picture yet"}</span>`;
+    else if (a.type === "image" || a.type === "map") media = `<span class="thumb none">${a.url ? esc(a.url.split(".").pop().toUpperCase()) + uh(" · no picture yet") : uh("interactive resource · no picture yet")}</span>`;
     const quote = a.type === "quote" && a.description ? `<q>${esc(quoteOf(a.description))}</q>` : "";
     const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
     return `<a class="artcard ${esc(a.type)}" href="#wiki/${esc(a.page)}" data-slug="${esc(a.page)}" title="${esc(a.title)}">${flagMark(a)}${media}<span class="dot" style="background:${t.colour || C.muted}"></span>` +
@@ -542,7 +545,7 @@
     const im = topicImage(x.slug);
     return `<a class="topiccard ${im ? "" : "noimg"}" href="#wiki/topic/${esc(x.slug)}" data-topic="${esc(x.slug)}" style="border-left-color:${topicColour(x.slug)}">` +
       (im ? `<img src="${esc(im.url)}" alt="" loading="lazy">` : "") +
-      `<span class="body"><b>${esc(x.title)}</b>${full ? `<span>${esc(x.summary)}</span>` : ""}<span class="counts">${x.pages} pages · ${x.artifacts} artifacts</span></span></a>`;
+      `<span class="body"><b>${esc(x.title)}</b>${full ? `<span>${esc(x.summary)}</span>` : ""}<span class="counts">${uh("{v2} pages · {v3} artifacts", {v2: (x.pages), v3: (x.artifacts)})}</span></span></a>`;
   }
 
   // where each artifact is first mentioned across a topic's narrative pages,
@@ -573,19 +576,19 @@
     const section = ([k, xs]) => {
       xs.sort((x, y) => (y.first - x.first) || x.title.localeCompare(y.title));
       const K = KINDS[k], colour = K ? K.colour : k === "page" ? C.accent : C.muted;
-      const head = `<h3><span class="dot" style="background:${colour}"></span><span class="muted">${xs.length}</span> ${esc(K ? K.label : BACK_LABEL[k] || k)}</h3>`;
-      const shown = xs.slice(0, SEARCH_MAX), more = xs.length > SEARCH_MAX ? `<p class="muted small">and ${xs.length - SEARCH_MAX} more: narrow the search</p>` : "";
+      const head = `<h3><span class="dot" style="background:${colour}"></span><span class="muted">${xs.length}</span> ${esc(ui(K ? K.label : BACK_LABEL[k] || k))}</h3>`;
+      const shown = xs.slice(0, SEARCH_MAX), more = xs.length > SEARCH_MAX ? `<p class="muted small">${uh("and {v0} more: narrow the search", {v0: (xs.length - SEARCH_MAX)})}</p>` : "";
       const pages = shown.filter((x) => x.p), cards = shown.filter((x) => x.a);   // the events: their pages, and the artifacts of that kind
       return head + (pages.length ? `<div class="pagelist">${pages.map((x) => pageLink(x.p)).join("")}</div>` : "") +
         (cards.length ? `<div class="artgrid ${k === "image" || k === "map" ? "pictures" : ""} ${k === "quote" ? "quotes" : ""}">${cards.map((x) => artifactCard(x.a, { creator: true })).join("")}</div>` : "") + more;
     };
-    el.innerHTML = crumb(`search <i>${esc(query.trim())}</i>`) + `<h2>${total} found</h2>` +
+    el.innerHTML = crumb(`search <i>${esc(query.trim())}</i>`) + `<h2>${uh("{v0} found", {v0: (total)})}</h2>` +
       [...groups.entries()].sort((x, y) => rank(x[0]) - rank(y[0]) || x[0].localeCompare(y[0])).map(section).join("");
     if (domainOn("nature")) UW.natureViews?.searchExtra?.(el, query);
   }
   const LEAD = {
-    history: "the human past, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another",
-    nature: "what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal",
+    get history() { return ui("the human past, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another"); },
+    get nature() { return ui("what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal"); },
   };
   async function renderMain() {
     await renderMainBody();
@@ -602,15 +605,15 @@
     const el = $("#histmain");
     el.scrollTop = 0;                                              // a new view opens at its top
     for (const id of ["#histplot", "#natplot"]) { const plot = el.querySelector(id); if (plot?.data) Plotly.purge(plot); }
-    if (!UW.M.history) { el.innerHTML = `<div class="empty">No wiki has been published yet.</div>`; return; }
-    if (!hist.index) { el.innerHTML = `<div class="empty">Loading the wiki…</div>`; return; }
+    if (!UW.M.history) { el.innerHTML = `<div class="empty">${uh("No wiki has been published yet.")}</div>`; return; }
+    if (!hist.index) { el.innerHTML = `<div class="empty">${uh("Loading the wiki…")}</div>`; return; }
     loadFlags();                                                   // what other browsers have flagged since; the cards update when it lands
     const natv = domainOn("nature") ? UW.natureViews : null;      // the natural half's own parts, while Nature is on
     if (hist.search.trim()) { renderSearch(el, hist.search); return; }
     if (!hist.slug) {                                              // the home: today, here, the journal and the domains, the narratives
       const t = topics();
       el.innerHTML = vignetteHTML() + (natv?.homeExtraHTML?.() || "") +
-        `<h2>Narratives <a class="chip small" href="#wiki/explore" data-slug="explore">Explore</a></h2>` +
+        `<h2>${uh("Narratives")} <a class="chip small" href="#wiki/explore" data-slug="explore">${uh("Explore")}</a></h2>` +
         `<div class="topicgrid chips">${t.filter((x) => x.pages > 0 || x.artifacts > 0).map((x) => topicCard(x)).join("")}</div>`;
       for (const b of el.querySelectorAll("button.more")) b.onclick = () => { const k = b.dataset.more; if (k.startsWith("nat:")) natv?.toggleMore(k.slice(4)); else hist.more[k] = !hist.more[k]; renderMain(); };
       natv?.wireHome?.(el);
@@ -619,7 +622,7 @@
     if (hist.slug === "explore") {
       const t = topics();
       const n = (k) => t.reduce((s, x) => s + (x[k] || 0), 0);
-      el.innerHTML = crumb(here("Explore", "explore")) + `<h2>Explore</h2><p class="lead">${t.length} topics, ${n("pages")} narrative pages and ${arts().length} artifacts: ${domainsOn().map((d) => LEAD[d]).join("; and ")}. Every item is credited and sourced.</p>` +
+      el.innerHTML = crumb(here(uh("Explore"), "explore")) + `<h2>${uh("Explore")}</h2><p class="lead">${uh("{v0} topics, {v1} narrative pages and {v2} artifacts: {v3}. Every item is credited and sourced.", {v0: (t.length), v1: (n("pages")), v2: (arts().length), v3: (domainsOn().map((d) => LEAD[d]).join("; and "))})}</p>` +
         `<div class="topicgrid">${t.map((x) => topicCard(x, true)).join("")}</div>` + (natv?.exploreExtraHTML?.() || "");
       return;
     }
@@ -635,7 +638,7 @@
   // a topic: its narrative pages and its artifacts of every kind
   async function renderTopic(el, slug) {
     const n = ns, t = topicOf(slug);
-    if (!t) { el.innerHTML = `<div class="empty">no such topic</div>`; return; }
+    if (!t) { el.innerHTML = `<div class="empty">${uh("no such topic")}</div>`; return; }
     const pages = hist.index.pages.filter((p) => p.topic === t.slug && p.kind === "page");
     // the artifacts of every kind together: first those the narratives
     // mention, in the order they are mentioned, then the rest in a fixed
@@ -646,11 +649,11 @@
     const counts = GROUPS.flatMap((g) => [g.head, ...g.under]).filter((k) => TYPES[k]).map((k) => [k, found.filter((a) => a.type === k).length]).filter(([, n]) => n)
       .map(([k, n]) => `${n} ${TYPES[k].label.toLowerCase()}`).join(" · ");
     const im = topicImage(t.slug);
-    el.innerHTML = crumb(`<a href="#wiki/explore" data-slug="explore">Explore</a>`, here(esc(t.title), `topic/${t.slug}`)) + `<h2>${esc(t.title)}${statusTag(t.status)}</h2>` +
-      (im ? `<figure class="topicfig"><a href="#wiki/${esc(im.page)}" data-slug="${esc(im.page)}" title="the picture's own page"><img src="${esc(im.url)}" alt=""></a><figcaption><a href="#wiki/${esc(im.page)}" data-slug="${esc(im.page)}">${esc(im.title)}</a> · ${esc(im.credit)}</figcaption></figure>` : "") +
+    el.innerHTML = crumb(`<a href="#wiki/explore" data-slug="explore">${uh("Explore")}</a>`, here(esc(t.title), `topic/${t.slug}`)) + `<h2>${esc(t.title)}${statusTag(t.status)}</h2>` +
+      (im ? `<figure class="topicfig"><a href="#wiki/${esc(im.page)}" data-slug="${esc(im.page)}" title="${uh("the picture's own page")}"><img src="${esc(im.url)}" alt=""></a><figcaption><a href="#wiki/${esc(im.page)}" data-slug="${esc(im.page)}">${esc(im.title)}</a> · ${esc(im.credit)}</figcaption></figure>` : "") +
       `<p class="lead">${esc(t.summary)}</p>` +
-      (pages.length ? `<div class="pagelist">${pages.map((p) => pageLink(p)).join("")}</div>` : `<p class="muted">No narrative pages yet; the artifacts below are what the crew has entered so far.</p>`) +
-      (found.length ? `<h3><span class="muted">${found.length}</span> Artifacts <span class="muted small">${esc(counts)}</span></h3><div class="artgrid">${found.map((a) => artifactCard(a, { creator: true })).join("")}</div>` : "");
+      (pages.length ? `<div class="pagelist">${pages.map((p) => pageLink(p)).join("")}</div>` : `<p class="muted">${uh("No narrative pages yet; the artifacts below are what the crew has entered so far.")}</p>`) +
+      (found.length ? `<h3><span class="muted">${found.length}</span> ${uh("Artifacts")} <span class="muted small">${esc(counts)}</span></h3><div class="artgrid">${found.map((a) => artifactCard(a, { creator: true })).join("")}</div>` : "");
     if (topicDomain(t.slug) === "nature") UW.natureViews?.topicExtra?.(el, t.slug);
   }
   // a page: a narrative, or a generated one (artifact, person, place, event, source, animal, vessel)
@@ -673,7 +676,7 @@
     if (slug.startsWith("event/") && !hist.index.pages.some((x) => x.slug === slug)) { renderEvent(el, slug.slice(6)); return; }
     let p;
     try { p = await page(slug); }
-    catch { el.innerHTML = crumb() + `<div class="empty">That page is not in this build.</div>`; return; }
+    catch { el.innerHTML = crumb() + `<div class="empty">${uh("That page is not in this build.")}</div>`; return; }
     ns = n;
     const t = topicOf(p.topic);
     const a = p.kind === "artifact" ? artifactById(p.ref) : null;
@@ -689,14 +692,14 @@
       // the copies: the one on the ship, the original it was rendered from, and the one on the web
       const ext = (u) => esc(u.split(".").pop().toUpperCase());
       const links = [
-        a.url ? `<a class="chip" href="${esc(a.url)}" target="_blank" rel="noopener" title="the ship's own copy">on the ship · ${a.type === "text" && !picture ? "full text" : ext(a.url)}</a>` : "",
-        a.original_url ? `<a class="chip" href="${esc(a.original_url)}" target="_blank" rel="noopener" title="the file the picture was rendered from">the original · ${ext(a.original_url)}</a>` : "",
-        a.source_url ? `<a class="chip" href="${esc(a.source_url)}" target="_blank" rel="noopener" title="at the holding institution, on the web">on the web ↗</a>` : "",
+        a.url ? `<a class="chip" href="${esc(a.url)}" target="_blank" rel="noopener" title="${uh("the ship's own copy")}">${uh("on the ship · {v1}", {v1: (a.type === "text" && !picture ? uh("full text") : ext(a.url))})}</a>` : "",
+        a.original_url ? `<a class="chip" href="${esc(a.original_url)}" target="_blank" rel="noopener" title="${uh("the file the picture was rendered from")}">${uh("the original · {v1}", {v1: (ext(a.original_url))})}</a>` : "",
+        a.source_url ? `<a class="chip" href="${esc(a.source_url)}" target="_blank" rel="noopener" title="${uh("at the holding institution, on the web")}">${uh("on the web ↗")}</a>` : "",
       ].filter(Boolean);
       if (links.length) media += `<p class="artlinks">${links.join(" ")}</p>`;
       const [plat, plon] = a.type === "track" ? trackMid(a) : [a.lat, a.lon];
       const where = plat != null ? ` · ${a.type === "track" ? "" : coordLink(plat, plon, a.title) + " · "}${mapLink(plat, plon, a.title, a.type)}` : "";
-      const track = a.type === "track" && a.waypoints?.length ? `<div class="hscroll"><table class="waypoints"><tr><th>date</th><th>position</th><th>note</th></tr>${a.waypoints.map((w) => `<tr><td>${esc(dateLabel(w.date || ""))}</td><td>${w.lat != null ? coordLink(w.lat, w.lon, w.note || a.title) : ""}</td><td>${esc(w.note || "")}</td></tr>`).join("")}</table></div>` : "";
+      const track = a.type === "track" && a.waypoints?.length ? `<div class="hscroll"><table class="waypoints"><tr><th>${uh("date")}</th><th>${uh("position")}</th><th>${uh("note")}</th></tr>${a.waypoints.map((w) => `<tr><td>${esc(dateLabel(w.date || ""))}</td><td>${w.lat != null ? coordLink(w.lat, w.lon, w.note || a.title) : ""}</td><td>${esc(w.note || "")}</td></tr>`).join("")}</table></div>` : "";
       head += `<div class="artmeta"><span class="dot" style="background:${TYPES[a.type]?.colour || C.muted}"></span>${esc(a.type)} · ${esc(fmtDate(a))}${a.creator ? " · " + esc(a.creator) : ""}${where}${flagMark(a)}</div>`;
       head += peopleStrip(a.people);
       if (a.type === "track") media = `<figure class="routefig">${trackSketch(a, 480, 300, "sketch large")}</figure>` + media;
@@ -712,16 +715,16 @@
     if (ev) {
       const when = ev.date_text || [ev.date_start, ev.date_end].filter(Boolean).map((d) => dateLabel(d)).join(" to ");
       const at = ev.place ? (hist.places.find((x) => x.name === ev.place) ? `<a href="#wiki/${esc(hist.places.find((x) => x.name === ev.place).page)}" data-slug="${esc(hist.places.find((x) => x.name === ev.place).page)}">${esc(ev.place)}</a>` : esc(ev.place)) : "";
-      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>event${when ? " · " + esc(when) : ""}${at ? " · " + at : ""}${ev.lat != null ? " · " + coordLink(ev.lat, ev.lon, ev.title) + " · " + mapLink(ev.lat, ev.lon, ev.title, "event") : ""}</div>`;
+      head += `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>${uh("event{v1}{v2}{v3}", {v1: (when ? " · " + esc(when) : ""), v2: (at ? " · " + at : ""), v3: (ev.lat != null ? " · " + coordLink(ev.lat, ev.lon, ev.title) + " · " + mapLink(ev.lat, ev.lon, ev.title, "event") : "")})}</div>`;
       head += peopleStrip(ev.people) + facts([["source", sourceRef(ev.bibkey)]]);
     }
     if (p.kind === "person") {
       const r = hist.people.find((x) => x.page === p.slug);
-      if (r) head += facts([["", [r.role, r.affiliation, lifespan(r)].filter(Boolean).join(" · ")], ["also written", r.also], ["source", sourceRef(r.bibkey)]]);
+      if (r) head += facts([["", [r.role, r.affiliation, lifespan(r)].filter(Boolean).join(" · ")], [ui("also written"), r.also], ["source", sourceRef(r.bibkey)]]);
     }
     if (p.kind === "animal") {
       const r = hist.animals.find((x) => x.page === p.slug);
-      if (r) head += facts([["", [r.kind, r.role, r.affiliation, lifespan(r)].filter(Boolean).join(" · ")], ["also called", r.also], ["source", sourceRef(r.bibkey)]]);
+      if (r) head += facts([["", [r.kind, r.role, r.affiliation, lifespan(r)].filter(Boolean).join(" · ")], [ui("also called"), r.also], ["source", sourceRef(r.bibkey)]]);
     }
     if (p.kind === "vessel") {
       const r = hist.vessels.find((x) => x.page === p.slug);
@@ -737,7 +740,7 @@
       const plain = String(p.html || "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\s+/g, " ").trim();
       let held = (e?.note || "").replace(/\s+/g, " ").trim();
       if (plain && held.endsWith(plain)) held = held.slice(0, -plain.length).replace(/;\s*$/, "").trim();
-      if (e) head += `<p class="mlaline"><span class="lbl">MLA</span> ${mla(e)}</p>` + facts([["", e.keywords === "primary" ? "primary source" : e.keywords === "secondary" ? "secondary source" : ""], ["held", held]]);
+      if (e) head += `<p class="mlaline"><span class="lbl">MLA</span> ${mla(e)}</p>` + facts([["", e.keywords === "primary" ? ui("primary source") : e.keywords === "secondary" ? ui("secondary source") : ""], ["held", held]]);
     }
     el.innerHTML = head + media + `<div class="wiki">${markdown(p.html)}${tail}</div>` + backlinksHTML(p.backlinks || []);
     wireBackmore(el);
@@ -766,17 +769,17 @@
   // the record — when and where, the people, the source, the timeline.
   function renderEvent(el, id) {
     const e = eventById(id);
-    if (!e) { el.innerHTML = crumb() + `<div class="empty">That event is not in this build.</div>`; return; }
+    if (!e) { el.innerHTML = crumb() + `<div class="empty">${uh("That event is not in this build.")}</div>`; return; }
     const t = topicOf(e.topic);
     const when = esc(dateLabel(e.date_text || e.date_start || "")) + (e.date_end && e.date_end !== e.date_start ? ` → ${esc(dateLabel(e.date_end))}` : "");
     const where = e.lat != null ? ` · ${coordLink(e.lat, e.lon, e.title)} · ${mapLink(e.lat, e.lon, e.title, "event")}` : "";
     const src = e.bibkey ? hist.index.pages.find((x) => x.slug === `source/${e.bibkey}`) : null;
-    el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">event</span>`, `event/${id}`)) + `<h2>${esc(e.title)}</h2>` +
-      `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>event · ${when}${e.place ? " · " + esc(e.place) : ""}${where}</div>` +
+    el.innerHTML = crumb(...(t ? [`<a href="#wiki/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${esc(t.title)}</a>`] : []), here(`<span class="kind">${uh("event")}</span>`, `event/${id}`)) + `<h2>${esc(e.title)}</h2>` +
+      `<div class="artmeta"><span class="dot" style="background:${TYPES.event.colour}"></span>${uh("event · {v1}{v2}{v3}", {v1: (when), v2: (e.place ? " · " + esc(e.place) : ""), v3: (where)})}</div>` +
       peopleStrip(e.people) +
       `<div class="wiki">${markdown(e.detail || "")}</div>` +
-      (e.tags?.length ? `<div class="backlinks"><span class="lbl">Tags</span>${e.tags.map((x) => `<span class="muted">${esc(x)}</span>`).join("")}</div>` : "") +
-      `<div class="backlinks">${src ? `<span class="lbl">Source</span><a href="#wiki/${esc(src.slug)}" data-slug="${esc(src.slug)}">${esc(src.title)}</a>` : ""}<span class="lbl">On the timeline</span><a href="#wiki/kind/event" data-slug="kind/event">Events</a></div>`;
+      (e.tags?.length ? `<div class="backlinks"><span class="lbl">${uh("Tags")}</span>${e.tags.map((x) => `<span class="muted">${esc(x)}</span>`).join("")}</div>` : "") +
+      `<div class="backlinks">${src ? `<span class="lbl">${uh("Source")}</span><a href="#wiki/${esc(src.slug)}" data-slug="${esc(src.slug)}">${esc(src.title)}</a>` : ""}<span class="lbl">${uh("On the timeline")}</span><a href="#wiki/kind/event" data-slug="kind/event">${uh("Events")}</a></div>`;
     crossLink(el.querySelector(".wiki"), `event/${id}`, e.people, "");
     el.scrollTop = 0; window.scrollTo?.(0, 0);
   }
@@ -806,14 +809,14 @@
     for (const [k, xs] of [...groups.entries()].sort((x, y) => rank(x[0]) - rank(y[0]) || x[0].localeCompare(y[0]))) {
       xs.sort((p, q) => p.title.localeCompare(q.title));
       const K = KINDS[k], colour = K ? K.colour : k === "page" ? C.accent : C.muted;
-      const head = `<span class="ghead"><span class="dot" style="background:${colour}"></span>${esc(K ? K.label : BACK_LABEL[k] || k)}<span class="muted">${xs.length}</span></span>`;
+      const head = `<span class="ghead"><span class="dot" style="background:${colour}"></span>${esc(ui(K ? K.label : BACK_LABEL[k] || k))}<span class="muted">${xs.length}</span></span>`;
       const first = xs.slice(0, Math.max(0, BACK_SHOWN - n)), rest = xs.slice(first.length);
       if (first.length) shown.push(`<div class="bgroup">${head}${first.map(link).join("")}${rest.length ? `<span class="backmore" hidden>${rest.map(link).join("")}</span>` : ""}</div>`);
       else later.push(`<div class="bgroup">${head}${xs.map(link).join("")}</div>`);
       n += xs.length;
     }
     const more = slugs.length - BACK_SHOWN;
-    return `<div class="backlinks grouped"><span class="lbl">Mentioned in</span>${shown.join("")}${later.length ? `<div class="backmore" hidden>${later.join("")}</div>` : ""}${more > 0 ? `<button type="button" class="chip small more" data-more="back">and ${more} more</button>` : ""}</div>`;
+    return `<div class="backlinks grouped"><span class="lbl">${uh("Mentioned in")}</span>${shown.join("")}${later.length ? `<div class="backmore" hidden>${later.join("")}</div>` : ""}${more > 0 ? `<button type="button" class="chip small more" data-more="back">${uh("and {v0} more", {v0: (more)})}</button>` : ""}</div>`;
   }
   function wireBackmore(el) {
     const more = el.querySelector('button[data-more="back"]'); if (more) more.onclick = () => { for (const x of el.querySelectorAll(".backmore")) x.hidden = false; more.remove(); };
@@ -828,7 +831,7 @@
     return `<a href="#wiki/${esc(slug)}" data-slug="${esc(slug)}">${esc(pg ? pg.title : bibkey)}</a>${pages ? ", " + esc(pages) : ""}`;
   }
   function facts(pairs) {
-    const rows = pairs.filter(([, v]) => v).map(([l, v]) => `<div class="fact">${l ? `<span class="lbl">${esc(l)}</span>` : ""}<span>${l === "source" ? v : esc(v)}</span></div>`);
+    const rows = pairs.filter(([, v]) => v).map(([l, v]) => `<div class="fact">${l ? `<span class="lbl">${esc(ui(l))}</span>` : ""}<span>${l === "source" ? v : esc(v)}</span></div>`);
     return rows.length ? `<div class="artfacts">${rows.join("")}</div>` : "";
   }
   function personByName(name) {
@@ -839,8 +842,8 @@
   }
   function peopleStrip(names) {
     if (!names?.length) return "";
-    const one = (n) => { const p = personByName(n); return p ? `<a class="chip small" href="#wiki/${esc(p.page)}" data-slug="${esc(p.page)}">${esc(n)}</a>` : `<span class="chip small wanted" title="no page yet">${esc(n)}</span>`; };
-    return `<div class="artpeople"><span class="lbl">People</span>${names.map(one).join("")}</div>`;
+    const one = (n) => { const p = personByName(n); return p ? `<a class="chip small" href="#wiki/${esc(p.page)}" data-slug="${esc(p.page)}">${esc(n)}</a>` : `<span class="chip small wanted" title="${uh("no page yet")}">${esc(n)}</span>`; };
+    return `<div class="artpeople"><span class="lbl">${uh("People")}</span>${names.map(one).join("")}</div>`;
   }
 
   // ---------------------------------------------------------------- cross-links
@@ -977,7 +980,7 @@
     const by = new Map();
     for (const a of xs) { if (!by.has(a.topic)) by.set(a.topic, []); by.get(a.topic).push(a); }
     const known = (hist.index?.topics || []).filter((t) => by.has(t.slug)).map((t) => ({ key: t.slug, label: t.title, colour: topicColour(t.slug), items: by.get(t.slug) }));
-    const other = [...by.keys()].filter((k) => !hist.index?.topics.some((t) => t.slug === k)).map((k) => ({ key: k, label: k || "no topic", colour: C.muted, items: by.get(k) }));
+    const other = [...by.keys()].filter((k) => !hist.index?.topics.some((t) => t.slug === k)).map((k) => ({ key: k, label: k || ui("no topic"), colour: C.muted, items: by.get(k) }));
     return [...known, ...other];
   }
   // a route's first position: north first on the Tracks page
@@ -989,9 +992,9 @@
   };
   function renderKind(el, kind, collection = "") {
     const K = KINDS[kind];
-    if (!K) { el.innerHTML = crumb() + `<div class="empty">no such kind</div>`; return; }
+    if (!K) { el.innerHTML = crumb() + `<div class="empty">${uh("no such kind")}</div>`; return; }
     const h2 = (n, label) => `<h2><span class="dot" style="background:${K.colour}"></span><span class="muted">${n}</span> ${esc(label)}</h2>`;
-    if (kind === "event") { el.innerHTML = crumb(here("Events", "kind/event")) + eventsHTML(); wireEvents(el); return; }
+    if (kind === "event") { el.innerHTML = crumb(here(uh("Events"), "kind/event")) + eventsHTML(); wireEvents(el); return; }
     if (kind === "people" || kind === "animal" || kind === "vessel") {
       // the names down the left; on the right, the faces the backend has cut
       // from the photographs — of this kind only, in a fixed order that looks
@@ -1011,7 +1014,7 @@
     if (kind === "place") {
       const places = hist.places.filter(inDomain).sort((a, b) => a.name.localeCompare(b.name));
       const names = (p) => [p.inuktitut, p.historic].filter((n) => n && n !== p.name).join(", ");
-      el.innerHTML = crumb(here("Places", "kind/place")) + h2(places.length, "Places") + `<div class="peoplelist">` +
+      el.innerHTML = crumb(here(uh("Places"), "kind/place")) + h2(places.length, uh("Places")) + `<div class="peoplelist">` +
         letterList(places, (p) => p.name, (p) => `<a class="person" href="#wiki/${esc(p.page)}" data-slug="${esc(p.page)}"><b>${esc(p.name)}</b>${names(p) ? ` <span class="muted">(${esc(names(p))})</span>` : ""} <span class="muted small">${esc(p.kind || "")}</span>` +
           (p.lat != null ? ` ${mapLink(p.lat, p.lon, p.name, "place")}` : "") + (p.note ? `<span class="role">${esc(p.note.length > 160 ? p.note.slice(0, 157) + "…" : p.note)}</span>` : "") + `</a>`) + `</div>`;
       return;
@@ -1023,10 +1026,10 @@
     if (COLLECTED.has(kind) && collection) {                        // one collection: its cards, in keyword sections where they have them
       const t = topicOf(collection), xs = found.filter((a) => a.topic === collection);
       const sorted = kind === "track" ? xs.sort(byStartLat) : xs.sort(byYear);
-      const body = !xs.length ? `<p class="muted">Nothing of this kind in that collection.</p>` : xs.some((a) => a.keywords?.length) && kind !== "track" ? keywordSections(sorted, grid) : grid(sorted);
+      const body = !xs.length ? `<p class="muted">${uh("Nothing of this kind in that collection.")}</p>` : xs.some((a) => a.keywords?.length) && kind !== "track" ? keywordSections(sorted, grid) : grid(sorted);
       el.innerHTML = crumb(`<a href="#wiki/kind/${esc(kind)}" data-slug="kind/${esc(kind)}">${esc(K.label)}</a>`, here(esc(t?.title || collection), hist.slug)) +
         `<h2><span class="dot" style="background:${topicColour(collection)}"></span><span class="muted">${xs.length}</span> ${esc(K.label)}</h2>` +
-        (t ? `<p class="lead">${esc(t.title)}: <a href="#wiki/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">the topic's page</a>${kind === "track" ? " · the routes from north to south, by where each began" : ""}</p>` : "") + body;
+        (t ? `<p class="lead">${esc(t.title)}: <a href="#wiki/topic/${esc(t.slug)}" data-topic="${esc(t.slug)}">${uh("the topic's page")}</a>${kind === "track" ? uh(" · the routes from north to south, by where each began") : ""}</p>` : "") + body;
       if (kind === 'image') imageGallery = {slug:hist.slug,ids:[...new Set([...el.querySelectorAll('.artcard[data-slug]')].map(card=>card.dataset.slug.slice(9)))]};
       return;
     }
@@ -1035,10 +1038,10 @@
       const chip = (c) => collectionChip({ slug: `kind/${kind}/${c.key}`, label: c.label, colour: c.colour, count: c.items.length, word, items: kind === "track" ? [] : c.items, fallback: topicImage(c.key),
         sketch: kind === "track" ? trackSketch(pickOne(c.items.filter((a) => a.geometry?.coordinates?.length > 1)) || {}) : "" });
       el.innerHTML = crumb(here(esc(K.label), `kind/${kind}`)) + h2(found.length, K.label) +
-        (found.length ? `<p class="lead">${cols.length} collections, one a topic. Open one for its ${esc(word)}.</p><div class="colgrid">${cols.map(chip).join("")}</div>` : `<p class="muted">Nothing of this kind in the record yet.</p>`);
+        (found.length ? `<p class="lead">${uh("{v0} collections, one a topic. Open one for its {v1}.", {v0: (cols.length), v1: (esc(word))})}</p><div class="colgrid">${cols.map(chip).join("")}</div>` : `<p class="muted">${uh("Nothing of this kind in the record yet.")}</p>`);
       return;
     }
-    el.innerHTML = crumb(here(esc(K.label), `kind/${kind}`)) + h2(found.length, K.label) + (found.length ? grid(found.sort(byYear)) : `<p class="muted">Nothing of this kind in the record yet.</p>`);
+    el.innerHTML = crumb(here(esc(K.label), `kind/${kind}`)) + h2(found.length, K.label) + (found.length ? grid(found.sort(byYear)) : `<p class="muted">${uh("Nothing of this kind in the record yet.")}</p>`);
   }
   // the backend's keywords are paths ("Ships > Whalers > Dundee fleet"); the
   // page is a section per first word, a heading per second, the rest as tags
@@ -1076,13 +1079,13 @@
       const when = q + esc(dateLabel(d.date)) + (d.date_end ? ` → ${esc(dateLabel(d.date_end))}` : "") + (d.precision && d.precision !== "day" ? ` <span class="muted">(${esc(d.precision)})</span>` : "");
       const slug = pageFor(d.entity_kind, d.entity_id);
       const what = slug ? `<a href="#wiki/${esc(slug)}" data-slug="${esc(slug)}">${esc(d.label || d.entity_id)}</a>` : esc(d.label || d.entity_id);
-      const pin = d.lat != null ? ` <span class="pin" data-lat="${d.lat}" data-lon="${d.lon}" data-label="${esc(d.label || "")}" title="on the map">⌖</span>` : "";
+      const pin = d.lat != null ? ` <span class="pin" data-lat="${d.lat}" data-lon="${d.lon}" data-label="${esc(d.label || "")}" title="${uh("on the map")}">⌖</span>` : "";
       return `<tr data-key="${i}"${d.lat != null ? ` data-lat="${d.lat}" data-lon="${d.lon}"` : ""}><td class="mono">${when}</td><td>${what}${pin}</td><td>${esc(d.place || "")}</td><td><a href="#wiki/topic/${esc(d.topic)}" data-topic="${esc(d.topic)}"><span class="dot" style="background:${topicColour(d.topic)}"></span>${esc(shortTopic(d.topic))}</a></td></tr>`;
     };
     const spans = rows.filter((d) => d.date_end).length;
-    return `<section class="panel card castplot wide solo" data-cp="histplot"><div class="head"><h3>Timeline</h3><div class="tools"><span class="now">${rows.length} dates · ${spans} spans · from ${TIMELINE_FROM}; scroll to zoom, drag to pan, click a point for its row</span><button type="button" class="reset" id="histplotreset" title="the whole record">⟲</button></div></div><div class="plot" id="histplot"></div></section>` +
-      `<h2><span class="muted">${rows.length}</span> Events</h2>` +
-      `<div class="hscroll" id="histevents"><table class="sched timeline"><thead><tr><th>Date</th><th>What</th><th>Where</th><th>Topic</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>`;
+    return `<section class="panel card castplot wide solo" data-cp="histplot"><div class="head"><h3>Timeline</h3><div class="tools"><span class="now">${uh("{v0} dates · {v1} spans · from {v2}; scroll to zoom, drag to pan, click a point for its row", {v0: (rows.length), v1: (spans), v2: (TIMELINE_FROM)})}</span><button type="button" class="reset" id="histplotreset" title="${uh("the whole record")}">⟲</button></div></div><div class="plot" id="histplot"></div></section>` +
+      `<h2><span class="muted">${rows.length}</span> ${uh("Events")}</h2>` +
+      `<div class="hscroll" id="histevents"><table class="sched timeline"><thead><tr><th>${uh("Date")}</th><th>${uh("What")}</th><th>${uh("Where")}</th><th>${uh("Topic")}</th></tr></thead><tbody>${rows.map(tr).join("")}</tbody></table></div>`;
   }
   // the year axis: ticks at round years, read as BCE / AD / plain
   function yearTicks(lo, hi) {
@@ -1094,7 +1097,7 @@
   function drawEvents(el) {
     const gd = el.querySelector("#histplot"); if (!gd) return;
     const rows = timelineRows();
-    if (!rows.length) { gd.innerHTML = `<div class="empty">No dates to chart.</div>`; return; }
+    if (!rows.length) { gd.innerHTML = `<div class="empty">${uh("No dates to chart.")}</div>`; return; }
     const cats = [...new Set(rows.map((d) => d.topic))].map(shortTopic);
     const ys = rows.map((d) => yearOf(d.date)), ye = rows.map((d) => d.date_end ? yearOf(d.date_end) : null);
     const lo = Math.min(...ys), hi = Math.max(...ys, ...ye.filter((y) => y != null));
@@ -1111,7 +1114,7 @@
     // the chart holds every date but opens on the centuries with most of them
     const pad = Math.max(2, (hi - lo) * .02), from = Math.max(lo - pad, Math.min(TIMELINE_FROM, hi - 10));
     const layout = { ...UW.THEME, margin: { l: fz(150), r: 12, t: fz(8), b: fz(40) }, showlegend: false, dragmode: "pan", barmode: "overlay",
-      xaxis: { ...UW.THEME.xaxis, ...yearTicks(lo - pad, hi + pad), range: [from, hi + pad], zeroline: false, title: { text: "year", font: { size: fz(12) } }, tickfont: { size: fz(12) } },
+      xaxis: { ...UW.THEME.xaxis, _uwIdentity:'year', ...yearTicks(lo - pad, hi + pad), range: [from, hi + pad], zeroline: false, title: { text: ui("year"), font: { size: fz(12) } }, tickfont: { size: fz(12) } },
       yaxis: { ...UW.THEME.yaxis, type: "category", categoryorder: "array", categoryarray: cats.slice().reverse(), tickfont: { size: fz(11) }, fixedrange: true } };
     layout.xaxis = { ...layout.xaxis, ...yearTicks(from, hi + pad) };
     UW.reactPlot(gd, traces, layout, UW.CFG).then((g) => {
@@ -1171,7 +1174,7 @@
   // reader picks rather than gets the topmost. Tracks list every call there.
   function renderSite(el) {
     const [lat, lon] = hist.slug.slice(3).split(",").map(Number);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) { el.innerHTML = crumb() + `<div class="empty">That is not a place on the map.</div>`; return; }
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) { el.innerHTML = crumb() + `<div class="empty">${uh("That is not a place on the map.")}</div>`; return; }
     const items = (hist.sites || siteItems()).get(siteKey(lat, lon)) || [];
     const place = items.find((x) => x.p)?.p;
     const byPage = new Map();                                        // a track called here more than once: one chip, every visit
@@ -1183,9 +1186,9 @@
     }
     const order = { place: 0, track: 1 };
     const chips = [...byPage.values()].sort((p, q) => ((order[p.kind] ?? 2) - (order[q.kind] ?? 2)) || p.title.localeCompare(q.title));
-    const title = place ? esc(place.name) : "This spot";
+    const title = place ? esc(place.name) : ui("This spot");
     el.innerHTML = crumb(here(title, hist.slug)) + `<h2>${title} <span class="muted">${coordLink(lat, lon, place?.name || "")}</span></h2>` +
-      `<p class="lead">${chips.length} things on the map share this spot. Pick one.</p>` +
+      `<p class="lead">${uh("{v0} things on the map share this spot. Pick one.", {v0: (chips.length)})}</p>` +
       `<div class="artgrid sitecards">${chips.map(c => c.artifact
         ? `<div>${artifactCard(c.artifact)}${c.visits.length ? `<p class="sitevisits">${esc(c.visits.join(' · '))}</p>` : ''}</div>`
         : pageLink({slug:c.slug,kind:c.kind,title:c.title,summary:c.note})).join('')}</div>`;
@@ -1198,27 +1201,25 @@
   // aboard. Short, for readers of the history rather than its makers.
   function renderProvenance(el) {
     const pv = hist.provenance, c = pv?.counts || {}, w = pv?.work || {};
-    const n = (x) => (x == null ? "–" : Number(x).toLocaleString("en-CA"));
-    const day = (iso) => iso ? new Date(iso).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }) : "";
+    const n = (x) => (x == null ? "–" : Number(x).toLocaleString(window.UWI18n.locale));
+    const day = (iso) => iso ? new Date(iso).toLocaleDateString(window.UWI18n.locale, { year: "numeric", month: "long", day: "numeric" }) : "";
     const req = w.requests || {}, answered = (req.approved || 0) + (req.denied || 0) + (req.done || 0);
     const flagsNow = hist.flags.size;
-    const tile = (v, l) => `<div class="stat"><b>${n(v)}</b><span>${l}</span></div>`;
-    const figures = `<div class="stats">${tile(c.pages, "narrative pages")}${tile(c.artifacts, "artifacts")}${tile(c.sources, "works cited")}${tile(c.people, "people named")}</div>` +
-      (pv?.generated ? `<p class="muted small">Counted ${day(pv.generated)}${c.pages_draft ? `; ${n(c.pages_draft)} pages are still drafts` : ""}${answered ? `; ${n(answered)} questions answered by a person` : ""}.</p>` : `<p class="muted small">The figures are counted when the history is next published.</p>`);
-    const aboard = `## Aboard the ship
-
-Ask Ada answers from these pages with a local model on the ship: it cites the pages it was given and is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner; flags go to the layer's author${flagsNow ? `, and ${n(flagsNow)} ${flagsNow === 1 ? "is" : "are"} flagged now` : ""}.`;
+    const tile = (v, l) => `<div class="stat"><b>${n(v)}</b><span>${esc(ui(l))}</span></div>`;
+    const figures = `<div class="stats">${tile(c.pages, uh("narrative pages"))}${tile(c.artifacts, "artifacts")}${tile(c.sources, uh("works cited"))}${tile(c.people, uh("people named"))}</div>` +
+      (pv?.generated ? `<p class="muted small">${uh("Counted {v0}{v1}{v2}.", {v0: (day(pv.generated)), v1: (c.pages_draft ? uh("; {v0} pages are still drafts", {v0: (n(c.pages_draft))}) : ""), v2: (answered ? uh("; {v0} questions answered by a person", {v0: (n(answered))}) : "")})}</p>` : `<p class="muted small">${uh("The figures are counted when the history is next published.")}</p>`);
+    const aboard = '## ' + ui('Aboard the ship') + '\n\n' + ui("Ask Ada answers from these pages with a local model on the ship: it cites the pages it was given and is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner; flags go to the layer's author.") + (flagsNow ? ' ' + ui('Current flags: {count}.', {count: n(flagsNow)}) : '');
     let body;
     if (pv?.text) {
       // their account, section by section: the H1 is the page's own title
       // and the numbers section is replaced by this build's figures
       const parts = pv.text.replace(/\r/g, "").replace(/^#\s+[^\n]*\n/, "").split(/\n(?=## )/);
-      body = parts.map((sec) => /^## The record, in numbers/i.test(sec) ? `<h3>The record, in numbers</h3>${figures}` : markdown(sec)).join("\n");
-      if (!/## The record, in numbers/i.test(pv.text)) body += `<h3>The record, in numbers</h3>${figures}`;
+      body = parts.map((sec) => /^## The record, in numbers/i.test(sec) ? `<h3>${uh("The record, in numbers")}</h3>${figures}` : markdown(sec)).join("\n");
+      if (!/## The record, in numbers/i.test(pv.text)) body += `<h3>${uh("The record, in numbers")}</h3>${figures}`;
     } else {
-      body = `<p class="lead">Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.</p><h3>The record, in numbers</h3>${figures}`;
+      body = `<p class="lead">${uh("Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.")}</p><h3>${uh("The record, in numbers")}</h3>${figures}`;
     }
-    el.innerHTML = crumb(here("Provenance", "provenance")) + `<h2>How this history was made</h2><div class="provenance wiki">${body}${markdown(aboard)}</div>`;
+    el.innerHTML = crumb(here(uh("Provenance"), "provenance")) + `<h2>${uh("How this history was made")}</h2><div class="provenance wiki">${body}${markdown(aboard)}</div>`;
   }
   // the works each domain cites: through the artifacts, events, places,
   // people, animals and vessels of its topics, and the natural record's
@@ -1237,10 +1238,10 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     const inScope = (e) => domainsOn().some((d) => by[d].has(e.key)) || (both && !by.history.has(e.key) && !by.nature.has(e.key));
     const sorted = [...bib].filter(inScope).sort((a, b) => (a.author || a.title || "").localeCompare(b.author || b.title || ""));
     const cited = (d) => bib.filter((e) => by[d].has(e.key)).length;
-    el.innerHTML = crumb(here("Bibliography", "bib")) + `<h2>Bibliography <span class="muted">${sorted.length} works</span></h2>` +
-      `<p class="muted small">${cited("history")} works cited by the history, ${cited("nature")} by the natural record${both ? "" : `; the ${domainOn("history") ? "natural record's" : "history's"} are left out while its label is off`}.</p>` +
-      `<div class="bibexport"><span class="lbl">Export</span><a class="chip small" href="data/history/references.bib" download title="the build's own BibTeX file">BibTeX</a><button type="button" class="chip small" data-export="ris" title="RIS, for EndNote, Zotero and Mendeley">RIS</button><button type="button" class="chip small" data-export="csl" title="CSL-JSON, for citation processors and Zotero">CSL-JSON</button><button type="button" class="chip small" data-export="txt" title="the MLA list as plain text">Plain text</button></div>` +
-      `<ol class="mla">${sorted.map((e) => `<li id="bib-${esc(e.key)}">${mla(e)} <a class="muted small" href="#wiki/source/${esc(e.key)}" data-slug="source/${esc(e.key)}">page</a></li>`).join("")}</ol>`;
+    el.innerHTML = crumb(here(uh("Bibliography"), "bib")) + `<h2>${uh("Bibliography")} <span class="muted">${uh("{v1} works", {v1: (sorted.length)})}</span></h2>` +
+      `<p class="muted small">${uh("{v0} works cited by the history, {v1} by the natural record{v2}.", {v0: (cited("history")), v1: (cited("nature")), v2: (both ? "" : uh("; the {v0} are left out while its label is off", {v0: (domainOn("history") ? uh("natural record's") : "history's")}))})}</p>` +
+      `<div class="bibexport"><span class="lbl">${uh("Export")}</span><a class="chip small" href="data/history/references.bib" download title="${uh("the build's own BibTeX file")}">BibTeX</a><button type="button" class="chip small" data-export="ris" title="${uh("RIS, for EndNote, Zotero and Mendeley")}">RIS</button><button type="button" class="chip small" data-export="csl" title="${uh("CSL-JSON, for citation processors and Zotero")}">CSL-JSON</button><button type="button" class="chip small" data-export="txt" title="${uh("the MLA list as plain text")}">${uh("Plain text")}</button></div>` +
+      `<ol class="mla">${sorted.map((e) => `<li id="bib-${esc(e.key)}">${mla(e)} <a class="muted small" href="#wiki/source/${esc(e.key)}" data-slug="source/${esc(e.key)}">${uh("page")}</a></li>`).join("")}</ol>`;
     for (const b of el.querySelectorAll("button[data-export]")) b.onclick = () => {
       const stamp = (UW.M.history?.stamp || "").slice(0, 10) || "latest";
       if (b.dataset.export === "ris") download(`arctic-history-${stamp}.ris`, ris(sorted), "application/x-research-info-systems");
@@ -1260,7 +1261,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     const keys = rows.filter((r) => r.key).map((r) => r.key);
     if (!bar.querySelector("details")) {
       bar.innerHTML = `<details class="legmenu"><summary></summary><div class="pop">` +
-        `<div class="pophead">On the map · <a href="#" data-all>all</a> · <a href="#" data-none>none</a></div><ul>` +
+        `<div class="pophead">${uh("On the map ·")} <a href="#" data-all>${uh("all")}</a> · <a href="#" data-none>${uh("none")}</a></div><ul>` +
         rows.map((r) => r.key
           ? `<li><label title="${esc(r.hint || "")}"><input type="checkbox" data-k="${r.key}"><span class="dot" data-k="${r.key}"></span><span class="name">${esc(r.label)}</span></label></li>`
           : `<li class="ghead">${esc(r.label)}</li>`).join("") + `</ul></div></details>`;
@@ -1283,11 +1284,11 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
   // with the images and the observations with the events, whatever the labels
   const MENU_EXTRA = { ...(UW.public ? {} : { image: [["journal", "/Share Photos"]] }), event: [["record", "Observations"]] };   // the /Share gallery stays aboard
   function kindOptions(cur) {
-    const opt = (slug, label) => `<option value="${slug}" ${cur === slug ? "selected" : ""}>${esc(label)}</option>`;
+    const opt = (slug, label) => `<option value="${slug}" ${cur === slug ? "selected" : ""}>${esc(ui(label))}</option>`;
     return GROUPS.map((g) => {
       const extra = MENU_EXTRA[g.head] || [];
       if (!g.under.length && !extra.length) return opt(`kind/${g.head}`, KINDS[g.head].label);
-      return `<optgroup label="${esc(KINDS[g.head].label)}">${opt(`kind/${g.head}`, g.under.length ? `All ${KINDS[g.head].label.toLowerCase()}` : KINDS[g.head].label)}${g.under.map((k) => opt(`kind/${k}`, KINDS[k].label)).join("")}${extra.map(([slug, label]) => opt(slug, label)).join("")}</optgroup>`;
+      return `<optgroup label="${esc(KINDS[g.head].label)}">${opt(`kind/${g.head}`, g.under.length ? uh("All {v0}", {v0: (KINDS[g.head].label.toLowerCase())}) : KINDS[g.head].label)}${g.under.map((k) => opt(`kind/${k}`, KINDS[k].label)).join("")}${extra.map(([slug, label]) => opt(slug, label)).join("")}</optgroup>`;
     }).join("");
   }
   function renderChips() {
@@ -1295,10 +1296,10 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     // then (while Nature is on) the natural domains
     const sel = $("#histkindsel");
     if (sel) {
-      const opt = (slug, label) => `<option value="${slug}" ${hist.slug === slug ? "selected" : ""}>${esc(label)}</option>`;
+      const opt = (slug, label) => `<option value="${slug}" ${hist.slug === slug ? "selected" : ""}>${esc(ui(label))}</option>`;
       const natv = domainOn("nature") ? UW.natureViews : null;
-      const pages = [opt("explore", "Explore"), opt("bib", "Bibliography"), opt("provenance", "Provenance")].join("");
-      sel.innerHTML = `<option value="" ${!hist.slug || !/^(kind\/|domain\/|subjects\/|explore$|bib$|provenance$|record$|journal$)/.test(hist.slug) ? "selected" : ""}>Browse…</option>` +
+      const pages = [opt("explore", ui("Explore")), opt("bib", ui("Bibliography")), opt("provenance", ui("Provenance"))].join("");
+      sel.innerHTML = `<option value="" ${!hist.slug || !/^(kind\/|domain\/|subjects\/|explore$|bib$|provenance$|record$|journal$)/.test(hist.slug) ? "selected" : ""}>${uh("Browse…")}</option>` +
         `<optgroup label="Pages">${pages}</optgroup>` +
         kindOptions(hist.slug.split("/").slice(0, 2).join("/")) +
         (natv?.domainOptions ? `<optgroup label="Domains">${natv.domainOptions(hist.slug)}</optgroup>` : "");
@@ -1306,7 +1307,7 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
       // Native selects otherwise size to the longest option, starving Search.
       const style=getComputedStyle(sel),measure=document.createElement('canvas').getContext('2d');
       measure.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      sel.style.width=`${Math.ceil(measure.measureText(sel.selectedOptions[0]?.textContent||'Browse…').width+parseFloat(style.paddingLeft)+parseFloat(style.paddingRight)+26)}px`;
+      sel.style.width=`${Math.ceil(measure.measureText(sel.selectedOptions[0]?.textContent||ui("Browse…")).width+parseFloat(style.paddingLeft)+parseFloat(style.paddingRight)+26)}px`;
     }
     // the map's menus, each after its layer's pill: the kinds after History, the domains after Nature
     const bar = $("#maphistlayers");
@@ -1327,9 +1328,9 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     $("#histhome").classList.toggle("on", !hist.slug && !hist.search);
     $("#histexplore").classList.toggle("on", hist.slug === "explore");
     $("#histback").disabled = !hist.slug && nav.n === 0;
-    $("#histback").title = nav.fromMap ? "back to the map" : "back to the view before";
+    $("#histback").title = nav.fromMap ? ui("back to the map") : ui("back to the view before");
     for (const b of document.querySelectorAll("#wikidomains .dom")) { const on = hist.domains.has(b.dataset.domain); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
-    const ask = $("#histask"), t = askTarget(); ask.textContent = t.label; ask.title = t.title; ask.hidden = !!UW.public;   // the crew answer in the chat, aboard
+    const ask = $("#histask"), t = askTarget(); ask.textContent = ui(t.label); ask.title = ui(t.title); ask.hidden = !!UW.public;   // the crew answer in the chat, aboard
   }
   // Browsing domains filters the pane; map layers change only through map controls.
   function setDomain(d, on) {
@@ -1430,11 +1431,11 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     if (!imagePreview) {
       imagePreview = document.createElement('dialog'); imagePreview.className = 'wiki-image-preview';
       imagePreview.setAttribute('aria-labelledby', 'wiki-image-title');
-      imagePreview.innerHTML = '<div class="preview-head"><h2 id="wiki-image-title"></h2><button type="button">Close ✕</button></div><a class="preview-image" target="_blank" rel="noopener"><img alt=""></a><p></p><a class="preview-original" target="_blank" rel="noopener">Open original in new tab ↗</a>';
+      imagePreview.innerHTML = `<div class="preview-head"><h2 id="wiki-image-title"></h2><button type="button">Close ✕</button></div><a class="preview-image" target="_blank" rel="noopener"><img alt=""></a><p></p><a class="preview-original" target="_blank" rel="noopener">${uh("Open original in new tab ↗")}</a>`;
       imagePreview.querySelector('button').onclick = () => imagePreview.close();
       document.body.append(imagePreview);
     }
-    const image = link.querySelector('img'), title = image.alt || $('#histmain h2')?.textContent || 'Image preview';
+    const image = link.querySelector('img'), title = image.alt || $('#histmain h2')?.textContent || ui("Image preview");
     imagePreview.querySelector('h2').textContent = title;
     for (const a of imagePreview.querySelectorAll('a')) a.href = link.href;
     const large = imagePreview.querySelector('img'); large.src = image.currentSrc || image.src; large.alt = title;
@@ -1631,6 +1632,10 @@ Ask Ada answers from these pages with a local model on the ship: it cites the pa
     artifactCard, artifactById, eventById, topicOf, statusTag, pageLink, whereName, yearTicks, pageDomain, topicDomain, topicColour, topicImage, data: () => hist,
     crumb, here, open, slug: () => hist.slug, rerender: () => renderMain(), refresh: () => render(), menu: renderMenu, KINDS, TYPES, topicCard, collectionChip, backlinksHTML, wireBackmore, letterList, domainOn, focusPoint };
   wire();
+  window.addEventListener('uw:localechange', () => {
+    if (!$('#pane-wiki').hidden && hist.artifacts) window.UWI18n.preserve($('#pane-wiki'), render).catch(console.error);
+    else { renderChips(); renderTools(); }
+  });
   document.addEventListener("uw:theme", () => { if (!$("#pane-wiki").hidden && hist.artifacts) render(); });   // the chips, dots and the timeline take the new colours
   if (hashSlug() != null && $("#pane-wiki").hidden) UW.showTab("wiki");
   else if (['wiki','photos'].includes(document.querySelector("#tabs button.on")?.dataset.tab)) UW.onTab(document.querySelector("#tabs button.on").dataset.tab);

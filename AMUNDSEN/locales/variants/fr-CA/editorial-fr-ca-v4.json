@@ -1,0 +1,6022 @@
+{
+  "locale": "fr-CA",
+  "profile": {
+    "id": "editorial-fr-ca-v4",
+    "translator": "lead-assistant",
+    "model": "GPT-6",
+    "glossary": "dashboard-ui-v4",
+    "method": "Editorial Canadian French UI expansion; original measurements and user-authored content preserved. Draft for review."
+  },
+  "messages": {
+    "pages.a19de0c38d4dff59": {
+      "source": "🔔 Get alerts for scheduled operations",
+      "text": "🔔 Recevoir des alertes pour les opérations prévues",
+      "status": "draft"
+    },
+    "pages.4d327af41f96c23c": {
+      "source": "via",
+      "text": "par",
+      "status": "draft"
+    },
+    "pages.ca8b598502b154d6": {
+      "source": "this browser's header bar",
+      "text": "la barre d’en-tête de ce navigateur",
+      "status": "draft"
+    },
+    "pages.82244417f956ac7c": {
+      "source": "email",
+      "text": "courriel",
+      "status": "draft"
+    },
+    "pages.8c181da097acc01c": {
+      "source": "only operations matching",
+      "text": "seulement les opérations correspondant à",
+      "status": "draft"
+    },
+    "pages.1e80a09b5207e374": {
+      "source": "e.g. CardS-3, CTD — blank for everything",
+      "text": "p. ex. CardS-3, CTD — laisser vide pour tout recevoir",
+      "status": "draft"
+    },
+    "pages.aa63925edf225e26": {
+      "source": "warn",
+      "text": "prévenir",
+      "status": "draft"
+    },
+    "pages.d0b4034c6ca7ee87": {
+      "source": "ahead",
+      "text": "à l’avance",
+      "status": "draft"
+    },
+    "pages.437da9f58f045cb6": {
+      "source": "starting soon",
+      "text": "début imminent",
+      "status": "draft"
+    },
+    "pages.03494afd4248c42f": {
+      "source": "started",
+      "text": "commencée",
+      "status": "draft"
+    },
+    "pages.05343e9845302eb7": {
+      "source": "finished",
+      "text": "terminée",
+      "status": "draft"
+    },
+    "pages.8f301fe89e95c0c6": {
+      "source": "time changed",
+      "text": "heure modifiée",
+      "status": "draft"
+    },
+    "pages.f40fd562f6307872": {
+      "source": "subscribe",
+      "text": "s’abonner",
+      "status": "draft"
+    },
+    "pages.8954bdd0658bdc1b": {
+      "source": "Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.",
+      "text": "Les alertes d’en-tête restent dans ce navigateur et s’effacent avec ✕. Chaque courriel d’alerte contient un lien de désabonnement. Les heures sont celles du navire.",
+      "status": "draft"
+    },
+    "pages.945d2c03508adc66": {
+      "source": "saving…",
+      "text": "enregistrement…",
+      "status": "draft"
+    },
+    "pages.99b2318698af4c73": {
+      "source": "subscribed {v0}: {v1}, {v2} min ahead",
+      "text": "abonnement de {v0} : {v1}, préavis de {v2} min",
+      "status": "draft"
+    },
+    "pages.7cc9fa7e6f62a347": {
+      "source": " · following {v0}",
+      "text": " · suivi de {v0}",
+      "status": "draft"
+    },
+    "pages.9dcff98e275f0cb9": {
+      "source": "Timeline",
+      "text": "Chronologie",
+      "status": "draft"
+    },
+    "pages.612ca4821653bae2": {
+      "source": "{v0} events · {v1} scheduled · {v2} span · click a point for its log entry",
+      "text": "Événements : {v0} · opérations prévues : {v1} · période : {v2} · cliquez sur un point pour voir l’entrée du journal",
+      "status": "draft"
+    },
+    "pages.c8c685977afa0c3c": {
+      "source": "Photo slideshow",
+      "text": "Diaporama",
+      "status": "draft"
+    },
+    "pages.55efb93d341ef10e": {
+      "source": "Close slideshow",
+      "text": "Fermer le diaporama",
+      "status": "draft"
+    },
+    "pages.2f55863e032e37f9": {
+      "source": "Previous photo",
+      "text": "Photo précédente",
+      "status": "draft"
+    },
+    "pages.894bb2b7ac07d55d": {
+      "source": "Next photo",
+      "text": "Photo suivante",
+      "status": "draft"
+    },
+    "pages.bb1de97207977776": {
+      "source": "Photograph",
+      "text": "Photographie",
+      "status": "draft"
+    },
+    "pages.ef3550a6f13c8263": {
+      "source": "Gallery navigation",
+      "text": "Navigation dans la galerie",
+      "status": "draft"
+    },
+    "pages.a04d3b26e64dc84d": {
+      "source": "← Gallery",
+      "text": "← Galerie",
+      "status": "draft"
+    },
+    "pages.59cbdb2816208517": {
+      "source": "Open fullscreen slideshow",
+      "text": "Ouvrir le diaporama en plein écran",
+      "status": "draft"
+    },
+    "pages.2c4bef225b218e2c": {
+      "source": "click photo for fullscreen",
+      "text": "cliquer sur la photo pour l’afficher en plein écran",
+      "status": "draft"
+    },
+    "pages.d0674e0dede8a26b": {
+      "source": "Camera photo",
+      "text": "Photo de la caméra",
+      "status": "draft"
+    },
+    "pages.0a040c7f8ef25d76": {
+      "source": "Close photo",
+      "text": "Fermer la photo",
+      "status": "draft"
+    },
+    "pages.72cd96e4062019eb": {
+      "source": "Open full-size photo",
+      "text": "Ouvrir la photo pleine grandeur",
+      "status": "draft"
+    },
+    "pages.5a044a1351ce03c1": {
+      "source": "Orange outline: analyzed ROI",
+      "text": "Contour orange : région d’intérêt analysée",
+      "status": "draft"
+    },
+    "pages.f807f07af9999249": {
+      "source": "ROI unavailable for these image dimensions",
+      "text": "Région d’intérêt indisponible pour ces dimensions d’image",
+      "status": "draft"
+    },
+    "pages.ce8daf5d393a0f6a": {
+      "source": "Photo unavailable — archive may be offline",
+      "text": "Photo indisponible — l’archive est peut-être hors ligne",
+      "status": "draft"
+    },
+    "pages.b62350e7c82dc25e": {
+      "source": "Click to cycle Texture → Brightness → Colorfulness → Patchiness → mean RGB. Names are provisional PC interpretations.",
+      "text": "Cliquer pour passer de Texture → Luminosité → Intensité des couleurs → Hétérogénéité → RVB moyen. Ces noms sont des interprétations provisoires des composantes principales.",
+      "status": "draft"
+    },
+    "pages.8c4463e5d14f4ff3": {
+      "source": "No matching underway distances in this span",
+      "text": "Aucune distance en route correspondante pour cette période",
+      "status": "draft"
+    },
+    "pages.226bbb8ba2342b46": {
+      "source": "No camera data in this span for the selected legs",
+      "text": "Aucune donnée de caméra pour cette période et les étapes sélectionnées",
+      "status": "draft"
+    },
+    "pages.f0a859a7ecd77183": {
+      "source": "Previous image",
+      "text": "Image précédente",
+      "status": "draft"
+    },
+    "pages.a4903f732746e9e1": {
+      "source": "Next image",
+      "text": "Image suivante",
+      "status": "draft"
+    },
+    "pages.ce7bf15a4a858bbf": {
+      "source": "Close ✕",
+      "text": "Fermer ✕",
+      "status": "draft"
+    },
+    "pages.f6e0f16188d43020": {
+      "source": "Ship camera context with ROI outline",
+      "text": "Vue de la caméra du navire avec contour de la région d’intérêt",
+      "status": "draft"
+    },
+    "pages.b4099f32ab116a72": {
+      "source": "No camera products for the selected legs",
+      "text": "Aucun produit de caméra pour les étapes sélectionnées",
+      "status": "draft"
+    },
+    "pages.ddb2e5cbcd7b1935": {
+      "source": "Awaiting classification",
+      "text": "En attente de classification",
+      "status": "draft"
+    },
+    "pages.c2ca254ef2542b13": {
+      "source": "Selected camera ROI",
+      "text": "Région d’intérêt sélectionnée de la caméra",
+      "status": "draft"
+    },
+    "pages.cd8e53a08c5c8f05": {
+      "source": "No matching navigation distance",
+      "text": "Aucune distance de navigation correspondante",
+      "status": "draft"
+    },
+    "pages.26d9b3b1f470ca66": {
+      "source": "live feed unavailable (server not reachable)",
+      "text": "flux en direct indisponible (serveur inaccessible)",
+      "status": "draft"
+    },
+    "pages.b0bf3d89f0028773": {
+      "source": "in the water",
+      "text": "à l’eau",
+      "status": "draft"
+    },
+    "pages.34fd3ab8d65068d6": {
+      "source": "last cast ({v0})",
+      "text": "dernier profil ({v0})",
+      "status": "draft"
+    },
+    "pages.e5562777f5e784e4": {
+      "source": "last cast",
+      "text": "dernier profil",
+      "status": "draft"
+    },
+    "pages.6dea9f2833032c42": {
+      "source": "last updated {v0} ago",
+      "text": "dernière mise à jour il y a {v0}",
+      "status": "draft"
+    },
+    "pages.7c35ea2a8c62aeba": {
+      "source": "no data yet",
+      "text": "aucune donnée pour le moment",
+      "status": "draft"
+    },
+    "pages.04be6dbb797d1f4f": {
+      "source": "no source set",
+      "text": "aucune source configurée",
+      "status": "draft"
+    },
+    "pages.373ede1bd510a97a": {
+      "source": "Seasave at {v0} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off",
+      "text": "Seasave à {v0} accepte la connexion, mais n’a rien envoyé, même pas sa liste de champs : l’acquisition est probablement arrêtée ou TCP/IP Out est désactivé",
+      "status": "draft"
+    },
+    "pages.4043b0d02cbdf281": {
+      "source": "Seasave at {v0}: {v1}",
+      "text": "Seasave à {v0} : {v1}",
+      "status": "draft"
+    },
+    "pages.4e64a73f31de9de2": {
+      "source": "↓ descending",
+      "text": "↓ descente",
+      "status": "draft"
+    },
+    "pages.8821ee7638dd486a": {
+      "source": "↑ ascending",
+      "text": "↑ remontée",
+      "status": "draft"
+    },
+    "pages.6267eb92dbfb52e8": {
+      "source": "· {v0} · {v1} scans kept{v2}{v3}",
+      "text": "· {v0} · acquisitions conservées : {v1}{v2}{v3}",
+      "status": "draft"
+    },
+    "pages.8c0fc3e67ce6edbf": {
+      "source": "show:",
+      "text": "afficher :",
+      "status": "draft"
+    },
+    "pages.25781429f18f9f88": {
+      "source": "in water",
+      "text": "à l’eau",
+      "status": "draft"
+    },
+    "pages.3547cb112ac4489a": {
+      "source": "last",
+      "text": "dernier",
+      "status": "draft"
+    },
+    "pages.a129311710bd6586": {
+      "source": "Seasave at {v0} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).",
+      "text": "Seasave à {v0} accepte la connexion, mais n’envoie rien : démarrez l’acquisition et vérifiez Configure Outputs › TCP/IP Out.",
+      "status": "draft"
+    },
+    "pages.89e0968cb624a276": {
+      "source": "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m].",
+      "text": "La sortie TCP/IP de Seasave ne transmet ni pression ni profondeur de l’instrument (« Depth, NMEA » correspond à la profondeur du fond mesurée par l’échosondeur). Dans Seasave : Configure Outputs › TCP/IP Out › Select Variables, ajoutez Pressure [db] ou Depth [salt water, m].",
+      "status": "draft"
+    },
+    "pages.1136887b48e9c564": {
+      "source": "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m.",
+      "text": "Des acquisitions arrivent, mais l’instrument n’est pas encore à l’eau — le graphique commence lorsqu’il dépasse 2 m.",
+      "status": "draft"
+    },
+    "pages.5418cb6eb6746abe": {
+      "source": "Connected to Seasave; the plot begins when acquisition starts and the package goes in.",
+      "text": "Connexion à Seasave établie; le graphique commence au démarrage de l’acquisition, une fois l’instrument à l’eau.",
+      "status": "draft"
+    },
+    "pages.d3e10052c069b15b": {
+      "source": "Seasave at {v0} is not answering ({v1}); retrying.",
+      "text": "Seasave à {v0} ne répond pas ({v1}); nouvelle tentative.",
+      "status": "draft"
+    },
+    "pages.09821b19441052ad": {
+      "source": "No Seasave source set — use ⚙.",
+      "text": "Aucune source Seasave configurée — utilisez ⚙.",
+      "status": "draft"
+    },
+    "pages.3e5b90ae053ff3e7": {
+      "source": "Chart",
+      "text": "Graphique",
+      "status": "draft"
+    },
+    "pages.b949729ec3f8834e": {
+      "source": "Move {v3} up",
+      "text": "Déplacer {v3} vers le haut",
+      "status": "draft"
+    },
+    "pages.b9d894793c5e2abb": {
+      "source": "Move {v5} down",
+      "text": "Déplacer {v5} vers le bas",
+      "status": "draft"
+    },
+    "pages.7b915f4a299822c6": {
+      "source": "Parameters above Chart use upper axes; parameters below use lower axes",
+      "text": "Les paramètres au-dessus de Graphique utilisent les axes supérieurs; ceux en dessous utilisent les axes inférieurs",
+      "status": "draft"
+    },
+    "pages.b5dd173791aafe8a": {
+      "source": "Move Chart to divide upper and lower axes",
+      "text": "Déplacez Graphique pour séparer les axes supérieurs et inférieurs",
+      "status": "draft"
+    },
+    "pages.08e58be1256d79bf": {
+      "source": "Select a cast from the list or the map.",
+      "text": "Sélectionnez un profil dans la liste ou sur la carte.",
+      "status": "draft"
+    },
+    "pages.3ea5bb4ae53b1c00": {
+      "source": "Rosette sheet ↗",
+      "text": "Fiche de rosette ↗",
+      "status": "draft"
+    },
+    "pages.813801934f98fd75": {
+      "source": "Select Cast:",
+      "text": "Sélectionner un profil :",
+      "status": "draft"
+    },
+    "pages.607e651096291705": {
+      "source": "dip:",
+      "text": "plongée :",
+      "status": "draft"
+    },
+    "pages.c89256104794b1a3": {
+      "source": "{v0} · dip #{v1}",
+      "text": "{v0} · plongée no {v1}",
+      "status": "draft"
+    },
+    "pages.8e2f078d59f675b4": {
+      "source": " · bottom {v0} m",
+      "text": " · fond à {v0} m",
+      "status": "draft"
+    },
+    "pages.a6f85eb7e8dcedb4": {
+      "source": "Select casts from the list, or click stations and tow tracks on the map.",
+      "text": "Sélectionnez des profils dans la liste, ou cliquez sur les stations et les trajets de remorquage sur la carte.",
+      "status": "draft"
+    },
+    "pages.2c635b368009f7d5": {
+      "source": "{v0} selected · {v1} profile{v2}",
+      "text": "{v0} sélectionnés · {v1} profil{v2}",
+      "status": "draft"
+    },
+    "pages.1407f17df7d1a605": {
+      "source": "drag onto another graph to swap places",
+      "text": "glisser sur un autre graphique pour échanger leur position",
+      "status": "draft"
+    },
+    "pages.9111d254873bb676": {
+      "source": "click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them",
+      "text": "cliquer pour sélectionner ce graphique : Maj + molette zoome en x, Ctrl + molette zoome en profondeur; glisser pour déplacer la vue",
+      "status": "draft"
+    },
+    "pages.0b707e48a42f2d90": {
+      "source": "compress the depth axis (square root) — applies to every cast graph",
+      "text": "comprimer l’axe de profondeur (racine carrée) — s’applique à tous les graphiques de profils",
+      "status": "draft"
+    },
+    "pages.b48662b9e514ae3a": {
+      "source": "minimise to the top bar",
+      "text": "réduire dans la barre du haut",
+      "status": "draft"
+    },
+    "pages.886fb735a1b9c903": {
+      "source": "reset zoom",
+      "text": "réinitialiser le zoom",
+      "status": "draft"
+    },
+    "pages.d78de925a8786731": {
+      "source": "expand",
+      "text": "agrandir",
+      "status": "draft"
+    },
+    "pages.f329e3a317eee6a8": {
+      "source": "restore",
+      "text": "rétablir",
+      "status": "draft"
+    },
+    "pages.8b270ed732edc5c6": {
+      "source": "{v0} cast{v1}",
+      "text": "{v0} profil{v1}",
+      "status": "draft"
+    },
+    "pages.2f59d4b8f473d38e": {
+      "source": "{v0} bottles",
+      "text": "bouteilles de {v0}",
+      "status": "draft"
+    },
+    "pages.d4722ec916c36606": {
+      "source": "drag, or ▲ ▼, to lay the profiles in your own order",
+      "text": "glisser ou utiliser ▲ ▼ pour ordonner les profils",
+      "status": "draft"
+    },
+    "pages.4b6bad1ea4905ab0": {
+      "source": "move up",
+      "text": "déplacer vers le haut",
+      "status": "draft"
+    },
+    "pages.08bc837a975bebb2": {
+      "source": "move down",
+      "text": "déplacer vers le bas",
+      "status": "draft"
+    },
+    "pages.e53dac9f89ee8092": {
+      "source": "↺ time order",
+      "text": "↺ ordre chronologique",
+      "status": "draft"
+    },
+    "pages.2245d25ec0254f2f": {
+      "source": "{v0} section",
+      "text": "Coupe de {v0}",
+      "status": "draft"
+    },
+    "pages.e50ce529488d0317": {
+      "source": " · smoothed over {v0} m",
+      "text": " · lissage sur {v0} m",
+      "status": "draft"
+    },
+    "pages.657980dc1fbd697d": {
+      "source": "{v0} profiles · {v1} km · {v2}{v3}",
+      "text": "Profils : {v0} · {v1} km · {v2}{v3}",
+      "status": "draft"
+    },
+    "pages.33b93476cf597a33": {
+      "source": "Time",
+      "text": "Temps",
+      "status": "draft"
+    },
+    "pages.b7bdf7a2d6e73e58": {
+      "source": "Distance",
+      "text": "Distance",
+      "status": "draft"
+    },
+    "pages.a60f8bdaa027343c": {
+      "source": "no scheduled operations listed",
+      "text": "aucune opération prévue",
+      "status": "draft"
+    },
+    "pages.57230d1daa6720c2": {
+      "source": "Operations schedule {v0}{v1}",
+      "text": "Horaire des opérations {v0}{v1}",
+      "status": "draft"
+    },
+    "pages.90a50f14e9672fab": {
+      "source": "Ship intranet: {v0}",
+      "text": "Intranet du navire : {v0}",
+      "status": "draft"
+    },
+    "pages.e41f85820609af08": {
+      "source": "🔔 this operation · 📢 every operation of this kind",
+      "text": "🔔 cette opération · 📢 toutes les opérations de ce type",
+      "status": "draft"
+    },
+    "pages.0b4fceb51bb721d7": {
+      "source": "now · next · later · done · canceled · was scheduled · logged",
+      "text": "en cours · suivante · à venir · terminée · annulée · anciennement prévue · consignée",
+      "status": "draft"
+    },
+    "pages.336074805fc85398": {
+      "source": "time",
+      "text": "heure",
+      "status": "draft"
+    },
+    "pages.073c1634c496cdb6": {
+      "source": "status",
+      "text": "état",
+      "status": "draft"
+    },
+    "pages.9b4ef3e5b7b4d175": {
+      "source": "station",
+      "text": "station",
+      "status": "draft"
+    },
+    "pages.9bf5a24e4aa77998": {
+      "source": "operation",
+      "text": "opération",
+      "status": "draft"
+    },
+    "pages.13985426c0879573": {
+      "source": "dur.",
+      "text": "durée",
+      "status": "draft"
+    },
+    "pages.ded32129b05bfc16": {
+      "source": "depth",
+      "text": "profondeur",
+      "status": "draft"
+    },
+    "pages.c44bb2fd516909da": {
+      "source": "comment",
+      "text": "commentaire",
+      "status": "draft"
+    },
+    "pages.deb3e366c077c228": {
+      "source": "alerts",
+      "text": "alertes",
+      "status": "draft"
+    },
+    "pages.b62f2399a1bd8dbd": {
+      "source": "show {v0} on the map",
+      "text": "afficher {v0} sur la carte",
+      "status": "draft"
+    },
+    "pages.469e93b518d319d4": {
+      "source": "show on map",
+      "text": "afficher sur la carte",
+      "status": "draft"
+    },
+    "pages.12e246bec539375c": {
+      "source": "open cast {v0} on the Casts tab",
+      "text": "ouvrir le profil {v0} dans l’onglet Profils",
+      "status": "draft"
+    },
+    "pages.770711b477e8da40": {
+      "source": "view data",
+      "text": "voir les données",
+      "status": "draft"
+    },
+    "pages.7baa99652be2c7c7": {
+      "source": "logged",
+      "text": "consignée",
+      "status": "draft"
+    },
+    "pages.cab62652ad5f9647": {
+      "source": "{v0} events · {v1} scheduled{v2}{v3}",
+      "text": "Événements : {v0} · opérations prévues : {v1}{v2}{v3}",
+      "status": "draft"
+    },
+    "pages.b21fb709e2a23a63": {
+      "source": " · {v0} formerly",
+      "text": " · anciennement prévues : {v0}",
+      "status": "draft"
+    },
+    "pages.e81a63d211338c97": {
+      "source": "you follow {v0} — click to stop",
+      "text": "vous suivez {v0} — cliquez pour arrêter",
+      "status": "draft"
+    },
+    "pages.52abdcd0fb406ecd": {
+      "source": "follow {v0}: an operation added, taken off, moved or canceled; no reminders",
+      "text": "suivre {v0} : opération ajoutée, retirée, déplacée ou annulée; aucun rappel",
+      "status": "draft"
+    },
+    "pages.3223e57d9ea5de4e": {
+      "source": "follow {v0}: 15 min heads-up and every change",
+      "text": "suivre {v0} : préavis de 15 min et chaque modification",
+      "status": "draft"
+    },
+    "pages.1bfa7cb0058d53a8": {
+      "source": "{v0}: no position known yet",
+      "text": "{v0} : position encore inconnue",
+      "status": "draft"
+    },
+    "pages.81a42333e9588930": {
+      "source": "✉ email me… (enter an address below)",
+      "text": "✉ m’envoyer un courriel… (saisir une adresse ci-dessous)",
+      "status": "draft"
+    },
+    "pages.a6ad6e106668be7b": {
+      "source": "a message when future operations are added, taken off or rescheduled; no completion or status-only notices",
+      "text": "un message lorsque des opérations à venir sont ajoutées, retirées ou replanifiées; aucun avis de fin ni de simple changement d’état",
+      "status": "draft"
+    },
+    "pages.fbe6adbf8a8a945c": {
+      "source": "enter your email to follow {v0}",
+      "text": "saisissez votre courriel pour suivre {v0}",
+      "status": "draft"
+    },
+    "pages.de1ad6abb8b174a1": {
+      "source": "not saved: {v0}",
+      "text": "non enregistré : {v0}",
+      "status": "draft"
+    },
+    "provenance.pump.trace": {
+      "source": "pump off",
+      "text": "pompe arrêtée",
+      "status": "draft"
+    },
+    "provenance.sat.footer": {
+      "source": "{label} · newest scene {time} {zone} · Copernicus Sentinel data",
+      "text": "{label} · scène la plus récente : {time} {zone} · données Copernicus Sentinel",
+      "status": "draft"
+    },
+    "provenance.sat.detail": {
+      "source": "high-resolution detail",
+      "text": "détail à haute résolution",
+      "status": "draft"
+    },
+    "provenance.plan.drop": {
+      "source": "drop a KMZ or KML on the map to add a plan of your own",
+      "text": "déposer un fichier KMZ ou KML sur la carte pour ajouter votre propre plan",
+      "status": "draft"
+    },
+    "provenance.plan.footer": {
+      "source": "Plan {name} · stations: {count}",
+      "text": "Plan {name} · stations : {count}",
+      "status": "draft"
+    },
+    "provenance.panel": {
+      "source": "panel",
+      "text": "graphique",
+      "status": "draft"
+    },
+    "provenance.column": {
+      "source": "source column (Instrument — Variable)",
+      "text": "colonne source (Instrument — Variable)",
+      "status": "draft"
+    },
+    "provenance.derived": {
+      "source": "derived",
+      "text": "calculée",
+      "status": "draft"
+    },
+    "provenance.notFound": {
+      "source": "not found",
+      "text": "introuvable",
+      "status": "draft"
+    },
+    "provenance.notComputed": {
+      "source": "not computed",
+      "text": "non calculé",
+      "status": "draft"
+    },
+    "provenance.surprise": {
+      "source": "Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.",
+      "text": "Chaque échelle correspond à −log10 de la valeur p du χ² associée à la distance de Mahalanobis par rapport à la moyenne et à la covariance à pondération exponentielle des minutes précédentes (plafonnée à 6); le score combiné est la moyenne des différentes échelles. Les valeurs supérieures à 3 sont ombrées.",
+      "status": "draft"
+    },
+    "provenance.zoom": {
+      "source": "Zooming: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.",
+      "text": "Zoom : la molette permet de zoomer sur un graphique, Maj+molette sur l’axe x seulement et Ctrl+molette sur l’axe y seulement; un double-clic réinitialise le zoom.",
+      "status": "draft"
+    },
+    "provenance.heat": {
+      "source": "Excess heat (°C): SST minus the UNESCO 1983 seawater freezing point at surface pressure (0 dbar), calculated from paired temperature and salinity observations. Positive values are above freezing; negative values are below. Missing inputs or salinity outside 0–40 PSU leave gaps. The freezing-point fit is validated over 4–40 PSU; lower salinities use an extrapolation toward freshwater.",
+      "text": "Excès de chaleur (°C) : température de surface de la mer moins le point de congélation de l’eau de mer selon l’UNESCO (1983) à la pression de surface (0 dbar), calculé à partir d’observations appariées de température et de salinité. Les valeurs positives sont au-dessus du point de congélation; les valeurs négatives, en dessous. Des données manquantes ou une salinité hors de la plage de 0–40 PSU produisent des lacunes. L’ajustement du point de congélation est validé pour 4–40 PSU; aux salinités inférieures, il est extrapolé vers l’eau douce.",
+      "status": "draft"
+    },
+    "provenance.inputs": {
+      "source": "Inputs: {files} daily files across {legs} legs; latest {latest}.",
+      "text": "Entrées : {files} fichiers quotidiens répartis sur {legs} tronçons; le plus récent : {latest}.",
+      "status": "draft"
+    },
+    "provenance.record": {
+      "source": "Record: {start} → {end} {zone}. {columns} distinct columns seen; the per-leg columns show where a source column exists.",
+      "text": "Période couverte : {start} → {end} {zone}. {columns} colonnes distinctes recensées; les colonnes par tronçon indiquent où une colonne source est présente.",
+      "status": "draft"
+    },
+    "provenance.times": {
+      "source": "Times and time axes are ship time ({zone}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation.",
+      "text": "Les heures et les axes temporels sont à l’heure du navire ({zone}); les fichiers TSV exportés utilisent l’UTC. Les interruptions dans les courbes correspondent à des données manquantes, sans interpolation.",
+      "status": "draft"
+    },
+    "provenance.basemap.raster": {
+      "source": "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid)",
+      "text": "relief ombré GEBCO 2024 — bathymétrie et terres (grille de 15 secondes d’arc)",
+      "status": "draft"
+    },
+    "provenance.basemap.vector": {
+      "source": "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers",
+      "text": "littoral et terres d’OpenStreetMap (ODbL) et glaciers de Natural Earth 10 m",
+      "status": "draft"
+    },
+    "provenance.basemap.natural": {
+      "source": "Natural Earth 10 m coastline, land and glaciers",
+      "text": "littoral, terres et glaciers de Natural Earth 10 m",
+      "status": "draft"
+    },
+    "provenance.basemap.depth": {
+      "source": "depth bands",
+      "text": "bandes de profondeur",
+      "status": "draft"
+    },
+    "provenance.basemap": {
+      "source": "Basemap: {layers}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally.",
+      "text": "Fond de carte : {layers}; lieux habités provenant de GeoNames (CC BY 4.0; Nunavut, T.N.-O., Labrador, nord du Québec, de l’Ontario et du Manitoba, et Groenland); toutes les données sont servies localement.",
+      "status": "draft"
+    },
+    "provenance.names": {
+      "source": "Geographic names from the Canadian Geographical Names Database (Open Government Licence – Canada) and GeoNames (CC BY 4.0), more of them the closer you zoom.",
+      "text": "Les noms géographiques proviennent de la Base de données toponymiques du Canada (Licence du gouvernement ouvert – Canada) et de GeoNames (CC BY 4.0); leur nombre augmente à mesure que vous zoomez.",
+      "status": "draft"
+    },
+    "provenance.globe": {
+      "source": "The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.",
+      "text": "La carte est un globe : les distances et les superficies sont donc fidèles aux latitudes du navire. Les tuiles utilisent la projection Web Mercator et s’arrêtent à 85° N; le pôle lui-même est donc vide.",
+      "status": "draft"
+    },
+    "scheduleBanner.completed": {
+      "source": "Last completed",
+      "text": "Dernière opération terminée",
+      "status": "draft"
+    },
+    "scheduleBanner.current": {
+      "source": "In progress",
+      "text": "En cours",
+      "status": "draft"
+    },
+    "scheduleBanner.next": {
+      "source": "Coming up next",
+      "text": "À venir",
+      "status": "draft"
+    },
+    "scheduleBanner.left": {
+      "source": "{duration} left",
+      "text": "Temps restant : {duration}",
+      "status": "draft"
+    },
+    "scheduleBanner.over": {
+      "source": "{duration} over",
+      "text": "Dépassement : {duration}",
+      "status": "draft"
+    },
+    "scheduleBanner.google": {
+      "source": "open the Amundsen Schedule in Google Calendar",
+      "text": "ouvrir l’horaire de l’Amundsen dans Google Agenda",
+      "status": "draft"
+    },
+    "scheduleBanner.ics": {
+      "source": "subscribe to the Amundsen Schedule as an ICS feed",
+      "text": "s’abonner à l’horaire de l’Amundsen au format ICS",
+      "status": "draft"
+    },
+    "pages.1dc2adc71fdc6add": {
+      "source": "Live cast",
+      "text": "Profil en direct",
+      "status": "draft"
+    },
+    "pages.d2828ad9fd1d87a7": {
+      "source": "TM cast",
+      "text": "Profil TM",
+      "status": "draft"
+    },
+    "pages.1500405573373612": {
+      "source": "Cast",
+      "text": "Profil",
+      "status": "draft"
+    },
+    "pages.cf1950b217a2b3d0": {
+      "source": "MVP tow {v0}{v1}",
+      "text": "Remorquage MVP {v0}{v1}",
+      "status": "draft"
+    },
+    "pages.fa0d22242363adcc": {
+      "source": " · {v0} dips",
+      "text": " · {v0} plongées",
+      "status": "draft"
+    },
+    "pages.a178f6d7069a2b24": {
+      "source": "bottle {v0}{v1}",
+      "text": "bouteille {v0}{v1}",
+      "status": "draft"
+    },
+    "pages.cb8ffbcc2ae32b99": {
+      "source": "MVP tows",
+      "text": "Remorquages MVP",
+      "status": "draft"
+    },
+    "pages.892b302902eaa39f": {
+      "source": "selected tows",
+      "text": "remorquages sélectionnés",
+      "status": "draft"
+    },
+    "pages.94038397ceeb4d30": {
+      "source": "selected dips",
+      "text": "plongées sélectionnées",
+      "status": "draft"
+    },
+    "pages.2c4561b1bd59416b": {
+      "source": "MVP tow starts",
+      "text": "Départs des remorquages MVP",
+      "status": "draft"
+    },
+    "pages.2305f9a93e7e3775": {
+      "source": "{v0} · dip {v1}",
+      "text": "{v0} · plongée {v1}",
+      "status": "draft"
+    },
+    "pages.494ca78f7374e46f": {
+      "source": "Custom",
+      "text": "Personnalisé",
+      "status": "draft"
+    },
+    "pages.286bda0d997c8009": {
+      "source": "The transect could not be shared ({v0}); it stays in this browser",
+      "text": "Impossible de partager le transect ({v0}); il reste dans ce navigateur",
+      "status": "draft"
+    },
+    "pages.4e1f28fc70610f11": {
+      "source": "No bottle firings match.",
+      "text": "Aucune fermeture de bouteille ne correspond.",
+      "status": "draft"
+    },
+    "pages.5830d6da56e44d4f": {
+      "source": "{v0} of {v1} bottle firings shown",
+      "text": "Fermetures de bouteilles affichées : {v0} sur {v1}",
+      "status": "draft"
+    },
+    "pages.3b1acb93404de012": {
+      "source": "Loading {v0} selected casts with bottle firings…",
+      "text": "Chargement de {v0} profils sélectionnés avec fermetures de bouteilles…",
+      "status": "draft"
+    },
+    "pages.98f4bb619464284d": {
+      "source": "Bottle measurements could not be loaded. Close and reopen to retry.",
+      "text": "Impossible de charger les mesures des bouteilles. Fermez puis rouvrez pour réessayer.",
+      "status": "draft"
+    },
+    "pages.ab03a958ec35ded7": {
+      "source": "Select all shown casts",
+      "text": "Sélectionner tous les profils affichés",
+      "status": "draft"
+    },
+    "pages.1c1c8f677153323a": {
+      "source": "Delete this shared transect for everyone",
+      "text": "Supprimer ce transect partagé pour tout le monde",
+      "status": "draft"
+    },
+    "pages.9df916869e8fc20e": {
+      "source": "Delete this transect (saved in this browser)",
+      "text": "Supprimer ce transect enregistré dans ce navigateur",
+      "status": "draft"
+    },
+    "pages.a077ad4b78f92338": {
+      "source": "Delete transect",
+      "text": "Supprimer le transect",
+      "status": "draft"
+    },
+    "pages.308a267453114d9c": {
+      "source": "Share this transect with everyone on the ship",
+      "text": "Partager ce transect avec tout le monde à bord",
+      "status": "draft"
+    },
+    "pages.034313ce1600a793": {
+      "source": "Share transect",
+      "text": "Partager le transect",
+      "status": "draft"
+    },
+    "pages.d8139bafdcf0d338": {
+      "source": "show dips",
+      "text": "afficher les plongées",
+      "status": "draft"
+    },
+    "pages.2b639f5f3fe0f87f": {
+      "source": "Open rosette sheet",
+      "text": "Ouvrir la fiche de rosette",
+      "status": "draft"
+    },
+    "pages.c240afd2442d27f7": {
+      "source": "{v0}{v1} dips",
+      "text": "{v0}{v1} plongées",
+      "status": "draft"
+    },
+    "pages.fd11f75c77ed5eff": {
+      "source": "shared by {v0}",
+      "text": "partagé par {v0}",
+      "status": "draft"
+    },
+    "pages.4662c556e5b9ad1c": {
+      "source": "this browser",
+      "text": "ce navigateur",
+      "status": "draft"
+    },
+    "pages.a310ada4cbd505c9": {
+      "source": "dip {v0}",
+      "text": "plongée {v0}",
+      "status": "draft"
+    },
+    "pages.d6d3697ef52964df": {
+      "source": "no casts match",
+      "text": "aucun profil ne correspond",
+      "status": "draft"
+    },
+    "pages.73e44c202e92a779": {
+      "source": "Delete the shared transect “{v0}” for everyone?",
+      "text": "Supprimer le transect partagé « {v0} » pour tout le monde?",
+      "status": "draft"
+    },
+    "pages.9888984a6cace5f0": {
+      "source": "Delete saved transect “{v0}”?",
+      "text": "Supprimer le transect enregistré « {v0} »?",
+      "status": "draft"
+    },
+    "pages.d714a2c2d7f78d0d": {
+      "source": "The shared transect could not be deleted: the server did not answer",
+      "text": "Impossible de supprimer le transect partagé : le serveur n’a pas répondu",
+      "status": "draft"
+    },
+    "pages.c8eee30499cf09b3": {
+      "source": "Select at least one parameter.",
+      "text": "Sélectionnez au moins un paramètre.",
+      "status": "draft"
+    },
+    "pages.ac20a57bfde0bbc4": {
+      "source": "Hide",
+      "text": "Masquer",
+      "status": "draft"
+    },
+    "pages.0df6f1cad36c49da": {
+      "source": "Show",
+      "text": "Afficher",
+      "status": "draft"
+    },
+    "pages.130011756125313c": {
+      "source": "On",
+      "text": "Activé",
+      "status": "draft"
+    },
+    "pages.ca7981b46ecf2c17": {
+      "source": "Off",
+      "text": "Désactivé",
+      "status": "draft"
+    },
+    "pages.aed812ff76f64d4e": {
+      "source": "{v4} {v5} axis",
+      "text": "{v4} l’axe {v5}",
+      "status": "draft"
+    },
+    "pages.dafa26c784788bf2": {
+      "source": "Seasave's field list (SBE_ConvertedDataSettings){v0}",
+      "text": "Liste des champs de Seasave (SBE_ConvertedDataSettings){v0}",
+      "status": "draft"
+    },
+    "pages.f7d94bc957deb737": {
+      "source": " · {v0} fields",
+      "text": " · {v0} champs",
+      "status": "draft"
+    },
+    "pages.765aab1602f02fd8": {
+      "source": "none received yet — Seasave sends it when the connection opens",
+      "text": "aucun reçu — Seasave les envoie à l’ouverture de la connexion",
+      "status": "draft"
+    },
+    "pages.98ca0d518997f8a4": {
+      "source": "none yet",
+      "text": "aucun pour le moment",
+      "status": "draft"
+    },
+    "pages.9baf01819b22e507": {
+      "source": "last raw scans",
+      "text": "dernières acquisitions brutes",
+      "status": "draft"
+    },
+    "pages.fc10a785607b6a35": {
+      "source": "SeaSave TCP/IP out (host:port, more ports with commas)",
+      "text": "Sortie TCP/IP de SeaSave (hôte:port, ports supplémentaires séparés par des virgules)",
+      "status": "draft"
+    },
+    "pages.c72c2990894df721": {
+      "source": "Try every port in SeaSave's standard 49160–49168 range",
+      "text": "Essayer tous les ports de la plage standard 49160–49168 de SeaSave",
+      "status": "draft"
+    },
+    "pages.97a5e41b45ddd2b2": {
+      "source": "apply",
+      "text": "appliquer",
+      "status": "draft"
+    },
+    "pages.649f0e5314000410": {
+      "source": "Configuration failed ({v0})",
+      "text": "Échec de la configuration ({v0})",
+      "status": "draft"
+    },
+    "pages.f48165421ff2aad8": {
+      "source": "Request timed out; check settings before retrying.",
+      "text": "Délai de réponse dépassé; vérifiez les paramètres avant de réessayer.",
+      "status": "draft"
+    },
+    "pages.46234d79a919e6b7": {
+      "source": "Could not apply settings: {v0}",
+      "text": "Impossible d’appliquer les paramètres : {v0}",
+      "status": "draft"
+    },
+    "underway.sat.newest": {
+      "source": "the newest picture",
+      "text": "l’image la plus récente",
+      "status": "draft"
+    },
+    "underway.sat.earlier": {
+      "source": "an earlier picture; › steps forward",
+      "text": "une image antérieure; › passe à la suivante",
+      "status": "draft"
+    },
+    "underway.sat.off": {
+      "source": "Sat off",
+      "text": "Sat. désactivé",
+      "status": "draft"
+    },
+    "underway.hideSchedule": {
+      "source": "click to hide the schedule",
+      "text": "cliquer pour masquer l’horaire",
+      "status": "draft"
+    },
+    "underway.plan.description": {
+      "source": "the leg's planned cruise track and stations from the expedition's KMZ",
+      "text": "trajectoire et stations prévues pour le tronçon, tirées du fichier KMZ de l’expédition",
+      "status": "draft"
+    },
+    "underway.chart.reorder": {
+      "source": "drag to reorder",
+      "text": "glisser pour réordonner",
+      "status": "draft"
+    },
+    "underway.chart.colour": {
+      "source": "colour everything by this variable",
+      "text": "colorer l’ensemble selon cette variable",
+      "status": "draft"
+    },
+    "underway.chart.log": {
+      "source": "log10 y-axis",
+      "text": "axe y en log10",
+      "status": "draft"
+    },
+    "underway.chart.reset": {
+      "source": "reset zoom",
+      "text": "réinitialiser le zoom",
+      "status": "draft"
+    },
+    "underway.chart.depthRoot": {
+      "source": "compress the depth axis (square root)",
+      "text": "comprimer l’axe de profondeur (racine carrée)",
+      "status": "draft"
+    },
+    "underway.chart.toggleDepth": {
+      "source": "Toggle square-root depth spacing",
+      "text": "Activer ou désactiver l’échelle de profondeur en racine carrée",
+      "status": "draft"
+    },
+    "underway.chart.minimise": {
+      "source": "minimise to its group",
+      "text": "réduire dans son groupe",
+      "status": "draft"
+    },
+    "underway.chart.expand": {
+      "source": "expand",
+      "text": "agrandir",
+      "status": "draft"
+    },
+    "underway.chart.latest": {
+      "source": "Latest displayed observation: {time} {zone}",
+      "text": "Dernière observation affichée : {time} {zone}",
+      "status": "draft"
+    },
+    "underway.chart.noObservations": {
+      "source": "No observations",
+      "text": "Aucune observation",
+      "status": "draft"
+    },
+    "underway.chart.restoreGroup": {
+      "source": "restore every {group} panel",
+      "text": "rétablir tous les graphiques du groupe {group}",
+      "status": "draft"
+    },
+    "underway.chart.minimiseGroup": {
+      "source": "minimise every {group} panel to this group",
+      "text": "réduire tous les graphiques dans le groupe {group}",
+      "status": "draft"
+    },
+    "underway.chart.lowFlow": {
+      "source": " · LOW FLOW",
+      "text": " · FAIBLE DÉBIT",
+      "status": "draft"
+    },
+    "underway.chart.combined": {
+      "source": "Combined",
+      "text": "Combiné",
+      "status": "draft"
+    },
+    "underway.chart.toggle": {
+      "source": "{name}: {action}",
+      "text": "{name} : {action}",
+      "status": "draft"
+    },
+    "underway.chart.minimiseAction": {
+      "source": "minimise",
+      "text": "réduire",
+      "status": "draft"
+    },
+    "underway.chart.restoreAction": {
+      "source": "restore",
+      "text": "rétablir",
+      "status": "draft"
+    },
+    "underway.chart.latestROI": {
+      "source": "Latest ROI",
+      "text": "Dernière région d’intérêt",
+      "status": "draft"
+    },
+    "underway.chart.excessHeatHint": {
+      "source": "; water temperature minus the salinity-based freezing point at surface pressure (0 dbar)",
+      "text": "; température de l’eau moins son point de congélation calculé à partir de la salinité à la pression de surface (0 dbar)",
+      "status": "draft"
+    },
+    "underway.colourScale": {
+      "source": "{variable}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span",
+      "text": "{variable} : échelle de couleur de la trajectoire et des points du graphique, du 5e au 95e centile de la période",
+      "status": "draft"
+    },
+    "underway.track.rebuild": {
+      "source": "Track detail needs a new dashboard build",
+      "text": "Une nouvelle version du tableau de bord est requise pour afficher le détail de la trajectoire",
+      "status": "draft"
+    },
+    "underway.track.loading": {
+      "source": "Loading visible track…",
+      "text": "Chargement de la trajectoire visible…",
+      "status": "draft"
+    },
+    "underway.track.limited": {
+      "source": "Track density limit reached · zoom in or shorten the span for more points",
+      "text": "Limite de densité de la trajectoire atteinte · agrandir ou raccourcir la période pour afficher plus de points",
+      "status": "draft"
+    },
+    "underway.track.unavailable": {
+      "source": "Track unavailable · retrying",
+      "text": "Trajectoire indisponible · nouvelle tentative en cours",
+      "status": "draft"
+    },
+    "underway.track.points": {
+      "source": "{count} visible track points · {detail}",
+      "text": "{count} points de trajectoire visibles · {detail}",
+      "status": "draft"
+    },
+    "underway.map.summary": {
+      "source": {
+        "one": "{span} span · {count} leg selected · {distance} km travelled",
+        "other": "{span} span · {count} legs selected · {distance} km travelled"
+      },
+      "text": {
+        "one": "Période : {span} · {count} tronçon sélectionné · {distance} km parcourus",
+        "other": "Période : {span} · {count} tronçons sélectionnés · {distance} km parcourus"
+      },
+      "status": "draft"
+    },
+    "underway.map.casts": {
+      "source": {
+        "one": "{count} CTD cast",
+        "other": "{count} CTD casts"
+      },
+      "text": {
+        "one": "{count} profil CTD",
+        "other": "{count} profils CTD"
+      },
+      "status": "draft"
+    },
+    "underway.map.otherStations": {
+      "source": {
+        "one": "{count} other station",
+        "other": "{count} other stations"
+      },
+      "text": {
+        "one": "{count} autre station",
+        "other": "{count} autres stations"
+      },
+      "status": "draft"
+    },
+    "underway.map.stationHint": {
+      "source": "click a station to add its cast · ",
+      "text": "cliquer sur une station pour ajouter son profil · ",
+      "status": "draft"
+    },
+    "underway.map.navigation": {
+      "source": "scroll to zoom · drag to pan · ⟲ fits",
+      "text": "molette pour zoomer · glisser pour déplacer · ⟲ pour ajuster",
+      "status": "draft"
+    },
+    "underway.column.time": {
+      "source": "time ({zone})",
+      "text": "heure ({zone})",
+      "status": "draft"
+    },
+    "underway.column.leg": {
+      "source": "leg",
+      "text": "tronçon",
+      "status": "draft"
+    },
+    "underway.column.station": {
+      "source": "station",
+      "text": "station",
+      "status": "draft"
+    },
+    "underway.column.source": {
+      "source": "source",
+      "text": "source",
+      "status": "draft"
+    },
+    "underway.column.cast": {
+      "source": "cast",
+      "text": "profil",
+      "status": "draft"
+    },
+    "underway.column.label": {
+      "source": "label",
+      "text": "libellé",
+      "status": "draft"
+    },
+    "underway.column.type": {
+      "source": "type",
+      "text": "type",
+      "status": "draft"
+    },
+    "underway.column.activities": {
+      "source": "activities",
+      "text": "activités",
+      "status": "draft"
+    },
+    "underway.column.bottom": {
+      "source": "bottom (m)",
+      "text": "fond (m)",
+      "status": "draft"
+    },
+    "underway.column.castDepth": {
+      "source": "cast depth (m)",
+      "text": "profondeur du profil (m)",
+      "status": "draft"
+    },
+    "underway.column.comments": {
+      "source": "comments",
+      "text": "commentaires",
+      "status": "draft"
+    },
+    "underway.column.maxDepth": {
+      "source": "max depth (m)",
+      "text": "profondeur max. (m)",
+      "status": "draft"
+    },
+    "underway.column.bottles": {
+      "source": "bottles",
+      "text": "bouteilles",
+      "status": "draft"
+    },
+    "underway.sort": {
+      "source": "sort",
+      "text": "trier",
+      "status": "draft"
+    },
+    "underway.table.hidden": {
+      "source": {
+        "one": "{count} row from legs not shown",
+        "other": "{count} rows from legs not shown"
+      },
+      "text": {
+        "one": "{count} ligne d’un tronçon non affiché",
+        "other": "{count} lignes de tronçons non affichés"
+      },
+      "status": "draft"
+    },
+    "underway.table.allLegs": {
+      "source": "show all legs",
+      "text": "afficher tous les tronçons",
+      "status": "draft"
+    },
+    "underway.clearSelection": {
+      "source": "clear selection",
+      "text": "effacer la sélection",
+      "status": "draft"
+    },
+    "underway.clearSelectionCount": {
+      "source": "clear selection ({count})",
+      "text": "effacer la sélection ({count})",
+      "status": "draft"
+    },
+    "underway.table.rows": {
+      "source": {
+        "one": "{count} row · {statistic}",
+        "other": "{count} rows · {statistic}"
+      },
+      "text": {
+        "one": "{count} ligne · {statistic}",
+        "other": "{count} lignes · {statistic}"
+      },
+      "status": "draft"
+    },
+    "underway.table.truncated": {
+      "source": " · showing first 2000",
+      "text": " · affichage des 2000 premières",
+      "status": "draft"
+    },
+    "underway.stat.mean": {
+      "source": "mean",
+      "text": "moyenne",
+      "status": "draft"
+    },
+    "underway.stat.min": {
+      "source": "min",
+      "text": "min",
+      "status": "draft"
+    },
+    "underway.stat.max": {
+      "source": "max",
+      "text": "max",
+      "status": "draft"
+    },
+    "underway.stat.n": {
+      "source": "n",
+      "text": "n",
+      "status": "draft"
+    },
+    "underway.stations.selectAll": {
+      "source": "Select all shown station casts",
+      "text": "Sélectionner tous les profils des stations affichées",
+      "status": "draft"
+    },
+    "underway.stations.summary": {
+      "source": "{count} stations ({withoutCast} without a cast) · {selected} selected for the Casts tab · click a row to select its cast (again to deselect), or to find a station on the map",
+      "text": "{count} stations ({withoutCast} sans profil) · {selected} sélectionnées pour l’onglet Profils · cliquer sur une ligne pour sélectionner son profil (à nouveau pour le désélectionner) ou pour situer une station sur la carte",
+      "status": "draft"
+    },
+    "underway.group.Surprise": {
+      "source": "Surprise",
+      "text": "Surprise",
+      "status": "draft"
+    },
+    "underway.group.Lab": {
+      "source": "Lab",
+      "text": "Laboratoire",
+      "status": "draft"
+    },
+    "underway.group.Met Station": {
+      "source": "Met Station",
+      "text": "Station météo",
+      "status": "draft"
+    },
+    "underway.group.Bridge": {
+      "source": "Bridge",
+      "text": "Passerelle",
+      "status": "draft"
+    },
+    "underway.group.Winches": {
+      "source": "Winches",
+      "text": "Treuils",
+      "status": "draft"
+    },
+    "underway.group.Other": {
+      "source": "Other",
+      "text": "Autres",
+      "status": "draft"
+    },
+    "underway.chart.groupSummary": {
+      "source": "{group} chart summaries",
+      "text": "Résumés des graphiques — {group}",
+      "status": "draft"
+    },
+    "underway.track.detailKm": {
+      "source": "{distance} km detail",
+      "text": "résolution : {distance} km",
+      "status": "draft"
+    },
+    "underway.track.detailM": {
+      "source": "{distance} m detail",
+      "text": "résolution : {distance} m",
+      "status": "draft"
+    },
+    "underway.track.all": {
+      "source": "all points · visible area",
+      "text": "tous les points · zone visible",
+      "status": "draft"
+    },
+    "provenance.sat.radar": {
+      "source": "S1 radar",
+      "text": "Radar S1",
+      "status": "draft"
+    },
+    "provenance.sat.optical": {
+      "source": "S2 optical",
+      "text": "Optique S2",
+      "status": "draft"
+    },
+    "provenance.unknown": {
+      "source": "unknown",
+      "text": "inconnue",
+      "status": "draft"
+    },
+    "provenance.none": {
+      "source": "none",
+      "text": "aucune",
+      "status": "draft"
+    },
+    "provenance.sat.next": {
+      "source": "{label}, newest scene {time} · click for {next}",
+      "text": "{label}, scène la plus récente : {time} · cliquer pour passer à {next}",
+      "status": "draft"
+    },
+    "provenance.sat.hint": {
+      "source": "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour",
+      "text": "images satellites récentes autour du navire : radar Sentinel-1 (détecte la glace à travers les nuages), puis Sentinel-2 en couleurs naturelles",
+      "status": "draft"
+    },
+    "provenance.map.unavailable": {
+      "source": "Map unavailable; other plots and tables remain usable. Try resetting the map.",
+      "text": "Carte indisponible; les autres graphiques et tableaux restent utilisables. Essayez de réinitialiser la carte.",
+      "status": "draft"
+    },
+    "provenance.pump.warning": {
+      "source": "Intake pump voltage {voltage} V: water measurements may be unreliable",
+      "text": "Tension de la pompe d’admission : {voltage} V. Les mesures de l’eau peuvent être peu fiables.",
+      "status": "draft"
+    },
+    "provenance.pump.off": {
+      "source": "intake pump off",
+      "text": "pompe d’admission arrêtée",
+      "status": "draft"
+    },
+    "variable.airTemperature": {
+      "source": "Air temperature (°C)",
+      "text": "Température de l’air (°C)",
+      "status": "draft"
+    },
+    "variable.humidity": {
+      "source": "Relative humidity (%)",
+      "text": "Humidité relative (%)",
+      "status": "draft"
+    },
+    "variable.pressure": {
+      "source": "Atmospheric pressure (hPa)",
+      "text": "Pression atmosphérique (hPa)",
+      "status": "draft"
+    },
+    "variable.windDirection": {
+      "source": "True wind direction (°)",
+      "text": "Direction du vent vrai (°)",
+      "status": "draft"
+    },
+    "variable.windSpeed": {
+      "source": "Relative wind speed (kn)",
+      "text": "Vitesse du vent relatif (kn)",
+      "status": "draft"
+    },
+    "variable.heading": {
+      "source": "Heading (°)",
+      "text": "Cap (°)",
+      "status": "draft"
+    },
+    "variable.shipSpeed": {
+      "source": "Ship speed (kn)",
+      "text": "Vitesse du navire (kn)",
+      "status": "draft"
+    },
+    "variable.seaState": {
+      "source": "Sea state · 4σ heave (m)",
+      "text": "État de la mer · 4σ du pilonnement (m)",
+      "status": "draft"
+    },
+    "variable.rollPitch": {
+      "source": "Roll & pitch RMS (°)",
+      "text": "Roulis et tangage RMS (°)",
+      "status": "draft"
+    },
+    "variable.elapsed": {
+      "source": "Time elapsed (h)",
+      "text": "Temps écoulé (h)",
+      "status": "draft"
+    },
+    "variable.distance": {
+      "source": "Distance travelled (km)",
+      "text": "Distance parcourue (km)",
+      "status": "draft"
+    },
+    "variable.surprise": {
+      "source": "Surprise (−log10 p)",
+      "text": "Surprise (−log10 p)",
+      "status": "draft"
+    },
+    "variable.surprise0": {
+      "source": "Surprise · 15 min",
+      "text": "Surprise · 15 min",
+      "status": "draft"
+    },
+    "variable.surprise1": {
+      "source": "Surprise · 1 h",
+      "text": "Surprise · 1 h",
+      "status": "draft"
+    },
+    "variable.surprise2": {
+      "source": "Surprise · 3 h",
+      "text": "Surprise · 3 h",
+      "status": "draft"
+    },
+    "variable.surprise3": {
+      "source": "Surprise · 12 h",
+      "text": "Surprise · 12 h",
+      "status": "draft"
+    },
+    "variable.surprise4": {
+      "source": "Surprise · 48 h",
+      "text": "Surprise · 48 h",
+      "status": "draft"
+    },
+    "export.close": {
+      "source": "Close export preview",
+      "text": "Fermer l’aperçu d’exportation",
+      "status": "draft"
+    },
+    "export.instructions": {
+      "source": "Drag the panel’s bottom-right corner, or enter exact image dimensions. Large previews can be scrolled.",
+      "text": "Faites glisser le coin inférieur droit du panneau ou saisissez les dimensions exactes de l’image. Les grands aperçus peuvent être parcourus avec les barres de défilement.",
+      "status": "draft"
+    },
+    "export.width": {
+      "source": "Width (px)",
+      "text": "Largeur (px)",
+      "status": "draft"
+    },
+    "export.height": {
+      "source": "Height (px)",
+      "text": "Hauteur (px)",
+      "status": "draft"
+    },
+    "export.scale": {
+      "source": "PNG DPI scale",
+      "text": "Facteur de résolution PNG",
+      "status": "draft"
+    },
+    "export.png": {
+      "source": "Export PNG",
+      "text": "Exporter en PNG",
+      "status": "draft"
+    },
+    "export.svg": {
+      "source": "Export SVG",
+      "text": "Exporter en SVG",
+      "status": "draft"
+    },
+    "export.preparing": {
+      "source": "Preparing download…",
+      "text": "Préparation du téléchargement…",
+      "status": "draft"
+    },
+    "export.downloaded": {
+      "source": "Downloaded.",
+      "text": "Téléchargement lancé.",
+      "status": "draft"
+    },
+    "export.failed": {
+      "source": "Export failed. Try a smaller size or resolution, and check that map tiles have loaded.",
+      "text": "Échec de l’exportation. Réduisez les dimensions ou la résolution et vérifiez que les tuiles cartographiques sont chargées.",
+      "status": "draft"
+    },
+    "export.map": {
+      "source": "Map",
+      "text": "Carte",
+      "status": "draft"
+    },
+    "export.graph": {
+      "source": "Graph",
+      "text": "Graphique",
+      "status": "draft"
+    },
+    "export.title": {
+      "source": "Export · {title}",
+      "text": "Exporter · {title}",
+      "status": "draft"
+    },
+    "export.mapNote": {
+      "source": "Map SVG contains a raster image; graph SVGs retain vector detail.",
+      "text": "Le SVG d’une carte contient une image matricielle; les SVG des graphiques conservent leurs éléments vectoriels.",
+      "status": "draft"
+    },
+    "export.graphNote": {
+      "source": "SVG keeps its vector detail at any size.",
+      "text": "Le SVG conserve ses éléments vectoriels à toutes les dimensions.",
+      "status": "draft"
+    },
+    "export.previewFailed": {
+      "source": "Could not prepare the preview. Check that map tiles have loaded, then try again.",
+      "text": "Impossible de préparer l’aperçu. Vérifiez que les tuiles cartographiques sont chargées, puis réessayez.",
+      "status": "draft"
+    },
+    "export.graphHint": {
+      "source": "Preview and export this graph",
+      "text": "Prévisualiser et exporter ce graphique",
+      "status": "draft"
+    },
+    "export.graphAria": {
+      "source": "Export graph",
+      "text": "Exporter le graphique",
+      "status": "draft"
+    },
+    "mapLegend.range": {
+      "source": "{name}: {low} to {high}",
+      "text": "{name} : de {low} à {high}",
+      "status": "draft"
+    },
+    "mapLegend.label": {
+      "source": "Map legend",
+      "text": "Légende de la carte",
+      "status": "draft"
+    },
+    "underway.updateUnavailable": {
+      "source": "{scopes} update unavailable · retrying; displayed data may be older",
+      "text": "Mise à jour indisponible ({scopes}) · nouvelle tentative en cours; les données affichées peuvent être anciennes",
+      "status": "draft"
+    },
+    "underway.scope.Underway": {
+      "source": "Underway",
+      "text": "Mesures en route",
+      "status": "draft"
+    },
+    "underway.scope.Track": {
+      "source": "Track",
+      "text": "Trajectoire",
+      "status": "draft"
+    },
+    "underway.scope.Basemap": {
+      "source": "Basemap",
+      "text": "Fond de carte",
+      "status": "draft"
+    },
+    "underway.scope.Casts": {
+      "source": "Casts",
+      "text": "Profils",
+      "status": "draft"
+    },
+    "underway.scope.Stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "underway.scope.Schedule": {
+      "source": "Schedule",
+      "text": "Horaire",
+      "status": "draft"
+    },
+    "underway.scope.Table": {
+      "source": "Table",
+      "text": "Tableau",
+      "status": "draft"
+    },
+    "underway.theme.auto": {
+      "source": "Auto (system)",
+      "text": "Auto (système)",
+      "status": "draft"
+    },
+    "underway.theme.claude-dark": {
+      "source": "Claude dark",
+      "text": "Claude sombre",
+      "status": "draft"
+    },
+    "underway.theme.claude-light": {
+      "source": "Claude light",
+      "text": "Claude clair",
+      "status": "draft"
+    },
+    "underway.theme.minimal-dark": {
+      "source": "Minimal dark",
+      "text": "Minimal sombre",
+      "status": "draft"
+    },
+    "underway.theme.minimal-light": {
+      "source": "Minimal light",
+      "text": "Minimal clair",
+      "status": "draft"
+    },
+    "underway.theme.navigator": {
+      "source": "Navigator",
+      "text": "Navigateur",
+      "status": "draft"
+    },
+    "underway.theme.navigator-dark": {
+      "source": "Navigator dark",
+      "text": "Navigateur sombre",
+      "status": "draft"
+    },
+    "underway.size.auto": {
+      "source": "Theme's size",
+      "text": "Taille du thème",
+      "status": "draft"
+    },
+    "underway.size.normal": {
+      "source": "Normal text",
+      "text": "Texte normal",
+      "status": "draft"
+    },
+    "underway.size.large": {
+      "source": "Large text",
+      "text": "Grand texte",
+      "status": "draft"
+    },
+    "underway.age.seconds": {
+      "source": "{count} s ago",
+      "text": "il y a {count} s",
+      "status": "draft"
+    },
+    "underway.age.minutes": {
+      "source": "{count} min ago",
+      "text": "il y a {count} min",
+      "status": "draft"
+    },
+    "underway.age.hours": {
+      "source": "{count} h ago",
+      "text": "il y a {count} h",
+      "status": "draft"
+    },
+    "underway.age.days": {
+      "source": "{count} d ago",
+      "text": "il y a {count} j",
+      "status": "draft"
+    },
+    "underway.axis.time": {
+      "source": "ship time ({zone})",
+      "text": "heure du navire ({zone})",
+      "status": "draft"
+    },
+    "underway.axis.distance": {
+      "source": "distance along track (km)",
+      "text": "distance parcourue (km)",
+      "status": "draft"
+    },
+    "underway.legs.summary": {
+      "source": "Legs · {shown}/{total}",
+      "text": "Tronçons · {shown}/{total}",
+      "status": "draft"
+    },
+    "underway.legs.loaded": {
+      "source": "{shown} of {total} legs shown · the {span} window loaded",
+      "text": "{shown} tronçons sur {total} affichés · période chargée : {span}",
+      "status": "draft"
+    },
+    "underway.live": {
+      "source": "LIVE",
+      "text": "EN DIRECT",
+      "status": "draft"
+    },
+    "underway.refresh": {
+      "source": "last refresh {time}",
+      "text": "dernière actualisation : {time}",
+      "status": "draft"
+    },
+    "underway.dataAge": {
+      "source": "data {age}",
+      "text": "données : {age}",
+      "status": "draft"
+    },
+    "underway.status": {
+      "source": "STATUS",
+      "text": "ÉTAT",
+      "status": "draft"
+    },
+    "underway.showSchedule": {
+      "source": "show the schedule",
+      "text": "afficher l’horaire",
+      "status": "draft"
+    },
+    "underway.span.leg": {
+      "source": "this leg",
+      "text": "ce tronçon",
+      "status": "draft"
+    },
+    "underway.span.all": {
+      "source": "all",
+      "text": "tout",
+      "status": "draft"
+    },
+    "underway.span.days": {
+      "source": "{count} d",
+      "text": "{count} j",
+      "status": "draft"
+    },
+    "underway.span.years": {
+      "source": "{count} y",
+      "text": "{count} a",
+      "status": "draft"
+    },
+    "underway.time": {
+      "source": "Time",
+      "text": "Temps",
+      "status": "draft"
+    },
+    "underway.distance": {
+      "source": "Distance",
+      "text": "Distance",
+      "status": "draft"
+    },
+    "underway.empty.source": {
+      "source": "source column not found in any leg",
+      "text": "colonne source introuvable pour tous les tronçons",
+      "status": "draft"
+    },
+    "underway.empty.legs": {
+      "source": "no data for the selected legs",
+      "text": "aucune donnée pour les tronçons sélectionnés",
+      "status": "draft"
+    },
+    "underway.axis.depthRoot": {
+      "source": "depth (m, √ spacing)",
+      "text": "profondeur (m, échelle √)",
+      "status": "draft"
+    },
+    "underway.axis.depth": {
+      "source": "depth (m)",
+      "text": "profondeur (m)",
+      "status": "draft"
+    },
+    "underway.empty.track": {
+      "source": "nothing to show: no legs selected, or no track in this span",
+      "text": "rien à afficher : aucun tronçon sélectionné ou aucune trajectoire pour cette période",
+      "status": "draft"
+    },
+    "underway.empty.data": {
+      "source": "no data",
+      "text": "aucune donnée",
+      "status": "draft"
+    },
+    "calendarControls.filterPlaceholder": {
+      "source": "filter events",
+      "text": "filtrer les événements",
+      "status": "draft"
+    },
+    "calendarControls.filter": {
+      "source": "Filter events",
+      "text": "Filtrer les événements",
+      "status": "draft"
+    },
+    "stationsControls.filterPlaceholder": {
+      "source": "filter stations",
+      "text": "filtrer les stations",
+      "status": "draft"
+    },
+    "stationsControls.filter": {
+      "source": "Filter stations",
+      "text": "Filtrer les stations",
+      "status": "draft"
+    },
+    "stationsControls.clearHint": {
+      "source": "deselect every cast and drop the map focus",
+      "text": "désélectionner tous les profils et annuler le cadrage de la carte",
+      "status": "draft"
+    },
+    "wikiControls.backHint": {
+      "source": "back to the view before",
+      "text": "revenir à la vue précédente",
+      "status": "draft"
+    },
+    "wikiControls.homeHint": {
+      "source": "the front page: today, here, the journal, the domains and the narratives",
+      "text": "page d’accueil : aujourd’hui, ici, le journal, les domaines et les récits",
+      "status": "draft"
+    },
+    "wikiControls.exploreHint": {
+      "source": "every topic, with its pages and artifacts",
+      "text": "tous les sujets, avec leurs pages et leurs artéfacts",
+      "status": "draft"
+    },
+    "wikiControls.domains": {
+      "source": "What the wiki shows",
+      "text": "Contenu affiché dans le wiki",
+      "status": "draft"
+    },
+    "wikiControls.historyHint": {
+      "source": "the human past: voyages, people, places and artifacts",
+      "text": "passé humain : voyages, personnes, lieux et artéfacts",
+      "status": "draft"
+    },
+    "wikiControls.natureHint": {
+      "source": "the natural record: subjects, observations, the domains and the ship's journal",
+      "text": "patrimoine naturel : sujets, observations, domaines et journal du navire",
+      "status": "draft"
+    },
+    "wikiControls.askHint": {
+      "source": "ask the crew in the chat",
+      "text": "poser une question à l’équipage dans le clavardage",
+      "status": "draft"
+    },
+    "wikiControls.close": {
+      "source": "Close panel",
+      "text": "Fermer le panneau",
+      "status": "draft"
+    },
+    "wikiControls.searchPlaceholder": {
+      "source": "search: voyages, people, places, species, ice, weather",
+      "text": "rechercher : voyages, personnes, lieux, espèces, glace, météo",
+      "status": "draft"
+    },
+    "wikiControls.search": {
+      "source": "Search the wiki",
+      "text": "Rechercher dans le wiki",
+      "status": "draft"
+    },
+    "wikiControls.browse": {
+      "source": "Browse a kind, a domain or a page",
+      "text": "Parcourir un type, un domaine ou une page",
+      "status": "draft"
+    },
+    "wikiControls.browseHint": {
+      "source": "everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal",
+      "text": "tous les éléments d’un type sur une page; bibliographie; création du wiki; archives; journal du navire",
+      "status": "draft"
+    },
+    "sources.coverage": {
+      "source": "Source columns and leg coverage",
+      "text": "Colonnes sources et tronçons couverts",
+      "status": "draft"
+    },
+    "chatControls.chat": {
+      "source": "ship chat",
+      "text": "clavardage du navire",
+      "status": "draft"
+    },
+    "chatControls.sidebar": {
+      "source": "open as a side bar",
+      "text": "ouvrir dans un panneau latéral",
+      "status": "draft"
+    },
+    "chatControls.close": {
+      "source": "close the chat",
+      "text": "fermer le clavardage",
+      "status": "draft"
+    },
+    "chatControls.rooms": {
+      "source": "chat rooms",
+      "text": "salons de clavardage",
+      "status": "draft"
+    },
+    "chatControls.emoji": {
+      "source": "pick your emoji",
+      "text": "choisir votre émoji",
+      "status": "draft"
+    },
+    "chatControls.name": {
+      "source": "name",
+      "text": "nom",
+      "status": "draft"
+    },
+    "chatControls.nameHint": {
+      "source": "your name, remembered on this device",
+      "text": "votre nom, conservé sur cet appareil",
+      "status": "draft"
+    },
+    "chatControls.messagePlaceholder": {
+      "source": "message · Enter to send",
+      "text": "message · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "chatControls.message": {
+      "source": "Message",
+      "text": "Message",
+      "status": "draft"
+    },
+    "chatControls.send": {
+      "source": "send",
+      "text": "envoyer",
+      "status": "draft"
+    },
+    "iceChart.dayAfter": {
+      "source": "1 day after map end",
+      "text": "1 jour après la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.dayBefore": {
+      "source": "1 day before map end",
+      "text": "1 jour avant la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.unknown": {
+      "source": "Unknown",
+      "text": "Inconnu",
+      "status": "draft"
+    },
+    "iceChart.latest": {
+      "source": "Latest on/before map end",
+      "text": "La plus récente à la fin de la période ou avant",
+      "status": "draft"
+    },
+    "iceChart.timeout": {
+      "source": "Chart request timed out",
+      "text": "Le délai de chargement de la carte est dépassé",
+      "status": "draft"
+    },
+    "iceChart.unavailable": {
+      "source": "Cached chart unavailable",
+      "text": "Carte en cache indisponible",
+      "status": "draft"
+    },
+    "iceChart.noCharts": {
+      "source": "No ice charts cached for this dashboard.",
+      "text": "Aucune carte des glaces en cache pour ce tableau de bord.",
+      "status": "draft"
+    },
+    "iceChart.validAfter": {
+      "source": "valid after map end",
+      "text": "valide après la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.sameDate": {
+      "source": "same date as map end",
+      "text": "même date que la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.rasterHelp": {
+      "source": "Daily raster analysis for the ship area; use the original chart for egg codes.",
+      "text": "Analyse matricielle quotidienne du secteur du navire; consultez la carte originale pour les codes de l’œuf.",
+      "status": "draft"
+    },
+    "iceChart.polygonHelp": {
+      "source": "Click a polygon for its egg code. Regional analysis; conditions can change between charts.",
+      "text": "Cliquez sur un polygone pour voir son code de l’œuf. Analyse régionale; les conditions peuvent changer entre les cartes.",
+      "status": "draft"
+    },
+    "iceChart.title": {
+      "source": "CIS ice egg",
+      "text": "Code de l’œuf du SCG",
+      "status": "draft"
+    },
+    "iceChart.close": {
+      "source": "Close",
+      "text": "Fermer",
+      "status": "draft"
+    },
+    "iceChart.eggLabel": {
+      "source": "Egg code: total concentration; partial concentrations; stages of development; ice forms",
+      "text": "Code de l’œuf : concentration totale; concentrations partielles; stades de développement; formes de glace",
+      "status": "draft"
+    },
+    "iceChart.iceType": {
+      "source": "Ice type",
+      "text": "Type de glace",
+      "status": "draft"
+    },
+    "iceChart.concentration": {
+      "source": "Concentration",
+      "text": "Concentration",
+      "status": "draft"
+    },
+    "iceChart.stage": {
+      "source": "Stage of development",
+      "text": "Stade de développement",
+      "status": "draft"
+    },
+    "iceChart.form": {
+      "source": "Form / floe size",
+      "text": "Forme / taille des floes",
+      "status": "draft"
+    },
+    "iceChart.notReported": {
+      "source": "Not reported",
+      "text": "Non indiqué",
+      "status": "draft"
+    },
+    "iceChart.unknownReported": {
+      "source": "Unknown / not reported",
+      "text": "Inconnu / non indiqué",
+      "status": "draft"
+    },
+    "iceChart.note": {
+      "source": "The oval shows the three main ice types in decoded egg codes; missing values are shown as —. This regional chart is separate from camera observations.",
+      "text": "L’ovale présente les trois principaux types de glace sous forme de codes de l’œuf décodés; les valeurs manquantes sont indiquées par —. Cette carte régionale est distincte des observations par caméra.",
+      "status": "draft"
+    },
+    "iceChart.sourceCodes": {
+      "source": "Source SIGRID codes",
+      "text": "Codes SIGRID de la source",
+      "status": "draft"
+    },
+    "iceChart.original": {
+      "source": "Original chart data",
+      "text": "Données de la carte originale",
+      "status": "draft"
+    },
+    "iceChart.guide": {
+      "source": "Egg-code guide",
+      "text": "Guide du code de l’œuf",
+      "status": "draft"
+    },
+    "iceChart.licence": {
+      "source": "Open Government Licence",
+      "text": "Licence du gouvernement ouvert",
+      "status": "draft"
+    },
+    "iceChart.noBefore": {
+      "source": "No cached chart on or before {date}. Choose an available date.",
+      "text": "Aucune carte en cache pour le {date} ou avant. Choisissez une date disponible.",
+      "status": "draft"
+    },
+    "iceChart.daysAfter": {
+      "source": "{count} days after map end",
+      "text": "{count} jours après la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.daysBefore": {
+      "source": "{count} days before map end",
+      "text": "{count} jours avant la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.loadingImage": {
+      "source": "Loading image…",
+      "text": "Chargement de l’image…",
+      "status": "draft"
+    },
+    "iceChart.loadingPolygons": {
+      "source": "Loading polygons…",
+      "text": "Chargement des polygones…",
+      "status": "draft"
+    },
+    "iceChart.total": {
+      "source": "Total concentration: {value}",
+      "text": "Concentration totale : {value}",
+      "status": "draft"
+    },
+    "iceChart.sigrid": {
+      "source": " (SIGRID code {code})",
+      "text": " (code SIGRID {code})",
+      "status": "draft"
+    },
+    "iceChart.trace": {
+      "source": "Trace ice thicker than type A: {value} (<1/10).",
+      "text": "Trace de glace plus épaisse que le type A : {value} (<1/10).",
+      "status": "draft"
+    },
+    "iceChart.region.eastern": {
+      "source": "Eastern Arctic",
+      "text": "Arctique de l’Est",
+      "status": "draft"
+    },
+    "iceChart.region.western": {
+      "source": "Western Arctic",
+      "text": "Arctique de l’Ouest",
+      "status": "draft"
+    },
+    "iceChart.region.hudson": {
+      "source": "Hudson Bay",
+      "text": "Baie d’Hudson",
+      "status": "draft"
+    },
+    "iceChart.region.eastCoast": {
+      "source": "East Coast",
+      "text": "Côte Est",
+      "status": "draft"
+    },
+    "iceChart.region.greatLakes": {
+      "source": "Great Lakes",
+      "text": "Grands Lacs",
+      "status": "draft"
+    },
+    "iceChart.region.eureka": {
+      "source": "Eureka (daily raster)",
+      "text": "Eureka (carte matricielle quotidienne)",
+      "status": "draft"
+    },
+    "variable.sst": {
+      "source": "SST (°C)",
+      "text": "Température de surface (°C)",
+      "status": "draft"
+    },
+    "variable.salinity": {
+      "source": "Salinity (PSU)",
+      "text": "Salinité (PSU)",
+      "status": "draft"
+    },
+    "variable.excessHeat": {
+      "source": "Excess heat (°C)",
+      "text": "Excès de chaleur (°C)",
+      "status": "draft"
+    },
+    "variable.tsgWarming": {
+      "source": "TSG line warming (°C)",
+      "text": "Réchauffement dans la conduite du TSG (°C)",
+      "status": "draft"
+    },
+    "variable.tsgFlow": {
+      "source": "TSG flow (V)",
+      "text": "Débit du TSG (V)",
+      "status": "draft"
+    },
+    "variable.fluorescence": {
+      "source": "Fluorescence (µg/L)",
+      "text": "Fluorescence (µg/L)",
+      "status": "draft"
+    },
+    "variable.oxygen": {
+      "source": "Oxygen (mL/L)",
+      "text": "Oxygène (mL/L)",
+      "status": "draft"
+    },
+    "variable.solar": {
+      "source": "Short-wave radiation (W/m²)",
+      "text": "Rayonnement à ondes courtes (W/m²)",
+      "status": "draft"
+    },
+    "variable.bottomDepth": {
+      "source": "Bottom depth (m)",
+      "text": "Profondeur du fond (m)",
+      "status": "draft"
+    },
+    "variable.rosetteDepth": {
+      "source": "Rosette depth (m)",
+      "text": "Profondeur de la rosette (m)",
+      "status": "draft"
+    },
+    "variable.rosetteRate": {
+      "source": "Rosette rate (m/s)",
+      "text": "Vitesse verticale de la rosette (m/s)",
+      "status": "draft"
+    },
+    "variable.cableLength": {
+      "source": "Cable length (m)",
+      "text": "Longueur du câble (m)",
+      "status": "draft"
+    },
+    "variable.cableRate": {
+      "source": "Cable rate (m/s)",
+      "text": "Vitesse du câble (m/s)",
+      "status": "draft"
+    },
+    "castsControls.smooth": {
+      "source": "Smooth",
+      "text": "Lisser",
+      "status": "draft"
+    },
+    "castsControls.saveTransect": {
+      "source": "Save transect",
+      "text": "Enregistrer le transect",
+      "status": "draft"
+    },
+    "calendarControls.today": {
+      "source": "Today",
+      "text": "Aujourd’hui",
+      "status": "draft"
+    },
+    "calendarControls.log": {
+      "source": "Event Log",
+      "text": "Journal des opérations",
+      "status": "draft"
+    },
+    "calendarControls.calendar": {
+      "source": "Calendar",
+      "text": "Calendrier",
+      "status": "draft"
+    },
+    "wikiControls.back": {
+      "source": "‹ Back",
+      "text": "‹ Retour",
+      "status": "draft"
+    },
+    "wikiControls.home": {
+      "source": "Home",
+      "text": "Accueil",
+      "status": "draft"
+    },
+    "wikiControls.explore": {
+      "source": "Explore",
+      "text": "Explorer",
+      "status": "draft"
+    },
+    "wikiControls.ask": {
+      "source": "Ask a Q",
+      "text": "Poser une question",
+      "status": "draft"
+    },
+    "sources.title": {
+      "source": "Sources",
+      "text": "Sources",
+      "status": "draft"
+    },
+    "sources.webCopy": {
+      "source": "Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard",
+      "text": "Version Web : publiée depuis le navire lorsque la connexion est disponible; le clavardage, le téléversement de photos, les données en direct, les alertes et les commentaires fonctionnent uniquement à bord",
+      "status": "draft"
+    },
+    "sources.intranet": {
+      "source": "Ship intranet: ",
+      "text": "Intranet du navire : ",
+      "status": "draft"
+    },
+    "sources.calendars": {
+      "source": "Calendars: ",
+      "text": "Calendriers : ",
+      "status": "draft"
+    },
+    "sources.by": {
+      "source": "Dashboard by Eric Collins · ",
+      "text": "Tableau de bord par Eric Collins · ",
+      "status": "draft"
+    },
+    "sources.source": {
+      "source": "source",
+      "text": "code source",
+      "status": "draft"
+    },
+    "sources.data": {
+      "source": " · Data: Amundsen Science (ACSD)",
+      "text": " · Données : Amundsen Science (ACSD)",
+      "status": "draft"
+    },
+    "sources.built": {
+      "source": " · built ",
+      "text": " · généré le ",
+      "status": "draft"
+    },
+    "sources.scroll": {
+      "source": "Swipe the table sideways to see source columns and leg coverage.",
+      "text": "Faites défiler le tableau horizontalement pour voir les colonnes sources et les tronçons couverts.",
+      "status": "draft"
+    },
+    "shell.themeHint": {
+      "source": "the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996",
+      "text": "Apparence de la page : Auto suit le mode clair ou sombre du système; Claude et Minimal (style épuré, gros caractères) offrent chacun les deux modes; Navigator rappelle le Web de 1996",
+      "status": "draft"
+    },
+    "shell.theme": {
+      "source": "Theme",
+      "text": "Thème",
+      "status": "draft"
+    },
+    "shell.textSizeHint": {
+      "source": "the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise",
+      "text": "Taille des caractères, indépendamment du thème : grande pour Minimal et normale pour Claude, sauf indication contraire",
+      "status": "draft"
+    },
+    "shell.textSize": {
+      "source": "Text size",
+      "text": "Taille du texte",
+      "status": "draft"
+    },
+    "shell.timeSpan": {
+      "source": "Time span",
+      "text": "Période",
+      "status": "draft"
+    },
+    "shell.timeSpanShown": {
+      "source": "Time span shown",
+      "text": "Période affichée",
+      "status": "draft"
+    },
+    "shell.span": {
+      "source": "span",
+      "text": "période",
+      "status": "draft"
+    },
+    "shell.showSchedule": {
+      "source": "show the schedule",
+      "text": "afficher le programme",
+      "status": "draft"
+    },
+    "shell.xAxisAria": {
+      "source": "X axis",
+      "text": "Axe X",
+      "status": "draft"
+    },
+    "shell.xAxisHint": {
+      "source": "switch the graphs between time and distance along track",
+      "text": "basculer l’axe des graphiques entre le temps et la distance parcourue",
+      "status": "draft"
+    },
+    "shell.colorHint": {
+      "source": "the variable that colours the track and the graph points",
+      "text": "variable qui détermine la couleur du trajet et des points des graphiques",
+      "status": "draft"
+    },
+    "mapControls.exportHint": {
+      "source": "Preview and export the map",
+      "text": "Prévisualiser et exporter la carte",
+      "status": "draft"
+    },
+    "mapControls.export": {
+      "source": "Export map",
+      "text": "Exporter la carte",
+      "status": "draft"
+    },
+    "mapControls.fit": {
+      "source": "fit to track",
+      "text": "cadrer le trajet",
+      "status": "draft"
+    },
+    "mapControls.reset": {
+      "source": "Reset map view",
+      "text": "Réinitialiser la vue de la carte",
+      "status": "draft"
+    },
+    "mapControls.minimizeHint": {
+      "source": "no map: the pane takes the whole width",
+      "text": "sans carte : le panneau occupe toute la largeur",
+      "status": "draft"
+    },
+    "mapControls.minimize": {
+      "source": "Minimise map",
+      "text": "Réduire la carte",
+      "status": "draft"
+    },
+    "mapControls.maximizeHint": {
+      "source": "full map: the map takes the whole page",
+      "text": "carte seule : la carte occupe toute la page",
+      "status": "draft"
+    },
+    "mapControls.maximize": {
+      "source": "Maximise map",
+      "text": "Agrandir la carte",
+      "status": "draft"
+    },
+    "mapControls.shipLayers": {
+      "source": "the ship's own layers",
+      "text": "couches de données du navire",
+      "status": "draft"
+    },
+    "mapControls.planHint": {
+      "source": "the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it",
+      "text": "trajet et stations prévus pour le tronçon, tirés du fichier KMZ de l’expédition; déposez un nouveau fichier KMZ ou KML sur la carte pour les remplacer",
+      "status": "draft"
+    },
+    "mapControls.trackHint": {
+      "source": "the ship's track for the shown legs and span",
+      "text": "trajet du navire pour les tronçons et la période affichés",
+      "status": "draft"
+    },
+    "mapControls.stationsHint": {
+      "source": "CTD casts (white) and stations worked without a cast, from the event log (green)",
+      "text": "profils CTD (en blanc) et stations échantillonnées sans profil, tirées du journal des opérations (en vert)",
+      "status": "draft"
+    },
+    "mapControls.eventsHint": {
+      "source": "geolocated entries of the ship's event log, for the shown legs and span",
+      "text": "entrées géolocalisées du journal des opérations du navire pour les tronçons et la période affichés",
+      "status": "draft"
+    },
+    "mapControls.photosHint": {
+      "source": "the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it",
+      "text": "images : une caméra pour la vidéo accélérée de chaque jour et les photos du navire provenant de /Share; cliquez sur une image pour l’ouvrir",
+      "status": "draft"
+    },
+    "mapControls.namesHint": {
+      "source": "geographic names: bays, sounds, straits, islands, capes, lakes, rivers, glaciers and mountains, from the Canadian Geographical Names Database and GeoNames; more of them appear as you zoom in",
+      "text": "noms géographiques : baies, bras de mer, détroits, îles, caps, lacs, rivières, glaciers et montagnes, provenant de la Base de données toponymiques du Canada et de GeoNames; d’autres noms apparaissent en agrandissant la carte",
+      "status": "draft"
+    },
+    "mapControls.historyHint": {
+      "source": "the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it",
+      "text": "histoire dans le wiki : voyages, épaves, hivernages, lieux et artéfacts; cliquez sur un élément pour en savoir plus",
+      "status": "draft"
+    },
+    "mapControls.natureHint": {
+      "source": "the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it",
+      "text": "nature dans le wiki : observations, sondages, mesures et journal du navire; cliquez sur un élément pour le lire",
+      "status": "draft"
+    },
+    "mapControls.satelliteHint": {
+      "source": "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour",
+      "text": "images satellitaires récentes autour du navire : radar Sentinel-1 (qui détecte la glace à travers les nuages), puis Sentinel-2 en couleurs naturelles",
+      "status": "draft"
+    },
+    "mapControls.previousImage": {
+      "source": "the picture before",
+      "text": "image précédente",
+      "status": "draft"
+    },
+    "mapControls.nextImage": {
+      "source": "the picture after",
+      "text": "image suivante",
+      "status": "draft"
+    },
+    "mapControls.iceChartsHint": {
+      "source": "Canadian Ice Service daily and regional ice charts",
+      "text": "cartes quotidiennes et régionales des glaces du Service canadien des glaces",
+      "status": "draft"
+    },
+    "mapControls.iceLegend": {
+      "source": "Ice concentration legend",
+      "text": "Légende de la concentration des glaces",
+      "status": "draft"
+    },
+    "mapControls.previousDay": {
+      "source": "previous day",
+      "text": "jour précédent",
+      "status": "draft"
+    },
+    "mapControls.nextDay": {
+      "source": "next day",
+      "text": "jour suivant",
+      "status": "draft"
+    },
+    "mapControls.close": {
+      "source": "close",
+      "text": "fermer",
+      "status": "draft"
+    },
+    "mapControls.scale": {
+      "source": "the scale at the centre of the map",
+      "text": "échelle au centre de la carte",
+      "status": "draft"
+    },
+    "mapControls.closeDetails": {
+      "source": "Close map details",
+      "text": "Fermer les détails de la carte",
+      "status": "draft"
+    },
+    "tables.filterPlaceholder": {
+      "source": "filter rows",
+      "text": "filtrer les lignes",
+      "status": "draft"
+    },
+    "tables.filter": {
+      "source": "Filter rows",
+      "text": "Filtrer les lignes",
+      "status": "draft"
+    },
+    "tables.download": {
+      "source": "download the visible table as tab-separated text",
+      "text": "télécharger le tableau affiché en texte délimité par des tabulations",
+      "status": "draft"
+    },
+    "castsControls.allHint": {
+      "source": "every kind of cast",
+      "text": "tous les types de profils",
+      "status": "draft"
+    },
+    "castsControls.liveHint": {
+      "source": "the cast in the water, from Seasave's TCP/IP output",
+      "text": "profil en cours d’acquisition dans l’eau, provenant de la sortie TCP/IP de Seasave",
+      "status": "draft"
+    },
+    "castsControls.rosetteHint": {
+      "source": "the classic rosette's CTD casts",
+      "text": "profils CTD de la rosette classique",
+      "status": "draft"
+    },
+    "castsControls.tmHint": {
+      "source": "the trace-metal rosette's casts",
+      "text": "profils de la rosette pour les métaux traces",
+      "status": "draft"
+    },
+    "castsControls.mvpHint": {
+      "source": "moving vessel profiler tows",
+      "text": "remorquages du profileur de navire en mouvement",
+      "status": "draft"
+    },
+    "castsControls.trsHint": {
+      "source": "saved transects",
+      "text": "transects enregistrés",
+      "status": "draft"
+    },
+    "castsControls.deselect": {
+      "source": "deselect all",
+      "text": "tout désélectionner",
+      "status": "draft"
+    },
+    "castsControls.filterPlaceholder": {
+      "source": "filter (station, label, date)",
+      "text": "filtrer (station, libellé, date)",
+      "status": "draft"
+    },
+    "castsControls.filter": {
+      "source": "Filter casts",
+      "text": "Filtrer les profils",
+      "status": "draft"
+    },
+    "castsControls.download": {
+      "source": "download the visible casts as tab-separated text",
+      "text": "télécharger les profils affichés en texte délimité par des tabulations",
+      "status": "draft"
+    },
+    "castsControls.filterBottlesPlaceholder": {
+      "source": "filter bottles",
+      "text": "filtrer les bouteilles",
+      "status": "draft"
+    },
+    "castsControls.filterBottles": {
+      "source": "Filter bottles fired",
+      "text": "Filtrer les bouteilles fermées",
+      "status": "draft"
+    },
+    "castsControls.downloadBottles": {
+      "source": "download the filtered bottle firings at full precision as tab-separated text",
+      "text": "télécharger les fermetures de bouteilles filtrées, à pleine précision, en texte délimité par des tabulations",
+      "status": "draft"
+    },
+    "castsControls.singleHint": {
+      "source": "one cast, variables overlaid on their own axes",
+      "text": "un profil, avec les variables superposées sur leurs axes respectifs",
+      "status": "draft"
+    },
+    "castsControls.multiHint": {
+      "source": "the selected casts as depth profiles, one graph per variable",
+      "text": "profils sélectionnés en fonction de la profondeur, un graphique par variable",
+      "status": "draft"
+    },
+    "castsControls.sectionHint": {
+      "source": "the selected casts side by side as a depth section along time or distance",
+      "text": "profils sélectionnés côte à côte, en coupe verticale selon le temps ou la distance",
+      "status": "draft"
+    },
+    "castsControls.bottlesHint": {
+      "source": "mark the rosette's bottle firings on the casts (from the SeaBird .btl files)",
+      "text": "indiquer les fermetures des bouteilles de la rosette sur les profils (à partir des fichiers SeaBird .btl)",
+      "status": "draft"
+    },
+    "castsControls.smoothHint": {
+      "source": "smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range",
+      "text": "lisser les capteurs bruités (fluorescence, CDOM, transmission, nitrates) le long de chaque profil : moyenne mobile sur 7 à 21 m selon la plage de profondeur",
+      "status": "draft"
+    },
+    "castsControls.saveHint": {
+      "source": "Save this section and its station order for everyone on the ship",
+      "text": "Enregistrer cette coupe et l’ordre de ses stations pour tout le monde à bord",
+      "status": "draft"
+    },
+    "castsControls.xAxis": {
+      "source": "Section x axis",
+      "text": "Axe X de la coupe",
+      "status": "draft"
+    },
+    "castsControls.xAxisHint": {
+      "source": "the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips",
+      "text": "axe X de la coupe : temps, distance le long des profils dans l’ordre chronologique, stations de A à Z ou ordre personnalisé à l’aide des pastilles",
+      "status": "draft"
+    },
+    "map.next": {
+      "source": "{current} · click for {next}",
+      "text": "{current} · cliquez pour passer à {next}",
+      "status": "draft"
+    },
+    "nav.map": {
+      "source": "Map",
+      "text": "Carte",
+      "status": "draft"
+    },
+    "nav.schedule": {
+      "source": "Schedule",
+      "text": "Horaire",
+      "status": "draft"
+    },
+    "nav.stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "nav.underway": {
+      "source": "Underway",
+      "text": "Mesures en route",
+      "status": "draft"
+    },
+    "nav.casts": {
+      "source": "Casts",
+      "text": "Profils",
+      "status": "draft"
+    },
+    "nav.photos": {
+      "source": "Photos",
+      "text": "Photos",
+      "status": "draft"
+    },
+    "nav.wiki": {
+      "source": "Wiki",
+      "text": "Wiki",
+      "status": "draft"
+    },
+    "nav.chat": {
+      "source": "Chat",
+      "text": "Clavardage",
+      "status": "draft"
+    },
+    "nav.games": {
+      "source": "Games",
+      "text": "Jeux",
+      "status": "draft"
+    },
+    "nav.sources": {
+      "source": "Sources",
+      "text": "Sources",
+      "status": "draft"
+    },
+    "nav.science": {
+      "source": "Science",
+      "text": "Science",
+      "status": "draft"
+    },
+    "nav.extras": {
+      "source": "Extras",
+      "text": "Autres",
+      "status": "draft"
+    },
+    "nav.label": {
+      "source": "Main navigation",
+      "text": "Navigation principale",
+      "status": "draft"
+    },
+    "map.none": {
+      "source": "No map",
+      "text": "Sans carte",
+      "status": "draft"
+    },
+    "map.half": {
+      "source": "Half map",
+      "text": "Demi-carte",
+      "status": "draft"
+    },
+    "map.full": {
+      "source": "Full map",
+      "text": "Carte pleine page",
+      "status": "draft"
+    },
+    "map.mode": {
+      "source": "Map: {mode}",
+      "text": "Carte : {mode}",
+      "status": "draft"
+    },
+    "locale.label": {
+      "source": "Language",
+      "text": "Langue",
+      "status": "draft"
+    },
+    "feedback.open": {
+      "source": "Feedback",
+      "text": "Commentaires",
+      "status": "draft"
+    },
+    "feedback.title": {
+      "source": "Feedback about this page",
+      "text": "Commentaires sur cette page",
+      "status": "draft"
+    },
+    "feedback.description": {
+      "source": "Report a problem or suggest an improvement. The current page and view settings are included.",
+      "text": "Signalez un problème ou proposez une amélioration. La page actuelle et les paramètres d’affichage sont inclus.",
+      "status": "draft"
+    },
+    "feedback.message": {
+      "source": "Your feedback",
+      "text": "Vos commentaires",
+      "status": "draft"
+    },
+    "feedback.name": {
+      "source": "Name (optional)",
+      "text": "Nom (facultatif)",
+      "status": "draft"
+    },
+    "feedback.cancel": {
+      "source": "Cancel",
+      "text": "Annuler",
+      "status": "draft"
+    },
+    "feedback.submit": {
+      "source": "Submit feedback",
+      "text": "Envoyer les commentaires",
+      "status": "draft"
+    },
+    "feedback.close": {
+      "source": "Close",
+      "text": "Fermer",
+      "status": "draft"
+    },
+    "feedback.saving": {
+      "source": "Saving feedback…",
+      "text": "Enregistrement des commentaires…",
+      "status": "draft"
+    },
+    "feedback.saved": {
+      "source": "Thank you—your feedback has been saved.",
+      "text": "Merci! Vos commentaires ont été enregistrés.",
+      "status": "draft"
+    },
+    "feedback.failed": {
+      "source": "Could not save feedback.",
+      "text": "Impossible d’enregistrer les commentaires.",
+      "status": "draft"
+    },
+    "feedback.timeout": {
+      "source": "The request timed out. Your feedback is still here; please retry.",
+      "text": "Le délai de la demande est écoulé. Vos commentaires sont toujours ici; veuillez réessayer.",
+      "status": "draft"
+    },
+    "feedback.retry": {
+      "source": "{error} Your feedback is still here; please retry.",
+      "text": "{error} Vos commentaires sont toujours ici; veuillez réessayer.",
+      "status": "draft"
+    },
+    "feedback.appearance": {
+      "source": "Feedback and appearance",
+      "text": "Commentaires et apparence",
+      "status": "draft"
+    },
+    "nav.mapHint": {
+      "source": "how much of the page the map takes: half, all of it, or none",
+      "text": "part de la page occupée par la carte : la moitié, la totalité ou aucune",
+      "status": "draft"
+    },
+    "nav.photosHint": {
+      "source": "Photo gallery and imports",
+      "text": "Galerie de photos et importations",
+      "status": "draft"
+    },
+    "nav.wikiHint": {
+      "source": "the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask",
+      "text": "le passé et la nature de la région : voyages, personnes, lieux et artéfacts, roche, glace, eau, ciel et êtres vivants, sur la carte et dans un wiki, avec l’équipage à qui poser vos questions",
+      "status": "draft"
+    },
+    "nav.chatHint": {
+      "source": "ship chat",
+      "text": "clavardage à bord",
+      "status": "draft"
+    },
+    "locale.coverage": {
+      "source": "French covers the main controls and measurement labels. Some panels, source material and wiki articles remain in English.",
+      "text": "Le français couvre les principales commandes et les libellés des mesures. Certains panneaux, documents sources et articles du wiki restent en anglais.",
+      "status": "draft"
+    },
+    "shell.selectLegSpan": {
+      "source": "Select leg and time span:",
+      "text": "Choisir le tronçon et la période :",
+      "status": "draft"
+    },
+    "shell.legsToShow": {
+      "source": "Legs to show · ",
+      "text": "Tronçons à afficher · ",
+      "status": "draft"
+    },
+    "shell.all": {
+      "source": "all",
+      "text": "tous",
+      "status": "draft"
+    },
+    "shell.none": {
+      "source": "none",
+      "text": "aucun",
+      "status": "draft"
+    },
+    "shell.showLast": {
+      "source": "Show last",
+      "text": "Période affichée",
+      "status": "draft"
+    },
+    "shell.xAxis": {
+      "source": "X-axis",
+      "text": "Axe X",
+      "status": "draft"
+    },
+    "shell.colorBy": {
+      "source": "Color by ",
+      "text": "Colorer selon ",
+      "status": "draft"
+    },
+    "mapControls.plan": {
+      "source": "Plan",
+      "text": "Plan",
+      "status": "draft"
+    },
+    "mapControls.track": {
+      "source": "Track",
+      "text": "Trajet",
+      "status": "draft"
+    },
+    "mapControls.stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "mapControls.stationsShort": {
+      "source": "Stns",
+      "text": "Stns",
+      "status": "draft"
+    },
+    "mapControls.events": {
+      "source": "Events",
+      "text": "Événements",
+      "status": "draft"
+    },
+    "mapControls.photos": {
+      "source": "Photos",
+      "text": "Photos",
+      "status": "draft"
+    },
+    "mapControls.names": {
+      "source": "Names",
+      "text": "Noms",
+      "status": "draft"
+    },
+    "mapControls.history": {
+      "source": "History",
+      "text": "Histoire",
+      "status": "draft"
+    },
+    "mapControls.nature": {
+      "source": "Nature",
+      "text": "Nature",
+      "status": "draft"
+    },
+    "mapControls.iceCharts": {
+      "source": "Ice charts",
+      "text": "Cartes des glaces",
+      "status": "draft"
+    },
+    "mapControls.region": {
+      "source": "Region ",
+      "text": "Région ",
+      "status": "draft"
+    },
+    "mapControls.chartDate": {
+      "source": "Chart date (UTC) ",
+      "text": "Date de la carte (UTC) ",
+      "status": "draft"
+    },
+    "mapControls.opacity": {
+      "source": "Opacity ",
+      "text": "Opacité ",
+      "status": "draft"
+    },
+    "mapControls.retryChart": {
+      "source": "Retry chart",
+      "text": "Réessayer le chargement",
+      "status": "draft"
+    },
+    "mapControls.iceService": {
+      "source": "Canadian Ice Service / ECCC",
+      "text": "Service canadien des glaces / ECCC",
+      "status": "draft"
+    },
+    "mapControls.details": {
+      "source": "Map details",
+      "text": "Détails de la carte",
+      "status": "draft"
+    },
+    "tables.title": {
+      "source": "Data tables",
+      "text": "Tableaux de données",
+      "status": "draft"
+    },
+    "tables.hourly": {
+      "source": "Hourly",
+      "text": "Par heure",
+      "status": "draft"
+    },
+    "tables.daily": {
+      "source": "Daily",
+      "text": "Par jour",
+      "status": "draft"
+    },
+    "tables.statistic": {
+      "source": "Statistic ",
+      "text": "Statistique ",
+      "status": "draft"
+    },
+    "tables.mean": {
+      "source": "mean",
+      "text": "moyenne",
+      "status": "draft"
+    },
+    "tables.min": {
+      "source": "min",
+      "text": "min",
+      "status": "draft"
+    },
+    "tables.max": {
+      "source": "max",
+      "text": "max",
+      "status": "draft"
+    },
+    "tables.count": {
+      "source": "count",
+      "text": "nombre",
+      "status": "draft"
+    },
+    "castsControls.type": {
+      "source": "Select Cast Type",
+      "text": "Choisir le type de profil",
+      "status": "draft"
+    },
+    "castsControls.all": {
+      "source": "All",
+      "text": "Tous",
+      "status": "draft"
+    },
+    "castsControls.live": {
+      "source": "Live",
+      "text": "En direct",
+      "status": "draft"
+    },
+    "castsControls.rosette": {
+      "source": "Rosette",
+      "text": "Rosette",
+      "status": "draft"
+    },
+    "castsControls.clear": {
+      "source": "clear selection",
+      "text": "Effacer la sélection",
+      "status": "draft"
+    },
+    "castsControls.fired": {
+      "source": "Bottles fired",
+      "text": "Bouteilles fermées",
+      "status": "draft"
+    },
+    "castsControls.graph": {
+      "source": "Select Graph",
+      "text": "Choisir le graphique",
+      "status": "draft"
+    },
+    "castsControls.single": {
+      "source": "Single",
+      "text": "Unique",
+      "status": "draft"
+    },
+    "castsControls.multi": {
+      "source": "Multi",
+      "text": "Multiples",
+      "status": "draft"
+    },
+    "castsControls.section": {
+      "source": "Section",
+      "text": "Coupe",
+      "status": "draft"
+    },
+    "castsControls.bottles": {
+      "source": "Bottles",
+      "text": "Bouteilles",
+      "status": "draft"
+    },
+    "pages.45f7859648d9536e": {
+      "source": "Mess",
+      "text": "Carré",
+      "status": "draft"
+    },
+    "pages.1cff02b9cde94631": {
+      "source": "Lounge",
+      "text": "Salon",
+      "status": "draft"
+    },
+    "pages.dc20b3d5d2cddf82": {
+      "source": "Library",
+      "text": "Bibliothèque",
+      "status": "draft"
+    },
+    "pages.889eacd6e13fa54a": {
+      "source": "Deck",
+      "text": "Pont",
+      "status": "draft"
+    },
+    "pages.d30af076b0dc85cc": {
+      "source": "Me",
+      "text": "Moi",
+      "status": "draft"
+    },
+    "pages.c9e0f9cc8260bce0": {
+      "source": "the Mess: everyone; the crew answer when @mentioned",
+      "text": "le carré : ouvert à tous; l’équipage répond aux @mentions",
+      "status": "draft"
+    },
+    "pages.4a04d6e7bb315a27": {
+      "source": "the Lounge: the AI crew's room, where they talk among themselves",
+      "text": "le salon : la salle de l’équipage IA, où ses membres discutent entre eux",
+      "status": "draft"
+    },
+    "pages.0aea8f23338523f0": {
+      "source": "the Library: ask Ada, the librarian, about the region's past",
+      "text": "la bibliothèque : interrogez Ada, la bibliothécaire, sur le passé de la région",
+      "status": "draft"
+    },
+    "pages.b04472d9603795ac": {
+      "source": "the Deck: ask Ada and Doc together, the history and the nature",
+      "text": "le pont : interrogez Ada et Doc ensemble sur l’histoire et la nature",
+      "status": "draft"
+    },
+    "pages.aafecb99525ba917": {
+      "source": "ask Ada, the librarian · Enter to send",
+      "text": "interroger Ada, la bibliothécaire · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "pages.c4c14eab715fcabd": {
+      "source": "ask Ada and Doc · Enter to send",
+      "text": "interroger Ada et Doc · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "pages.27e789d55ec5ccc8": {
+      "source": "ask Doc, the naturalist · Enter to send",
+      "text": "interroger Doc, le naturaliste · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "pages.815f6bde537466ee": {
+      "source": "talk to the crew · Enter to send",
+      "text": "parler à l’équipage · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "pages.b9846addccd73468": {
+      "source": "message {v0} · Enter to send",
+      "text": "écrire à {v0} · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "pages.fed33eed5cc86f86": {
+      "source": "message · Enter to send",
+      "text": "message · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "pages.5edd3b1f5d3b8966": {
+      "source": "Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.",
+      "text": "Messages directs temporaires — conservés en mémoire seulement, pas dans la base de données du clavardage. Effacés au redémarrage du serveur, à la fermeture de la conversation ou après 30 minutes sans message. Sans chiffrement de bout en bout.",
+      "status": "draft"
+    },
+    "pages.ccf0b0d00167c7a2": {
+      "source": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.",
+      "text": "Salle partagée — toute personne sur ce tableau de bord peut lire les messages, y compris les visiteurs sans nom. Pour une conversation directe, choisissez une personne ou une IA dans la liste.",
+      "status": "draft"
+    },
+    "pages.d54828eeb2ee6063": {
+      "source": "back to the corner",
+      "text": "revenir dans le coin",
+      "status": "draft"
+    },
+    "pages.f2d7acfded4a9937": {
+      "source": "open as a side bar",
+      "text": "ouvrir dans une barre latérale",
+      "status": "draft"
+    },
+    "pages.9cd0e357245fb95d": {
+      "source": "the {v0}: a private room with {v1} ({v2})",
+      "text": "{v0} : salle privée avec {v1} ({v2})",
+      "status": "draft"
+    },
+    "pages.b22d2bea6e200f71": {
+      "source": "a private room with ",
+      "text": "une salle privée avec ",
+      "status": "draft"
+    },
+    "pages.7de82e541d02427d": {
+      "source": "a private room with someone here",
+      "text": "une salle privée avec une personne présente",
+      "status": "draft"
+    },
+    "pages.5550ce1e131e8f75": {
+      "source": "show the AI crew's messages again",
+      "text": "réafficher les messages de l’équipage IA",
+      "status": "draft"
+    },
+    "pages.5f369686bd9e7606": {
+      "source": "hide the AI crew's messages and names",
+      "text": "masquer les messages et les noms de l’équipage IA",
+      "status": "draft"
+    },
+    "pages.1cb9a0d8b741fd5d": {
+      "source": "show AI",
+      "text": "afficher l’IA",
+      "status": "draft"
+    },
+    "pages.490b7567ec0072e0": {
+      "source": "hide AI",
+      "text": "masquer l’IA",
+      "status": "draft"
+    },
+    "pages.7bc83b0eaff9cd7b": {
+      "source": "close this conversation: its history is erased and the room leaves the row",
+      "text": "fermer cette conversation : son historique est effacé et la salle disparaît de la barre",
+      "status": "draft"
+    },
+    "pages.eb4a38ec6dc1d1ad": {
+      "source": "clear this room on this device; others keep their copy",
+      "text": "effacer cette salle sur cet appareil; les autres conservent leur copie",
+      "status": "draft"
+    },
+    "pages.310ff200149b44a3": {
+      "source": "close",
+      "text": "fermer",
+      "status": "draft"
+    },
+    "pages.913a4cb91be20332": {
+      "source": "clear",
+      "text": "effacer",
+      "status": "draft"
+    },
+    "pages.adcb8c7fb22e1991": {
+      "source": "A private room with…",
+      "text": "Une salle privée avec…",
+      "status": "draft"
+    },
+    "pages.20ac95a440783c19": {
+      "source": "nobody else has the page open",
+      "text": "personne d’autre n’a cette page ouverte",
+      "status": "draft"
+    },
+    "pages.4b0ab9f9f992bdf9": {
+      "source": "name first",
+      "text": "saisir votre nom d’abord",
+      "status": "draft"
+    },
+    "pages.2f05e7541d123e42": {
+      "source": "reference {v2}",
+      "text": "référence {v2}",
+      "status": "draft"
+    },
+    "pages.3316348dbadfb7b1": {
+      "source": "read",
+      "text": "pages consultées",
+      "status": "draft"
+    },
+    "pages.4d65c72b83973371": {
+      "source": "message ",
+      "text": "écrire à ",
+      "status": "draft"
+    },
+    "pages.cffa02277adca6d9": {
+      "source": " directly",
+      "text": " directement",
+      "status": "draft"
+    },
+    "pages.ea8001efadfe6198": {
+      "source": "the Lab: ask Doc about the living things, the ice, the water and the sky",
+      "text": "le laboratoire : interrogez Doc sur le vivant, la glace, l’eau et le ciel",
+      "status": "draft"
+    },
+    "pages.2d2c4b6f7e573acf": {
+      "source": "private room with a crew member",
+      "text": "salle privée avec un membre de l’équipage",
+      "status": "draft"
+    },
+    "pages.82152a91cf8f494f": {
+      "source": "private with {v0}",
+      "text": "en privé avec {v0}",
+      "status": "draft"
+    },
+    "pages.948958cfdb09405c": {
+      "source": "the Library: ask Ada about the region's past",
+      "text": "la bibliothèque : interrogez Ada sur le passé de la région",
+      "status": "draft"
+    },
+    "pages.6ec675dc06f63b40": {
+      "source": "the Deck: Ada and Doc together, the history and the nature",
+      "text": "le pont : Ada et Doc ensemble, l’histoire et la nature",
+      "status": "draft"
+    },
+    "pages.1942c24222fae6d1": {
+      "source": "{v0} here{v1}",
+      "text": "Personnes présentes : {v0}{v1}",
+      "status": "draft"
+    },
+    "pages.cc9056c6599cc0c6": {
+      "source": "nobody else here",
+      "text": "personne d’autre ici",
+      "status": "draft"
+    },
+    "pages.67e605eb007842fc": {
+      "source": "looking it up…",
+      "text": "recherche en cours…",
+      "status": "draft"
+    },
+    "pages.30f5934e62499bea": {
+      "source": "typing…",
+      "text": "rédaction en cours…",
+      "status": "draft"
+    },
+    "pages.1ae812bf464ce4c7": {
+      "source": "model online: ",
+      "text": "modèle en ligne : ",
+      "status": "draft"
+    },
+    "pages.27cfa197e044ed68": {
+      "source": "no model loaded: the crew cannot answer (",
+      "text": "aucun modèle chargé : l’équipage ne peut pas répondre (",
+      "status": "draft"
+    },
+    "pages.6d0a8f2e8eb29b90": {
+      "source": "); the operator has been told",
+      "text": "); l’opérateur a été avisé",
+      "status": "draft"
+    },
+    "pages.85ebc236cf26a104": {
+      "source": " offline",
+      "text": " hors ligne",
+      "status": "draft"
+    },
+    "pages.3f54bcf820c1238b": {
+      "source": "offline: no model loaded, and the chat never loads one itself. ",
+      "text": "hors ligne : aucun modèle chargé; le clavardage n’en charge jamais lui-même. ",
+      "status": "draft"
+    },
+    "pages.e597f24f4aae5734": {
+      "source": " are here and may speak first",
+      "text": " sont présents et peuvent entamer la discussion",
+      "status": "draft"
+    },
+    "pages.f3157fe6b942d681": {
+      "source": " are here",
+      "text": " sont présents",
+      "status": "draft"
+    },
+    "pages.3e8f1b9fcd487c52": {
+      "source": " is here",
+      "text": " est présent",
+      "status": "draft"
+    },
+    "pages.606606668b367101": {
+      "source": "Close this conversation with {v0}? Its temporary history will be cleared for both participants.",
+      "text": "Fermer cette conversation avec {v0}? Son historique temporaire sera effacé pour les deux participants.",
+      "status": "draft"
+    },
+    "pages.68969b0ccff55b72": {
+      "source": "Clear {v0} on this device? Others keep their copy.",
+      "text": "Effacer {v0} sur cet appareil? Les autres conservent leur copie.",
+      "status": "draft"
+    },
+    "pages.3350122289eea311": {
+      "source": "not closed",
+      "text": "non fermée",
+      "status": "draft"
+    },
+    "pages.8513a9ecd7d7a0c9": {
+      "source": "not sent",
+      "text": "non envoyé",
+      "status": "draft"
+    },
+    "pages.1a5611bfcb70d17e": {
+      "source": "Message not sent: offline",
+      "text": "Message non envoyé : hors ligne",
+      "status": "draft"
+    },
+    "pages.41426fd2dfbef5bd": {
+      "source": "ship time ({v0})",
+      "text": "heure du navire ({v0})",
+      "status": "draft"
+    },
+    "pages.512b07c166e7f90b": {
+      "source": "now {v0}",
+      "text": "maintenant {v0}",
+      "status": "draft"
+    },
+    "pages.a47e0c2bd7bba951": {
+      "source": "TSG pump off / low intake flow",
+      "text": "Pompe TSG arrêtée / faible débit d’admission",
+      "status": "draft"
+    },
+    "pages.ac41c0821578e6fb": {
+      "source": "TSG intake",
+      "text": "Admission TSG",
+      "status": "draft"
+    },
+    "pages.0f044feb6ca7d676": {
+      "source": "Operation",
+      "text": "Opération",
+      "status": "draft"
+    },
+    "pages.115ccf9610656d3b": {
+      "source": "Station",
+      "text": "Station",
+      "status": "draft"
+    },
+    "pages.022100af42289791": {
+      "source": "intranet schedule",
+      "text": "horaire de l’intranet",
+      "status": "draft"
+    },
+    "pages.1ea59e15ab7b5c46": {
+      "source": "{v0}{v1} (all day)",
+      "text": "{v0}{v1} (toute la journée)",
+      "status": "draft"
+    },
+    "pages.360719440e92c924": {
+      "source": "3 days",
+      "text": "3 jours",
+      "status": "draft"
+    },
+    "pages.310ca503ef36f177": {
+      "source": "Month",
+      "text": "Mois",
+      "status": "draft"
+    },
+    "pages.6da0633528deaa01": {
+      "source": "previous",
+      "text": "précédent",
+      "status": "draft"
+    },
+    "pages.c6c1c9a9c8543f1e": {
+      "source": "next",
+      "text": "suivant",
+      "status": "draft"
+    },
+    "pages.e0f4f767ac88a930": {
+      "source": "today",
+      "text": "aujourd’hui",
+      "status": "draft"
+    },
+    "pages.1958ce23cca396db": {
+      "source": "Times are ship time ({v6}). Open in Google Calendar: {v7}",
+      "text": "Les heures sont celles du navire ({v6}). Ouvrir dans Google Agenda : {v7}",
+      "status": "draft"
+    },
+    "pages.f4e8c9fafcc6d66e": {
+      "source": "+{v0} more",
+      "text": "+{v0} autres",
+      "status": "draft"
+    },
+    "pages.f40d7f51f69edfaf": {
+      "source": "Mon",
+      "text": "lun.",
+      "status": "draft"
+    },
+    "pages.d1eb39b09bf52b68": {
+      "source": "Tue",
+      "text": "mar.",
+      "status": "draft"
+    },
+    "pages.58339f45df960408": {
+      "source": "Wed",
+      "text": "mer.",
+      "status": "draft"
+    },
+    "pages.7da11212ed340ea7": {
+      "source": "Thu",
+      "text": "jeu.",
+      "status": "draft"
+    },
+    "pages.66dab40cea1dea5c": {
+      "source": "Fri",
+      "text": "ven.",
+      "status": "draft"
+    },
+    "pages.fdeb71b569e0034d": {
+      "source": "Sat",
+      "text": "sam.",
+      "status": "draft"
+    },
+    "pages.db18f17fe5320076": {
+      "source": "Sun",
+      "text": "dim.",
+      "status": "draft"
+    },
+    "pages.9c585c8ddefd2720": {
+      "source": " · today",
+      "text": " · aujourd’hui",
+      "status": "draft"
+    },
+    "pages.836851d6bddf7650": {
+      "source": " (cached)",
+      "text": " (en cache)",
+      "status": "draft"
+    },
+    "pages.c83415aca7938877": {
+      "source": "Cast {v0} {v1}",
+      "text": "Profil {v0} {v1}",
+      "status": "draft"
+    },
+    "pages.a0d37bfc114917be": {
+      "source": "No dates to chart.",
+      "text": "Aucune date à représenter.",
+      "status": "draft"
+    },
+    "pages.7ca0d6c7afeb2c2d": {
+      "source": "on the map",
+      "text": "sur la carte",
+      "status": "draft"
+    },
+    "pages.948fcefe5345439c": {
+      "source": "the whole record",
+      "text": "l’ensemble des données",
+      "status": "draft"
+    },
+    "pages.9ee78ce2f0ecac99": {
+      "source": "conservation status",
+      "text": "statut de conservation",
+      "status": "draft"
+    },
+    "pages.b1809383ab754a8a": {
+      "source": "the ship's own journal",
+      "text": "le journal du navire",
+      "status": "draft"
+    },
+    "pages.d0e4b71fd8ecada7": {
+      "source": "ship's journal",
+      "text": "journal du navire",
+      "status": "draft"
+    },
+    "pages.f87558869bcf8816": {
+      "source": "Observations",
+      "text": "Observations",
+      "status": "draft"
+    },
+    "pages.16a7d2b94a9ab725": {
+      "source": "no page yet",
+      "text": "aucune page pour le moment",
+      "status": "draft"
+    },
+    "pages.f4dd2c090ecd15ef": {
+      "source": "no such kind",
+      "text": "type inconnu",
+      "status": "draft"
+    },
+    "pages.765c1dd134a4327a": {
+      "source": "Nothing of this kind in the record yet.",
+      "text": "Aucun élément de ce type dans les données pour le moment.",
+      "status": "draft"
+    },
+    "pages.6d3add25948633a5": {
+      "source": "That is not a place on the map.",
+      "text": "Ce lieu n’est pas sur la carte.",
+      "status": "draft"
+    },
+    "pages.7c706e7a8b983a5e": {
+      "source": "How this history was made",
+      "text": "Comment cette histoire a été constituée",
+      "status": "draft"
+    },
+    "pages.1c4b8ff60530a1bf": {
+      "source": "Provenance",
+      "text": "Provenance",
+      "status": "draft"
+    },
+    "pages.9f28dfaff8c0e4e6": {
+      "source": "Bibliography",
+      "text": "Bibliographie",
+      "status": "draft"
+    },
+    "pages.cf4166250b80a26c": {
+      "source": "Plain text",
+      "text": "Texte brut",
+      "status": "draft"
+    },
+    "pages.3664895579f0a7e6": {
+      "source": "Export",
+      "text": "Exporter",
+      "status": "draft"
+    },
+    "pages.3143319cd5502e27": {
+      "source": "the build's own BibTeX file",
+      "text": "le fichier BibTeX de cette version",
+      "status": "draft"
+    },
+    "pages.b7be5a1363b39659": {
+      "source": "RIS, for EndNote, Zotero and Mendeley",
+      "text": "RIS, pour EndNote, Zotero et Mendeley",
+      "status": "draft"
+    },
+    "pages.f903d47fe50eceb0": {
+      "source": "CSL-JSON, for citation processors and Zotero",
+      "text": "CSL-JSON, pour les outils bibliographiques et Zotero",
+      "status": "draft"
+    },
+    "pages.b4e413c3cde61c41": {
+      "source": "the MLA list as plain text",
+      "text": "la liste MLA en texte brut",
+      "status": "draft"
+    },
+    "pages.93c6b664dce6c207": {
+      "source": "Browse…",
+      "text": "Parcourir…",
+      "status": "draft"
+    },
+    "pages.5a99e746347b5bf9": {
+      "source": "Ask Ada",
+      "text": "Interroger Ada",
+      "status": "draft"
+    },
+    "pages.a488c7ae2d2e3bbd": {
+      "source": "Ask Doc",
+      "text": "Interroger Doc",
+      "status": "draft"
+    },
+    "pages.4c8692dac9206cdf": {
+      "source": "Ask a Q",
+      "text": "Poser une question",
+      "status": "draft"
+    },
+    "pages.03f75d69d652a98e": {
+      "source": "open the Library in the chat and ask Ada, the librarian, about the region's past",
+      "text": "ouvrir la bibliothèque dans le clavardage et interroger Ada, la bibliothécaire, sur le passé de la région",
+      "status": "draft"
+    },
+    "pages.9429b1dc65906b5e": {
+      "source": "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal",
+      "text": "ouvrir le laboratoire dans le clavardage et interroger Doc, le naturaliste; une observation rapportée à Doc est ajoutée au journal",
+      "status": "draft"
+    },
+    "pages.d0a27ca03da4cfae": {
+      "source": "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature",
+      "text": "ouvrir le pont dans le clavardage, où Ada et Doc répondent ensemble : Ada pour l’histoire, Doc pour la nature",
+      "status": "draft"
+    },
+    "pages.08c7ee7de2124efa": {
+      "source": "Open original in new tab ↗",
+      "text": "Ouvrir l’original dans un nouvel onglet ↗",
+      "status": "draft"
+    },
+    "pages.f09247433bef8304": {
+      "source": "Image preview",
+      "text": "Aperçu de l’image",
+      "status": "draft"
+    },
+    "pages.88980154513d7413": {
+      "source": "Tracks",
+      "text": "Trajets",
+      "status": "draft"
+    },
+    "pages.8d14f6e72de8f18a": {
+      "source": "Events",
+      "text": "Événements",
+      "status": "draft"
+    },
+    "pages.eb5cfb73677d98eb": {
+      "source": "Places",
+      "text": "Lieux",
+      "status": "draft"
+    },
+    "pages.be7e2f20129365c2": {
+      "source": "Images",
+      "text": "Images",
+      "status": "draft"
+    },
+    "pages.119e66d117ae8f0c": {
+      "source": "Maps",
+      "text": "Cartes",
+      "status": "draft"
+    },
+    "pages.8dc37869d63b05bd": {
+      "source": "Quotes",
+      "text": "Citations",
+      "status": "draft"
+    },
+    "pages.48e0ef1e260d7b6d": {
+      "source": "Texts",
+      "text": "Textes",
+      "status": "draft"
+    },
+    "pages.de5236ee1561d9d4": {
+      "source": "Objects",
+      "text": "Objets",
+      "status": "draft"
+    },
+    "pages.7db20897053bb278": {
+      "source": "People",
+      "text": "Personnes",
+      "status": "draft"
+    },
+    "pages.85c3f9fa6f300eea": {
+      "source": "Animals",
+      "text": "Animaux",
+      "status": "draft"
+    },
+    "pages.653ad8478a323db5": {
+      "source": "Vessels",
+      "text": "Navires",
+      "status": "draft"
+    },
+    "pages.7cf40a646358bdfe": {
+      "source": "the crew are still at work on this page",
+      "text": "l’équipage travaille encore sur cette page",
+      "status": "draft"
+    },
+    "pages.7743ce348d9284d6": {
+      "source": "draft",
+      "text": "ébauche",
+      "status": "draft"
+    },
+    "pages.92a13b6f6d226c75": {
+      "source": "Flag this item for content review. For interface problems, use Feedback in the header.",
+      "text": "Signaler cet élément pour révision du contenu. Pour un problème d’interface, utilisez Commentaires dans l’en-tête.",
+      "status": "draft"
+    },
+    "pages.41d624f9bf379d48": {
+      "source": "click to withdraw",
+      "text": "cliquer pour retirer",
+      "status": "draft"
+    },
+    "pages.318d4e44fa3151e6": {
+      "source": "only an admin can withdraw it now",
+      "text": "seul un administrateur peut maintenant le retirer",
+      "status": "draft"
+    },
+    "pages.166484a88c2688a2": {
+      "source": "click to add your own flag",
+      "text": "cliquer pour ajouter votre signalement",
+      "status": "draft"
+    },
+    "pages.2f04d6855ac0ab3f": {
+      "source": "Flagged for review by {v0} · {v1}",
+      "text": "Signalé pour révision par {v0} · {v1}",
+      "status": "draft"
+    },
+    "pages.56630f4b80ceb0f1": {
+      "source": "Also flag",
+      "text": "Signaler aussi",
+      "status": "draft"
+    },
+    "pages.552127973f8424e1": {
+      "source": "Flag",
+      "text": "Signaler",
+      "status": "draft"
+    },
+    "pages.915e352c6674b610": {
+      "source": "{v0} \"{v1}\" for review.\nWhat should be looked at? (optional)",
+      "text": "{v0} « {v1} » pour révision.\nQue faut-il vérifier? (facultatif)",
+      "status": "draft"
+    },
+    "pages.f545fe7e666cbe0a": {
+      "source": "Withdraw the flags {v0} people have raised on \"{v1}\"?",
+      "text": "Retirer les signalements de {v0} personnes concernant « {v1} »?",
+      "status": "draft"
+    },
+    "pages.813579ae9a07b8ad": {
+      "source": "The flag could not be saved: {v0}",
+      "text": "Impossible d’enregistrer le signalement : {v0}",
+      "status": "draft"
+    },
+    "pages.a599f2439ba9b7aa": {
+      "source": "{v0} BCE",
+      "text": "{v0} av. J.-C.",
+      "status": "draft"
+    },
+    "pages.fa91ff493a7ab5b9": {
+      "source": "{v0} AD",
+      "text": "{v0} apr. J.-C.",
+      "status": "draft"
+    },
+    "pages.6ec6fd018d8f2587": {
+      "source": "day {v0} of {v1}",
+      "text": "jour {v0} sur {v1}",
+      "status": "draft"
+    },
+    "pages.bb7e51c6d02be309": {
+      "source": "was here",
+      "text": "était ici",
+      "status": "draft"
+    },
+    "pages.dcca230522f1a31b": {
+      "source": "near {v0}",
+      "text": "près de {v0}",
+      "status": "draft"
+    },
+    "pages.0eb650f10c5c5a55": {
+      "source": "see {v1} more",
+      "text": "voir {v1} autres",
+      "status": "draft"
+    },
+    "pages.107b90ff3c1c35ab": {
+      "source": "see fewer",
+      "text": "voir moins",
+      "status": "draft"
+    },
+    "pages.1516fbf1d4dae387": {
+      "source": "Nothing dated to the day on {v0} yet.",
+      "text": "Aucun élément daté du {v0} pour le moment.",
+      "status": "draft"
+    },
+    "pages.d4fe9d8548a4254a": {
+      "source": "The ship's position is not known to this build.",
+      "text": "La position du navire n’est pas connue dans cette version.",
+      "status": "draft"
+    },
+    "pages.60f308c1f079c289": {
+      "source": "Nothing in the wiki near the ship yet.",
+      "text": "Aucun élément du wiki près du navire pour le moment.",
+      "status": "draft"
+    },
+    "pages.7c723452a98e32c9": {
+      "source": "On this day · {v0}",
+      "text": "Ce jour-là · {v0}",
+      "status": "draft"
+    },
+    "pages.61695ef35daa3cc1": {
+      "source": "In this place{v2}",
+      "text": "À cet endroit{v2}",
+      "status": "draft"
+    },
+    "pages.41970d6661b348dd": {
+      "source": "map ↗",
+      "text": "carte ↗",
+      "status": "draft"
+    },
+    "pages.451215ee74092d80": {
+      "source": "this page's address",
+      "text": "adresse de cette page",
+      "status": "draft"
+    },
+    "pages.ce1355534ad93ddc": {
+      "source": " · no picture yet",
+      "text": " · aucune image pour le moment",
+      "status": "draft"
+    },
+    "pages.efd63f646209f611": {
+      "source": "interactive resource · no picture yet",
+      "text": "ressource interactive · aucune image pour le moment",
+      "status": "draft"
+    },
+    "pages.e09008f4974d3204": {
+      "source": "{v2} pages · {v3} artifacts",
+      "text": "Pages : {v2} · documents et objets : {v3}",
+      "status": "draft"
+    },
+    "pages.856801b740b24d2c": {
+      "source": "and {v0} more: narrow the search",
+      "text": "et {v0} autres : précisez la recherche",
+      "status": "draft"
+    },
+    "pages.5bd724fab3969c96": {
+      "source": "No wiki has been published yet.",
+      "text": "Aucun wiki n’a encore été publié.",
+      "status": "draft"
+    },
+    "pages.1fb561bcf13a11bf": {
+      "source": "Loading the wiki…",
+      "text": "Chargement du wiki…",
+      "status": "draft"
+    },
+    "pages.f67cb1850d1b7e77": {
+      "source": "Narratives",
+      "text": "Récits",
+      "status": "draft"
+    },
+    "pages.3b73900b8d29f963": {
+      "source": "Explore",
+      "text": "Explorer",
+      "status": "draft"
+    },
+    "pages.a52981ae3b44bf34": {
+      "source": "{v0} topics, {v1} narrative pages and {v2} artifacts: {v3}. Every item is credited and sourced.",
+      "text": "Thèmes : {v0}; récits : {v1}; documents et objets : {v2} — {v3}. Chaque élément indique son auteur et sa source.",
+      "status": "draft"
+    },
+    "pages.21b3be752f52de62": {
+      "source": "no such topic",
+      "text": "thème inconnu",
+      "status": "draft"
+    },
+    "pages.52e48c371494add8": {
+      "source": "the picture's own page",
+      "text": "page de l’image",
+      "status": "draft"
+    },
+    "pages.6babc9a17d120bf7": {
+      "source": "No narrative pages yet; the artifacts below are what the crew has entered so far.",
+      "text": "Aucun récit pour le moment; les documents et objets ci-dessous sont ceux saisis par l’équipage jusqu’ici.",
+      "status": "draft"
+    },
+    "pages.314ae71b8c8dc9c9": {
+      "source": "Artifacts",
+      "text": "Documents et objets",
+      "status": "draft"
+    },
+    "pages.215b2f215791b683": {
+      "source": "That page is not in this build.",
+      "text": "Cette page ne figure pas dans cette version.",
+      "status": "draft"
+    },
+    "pages.6e3da9a2a9be2af0": {
+      "source": "full text",
+      "text": "texte intégral",
+      "status": "draft"
+    },
+    "pages.4c149b191dbab4cf": {
+      "source": "the ship's own copy",
+      "text": "exemplaire du navire",
+      "status": "draft"
+    },
+    "pages.870d0f550c052952": {
+      "source": "on the ship · {v1}",
+      "text": "à bord · {v1}",
+      "status": "draft"
+    },
+    "pages.61d73e9ff0008b26": {
+      "source": "the file the picture was rendered from",
+      "text": "fichier ayant servi à produire l’image",
+      "status": "draft"
+    },
+    "pages.63d39b201b616eeb": {
+      "source": "the original · {v1}",
+      "text": "l’original · {v1}",
+      "status": "draft"
+    },
+    "pages.426efff5200235a2": {
+      "source": "at the holding institution, on the web",
+      "text": "sur le site de l’institution dépositaire",
+      "status": "draft"
+    },
+    "pages.546940feb432bb66": {
+      "source": "on the web ↗",
+      "text": "sur le Web ↗",
+      "status": "draft"
+    },
+    "pages.0e87632cd46bd490": {
+      "source": "date",
+      "text": "date",
+      "status": "draft"
+    },
+    "pages.5a452459503be70d": {
+      "source": "position",
+      "text": "position",
+      "status": "draft"
+    },
+    "pages.edb465624291e405": {
+      "source": "note",
+      "text": "note",
+      "status": "draft"
+    },
+    "pages.b8e1f80bd70ae078": {
+      "source": "event",
+      "text": "événement",
+      "status": "draft"
+    },
+    "pages.7592cb718abb8814": {
+      "source": "also written",
+      "text": "autres graphies",
+      "status": "draft"
+    },
+    "pages.fe1390825c9e7347": {
+      "source": "also called",
+      "text": "autres noms",
+      "status": "draft"
+    },
+    "pages.4c3f03bb625194b7": {
+      "source": "primary source",
+      "text": "source primaire",
+      "status": "draft"
+    },
+    "pages.130ab3f910dec4f9": {
+      "source": "secondary source",
+      "text": "source secondaire",
+      "status": "draft"
+    },
+    "pages.200d5e550cbca47d": {
+      "source": "That event is not in this build.",
+      "text": "Cet événement ne figure pas dans cette version.",
+      "status": "draft"
+    },
+    "pages.1331275bc537b4c2": {
+      "source": "Tags",
+      "text": "Mots-clés",
+      "status": "draft"
+    },
+    "pages.0e570ca6fabe24f9": {
+      "source": "Source",
+      "text": "Source",
+      "status": "draft"
+    },
+    "pages.f62c6abeb9378840": {
+      "source": "On the timeline",
+      "text": "Sur la chronologie",
+      "status": "draft"
+    },
+    "pages.9046da16aea909ba": {
+      "source": "Pages",
+      "text": "Pages",
+      "status": "draft"
+    },
+    "pages.1a7529ab14fd6195": {
+      "source": "Subjects",
+      "text": "Sujets",
+      "status": "draft"
+    },
+    "pages.caf85b0888d78f1f": {
+      "source": "Sources",
+      "text": "Sources",
+      "status": "draft"
+    },
+    "pages.e22820fcf5cd90e3": {
+      "source": "Topics",
+      "text": "Thèmes",
+      "status": "draft"
+    },
+    "pages.aea1058d135f60df": {
+      "source": "Biology",
+      "text": "Biologie",
+      "status": "draft"
+    },
+    "pages.54cda0543a402949": {
+      "source": "Geology",
+      "text": "Géologie",
+      "status": "draft"
+    },
+    "pages.f86c74e7c90e56af": {
+      "source": "Glaciology",
+      "text": "Glaciologie",
+      "status": "draft"
+    },
+    "pages.5650875646bee33e": {
+      "source": "Sea ice",
+      "text": "Glace de mer",
+      "status": "draft"
+    },
+    "pages.4e4632bbe56e64fb": {
+      "source": "Oceanography",
+      "text": "Océanographie",
+      "status": "draft"
+    },
+    "pages.7255c8f0c852b753": {
+      "source": "Hydrography",
+      "text": "Hydrographie",
+      "status": "draft"
+    },
+    "pages.547801ae4e93ff14": {
+      "source": "Meteorology",
+      "text": "Météorologie",
+      "status": "draft"
+    },
+    "pages.4eeb9335576b12a0": {
+      "source": "Astronomy",
+      "text": "Astronomie",
+      "status": "draft"
+    },
+    "pages.94a03054e2d4553d": {
+      "source": "Geomagnetism",
+      "text": "Géomagnétisme",
+      "status": "draft"
+    },
+    "pages.03e12025cca65954": {
+      "source": "Freshwater",
+      "text": "Eaux douces",
+      "status": "draft"
+    },
+    "pages.f97e9da0e3b879f0": {
+      "source": "Other",
+      "text": "Autres",
+      "status": "draft"
+    },
+    "pages.dfacd10042a687d3": {
+      "source": "the living things: mammals, birds, fish, plants, the small and the microbial",
+      "text": "le vivant : mammifères, oiseaux, poissons, plantes, petits organismes et microbes",
+      "status": "draft"
+    },
+    "pages.072a56956c6a4714": {
+      "source": "the rock, its fossils and minerals, the landforms",
+      "text": "les roches, leurs fossiles et minéraux, les formes du relief",
+      "status": "draft"
+    },
+    "pages.9842a2a9342d3ad4": {
+      "source": "the ice on land: glaciers, ice caps, ice shelves and ice islands",
+      "text": "la glace terrestre : glaciers, calottes glaciaires, plateformes de glace et îles de glace",
+      "status": "draft"
+    },
+    "pages.1f25d33066b92af4": {
+      "source": "the ice at sea, year by year, and its vocabulary",
+      "text": "la glace en mer, année après année, et son vocabulaire",
+      "status": "draft"
+    },
+    "pages.dca8f84dac93f654": {
+      "source": "the water column: soundings, temperature, salinity, currents, tides",
+      "text": "la colonne d’eau : sondages, température, salinité, courants et marées",
+      "status": "draft"
+    },
+    "pages.983a042d392d0565": {
+      "source": "the depths and the charts",
+      "text": "les profondeurs et les cartes marines",
+      "status": "draft"
+    },
+    "pages.15641d776da60df4": {
+      "source": "the weather and the climate, as the expeditions and the stations recorded them",
+      "text": "la météo et le climat, tels que consignés par les expéditions et les stations",
+      "status": "draft"
+    },
+    "pages.49febf4604a554f8": {
+      "source": "the sky: aurora, the polar night and the midnight sun, eclipses and comets",
+      "text": "le ciel : aurores, nuit polaire et soleil de minuit, éclipses et comètes",
+      "status": "draft"
+    },
+    "pages.c17608dbad847751": {
+      "source": "the field: declination, dip, the Magnetic Pole's wander, the storms",
+      "text": "le champ magnétique : déclinaison, inclinaison, déplacement du pôle magnétique et tempêtes",
+      "status": "draft"
+    },
+    "pages.73a95a4f5f81d150": {
+      "source": "the rivers and the lakes, and what lives in them",
+      "text": "les rivières et les lacs, et les organismes qui y vivent",
+      "status": "draft"
+    },
+    "pages.3a757c6d4218cbda": {
+      "source": "Taxa",
+      "text": "Taxons",
+      "status": "draft"
+    },
+    "pages.e93daa00ef5f0748": {
+      "source": "Rock units",
+      "text": "Unités géologiques",
+      "status": "draft"
+    },
+    "pages.accc2a1a15657ccc": {
+      "source": "Fossils",
+      "text": "Fossiles",
+      "status": "draft"
+    },
+    "pages.14c29f95db259c77": {
+      "source": "Minerals",
+      "text": "Minéraux",
+      "status": "draft"
+    },
+    "pages.653aa4c034f7667f": {
+      "source": "Landforms",
+      "text": "Formes du relief",
+      "status": "draft"
+    },
+    "pages.2a1a6355ed7e30b0": {
+      "source": "Ice",
+      "text": "Glace",
+      "status": "draft"
+    },
+    "pages.7ca7dea906800f87": {
+      "source": "Water",
+      "text": "Eau",
+      "status": "draft"
+    },
+    "pages.a0bba63812466406": {
+      "source": "Weather",
+      "text": "Météo",
+      "status": "draft"
+    },
+    "pages.b72804afefc37b62": {
+      "source": "Sky",
+      "text": "Ciel",
+      "status": "draft"
+    },
+    "pages.f45fc1dfdc96db27": {
+      "source": "Field",
+      "text": "Champ",
+      "status": "draft"
+    },
+    "pages.e45364b658fdec30": {
+      "source": "Phenomena",
+      "text": "Phénomènes",
+      "status": "draft"
+    },
+    "pages.e5d5b971139eefeb": {
+      "source": "ship",
+      "text": "navire",
+      "status": "draft"
+    },
+    "pages.9190eab60709df3a": {
+      "source": "Nothing observed on {v0} in the record yet.",
+      "text": "Aucune observation du {v0} dans les données pour le moment.",
+      "status": "draft"
+    },
+    "pages.2ba1eba95fdf0902": {
+      "source": "Nothing observed within {v0} km of the ship yet.",
+      "text": "Aucune observation à moins de {v0} km du navire pour le moment.",
+      "status": "draft"
+    },
+    "pages.f82e5d44ddc42e5f": {
+      "source": "Observed on this day · {v0}",
+      "text": "Observé ce jour-là · {v0}",
+      "status": "draft"
+    },
+    "pages.9d88cdb29acfce7d": {
+      "source": "Observed near the ship{v2}",
+      "text": "Observé près du navire{v2}",
+      "status": "draft"
+    },
+    "pages.b51aabf677e8fb9d": {
+      "source": "{v0} m down",
+      "text": "à {v0} m de profondeur",
+      "status": "draft"
+    },
+    "pages.328143c3c16d54dc": {
+      "source": "{v0} m up",
+      "text": "à {v0} m d’altitude",
+      "status": "draft"
+    },
+    "pages.9dfd3ad250c8ef49": {
+      "source": "{v1} observations · scroll to zoom, drag to pan, click a point for its row",
+      "text": "Observations : {v1} · molette pour zoomer, glisser pour déplacer la vue, cliquer sur un point pour voir sa ligne",
+      "status": "draft"
+    },
+    "pages.99c40ab405926cb5": {
+      "source": "Date",
+      "text": "Date",
+      "status": "draft"
+    },
+    "pages.68971283841aecdf": {
+      "source": "Subject",
+      "text": "Sujet",
+      "status": "draft"
+    },
+    "pages.d239e9cf6a51335b": {
+      "source": "Observation",
+      "text": "Observation",
+      "status": "draft"
+    },
+    "pages.1daaa38f33cd860e": {
+      "source": "Where",
+      "text": "Lieu",
+      "status": "draft"
+    },
+    "pages.f20b6db009508832": {
+      "source": "Observer",
+      "text": "Observateur",
+      "status": "draft"
+    },
+    "pages.b9256368a77e50fd": {
+      "source": "{v0} subjects · {v1} observations",
+      "text": "Sujets : {v0} · observations : {v1}",
+      "status": "draft"
+    },
+    "pages.d74ba0b0e6d85b62": {
+      "source": "Observations found",
+      "text": "Observations trouvées",
+      "status": "draft"
+    },
+    "pages.fce182ecc225a516": {
+      "source": "The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.",
+      "text": "Le volet nature ne figure pas encore dans cette version : les sujets et observations arriveront à la prochaine synchronisation après leur publication sur grid. Le journal du navire est déjà disponible.",
+      "status": "draft"
+    },
+    "pages.ced67718ea0f31eb": {
+      "source": "Domains",
+      "text": "Domaines",
+      "status": "draft"
+    },
+    "pages.ca31dbf7d5c0699c": {
+      "source": "All observations",
+      "text": "Toutes les observations",
+      "status": "draft"
+    },
+    "pages.1189d37778569eaa": {
+      "source": "Kinds of subject",
+      "text": "Types de sujets",
+      "status": "draft"
+    },
+    "pages.3297e071e7639648": {
+      "source": "Loading the record…",
+      "text": "Chargement des données…",
+      "status": "draft"
+    },
+    "pages.ed658a0ab4a7a906": {
+      "source": "Nothing in the record yet.",
+      "text": "Aucune donnée pour le moment.",
+      "status": "draft"
+    },
+    "pages.4c4e436f9a453c77": {
+      "source": "Glossary",
+      "text": "Glossaire",
+      "status": "draft"
+    },
+    "pages.c7fa887aa9c79864": {
+      "source": "Nothing of this domain in the wiki yet.",
+      "text": "Aucun élément de ce domaine dans le wiki pour le moment.",
+      "status": "draft"
+    },
+    "pages.701008902fbdae6f": {
+      "source": "No such part of the domain.",
+      "text": "Cette section du domaine n’existe pas.",
+      "status": "draft"
+    },
+    "pages.2de5247a982a1cd6": {
+      "source": "Nothing here yet.",
+      "text": "Rien ici pour le moment.",
+      "status": "draft"
+    },
+    "pages.0afdff4af32c5761": {
+      "source": "That subject is not in this build.",
+      "text": "Ce sujet ne figure pas dans cette version.",
+      "status": "draft"
+    },
+    "pages.ba118bf7fc9c1aed": {
+      "source": "English",
+      "text": "Anglais",
+      "status": "draft"
+    },
+    "pages.7458199fe97a1840": {
+      "source": "French",
+      "text": "Français",
+      "status": "draft"
+    },
+    "pages.c5f3df2e12190da5": {
+      "source": "in {v0}",
+      "text": "en {v0}",
+      "status": "draft"
+    },
+    "pages.69e4a02609393ab9": {
+      "source": " · under {v0}",
+      "text": " · sous {v0}",
+      "status": "draft"
+    },
+    "pages.a9491f4c1bf7b0cf": {
+      "source": "subject",
+      "text": "sujet",
+      "status": "draft"
+    },
+    "pages.772c6953848bf5b1": {
+      "source": "observation",
+      "text": "observation",
+      "status": "draft"
+    },
+    "pages.21b2eed1e328a2c6": {
+      "source": "images",
+      "text": "images",
+      "status": "draft"
+    },
+    "pages.1e6245009d677035": {
+      "source": "Pictures",
+      "text": "Images",
+      "status": "draft"
+    },
+    "pages.4960990121f22e16": {
+      "source": "Below it",
+      "text": "Sous-catégories",
+      "status": "draft"
+    },
+    "pages.d5ed3e44e2a2090c": {
+      "source": "and {v0} more among the",
+      "text": "et {v0} autres parmi les",
+      "status": "draft"
+    },
+    "pages.706f0fd28dff4dd7": {
+      "source": "No observations of it in the record yet.",
+      "text": "Aucune observation de ce sujet dans les données pour le moment.",
+      "status": "draft"
+    },
+    "pages.cb8448ba3d502c89": {
+      "source": "the backbone this subject resolves in",
+      "text": "référentiel dans lequel ce sujet est identifié",
+      "status": "draft"
+    },
+    "pages.7f0dfafd2c31b54d": {
+      "source": "Ship photograph",
+      "text": "Photographie du navire",
+      "status": "draft"
+    },
+    "pages.1fcebdec11222f9d": {
+      "source": "the ship",
+      "text": "le navire",
+      "status": "draft"
+    },
+    "pages.325e9f7b656e6135": {
+      "source": "That observation is not in this build.",
+      "text": "Cette observation ne figure pas dans cette version.",
+      "status": "draft"
+    },
+    "pages.9cd578a09eb38dcb": {
+      "source": "{v0} m below the surface",
+      "text": "{v0} m sous la surface",
+      "status": "draft"
+    },
+    "pages.0c214926762f6d8c": {
+      "source": "{v0} m above",
+      "text": "{v0} m au-dessus",
+      "status": "draft"
+    },
+    "pages.7de8c035259e0769": {
+      "source": "a sensitive site: the position is published coarsened and the place left blank",
+      "text": "site sensible : la position publiée est approximative et le lieu n’est pas indiqué",
+      "status": "draft"
+    },
+    "pages.2d5e8600a4fba66e": {
+      "source": "sensitive",
+      "text": "sensible",
+      "status": "draft"
+    },
+    "pages.125466b821c6448a": {
+      "source": "By",
+      "text": "Par",
+      "status": "draft"
+    },
+    "pages.03867aea70acaf4c": {
+      "source": "Evidence",
+      "text": "Documents à l’appui",
+      "status": "draft"
+    },
+    "pages.99522e3aa1235d50": {
+      "source": "Also the event",
+      "text": "Événement associé",
+      "status": "draft"
+    },
+    "pages.c76be7d10fcb8932": {
+      "source": "every observation of {v1}",
+      "text": "toutes les observations de {v1}",
+      "status": "draft"
+    },
+    "pages.cdd9848714e8c437": {
+      "source": "✓ {v0} photo{v1} saved to the share",
+      "text": "✓ Enregistrement terminé dans le dossier partagé : {v0} photo{v1}",
+      "status": "draft"
+    },
+    "pages.f053cefc9f544e4e": {
+      "source": "Import status below.",
+      "text": "État de l’importation ci-dessous.",
+      "status": "draft"
+    },
+    "pages.fd572435b2d4ec12": {
+      "source": "Not yet in the journal.",
+      "text": "Pas encore dans le journal.",
+      "status": "draft"
+    },
+    "pages.6f6cdd1488b7f202": {
+      "source": "Follow journal import",
+      "text": "Suivre l’importation dans le journal",
+      "status": "draft"
+    },
+    "pages.4df96d3a4505b128": {
+      "source": "Add your credit and licence below.",
+      "text": "Ajoutez l’attribution et la licence ci-dessous.",
+      "status": "draft"
+    },
+    "pages.88d7c52212ef2f1e": {
+      "source": "Next: add to journal ↓",
+      "text": "Suivant : ajouter au journal ↓",
+      "status": "draft"
+    },
+    "pages.d881b670fbaca077": {
+      "source": "Saved folder",
+      "text": "Dossier enregistré",
+      "status": "draft"
+    },
+    "pages.c3f695f1d7db291a": {
+      "source": "Upload more photos",
+      "text": "Téléverser d’autres photos",
+      "status": "draft"
+    },
+    "pages.2999a8e2b16d5bf1": {
+      "source": "Upload photos",
+      "text": "Téléverser des photos",
+      "status": "draft"
+    },
+    "pages.66936de3e986716c": {
+      "source": "New subfolder for each upload. Originals stay unchanged. Keep this page open and your phone awake.",
+      "text": "Un nouveau sous-dossier est créé pour chaque téléversement. Les originaux restent inchangés. Gardez cette page ouverte et votre téléphone actif.",
+      "status": "draft"
+    },
+    "pages.6cf20dab38bc6692": {
+      "source": "File limits",
+      "text": "Limites des fichiers",
+      "status": "draft"
+    },
+    "pages.46085764706995c9": {
+      "source": "JPEG, PNG or WebP · 300 photos · 64 MiB each · 2 GiB total.",
+      "text": "JPEG, PNG ou WebP · 300 photos · 64 Mio chacune · 2 Gio au total.",
+      "status": "draft"
+    },
+    "pages.0c109e62332e2b1b": {
+      "source": "Destination:",
+      "text": "Destination :",
+      "status": "draft"
+    },
+    "pages.46393f6573e4995e": {
+      "source": "→ new subfolder",
+      "text": "→ nouveau sous-dossier",
+      "status": "draft"
+    },
+    "pages.2f546e465f038b8a": {
+      "source": "Choose a folder above",
+      "text": "Choisissez un dossier ci-dessus",
+      "status": "draft"
+    },
+    "pages.14d34edf50ef6c87": {
+      "source": "Folder name",
+      "text": "Nom du dossier",
+      "status": "draft"
+    },
+    "pages.d1e87d017416983b": {
+      "source": "Phone photos",
+      "text": "Photos du téléphone",
+      "status": "draft"
+    },
+    "pages.5e3147ab51e0084c": {
+      "source": "Photos",
+      "text": "Photos",
+      "status": "draft"
+    },
+    "pages.5ce44dd77dae789f": {
+      "source": "Uploading…",
+      "text": "Téléversement…",
+      "status": "draft"
+    },
+    "pages.f665b70e7794848b": {
+      "source": "Retry Remaining Photos",
+      "text": "Réessayer les photos restantes",
+      "status": "draft"
+    },
+    "pages.65afe1537c5ddabd": {
+      "source": "Upload Selected Photos",
+      "text": "Téléverser les photos sélectionnées",
+      "status": "draft"
+    },
+    "pages.3f1a2c73953d1a3a": {
+      "source": "New selection",
+      "text": "Nouvelle sélection",
+      "status": "draft"
+    },
+    "pages.ced37498aeda0f51": {
+      "source": "Photo upload progress",
+      "text": "Progression du téléversement des photos",
+      "status": "draft"
+    },
+    "pages.75b474a2f6adf608": {
+      "source": "No photos selected.",
+      "text": "Aucune photo sélectionnée.",
+      "status": "draft"
+    },
+    "pages.2e12c729cccf7bc1": {
+      "source": "Uploading {v0}/{v1}: {v2} · {v3}% transferred",
+      "text": "Téléversement {v0}/{v1} : {v2} · {v3} % transféré",
+      "status": "draft"
+    },
+    "pages.69bb0178a84c8298": {
+      "source": "Upload failed ({v0})",
+      "text": "Échec du téléversement ({v0})",
+      "status": "draft"
+    },
+    "pages.183383d6bc23ecf9": {
+      "source": "Connection interrupted",
+      "text": "Connexion interrompue",
+      "status": "draft"
+    },
+    "pages.44678314632642d7": {
+      "source": "Choose up to 300 photos and 2 GiB per batch.",
+      "text": "Choisissez au plus 300 photos et 2 Gio par lot.",
+      "status": "draft"
+    },
+    "pages.36887b74f7a93c6f": {
+      "source": "Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.",
+      "text": "Utilisez des photos JPEG, PNG ou WebP de 64 Mio ou moins chacune. Les fichiers HEIC et les vidéos ne sont pas encore pris en charge.",
+      "status": "draft"
+    },
+    "pages.387d96a031862484": {
+      "source": "{v0} photo{v1} selected · {v2} MiB. Ready to upload.",
+      "text": "Sélection : {v0} photo{v1} · {v2} Mio. Prêt à téléverser.",
+      "status": "draft"
+    },
+    "pages.3ec2008b04aa3ec8": {
+      "source": "Preparing a new upload folder…",
+      "text": "Préparation d’un nouveau dossier de téléversement…",
+      "status": "draft"
+    },
+    "pages.4d5ccfb86e516115": {
+      "source": "Saved {v0} photo{v1} to /Share/{v2}.",
+      "text": "Enregistrement terminé : {v0} photo{v1}, dans /Share/{v2}.",
+      "status": "draft"
+    },
+    "pages.28867ed59d573718": {
+      "source": "{v0}/{v1} saved. {v2}. Keep this page open and retry; saved photos will not be uploaded again.",
+      "text": "{v0}/{v1} enregistrées. {v2}. Gardez cette page ouverte et réessayez; les photos déjà enregistrées ne seront pas téléversées de nouveau.",
+      "status": "draft"
+    },
+    "pages.d40e7693103b69eb": {
+      "source": "The ship's photographs and journal are kept aboard and are not part of the web copy.",
+      "text": "Les photographies et le journal du navire sont conservés à bord et ne font pas partie de la version Web.",
+      "status": "draft"
+    },
+    "pages.c6daff2ebeeabc38": {
+      "source": "all {v0} entries",
+      "text": "les {v0} entrées",
+      "status": "draft"
+    },
+    "pages.e0cea039e3bd9fd0": {
+      "source": "Nothing in the ship's journal yet.",
+      "text": "Le journal du navire est encore vide.",
+      "status": "draft"
+    },
+    "pages.2348f99874421257": {
+      "source": "open",
+      "text": "ouvrir",
+      "status": "draft"
+    },
+    "pages.7b0a3d74494a4f50": {
+      "source": "Add photos",
+      "text": "Ajouter des photos",
+      "status": "draft"
+    },
+    "pages.352cfc749e55222e": {
+      "source": "Gallery",
+      "text": "Galerie",
+      "status": "draft"
+    },
+    "pages.155f816c0407310c": {
+      "source": "Submit",
+      "text": "Soumettre",
+      "status": "draft"
+    },
+    "pages.282bfa6b4079b6f2": {
+      "source": "No photos yet. Choose Submit to add some.",
+      "text": "Aucune photo pour le moment. Choisissez Soumettre pour en ajouter.",
+      "status": "draft"
+    },
+    "pages.0c712d87571a34c4": {
+      "source": "Observations without a picture",
+      "text": "Observations sans image",
+      "status": "draft"
+    },
+    "pages.152f4db8f31a90d1": {
+      "source": "Camera / ship",
+      "text": "Caméra / navire",
+      "status": "draft"
+    },
+    "pages.8ff81d3b055eeb94": {
+      "source": "Ship (Eastern)",
+      "text": "Navire (heure de l’Est)",
+      "status": "draft"
+    },
+    "pages.ccd7d1e38d7fd793": {
+      "source": "With credit",
+      "text": "Avec attribution",
+      "status": "draft"
+    },
+    "pages.4099a2c228b17acc": {
+      "source": "Open access",
+      "text": "Accès libre",
+      "status": "draft"
+    },
+    "pages.79a9f4f6d201a55d": {
+      "source": "Rights reserved",
+      "text": "Droits réservés",
+      "status": "draft"
+    },
+    "pages.ebee3b57d3e9bab0": {
+      "source": "open this folder",
+      "text": "ouvrir ce dossier",
+      "status": "draft"
+    },
+    "pages.f4ca95577b56fd90": {
+      "source": "Choose a /Share destination below.",
+      "text": "Choisissez une destination dans /Share ci-dessous.",
+      "status": "draft"
+    },
+    "pages.7e8af09bf79ba0de": {
+      "source": "Choose a /Share folder to import.",
+      "text": "Choisissez un dossier de /Share à importer.",
+      "status": "draft"
+    },
+    "pages.e50876e696ee13c5": {
+      "source": "{v0} photograph{v1} · {v2} folder{v3}{v4}",
+      "text": "{v0} photographie{v1} · {v2} dossier{v3}{v4}",
+      "status": "draft"
+    },
+    "pages.1ed0b446e0b33e50": {
+      "source": "new photographs here are imported every ten minutes",
+      "text": "les nouvelles photographies de ce dossier sont importées toutes les dix minutes",
+      "status": "draft"
+    },
+    "pages.c19c477ad5130258": {
+      "source": "watched · {v0}",
+      "text": "surveillé · {v0}",
+      "status": "draft"
+    },
+    "pages.eb38ca40211a0821": {
+      "source": "Nothing here.",
+      "text": "Rien ici.",
+      "status": "draft"
+    },
+    "pages.640c2380690e2137": {
+      "source": "Reading the share…",
+      "text": "Lecture du dossier partagé…",
+      "status": "draft"
+    },
+    "pages.b4debe034df4866d": {
+      "source": "Add to journal · {v0} photo{v1}",
+      "text": "Ajouter au journal · {v0} photo{v1}",
+      "status": "draft"
+    },
+    "pages.5c71b8cd7822a418": {
+      "source": "Choose a folder",
+      "text": "Choisir un dossier",
+      "status": "draft"
+    },
+    "pages.33f5e62de396abb6": {
+      "source": " · {v0} unchanged failures skipped",
+      "text": " · échecs inchangés ignorés : {v0}",
+      "status": "draft"
+    },
+    "pages.cae7d57bc067a514": {
+      "source": "Stop",
+      "text": "Arrêter",
+      "status": "draft"
+    },
+    "pages.e6d9a8233ef32df5": {
+      "source": "Watched folders",
+      "text": "Dossiers surveillés",
+      "status": "draft"
+    },
+    "pages.cbff5a3278aa8fc3": {
+      "source": " · {v0} failed",
+      "text": " · échecs : {v0}",
+      "status": "draft"
+    },
+    "pages.20dd35463a5cd047": {
+      "source": "Imports Status",
+      "text": "État des importations",
+      "status": "draft"
+    },
+    "pages.88f9b975979fbdbf": {
+      "source": "Import from:",
+      "text": "Importer depuis :",
+      "status": "draft"
+    },
+    "pages.f9e4378d7a0820f3": {
+      "source": "Import from",
+      "text": "Importer depuis",
+      "status": "draft"
+    },
+    "pages.19cf96fc7bc1ce3a": {
+      "source": "/Share folder",
+      "text": "Dossier /Share",
+      "status": "draft"
+    },
+    "pages.d052579c6a317b1b": {
+      "source": "This device",
+      "text": "Cet appareil",
+      "status": "draft"
+    },
+    "pages.eadcedd5ec01e36d": {
+      "source": "Add to the journal",
+      "text": "Ajouter au journal",
+      "status": "draft"
+    },
+    "pages.dcd1d5223f73b3a9": {
+      "source": "Name",
+      "text": "Nom",
+      "status": "draft"
+    },
+    "pages.350be3643ce78043": {
+      "source": "Organisation",
+      "text": "Organisation",
+      "status": "draft"
+    },
+    "pages.969ccbd3cf6300ec": {
+      "source": "Email",
+      "text": "Courriel",
+      "status": "draft"
+    },
+    "pages.573850785e407d7b": {
+      "source": "Private to the ship",
+      "text": "Confidentiel à bord",
+      "status": "draft"
+    },
+    "pages.f3ec8e880a46c8a6": {
+      "source": "Licence",
+      "text": "Licence",
+      "status": "draft"
+    },
+    "pages.b9fe1464783e1c0d": {
+      "source": "Time zone",
+      "text": "Fuseau horaire",
+      "status": "draft"
+    },
+    "pages.19ace23f956719cb": {
+      "source": "Licence & time zone",
+      "text": "Licence et fuseau horaire",
+      "status": "draft"
+    },
+    "pages.92b5025fa8382d1c": {
+      "source": "Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.",
+      "text": "Le fuseau horaire s’applique lorsque la photo n’en indique aucun. Caméra / navire utilise celui de la caméra, puis l’heure du navire.",
+      "status": "draft"
+    },
+    "pages.8d9ec6044a90f019": {
+      "source": "Keep importing from this /Share folder",
+      "text": "Continuer à importer depuis ce dossier /Share",
+      "status": "draft"
+    },
+    "pages.388afb1dcec1e796": {
+      "source": "Using this credit and licence.",
+      "text": "Avec cette attribution et cette licence.",
+      "status": "draft"
+    },
+    "pages.0a26f41abd00f95e": {
+      "source": "Import failed",
+      "text": "Échec de l’importation",
+      "status": "draft"
+    },
+    "pages.2194340e961ab3bd": {
+      "source": "Import finished",
+      "text": "Importation terminée",
+      "status": "draft"
+    },
+    "pages.661ff40a07e037bb": {
+      "source": "Queued",
+      "text": "En attente",
+      "status": "draft"
+    },
+    "pages.dca3bf165aacec42": {
+      "source": "{v0}/{v1} added · {v2} skipped · {v3} failed",
+      "text": "{v0}/{v1} ajoutées · ignorées : {v2} · échecs : {v3}",
+      "status": "draft"
+    },
+    "pages.21bffccd4f5d79e6": {
+      "source": "Failed images are skipped until their contents change.",
+      "text": "Les images en échec sont ignorées tant que leur contenu ne change pas.",
+      "status": "draft"
+    },
+    "pages.a20e4b867b4749ca": {
+      "source": "{v0} unchanged failed images skipped.",
+      "text": "Images en échec inchangées ignorées : {v0}.",
+      "status": "draft"
+    },
+    "pages.0e04cd10f9afd7e5": {
+      "source": "Warnings",
+      "text": "Avertissements",
+      "status": "draft"
+    },
+    "pages.45989de49fb7f66d": {
+      "source": "Details",
+      "text": "Détails",
+      "status": "draft"
+    },
+    "pages.f26efd3574998b71": {
+      "source": "View results",
+      "text": "Voir les résultats",
+      "status": "draft"
+    },
+    "pages.a4e224f5c4bdc48f": {
+      "source": "Your import",
+      "text": "Votre importation",
+      "status": "draft"
+    },
+    "pages.d3d5b27efc6d23af": {
+      "source": "Import progress",
+      "text": "Progression de l’importation",
+      "status": "draft"
+    },
+    "pages.4975878cc8a1f73b": {
+      "source": " ({v0} already in the journal)",
+      "text": " (déjà dans le journal : {v0})",
+      "status": "draft"
+    },
+    "pages.e02f54320811fd1b": {
+      "source": "; the folder is watched",
+      "text": "; le dossier est surveillé",
+      "status": "draft"
+    },
+    "pages.298624751ccc85f9": {
+      "source": "Importing {v0} photograph{v1}{v2}{v3}",
+      "text": "Importation : {v0} photographie{v1}{v2}{v3}",
+      "status": "draft"
+    },
+    "pages.f67521d9d0048cae": {
+      "source": "Not started: {v0}",
+      "text": "Non démarrée : {v0}",
+      "status": "draft"
+    },
+    "pages.ac8af0eab24ec35a": {
+      "source": " · {v0} skipped",
+      "text": " · ignorées : {v0}",
+      "status": "draft"
+    },
+    "pages.a20d1e00196bf7a8": {
+      "source": "{v0}/{v1} added{v2}{v3}",
+      "text": "{v0}/{v1} ajoutées{v2}{v3}",
+      "status": "draft"
+    },
+    "pages.2cff9baabf56ca00": {
+      "source": "Import",
+      "text": "Importation",
+      "status": "draft"
+    },
+    "pages.aec02cbd799774af": {
+      "source": "No such import.",
+      "text": "Cette importation n’existe pas.",
+      "status": "draft"
+    },
+    "pages.855421f02843acdb": {
+      "source": "{v0}'s photographs{v1}",
+      "text": "Photographies de {v0}{v1}",
+      "status": "draft"
+    },
+    "pages.14fce21c65897e07": {
+      "source": " · imported by the watch on this folder",
+      "text": " · importées par la surveillance de ce dossier",
+      "status": "draft"
+    },
+    "pages.4da69789232ebb31": {
+      "source": " · {v0} already in the journal, passed over",
+      "text": " · déjà dans le journal et ignorées : {v0}",
+      "status": "draft"
+    },
+    "pages.b958ce8b871ab36b": {
+      "source": "Temperature",
+      "text": "Température",
+      "status": "draft"
+    },
+    "pages.b9517046d8b64220": {
+      "source": "Salinity",
+      "text": "Salinité",
+      "status": "draft"
+    },
+    "pages.943077f0507ddf71": {
+      "source": "Oxygen",
+      "text": "Oxygène",
+      "status": "draft"
+    },
+    "pages.3eb40bdff9eccb86": {
+      "source": "Oxygen saturation",
+      "text": "Saturation en oxygène",
+      "status": "draft"
+    },
+    "pages.c76e27598822c367": {
+      "source": "Fluorescence",
+      "text": "Fluorescence",
+      "status": "draft"
+    },
+    "pages.3e10134259ab3285": {
+      "source": "Transmission",
+      "text": "Transmission",
+      "status": "draft"
+    },
+    "pages.2bec0153da8f8918": {
+      "source": "Buoyancy frequency",
+      "text": "Fréquence de flottabilité",
+      "status": "draft"
+    },
+    "pages.5d1670193536d43f": {
+      "source": "Sound velocity",
+      "text": "Vitesse du son",
+      "status": "draft"
+    },
+    "pages.062f3d6dcebb394b": {
+      "source": "depth (m)",
+      "text": "profondeur (m)",
+      "status": "draft"
+    },
+    "pages.b929855f23c3c9af": {
+      "source": "pressure (dbar)",
+      "text": "pression (dbar)",
+      "status": "draft"
+    },
+    "pages.4cb4ea25583c2564": {
+      "source": "year",
+      "text": "année",
+      "status": "draft"
+    },
+    "pages.b89edc48066641a6": {
+      "source": "Temperature (°C)",
+      "text": "Température (°C)",
+      "status": "draft"
+    },
+    "pages.e72014bef788bed9": {
+      "source": "Temperature 2 (°C)",
+      "text": "Température 2 (°C)",
+      "status": "draft"
+    },
+    "pages.e5e165ea54b51893": {
+      "source": "Salinity 2 (PSU)",
+      "text": "Salinité 2 (PSU)",
+      "status": "draft"
+    },
+    "pages.da8187d488c1966a": {
+      "source": "Oxygen (µM)",
+      "text": "Oxygène (µM)",
+      "status": "draft"
+    },
+    "pages.c60d3aa541eb71eb": {
+      "source": "Transmission (%)",
+      "text": "Transmission (%)",
+      "status": "draft"
+    },
+    "pages.ed5eb9a37e2d8231": {
+      "source": "now",
+      "text": "en cours",
+      "status": "draft"
+    },
+    "pages.a4c3ed04a95a3da1": {
+      "source": "done",
+      "text": "terminée",
+      "status": "draft"
+    },
+    "pages.f12fde684b2ed4c6": {
+      "source": "canceled",
+      "text": "annulée",
+      "status": "draft"
+    },
+    "pages.4a754148b88a68e1": {
+      "source": "soon",
+      "text": "bientôt",
+      "status": "draft"
+    },
+    "pages.1d9283d848ea941a": {
+      "source": "later",
+      "text": "à venir",
+      "status": "draft"
+    },
+    "pages.c48bdea7d72e8b87": {
+      "source": "was scheduled",
+      "text": "anciennement prévue",
+      "status": "draft"
+    },
+    "pages.6aef76c6cb359f6f": {
+      "source": "scheduled",
+      "text": "prévue",
+      "status": "draft"
+    },
+    "pages.27873558b00fcb84": {
+      "source": "undated",
+      "text": "sans date",
+      "status": "draft"
+    },
+    "pages.3cb30133ed1b1fe6": {
+      "source": "changes to the schedule",
+      "text": "les modifications à l’horaire",
+      "status": "draft"
+    },
+    "pages.8fde4d9f78c0ecce": {
+      "source": "this operation",
+      "text": "cette opération",
+      "status": "draft"
+    },
+    "pages.c4aa4acda87aa4a5": {
+      "source": "every transit",
+      "text": "chaque transit",
+      "status": "draft"
+    },
+    "pages.923037ebcf5db471": {
+      "source": "every {v0}",
+      "text": "chaque {v0}",
+      "status": "draft"
+    },
+    "pages.1df151056c8c592d": {
+      "source": "Hide {count} finished",
+      "text": "Masquer les opérations terminées ({count})",
+      "status": "draft"
+    },
+    "pages.40458bfe83b031b7": {
+      "source": "Show {count} finished",
+      "text": "Afficher les opérations terminées ({count})",
+      "status": "draft"
+    },
+    "pages.fc80b6fe040ec37c": {
+      "source": "Hide {count} formerly scheduled",
+      "text": "Masquer les opérations anciennement prévues ({count})",
+      "status": "draft"
+    },
+    "pages.be4bd4d451cbc7c6": {
+      "source": "Show {count} formerly scheduled",
+      "text": "Afficher les opérations anciennement prévues ({count})",
+      "status": "draft"
+    },
+    "pages.9d131a2c668765f8": {
+      "source": "show {station} on the map",
+      "text": "afficher {station} sur la carte",
+      "status": "draft"
+    },
+    "pages.bb7bdd421882faae": {
+      "source": "open cast {cast} on the Casts tab",
+      "text": "ouvrir le profil {cast} dans l’onglet Profils",
+      "status": "draft"
+    },
+    "pages.38cca6bea010af8a": {
+      "source": "OFF",
+      "text": "ARRÊT",
+      "status": "draft"
+    },
+    "pages.35e0d0360a0af6d1": {
+      "source": "LIVE",
+      "text": "EN DIRECT",
+      "status": "draft"
+    },
+    "pages.1f914c4386c0676e": {
+      "source": "CONNECTED",
+      "text": "CONNECTÉ",
+      "status": "draft"
+    },
+    "pages.0844247b432912ea": {
+      "source": "PORT OPEN",
+      "text": "PORT OUVERT",
+      "status": "draft"
+    },
+    "pages.9976c76f151ed9cb": {
+      "source": "PROBING",
+      "text": "RECHERCHE",
+      "status": "draft"
+    },
+    "pages.5c3ce8d496e2626b": {
+      "source": "OFFLINE",
+      "text": "HORS LIGNE",
+      "status": "draft"
+    },
+    "pages.e77b141e2388d56c": {
+      "source": "holding",
+      "text": "stable",
+      "status": "draft"
+    },
+    "pages.8e2c7ac508139a02": {
+      "source": "offline",
+      "text": "hors ligne",
+      "status": "draft"
+    },
+    "pages.bdd51a4f2a7836d9": {
+      "source": "{names}: looking it up…",
+      "text": "{names} : recherche en cours…",
+      "status": "draft"
+    },
+    "pages.d7dbbada1efae15b": {
+      "source": "{names}: typing…",
+      "text": "{names} : rédaction en cours…",
+      "status": "draft"
+    },
+    "pages.ebf44d5d8d142770": {
+      "source": "dip {v4}",
+      "text": "plongée {v4}",
+      "status": "draft"
+    },
+    "pages.ad03eb5e16bba9a9": {
+      "source": "no answer",
+      "text": "aucune réponse",
+      "status": "draft"
+    },
+    "pages.05a126f95630959f": {
+      "source": " m now",
+      "text": " m actuellement",
+      "status": "draft"
+    },
+    "pages.6f8f5f94a7c5b0b5": {
+      "source": " · started ",
+      "text": " · début : ",
+      "status": "draft"
+    },
+    "pages.5ff56800f7898c03": {
+      "source": "A section needs at least two profiles with {v0} — {v1} selected.",
+      "text": "Une coupe nécessite au moins deux profils avec {v0} — profils sélectionnés : {v1}.",
+      "status": "draft"
+    },
+    "pages.a12af7a862beae85": {
+      "source": "Transect name (shared with everyone on the ship)",
+      "text": "Nom du transect (partagé avec tout le monde à bord)",
+      "status": "draft"
+    },
+    "pages.3c1091f0d39e5e69": {
+      "source": "Transect {v0}",
+      "text": "Transect {v0}",
+      "status": "draft"
+    },
+    "pages.4601ca97bc8099ca": {
+      "source": "This browser could not save the transect. Check available storage and try again.",
+      "text": "Ce navigateur n’a pas pu enregistrer le transect. Vérifiez l’espace disponible et réessayez.",
+      "status": "draft"
+    },
+    "pages.dde8fbebbc93ceb6": {
+      "source": "distance along the custom order (km)",
+      "text": "distance selon l’ordre personnalisé (km)",
+      "status": "draft"
+    },
+    "pages.89a97309c8f1dde7": {
+      "source": "distance along the stations A–Z (km)",
+      "text": "distance selon les stations A–Z (km)",
+      "status": "draft"
+    },
+    "pages.f65419496aa9e119": {
+      "source": "distance along section (km)",
+      "text": "distance le long de la coupe (km)",
+      "status": "draft"
+    },
+    "pages.2b70854526b7a869": {
+      "source": "🖥 stop showing",
+      "text": "🖥 ne plus afficher",
+      "status": "draft"
+    },
+    "pages.a4b898101968a83f": {
+      "source": "🖥 show",
+      "text": "🖥 afficher",
+      "status": "draft"
+    },
+    "pages.6150f7fe79c4deef": {
+      "source": "{v0} in this browser's header bar",
+      "text": "{v0} dans la barre d’en-tête de ce navigateur",
+      "status": "draft"
+    },
+    "pages.48b2ed9682896933": {
+      "source": "✉ stop emailing",
+      "text": "✉ ne plus envoyer de courriels à",
+      "status": "draft"
+    },
+    "pages.947a239ce828c1a1": {
+      "source": "✉ email",
+      "text": "✉ envoyer un courriel à",
+      "status": "draft"
+    },
+    "pages.09f05ffbbc0a6b04": {
+      "source": " (whatever the destination)",
+      "text": " (quelle que soit la destination)",
+      "status": "draft"
+    },
+    "pages.115aea7bfa2185c7": {
+      "source": " at any station",
+      "text": " à n’importe quelle station",
+      "status": "draft"
+    },
+    "pages.0fcab6e49f7b0e12": {
+      "source": ", for {v0}{v1}",
+      "text": ", pour {v0}{v1}",
+      "status": "draft"
+    },
+    "pages.13183d47884423b3": {
+      "source": " to this operation",
+      "text": " à cette opération",
+      "status": "draft"
+    },
+    "pages.ed763ac7a693c701": {
+      "source": "15 min heads-up and every change{v0}",
+      "text": "préavis de 15 min et chaque modification{v0}",
+      "status": "draft"
+    },
+    "pages.909cef7017a9aeed": {
+      "source": "Telegram: message",
+      "text": "Telegram : écrivez à",
+      "status": "draft"
+    },
+    "pages.6afd7d06ff48ae82": {
+      "source": "with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.",
+      "text": "avec /start, puis /only CardS-3 ou /lead 60 pour personnaliser les avis, ou /changes pour recevoir seulement les modifications à l’horaire.",
+      "status": "draft"
+    },
+    "pages.10c4e1cbfd08e46b": {
+      "source": "CTD Rosette",
+      "text": "Rosette CTD",
+      "status": "draft"
+    },
+    "pages.a3b0e9926d07b2eb": {
+      "source": "TM Rosette",
+      "text": "Rosette TM",
+      "status": "draft"
+    },
+    "pages.694050382b6961b9": {
+      "source": "Box Core",
+      "text": "Carottier-boîte",
+      "status": "draft"
+    },
+    "pages.8af13d3a800670e9": {
+      "source": "Gravity Core",
+      "text": "Carottier à gravité",
+      "status": "draft"
+    },
+    "pages.4275e3786215385b": {
+      "source": "Multicorer",
+      "text": "Multicarottier",
+      "status": "draft"
+    },
+    "pages.db01be4b3343ff62": {
+      "source": "Piston Core",
+      "text": "Carottier à piston",
+      "status": "draft"
+    },
+    "pages.1a84458321d6a387": {
+      "source": "Baited Cam",
+      "text": "Caméra appâtée",
+      "status": "draft"
+    },
+    "pages.24b309ef05a800b9": {
+      "source": "Drop Camera",
+      "text": "Caméra descendue",
+      "status": "draft"
+    },
+    "pages.f8a9e5642d494b00": {
+      "source": "Tucker Net",
+      "text": "Filet Tucker",
+      "status": "draft"
+    },
+    "pages.6144cdc4cbc52ef1": {
+      "source": "Monster Net",
+      "text": "Filet Monster",
+      "status": "draft"
+    },
+    "pages.f7d5c55c6d3b2b59": {
+      "source": "Snow Catcher",
+      "text": "Piège à neige marine",
+      "status": "draft"
+    },
+    "pages.a7bcf53bf6b49f82": {
+      "source": "Agassiz Trawl",
+      "text": "Chalut Agassiz",
+      "status": "draft"
+    },
+    "pages.85b93fb74f25c215": {
+      "source": "Plankton Net",
+      "text": "Filet à plancton",
+      "status": "draft"
+    },
+    "pages.d04736cd97fa7bf6": {
+      "source": "In-situ Pumps",
+      "text": "Pompes in situ",
+      "status": "draft"
+    },
+    "pages.2fa21517ba5fd27b": {
+      "source": "Barge",
+      "text": "Barge",
+      "status": "draft"
+    },
+    "pages.0fa9e71f0805ddfb": {
+      "source": "Helicopter",
+      "text": "Hélicoptère",
+      "status": "draft"
+    },
+    "pages.4758a9bf0c2b3fcf": {
+      "source": "Mooring",
+      "text": "Mouillage",
+      "status": "draft"
+    },
+    "pages.7c62dde8e91db1cf": {
+      "source": "Lander",
+      "text": "Plateforme benthique",
+      "status": "draft"
+    },
+    "pages.1ff9a5f8b4bd530e": {
+      "source": "Mapping",
+      "text": "Cartographie",
+      "status": "draft"
+    },
+    "pages.d5386bd82e57020a": {
+      "source": "Crew Change",
+      "text": "Relève d’équipage",
+      "status": "draft"
+    },
+    "pages.fee60d38cb840402": {
+      "source": "Community Visit",
+      "text": "Visite communautaire",
+      "status": "draft"
+    },
+    "pages.525f2f103bb29c7e": {
+      "source": "Ice Station",
+      "text": "Station sur glace",
+      "status": "draft"
+    },
+    "pages.f71081fb0af48ae6": {
+      "source": "Break",
+      "text": "Pause",
+      "status": "draft"
+    },
+    "pages.25b165146228c719": {
+      "source": "{v0} found",
+      "text": "Résultats : {v0}",
+      "status": "draft"
+    },
+    "pages.281c7066818e5645": {
+      "source": "the human past, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another",
+      "text": "le passé humain, des Tuniit aux navires du siècle dernier : voyages tracés sur la carte, hivernages et immobilisations dans les glaces sur la chronologie, personnes et lieux dans des pages reliées entre elles",
+      "status": "draft"
+    },
+    "pages.6b2923e0d3ac1560": {
+      "source": "what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal",
+      "text": "l’archipel et ses phénomènes : roches, glace, eau, ciel, météo, champ magnétique et êtres vivants, d’après les sources, avec le journal du navire",
+      "status": "draft"
+    },
+    "pages.0e76960093379060": {
+      "source": "History",
+      "text": "Histoire",
+      "status": "draft"
+    },
+    "pages.c71ce8ccf3b44932": {
+      "source": "Nature",
+      "text": "Nature",
+      "status": "draft"
+    },
+    "pages.1201f1849a1bb81e": {
+      "source": "event{v1}{v2}{v3}",
+      "text": "événement{v1}{v2}{v3}",
+      "status": "draft"
+    },
+    "pages.66c475876c2bb759": {
+      "source": "event · {v1}{v2}{v3}",
+      "text": "événement · {v1}{v2}{v3}",
+      "status": "draft"
+    },
+    "pages.462fc526de8ab1c3": {
+      "source": "and {v0} more",
+      "text": "et {v0} autres",
+      "status": "draft"
+    },
+    "pages.fb9d60f69a60736c": {
+      "source": "Mentioned in",
+      "text": "Mentionné dans",
+      "status": "draft"
+    },
+    "pages.70b49dd024b048a1": {
+      "source": "no topic",
+      "text": "aucun thème",
+      "status": "draft"
+    },
+    "pages.30e950fb0aeb06fc": {
+      "source": "Nothing of this kind in that collection.",
+      "text": "Aucun élément de ce type dans cette collection.",
+      "status": "draft"
+    },
+    "pages.fd22ac67438ab38f": {
+      "source": " · the routes from north to south, by where each began",
+      "text": " · les routes du nord au sud, selon leur point de départ",
+      "status": "draft"
+    },
+    "pages.e9da50bc16479c66": {
+      "source": "the topic's page",
+      "text": "page du thème",
+      "status": "draft"
+    },
+    "pages.246c9aa43eb5384e": {
+      "source": "{v0} collections, one a topic. Open one for its {v1}.",
+      "text": "Collections : {v0}, une par thème. Ouvrez-en une pour voir ses {v1}.",
+      "status": "draft"
+    },
+    "pages.6b4ca2530b1a7e95": {
+      "source": "{v0} dates · {v1} spans · from {v2}; scroll to zoom, drag to pan, click a point for its row",
+      "text": "Dates : {v0} · périodes : {v1} · depuis {v2}; molette pour zoomer, glisser pour déplacer la vue, cliquer sur un point pour voir sa ligne",
+      "status": "draft"
+    },
+    "pages.f8cf83a76a98df2d": {
+      "source": "What",
+      "text": "Description",
+      "status": "draft"
+    },
+    "pages.7e61847d61d65d9e": {
+      "source": "Topic",
+      "text": "Thème",
+      "status": "draft"
+    },
+    "pages.bed45cabd8e2a30e": {
+      "source": "This spot",
+      "text": "Cet endroit",
+      "status": "draft"
+    },
+    "pages.763a1a9880efcdbb": {
+      "source": "{v0} things on the map share this spot. Pick one.",
+      "text": "Éléments de la carte à cet endroit : {v0}. Choisissez-en un.",
+      "status": "draft"
+    },
+    "pages.71843f6b5b4296b7": {
+      "source": "narrative pages",
+      "text": "récits",
+      "status": "draft"
+    },
+    "pages.22e919dd71885a5b": {
+      "source": "works cited",
+      "text": "ouvrages cités",
+      "status": "draft"
+    },
+    "pages.170062ed40915d72": {
+      "source": "people named",
+      "text": "personnes nommées",
+      "status": "draft"
+    },
+    "pages.0f50505ce224077f": {
+      "source": "artifacts",
+      "text": "documents et objets",
+      "status": "draft"
+    },
+    "pages.a971f5ed9bbf6db8": {
+      "source": "; {v0} pages are still drafts",
+      "text": "; pages encore à l’état d’ébauche : {v0}",
+      "status": "draft"
+    },
+    "pages.9eeead76de41e46b": {
+      "source": "; {v0} questions answered by a person",
+      "text": "; questions auxquelles une personne a répondu : {v0}",
+      "status": "draft"
+    },
+    "pages.944eae254aeae6c5": {
+      "source": "Counted {v0}{v1}{v2}.",
+      "text": "Décompte du {v0}{v1}{v2}.",
+      "status": "draft"
+    },
+    "pages.122ac99e8677a8ae": {
+      "source": "The figures are counted when the history is next published.",
+      "text": "Les chiffres seront calculés à la prochaine publication de l’histoire.",
+      "status": "draft"
+    },
+    "pages.60ae4bd5abd3bd13": {
+      "source": "The record, in numbers",
+      "text": "Les données en chiffres",
+      "status": "draft"
+    },
+    "pages.9040f9be99523563": {
+      "source": "Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.",
+      "text": "Tout le contenu de cet onglet a été recherché et rédigé par des agents IA à partir des sources indiquées pour chaque élément, puis vérifié; le compte rendu du projet accompagne les données, mais ne figure pas encore dans cette version.",
+      "status": "draft"
+    },
+    "pages.009a8edd9a274f52": {
+      "source": "{v1} works",
+      "text": "Ouvrages : {v1}",
+      "status": "draft"
+    },
+    "pages.b321eb029090b9e5": {
+      "source": "natural record's",
+      "text": "données sur la nature",
+      "status": "draft"
+    },
+    "pages.ae906fb992e31fe3": {
+      "source": "; the {v0} are left out while its label is off",
+      "text": "; {v0} ne sont pas inclus lorsque ce volet est désactivé",
+      "status": "draft"
+    },
+    "pages.6362b3d21b11ef29": {
+      "source": "{v0} works cited by the history, {v1} by the natural record{v2}.",
+      "text": "Ouvrages cités par l’histoire : {v0}; par les données sur la nature : {v1}{v2}.",
+      "status": "draft"
+    },
+    "pages.3660315a9af3df25": {
+      "source": "page",
+      "text": "page",
+      "status": "draft"
+    },
+    "pages.03cd175b6554aff1": {
+      "source": "On the map ·",
+      "text": "Sur la carte ·",
+      "status": "draft"
+    },
+    "pages.5ef5ef0364b6939c": {
+      "source": "all",
+      "text": "tout",
+      "status": "draft"
+    },
+    "pages.140bedbf9c3f6d56": {
+      "source": "none",
+      "text": "aucun",
+      "status": "draft"
+    },
+    "pages.47e908691c1f5010": {
+      "source": "All {v0}",
+      "text": "Tout : {v0}",
+      "status": "draft"
+    },
+    "pages.2c41a2181609b1a1": {
+      "source": "back to the map",
+      "text": "retour à la carte",
+      "status": "draft"
+    },
+    "pages.46624cb945249939": {
+      "source": "back to the view before",
+      "text": "retour à la vue précédente",
+      "status": "draft"
+    },
+    "pages.7aa72a235586990d": {
+      "source": "every observation of {v3}",
+      "text": "toutes les observations de {v3}",
+      "status": "draft"
+    },
+    "pages.1174bbc154b18b75": {
+      "source": "· {v2} · {v3} added{v4}",
+      "text": "· {v2} · ajoutées : {v3}{v4}",
+      "status": "draft"
+    },
+    "pages.1e95c3df798b1771": {
+      "source": "{v11}click photo for fullscreen",
+      "text": "{v11}cliquer sur la photo pour l’afficher en plein écran",
+      "status": "draft"
+    },
+    "pages.355801a28de02d98": {
+      "source": "Camera · Texture (PC1)",
+      "text": "Caméra · texture (PC1)",
+      "status": "draft"
+    },
+    "pages.ae7e8457b92d22a1": {
+      "source": "Camera · Brightness (PC2)",
+      "text": "Caméra · luminosité (PC2)",
+      "status": "draft"
+    },
+    "pages.9cb84ab470f4d318": {
+      "source": "Camera · Colorfulness (PC3)",
+      "text": "Caméra · intensité des couleurs (PC3)",
+      "status": "draft"
+    },
+    "pages.69b5c442dbf98bee": {
+      "source": "Camera · Patchiness (PC4)",
+      "text": "Caméra · hétérogénéité (PC4)",
+      "status": "draft"
+    },
+    "pages.a4fa51e13388f6a2": {
+      "source": "Camera · mean RGB",
+      "text": "Caméra · RVB moyen",
+      "status": "draft"
+    },
+    "pages.e28411a3404d21f9": {
+      "source": "Texture",
+      "text": "Texture",
+      "status": "draft"
+    },
+    "pages.ec811d30a89ce96d": {
+      "source": "Brightness",
+      "text": "Luminosité",
+      "status": "draft"
+    },
+    "pages.69dbf100b46a548c": {
+      "source": "Colorfulness",
+      "text": "Intensité des couleurs",
+      "status": "draft"
+    },
+    "pages.8b218f6aa2a8fa66": {
+      "source": "Patchiness",
+      "text": "Hétérogénéité",
+      "status": "draft"
+    },
+    "pages.dcd33cf5d38eeaae": {
+      "source": "Texture, Brightness, Colorfulness, Patchiness are provisional interpretations of PC1–4, not ice concentration.",
+      "text": "Texture, luminosité, intensité des couleurs et hétérogénéité sont des interprétations provisoires des composantes PC1–4, pas des concentrations de glace.",
+      "status": "draft"
+    },
+    "pages.fc3cd8012131af0e": {
+      "source": "Mean RGB (0–255)",
+      "text": "RVB moyen (0–255)",
+      "status": "draft"
+    },
+    "pages.d0ebd0e0e70f967c": {
+      "source": "Keeping last good camera data",
+      "text": "Conservation des dernières données de caméra valides",
+      "status": "draft"
+    },
+    "pages.a6d6ce3d5aba07c2": {
+      "source": "Camera track unavailable",
+      "text": "Trajet de caméra indisponible",
+      "status": "draft"
+    },
+    "pages.2031be00edf5f5d8": {
+      "source": "Camera · ice type",
+      "text": "Caméra · type de glace",
+      "status": "draft"
+    },
+    "pages.cffe53b675508c2d": {
+      "source": "Camera · concentration",
+      "text": "Caméra · concentration",
+      "status": "draft"
+    },
+    "pages.4f302ec94335124c": {
+      "source": "Camera · ice composition",
+      "text": "Caméra · composition de la glace",
+      "status": "draft"
+    },
+    "pages.36cb81396286c63c": {
+      "source": "Camera · ice fingerprints",
+      "text": "Caméra · signatures de glace",
+      "status": "draft"
+    },
+    "pages.dc5414e0bf56f5c6": {
+      "source": "Camera · ROI",
+      "text": "Caméra · région d’intérêt",
+      "status": "draft"
+    },
+    "pages.0dc3965ee405ed5a": {
+      "source": "Camera · slices",
+      "text": "Caméra · bandes",
+      "status": "draft"
+    },
+    "pages.674fc4afa9e75877": {
+      "source": "Camera · ice concentration",
+      "text": "Caméra · concentration de glace",
+      "status": "draft"
+    },
+    "pages.73a78f135698be34": {
+      "source": "Camera · slice mean RGB",
+      "text": "Caméra · RVB moyen des bandes",
+      "status": "draft"
+    },
+    "pages.d969baa927520fc6": {
+      "source": "Ice composition",
+      "text": "Composition de la glace",
+      "status": "draft"
+    },
+    "pages.60f55cbfdbdc61d3": {
+      "source": "Surface types",
+      "text": "Types de surface",
+      "status": "draft"
+    },
+    "pages.389bd9a6782fe030": {
+      "source": "grease ice",
+      "text": "sorbet",
+      "status": "draft"
+    },
+    "pages.789e8de747b02a7b": {
+      "source": "nilas",
+      "text": "nilas",
+      "status": "draft"
+    },
+    "pages.39e36c36e2bfc590": {
+      "source": "thin ice floe",
+      "text": "floe mince",
+      "status": "draft"
+    },
+    "pages.32f3b45fdf19ffc4": {
+      "source": "icy bits",
+      "text": "fragments de glace",
+      "status": "draft"
+    },
+    "pages.441d39221a44cb6d": {
+      "source": "brash ice",
+      "text": "sarrasins",
+      "status": "draft"
+    },
+    "pages.8ed17198774cfa83": {
+      "source": "thick ice floe",
+      "text": "floe épais",
+      "status": "draft"
+    },
+    "pages.f4197b25d1dd1811": {
+      "source": "whitecaps",
+      "text": "moutons",
+      "status": "draft"
+    },
+    "pages.c85dc98747c8a8ea": {
+      "source": "small waves",
+      "text": "petites vagues",
+      "status": "draft"
+    },
+    "pages.2b4b2eadf7b2aece": {
+      "source": "calm",
+      "text": "calme",
+      "status": "draft"
+    },
+    "pages.38e3607df174e5f3": {
+      "source": "grease",
+      "text": "sorbet",
+      "status": "draft"
+    },
+    "pages.e5e59d10f196504b": {
+      "source": "bits",
+      "text": "fragments",
+      "status": "draft"
+    },
+    "pages.04352507fd1cc41b": {
+      "source": "brash",
+      "text": "sarrasins",
+      "status": "draft"
+    },
+    "pages.1a0dc227b5aa78f8": {
+      "source": "thin",
+      "text": "mince",
+      "status": "draft"
+    },
+    "pages.7b1291e7ed8a6f3e": {
+      "source": "thick",
+      "text": "épaisse",
+      "status": "draft"
+    },
+    "pages.0f4168490e38b844": {
+      "source": "water",
+      "text": "eau",
+      "status": "draft"
+    },
+    "pages.cf35b1a611636def": {
+      "source": "new ice",
+      "text": "nouvelle glace",
+      "status": "draft"
+    },
+    "pages.1aa41eb37828e832": {
+      "source": "broken ice",
+      "text": "glace fragmentée",
+      "status": "draft"
+    },
+    "pages.8968c716fb239760": {
+      "source": "ice floe",
+      "text": "floe",
+      "status": "draft"
+    },
+    "pages.ae0f63e1d1e490ed": {
+      "source": "ice type",
+      "text": "type de glace",
+      "status": "draft"
+    },
+    "pages.a5119a3101d7daef": {
+      "source": "1 h centered mean",
+      "text": "moyenne centrée sur 1 h",
+      "status": "draft"
+    },
+    "pages.95538be430df3ed6": {
+      "source": "Total ice",
+      "text": "Glace totale",
+      "status": "draft"
+    },
+    "pages.7c3f78c0fe8cf198": {
+      "source": "distance along track (km)",
+      "text": "distance le long du trajet (km)",
+      "status": "draft"
+    },
+    "pages.277aafc886922dcd": {
+      "source": "Ice camera",
+      "text": "Caméra de glace",
+      "status": "draft"
+    },
+    "pages.02fe1d590ee931da": {
+      "source": "{v0}/{v1} pending",
+      "text": "{v0}/{v1} en attente",
+      "status": "draft"
+    },
+    "pages.fd0dd42cc4b9bac3": {
+      "source": "Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.",
+      "text": "Estimations expérimentales par caméra. Eau de mer filtrée = 0 %; les données en attente sont inconnues. Cliquez pour voir la région d’intérêt.",
+      "status": "draft"
+    },
+    "pages.c648253f20e04217": {
+      "source": "Camera unavailable; keeping previous results",
+      "text": "Caméra indisponible; conservation des résultats précédents",
+      "status": "draft"
+    },
+    "pages.3f996df8de74b85b": {
+      "source": "{v0}AI crew{v1}, answer when mentioned:",
+      "text": "{v0}Équipage IA{v1}, répond aux mentions :",
+      "status": "draft"
+    },
+    "pages.36d67c4fc158725e": {
+      "source": "Ship intranet:",
+      "text": "Intranet du navire :",
+      "status": "draft"
+    },
+    "pages.1598c481fdf5fae1": {
+      "source": "calendars:",
+      "text": "calendriers :",
+      "status": "draft"
+    },
+    "pages.a0a44ed8cfc32b7e": {
+      "source": "everything",
+      "text": "tout",
+      "status": "draft"
+    },
+    "pages.0f82aca66af91493": {
+      "source": "length",
+      "text": "longueur",
+      "status": "draft"
+    },
+    "pages.dec0f004eaa07c2a": {
+      "source": "width",
+      "text": "largeur",
+      "status": "draft"
+    },
+    "pages.39e0f5efdc39ec10": {
+      "source": "height",
+      "text": "hauteur",
+      "status": "draft"
+    },
+    "pages.ff0139d07c592e9a": {
+      "source": "confidence",
+      "text": "confiance",
+      "status": "draft"
+    },
+    "pages.181fdd46fc4a7246": {
+      "source": "origin",
+      "text": "origine",
+      "status": "draft"
+    },
+    "pages.41cf6794ba4200b8": {
+      "source": "source",
+      "text": "source",
+      "status": "draft"
+    },
+    "pages.5b7e6bf2dc4a32a6": {
+      "source": "method",
+      "text": "méthode",
+      "status": "draft"
+    },
+    "pages.cd42404d52ad55cc": {
+      "source": "value",
+      "text": "valeur",
+      "status": "draft"
+    },
+    "pages.385cfdbc00ec3203": {
+      "source": "unit",
+      "text": "unité",
+      "status": "draft"
+    },
+    "pages.e41f1d834710df8c": {
+      "source": "observer",
+      "text": "observateur",
+      "status": "draft"
+    },
+    "pages.8178ac72b28d77fc": {
+      "source": "licence",
+      "text": "licence",
+      "status": "draft"
+    },
+    "pages.38f0bf30197b182f": {
+      "source": "CCGS Amundsen · live · {v0} {v1} · heading {v2}{v3}",
+      "text": "NGCC Amundsen · en direct · {v0} {v1} · cap {v2}{v3}",
+      "status": "draft"
+    },
+    "pages.b9535ce95cb158b0": {
+      "source": "CCGS Amundsen · latest · {v0} {v1} · heading {v2}",
+      "text": "NGCC Amundsen · dernières données · {v0} {v1} · cap {v2}",
+      "status": "draft"
+    },
+    "pages.e5eae2271d99a903": {
+      "source": "no route",
+      "text": "aucun itinéraire",
+      "status": "draft"
+    },
+    "pages.a0daef01ab98f9cb": {
+      "source": "not available",
+      "text": "indisponible",
+      "status": "draft"
+    },
+    "pages.70d1108086ae0c39": {
+      "source": "click the mark to remove it",
+      "text": "cliquer sur le repère pour le retirer",
+      "status": "draft"
+    },
+    "pages.0b4cf4c5aadae0a6": {
+      "source": "no nearby photo",
+      "text": "aucune photo à proximité",
+      "status": "draft"
+    },
+    "pages.3194ed03862a55fd": {
+      "source": "track readings",
+      "text": "mesures du trajet",
+      "status": "draft"
+    },
+    "pages.670803ab46a99495": {
+      "source": "Amundsen schedule",
+      "text": "Horaire de l’Amundsen",
+      "status": "draft"
+    },
+    "pages.a12151313ac5e31a": {
+      "source": "Page error: {v0} ({v1}:{v2})",
+      "text": "Erreur de la page : {v0} ({v1}:{v2})",
+      "status": "draft"
+    },
+    "pages.ee0e0c08095f7418": {
+      "source": "Page error: {v0}",
+      "text": "Erreur de la page : {v0}",
+      "status": "draft"
+    },
+    "pages.0685824f630ccc8f": {
+      "source": "{v0} events",
+      "text": "{v0} événements",
+      "status": "draft"
+    },
+    "pages.dc79a80410c9d9c9": {
+      "source": "Cast {v0}",
+      "text": "Profil {v0}",
+      "status": "draft"
+    },
+    "pages.fcf7ed654535baea": {
+      "source": "ship time ({zone})",
+      "text": "heure du navire ({zone})",
+      "status": "draft"
+    },
+    "pages.436d201fdbc72ab9": {
+      "source": "Aboard the ship",
+      "text": "À bord du navire",
+      "status": "draft"
+    },
+    "pages.7fa67f0e7001ab10": {
+      "source": "Ask Ada answers from these pages with a local model on the ship: it cites the pages it was given and is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner; flags go to the layer's author.",
+      "text": "Demandez à Ada répond à partir de ces pages au moyen d’un modèle local à bord : il cite les pages qui lui ont été fournies et ne constitue pas lui-même une source. Tout élément qui semble erroné peut être signalé à l’aide du petit drapeau dans le coin de sa fiche; les signalements sont transmis à l’auteur du volet.",
+      "status": "draft"
+    },
+    "pages.485150da6a173a27": {
+      "source": "Current flags: {count}.",
+      "text": "Signalements actuels : {count}.",
+      "status": "draft"
+    },
+    "pages.d7cfab3c32d024a0": {
+      "source": "Waypoint",
+      "text": "Repère",
+      "status": "draft"
+    },
+    "pages.0578b438af18675f": {
+      "source": "from the ship: {distance} by air",
+      "text": "depuis le navire : {distance} à vol d’oiseau",
+      "status": "draft"
+    },
+    "pages.497f6e6d2e54b567": {
+      "source": "by sea: working it out…",
+      "text": "par mer : calcul en cours…",
+      "status": "draft"
+    },
+    "pages.a86329cc29043c6f": {
+      "source": "{distance} by sea",
+      "text": "{distance} par mer",
+      "status": "draft"
+    },
+    "pages.7a6e9e2b5d0ecb83": {
+      "source": "by sea: {reason}",
+      "text": "par mer : {reason}",
+      "status": "draft"
+    },
+    "pages.b23a6a8439c0dde5": {
+      "source": "unknown",
+      "text": "inconnu",
+      "status": "draft"
+    },
+    "pages.62a2fed3d6e08c44": {
+      "source": "pending",
+      "text": "en attente",
+      "status": "draft"
+    },
+    "pages.13a30363eb940c6c": {
+      "source": "filtered",
+      "text": "filtré",
+      "status": "draft"
+    },
+    "pages.24626cb1dc15eb75": {
+      "source": "classified",
+      "text": "classé",
+      "status": "draft"
+    },
+    "pages.4cb0b250c6250d52": {
+      "source": "ice",
+      "text": "glace",
+      "status": "draft"
+    },
+    "pages.18980cbb612c9c6b": {
+      "source": "{percent}% ice",
+      "text": "{percent} % de glace",
+      "status": "draft"
+    }
+  }
+}

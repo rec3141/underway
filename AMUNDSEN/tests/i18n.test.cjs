@@ -7,8 +7,8 @@ const script = fs.readFileSync(path.join(__dirname,'../dashboard/static/i18n.js'
 function setup(search='', stored=null) {
   const document={readyState:'loading',addEventListener(){},documentElement:{lang:'en'},querySelectorAll(){return []}};
   const window={UW_UI_CATALOG:{sourceLocale:'en',locales:{
-    en:{messages:{'variable.salinity':'Salinity (PSU)',hello:'Hello {name}',only:'English only',bottles:{one:'{count} bottle',other:'{count} bottles'},fallback:{one:'{count} bottle',other:'{count} bottles'}}},
-    'fr-CA':{messages:{'variable.salinity':'Salinité (PSU)',hello:'Bonjour {name}',bottles:{one:'{count} bouteille',other:'{count} bouteilles'}}}
+    en:{messages:{'pages.example':'Label {value}', 'pages.only':'Source-only {value}', 'variable.salinity':'Salinity (PSU)',hello:'Hello {name}',only:'English only',bottles:{one:'{count} bottle',other:'{count} bottles'},fallback:{one:'{count} bottle',other:'{count} bottles'}}},
+    'fr-CA':{messages:{'pages.example':'<b>"Libellé"</b> {value}', 'variable.salinity':'Salinité (PSU)',hello:'Bonjour {name}',bottles:{one:'{count} bouteille',other:'{count} bouteilles'}}}
   }},dispatchEvent(){}};
   const context={window,document,localStorage:{getItem(){return stored},setItem(k,v){stored=v}},location:{search,href:'https://example.test/underway/'+search},history:{replaceState(){}},URL,URLSearchParams,Intl,CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail}}};
   vm.runInNewContext(script,context);
@@ -40,4 +40,12 @@ test('measurement translation is display-only, with unknown and missing catalog 
   assert.equal(i18n.variable('__proto__'),'__proto__');
   i18n.setLocale('en');
   assert.equal(i18n.variable('Salinity (PSU)'),'Salinity (PSU)');
+});
+test('authored source messages retain fallback and escape translator markup before trusted interpolation',()=>{
+  const i18n=setup('?lang=fr-CA');
+  assert.equal(i18n.text('Label {value}',{value:3}),'<b>"Libellé"</b> 3');
+  assert.equal(i18n.html('Label {value}',{value:'<em>known markup</em>'}),'&lt;b&gt;&quot;Libellé&quot;&lt;/b&gt; <em>known markup</em>');
+  assert.equal(i18n.text('Source-only {value}',{value:0}),'Source-only 0');
+  assert.equal(i18n.text('Unknown {value}',{value:'<user text>'}),'Unknown <user text>');
+  i18n.setLocale('en');assert.equal(i18n.text('Label {value}',{value:3}),'Label 3');
 });

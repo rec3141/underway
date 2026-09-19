@@ -1735,6 +1735,3070 @@
     "scheduleBanner.ics": {
       "text": "subscribe to the Amundsen Schedule as an ICS feed",
       "context": "Schedule banner interface; never translate crew-entered operation names here."
+    },
+    "pages.1dc2adc71fdc6add": {
+      "text": "Live cast",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d2828ad9fd1d87a7": {
+      "text": "TM cast",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1500405573373612": {
+      "text": "Cast",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cf1950b217a2b3d0": {
+      "text": "MVP tow {v0}{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fa0d22242363adcc": {
+      "text": " · {v0} dips",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a178f6d7069a2b24": {
+      "text": "bottle {v0}{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cb8ffbcc2ae32b99": {
+      "text": "MVP tows",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.892b302902eaa39f": {
+      "text": "selected tows",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.94038397ceeb4d30": {
+      "text": "selected dips",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2c4561b1bd59416b": {
+      "text": "MVP tow starts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2305f9a93e7e3775": {
+      "text": "{v0} · dip {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.494ca78f7374e46f": {
+      "text": "Custom",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.286bda0d997c8009": {
+      "text": "The transect could not be shared ({v0}); it stays in this browser",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4e1f28fc70610f11": {
+      "text": "No bottle firings match.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5830d6da56e44d4f": {
+      "text": "{v0} of {v1} bottle firings shown",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3b1acb93404de012": {
+      "text": "Loading {v0} selected casts with bottle firings…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.98f4bb619464284d": {
+      "text": "Bottle measurements could not be loaded. Close and reopen to retry.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ab03a958ec35ded7": {
+      "text": "Select all shown casts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1c1c8f677153323a": {
+      "text": "Delete this shared transect for everyone",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9df916869e8fc20e": {
+      "text": "Delete this transect (saved in this browser)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a077ad4b78f92338": {
+      "text": "Delete transect",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.308a267453114d9c": {
+      "text": "Share this transect with everyone on the ship",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.034313ce1600a793": {
+      "text": "Share transect",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d8139bafdcf0d338": {
+      "text": "show dips",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2b639f5f3fe0f87f": {
+      "text": "Open rosette sheet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c240afd2442d27f7": {
+      "text": "{v0}{v1} dips",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fd11f75c77ed5eff": {
+      "text": "shared by {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4662c556e5b9ad1c": {
+      "text": "this browser",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a310ada4cbd505c9": {
+      "text": "dip {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d6d3697ef52964df": {
+      "text": "no casts match",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.73e44c202e92a779": {
+      "text": "Delete the shared transect “{v0}” for everyone?",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9888984a6cace5f0": {
+      "text": "Delete saved transect “{v0}”?",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d714a2c2d7f78d0d": {
+      "text": "The shared transect could not be deleted: the server did not answer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c8eee30499cf09b3": {
+      "text": "Select at least one parameter.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ac20a57bfde0bbc4": {
+      "text": "Hide",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0df6f1cad36c49da": {
+      "text": "Show",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.130011756125313c": {
+      "text": "On",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ca7981b46ecf2c17": {
+      "text": "Off",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.aed812ff76f64d4e": {
+      "text": "{v4} {v5} axis",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dafa26c784788bf2": {
+      "text": "Seasave's field list (SBE_ConvertedDataSettings){v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f7d94bc957deb737": {
+      "text": " · {v0} fields",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.765aab1602f02fd8": {
+      "text": "none received yet — Seasave sends it when the connection opens",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.98ca0d518997f8a4": {
+      "text": "none yet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9baf01819b22e507": {
+      "text": "last raw scans",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fc10a785607b6a35": {
+      "text": "SeaSave TCP/IP out (host:port, more ports with commas)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c72c2990894df721": {
+      "text": "Try every port in SeaSave's standard 49160–49168 range",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.97a5e41b45ddd2b2": {
+      "text": "apply",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.649f0e5314000410": {
+      "text": "Configuration failed ({v0})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f48165421ff2aad8": {
+      "text": "Request timed out; check settings before retrying.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.46234d79a919e6b7": {
+      "text": "Could not apply settings: {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.26d9b3b1f470ca66": {
+      "text": "live feed unavailable (server not reachable)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b0bf3d89f0028773": {
+      "text": "in the water",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.34fd3ab8d65068d6": {
+      "text": "last cast ({v0})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e5562777f5e784e4": {
+      "text": "last cast",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6dea9f2833032c42": {
+      "text": "last updated {v0} ago",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7c35ea2a8c62aeba": {
+      "text": "no data yet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.04be6dbb797d1f4f": {
+      "text": "no source set",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.373ede1bd510a97a": {
+      "text": "Seasave at {v0} accepts the connection but has sent nothing, not even its field list: acquisition is probably stopped or TCP/IP Out is off",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4043b0d02cbdf281": {
+      "text": "Seasave at {v0}: {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4e64a73f31de9de2": {
+      "text": "↓ descending",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8821ee7638dd486a": {
+      "text": "↑ ascending",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6267eb92dbfb52e8": {
+      "text": "· {v0} · {v1} scans kept{v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8c0fc3e67ce6edbf": {
+      "text": "show:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.25781429f18f9f88": {
+      "text": "in water",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3547cb112ac4489a": {
+      "text": "last",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a129311710bd6586": {
+      "text": "Seasave at {v0} accepts the connection but is not sending: start acquisition (and check Configure Outputs › TCP/IP Out).",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.89e0968cb624a276": {
+      "text": "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m].",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1136887b48e9c564": {
+      "text": "Scans arrive but no cast is in the water yet — the plot starts when the package passes 2 m.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5418cb6eb6746abe": {
+      "text": "Connected to Seasave; the plot begins when acquisition starts and the package goes in.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d3e10052c069b15b": {
+      "text": "Seasave at {v0} is not answering ({v1}); retrying.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.09821b19441052ad": {
+      "text": "No Seasave source set — use ⚙.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3e5b90ae053ff3e7": {
+      "text": "Chart",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b949729ec3f8834e": {
+      "text": "Move {v3} up",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b9d894793c5e2abb": {
+      "text": "Move {v5} down",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7b915f4a299822c6": {
+      "text": "Parameters above Chart use upper axes; parameters below use lower axes",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b5dd173791aafe8a": {
+      "text": "Move Chart to divide upper and lower axes",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.08e58be1256d79bf": {
+      "text": "Select a cast from the list or the map.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3ea5bb4ae53b1c00": {
+      "text": "Rosette sheet ↗",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.813801934f98fd75": {
+      "text": "Select Cast:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.607e651096291705": {
+      "text": "dip:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c89256104794b1a3": {
+      "text": "{v0} · dip #{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8e2f078d59f675b4": {
+      "text": " · bottom {v0} m",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a6f85eb7e8dcedb4": {
+      "text": "Select casts from the list, or click stations and tow tracks on the map.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2c635b368009f7d5": {
+      "text": "{v0} selected · {v1} profile{v2}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1407f17df7d1a605": {
+      "text": "drag onto another graph to swap places",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9111d254873bb676": {
+      "text": "click to select this graph: the selected one zooms with shift + scroll (x) and ctrl + scroll (depth); drag to pan any of them",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0b707e48a42f2d90": {
+      "text": "compress the depth axis (square root) — applies to every cast graph",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b48662b9e514ae3a": {
+      "text": "minimise to the top bar",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.886fb735a1b9c903": {
+      "text": "reset zoom",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d78de925a8786731": {
+      "text": "expand",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f329e3a317eee6a8": {
+      "text": "restore",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8b270ed732edc5c6": {
+      "text": "{v0} cast{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2f59d4b8f473d38e": {
+      "text": "{v0} bottles",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d4722ec916c36606": {
+      "text": "drag, or ▲ ▼, to lay the profiles in your own order",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4b6bad1ea4905ab0": {
+      "text": "move up",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.08bc837a975bebb2": {
+      "text": "move down",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e53dac9f89ee8092": {
+      "text": "↺ time order",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2245d25ec0254f2f": {
+      "text": "{v0} section",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e50ce529488d0317": {
+      "text": " · smoothed over {v0} m",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.657980dc1fbd697d": {
+      "text": "{v0} profiles · {v1} km · {v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.33b93476cf597a33": {
+      "text": "Time",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b7bdf7a2d6e73e58": {
+      "text": "Distance",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a60f8bdaa027343c": {
+      "text": "no scheduled operations listed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.57230d1daa6720c2": {
+      "text": "Operations schedule {v0}{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.90a50f14e9672fab": {
+      "text": "Ship intranet: {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e41f85820609af08": {
+      "text": "🔔 this operation · 📢 every operation of this kind",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0b4fceb51bb721d7": {
+      "text": "now · next · later · done · canceled · was scheduled · logged",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.336074805fc85398": {
+      "text": "time",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.073c1634c496cdb6": {
+      "text": "status",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9b4ef3e5b7b4d175": {
+      "text": "station",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9bf5a24e4aa77998": {
+      "text": "operation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.13985426c0879573": {
+      "text": "dur.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ded32129b05bfc16": {
+      "text": "depth",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c44bb2fd516909da": {
+      "text": "comment",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.deb3e366c077c228": {
+      "text": "alerts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b62f2399a1bd8dbd": {
+      "text": "show {v0} on the map",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.469e93b518d319d4": {
+      "text": "show on map",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.12e246bec539375c": {
+      "text": "open cast {v0} on the Casts tab",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.770711b477e8da40": {
+      "text": "view data",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7baa99652be2c7c7": {
+      "text": "logged",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cab62652ad5f9647": {
+      "text": "{v0} events · {v1} scheduled{v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b21fb709e2a23a63": {
+      "text": " · {v0} formerly",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e81a63d211338c97": {
+      "text": "you follow {v0} — click to stop",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.52abdcd0fb406ecd": {
+      "text": "follow {v0}: an operation added, taken off, moved or canceled; no reminders",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3223e57d9ea5de4e": {
+      "text": "follow {v0}: 15 min heads-up and every change",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1bfa7cb0058d53a8": {
+      "text": "{v0}: no position known yet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.81a42333e9588930": {
+      "text": "✉ email me… (enter an address below)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a6ad6e106668be7b": {
+      "text": "a message when future operations are added, taken off or rescheduled; no completion or status-only notices",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fbe6adbf8a8a945c": {
+      "text": "enter your email to follow {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.de1ad6abb8b174a1": {
+      "text": "not saved: {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a19de0c38d4dff59": {
+      "text": "🔔 Get alerts for scheduled operations",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4d327af41f96c23c": {
+      "text": "via",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ca8b598502b154d6": {
+      "text": "this browser's header bar",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.82244417f956ac7c": {
+      "text": "email",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8c181da097acc01c": {
+      "text": "only operations matching",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1e80a09b5207e374": {
+      "text": "e.g. CardS-3, CTD — blank for everything",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.aa63925edf225e26": {
+      "text": "warn",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d0b4034c6ca7ee87": {
+      "text": "ahead",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.437da9f58f045cb6": {
+      "text": "starting soon",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.03494afd4248c42f": {
+      "text": "started",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.05343e9845302eb7": {
+      "text": "finished",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8f301fe89e95c0c6": {
+      "text": "time changed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f40fd562f6307872": {
+      "text": "subscribe",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8954bdd0658bdc1b": {
+      "text": "Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.945d2c03508adc66": {
+      "text": "saving…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.99b2318698af4c73": {
+      "text": "subscribed {v0}: {v1}, {v2} min ahead",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7cc9fa7e6f62a347": {
+      "text": " · following {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9dcff98e275f0cb9": {
+      "text": "Timeline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.612ca4821653bae2": {
+      "text": "{v0} events · {v1} scheduled · {v2} span · click a point for its log entry",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c8c685977afa0c3c": {
+      "text": "Photo slideshow",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.55efb93d341ef10e": {
+      "text": "Close slideshow",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2f55863e032e37f9": {
+      "text": "Previous photo",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.894bb2b7ac07d55d": {
+      "text": "Next photo",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.bb1de97207977776": {
+      "text": "Photograph",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ef3550a6f13c8263": {
+      "text": "Gallery navigation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a04d3b26e64dc84d": {
+      "text": "← Gallery",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.59cbdb2816208517": {
+      "text": "Open fullscreen slideshow",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2c4bef225b218e2c": {
+      "text": "click photo for fullscreen",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d0674e0dede8a26b": {
+      "text": "Camera photo",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0a040c7f8ef25d76": {
+      "text": "Close photo",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.72cd96e4062019eb": {
+      "text": "Open full-size photo",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5a044a1351ce03c1": {
+      "text": "Orange outline: analyzed ROI",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f807f07af9999249": {
+      "text": "ROI unavailable for these image dimensions",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ce8daf5d393a0f6a": {
+      "text": "Photo unavailable — archive may be offline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b62350e7c82dc25e": {
+      "text": "Click to cycle Texture → Brightness → Colorfulness → Patchiness → mean RGB. Names are provisional PC interpretations.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8c4463e5d14f4ff3": {
+      "text": "No matching underway distances in this span",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.226bbb8ba2342b46": {
+      "text": "No camera data in this span for the selected legs",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f0a859a7ecd77183": {
+      "text": "Previous image",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a4903f732746e9e1": {
+      "text": "Next image",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ce7bf15a4a858bbf": {
+      "text": "Close ✕",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f6e0f16188d43020": {
+      "text": "Ship camera context with ROI outline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b4099f32ab116a72": {
+      "text": "No camera products for the selected legs",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ddb2e5cbcd7b1935": {
+      "text": "Awaiting classification",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c2ca254ef2542b13": {
+      "text": "Selected camera ROI",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cd8e53a08c5c8f05": {
+      "text": "No matching navigation distance",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.45f7859648d9536e": {
+      "text": "Mess",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1cff02b9cde94631": {
+      "text": "Lounge",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dc20b3d5d2cddf82": {
+      "text": "Library",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.889eacd6e13fa54a": {
+      "text": "Deck",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d30af076b0dc85cc": {
+      "text": "Me",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c9e0f9cc8260bce0": {
+      "text": "the Mess: everyone; the crew answer when @mentioned",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4a04d6e7bb315a27": {
+      "text": "the Lounge: the AI crew's room, where they talk among themselves",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0aea8f23338523f0": {
+      "text": "the Library: ask Ada, the librarian, about the region's past",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b04472d9603795ac": {
+      "text": "the Deck: ask Ada and Doc together, the history and the nature",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.aafecb99525ba917": {
+      "text": "ask Ada, the librarian · Enter to send",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c4c14eab715fcabd": {
+      "text": "ask Ada and Doc · Enter to send",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.27e789d55ec5ccc8": {
+      "text": "ask Doc, the naturalist · Enter to send",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.815f6bde537466ee": {
+      "text": "talk to the crew · Enter to send",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b9846addccd73468": {
+      "text": "message {v0} · Enter to send",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fed33eed5cc86f86": {
+      "text": "message · Enter to send",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5edd3b1f5d3b8966": {
+      "text": "Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ccf0b0d00167c7a2": {
+      "text": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d54828eeb2ee6063": {
+      "text": "back to the corner",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f2d7acfded4a9937": {
+      "text": "open as a side bar",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9cd0e357245fb95d": {
+      "text": "the {v0}: a private room with {v1} ({v2})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b22d2bea6e200f71": {
+      "text": "a private room with ",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7de82e541d02427d": {
+      "text": "a private room with someone here",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5550ce1e131e8f75": {
+      "text": "show the AI crew's messages again",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5f369686bd9e7606": {
+      "text": "hide the AI crew's messages and names",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1cb9a0d8b741fd5d": {
+      "text": "show AI",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.490b7567ec0072e0": {
+      "text": "hide AI",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7bc83b0eaff9cd7b": {
+      "text": "close this conversation: its history is erased and the room leaves the row",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.eb4a38ec6dc1d1ad": {
+      "text": "clear this room on this device; others keep their copy",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.310ff200149b44a3": {
+      "text": "close",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.913a4cb91be20332": {
+      "text": "clear",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.adcb8c7fb22e1991": {
+      "text": "A private room with…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.20ac95a440783c19": {
+      "text": "nobody else has the page open",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4b0ab9f9f992bdf9": {
+      "text": "name first",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2f05e7541d123e42": {
+      "text": "reference {v2}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3316348dbadfb7b1": {
+      "text": "read",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4d65c72b83973371": {
+      "text": "message ",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cffa02277adca6d9": {
+      "text": " directly",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ea8001efadfe6198": {
+      "text": "the Lab: ask Doc about the living things, the ice, the water and the sky",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2d2c4b6f7e573acf": {
+      "text": "private room with a crew member",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.82152a91cf8f494f": {
+      "text": "private with {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.948958cfdb09405c": {
+      "text": "the Library: ask Ada about the region's past",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6ec675dc06f63b40": {
+      "text": "the Deck: Ada and Doc together, the history and the nature",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1942c24222fae6d1": {
+      "text": "{v0} here{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cc9056c6599cc0c6": {
+      "text": "nobody else here",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.67e605eb007842fc": {
+      "text": "looking it up…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.30f5934e62499bea": {
+      "text": "typing…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1ae812bf464ce4c7": {
+      "text": "model online: ",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.27cfa197e044ed68": {
+      "text": "no model loaded: the crew cannot answer (",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6d0a8f2e8eb29b90": {
+      "text": "); the operator has been told",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.85ebc236cf26a104": {
+      "text": " offline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3f54bcf820c1238b": {
+      "text": "offline: no model loaded, and the chat never loads one itself. ",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e597f24f4aae5734": {
+      "text": " are here and may speak first",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f3157fe6b942d681": {
+      "text": " are here",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3e8f1b9fcd487c52": {
+      "text": " is here",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.606606668b367101": {
+      "text": "Close this conversation with {v0}? Its temporary history will be cleared for both participants.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.68969b0ccff55b72": {
+      "text": "Clear {v0} on this device? Others keep their copy.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3350122289eea311": {
+      "text": "not closed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8513a9ecd7d7a0c9": {
+      "text": "not sent",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1a5611bfcb70d17e": {
+      "text": "Message not sent: offline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.41426fd2dfbef5bd": {
+      "text": "ship time ({v0})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.512b07c166e7f90b": {
+      "text": "now {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a47e0c2bd7bba951": {
+      "text": "TSG pump off / low intake flow",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ac41c0821578e6fb": {
+      "text": "TSG intake",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0f044feb6ca7d676": {
+      "text": "Operation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.115ccf9610656d3b": {
+      "text": "Station",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.022100af42289791": {
+      "text": "intranet schedule",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1ea59e15ab7b5c46": {
+      "text": "{v0}{v1} (all day)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.360719440e92c924": {
+      "text": "3 days",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.310ca503ef36f177": {
+      "text": "Month",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6da0633528deaa01": {
+      "text": "previous",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c6c1c9a9c8543f1e": {
+      "text": "next",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e0f4f767ac88a930": {
+      "text": "today",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1958ce23cca396db": {
+      "text": "Times are ship time ({v6}). Open in Google Calendar: {v7}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f4e8c9fafcc6d66e": {
+      "text": "+{v0} more",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f40d7f51f69edfaf": {
+      "text": "Mon",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d1eb39b09bf52b68": {
+      "text": "Tue",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.58339f45df960408": {
+      "text": "Wed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7da11212ed340ea7": {
+      "text": "Thu",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.66dab40cea1dea5c": {
+      "text": "Fri",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fdeb71b569e0034d": {
+      "text": "Sat",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.db18f17fe5320076": {
+      "text": "Sun",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9c585c8ddefd2720": {
+      "text": " · today",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.836851d6bddf7650": {
+      "text": " (cached)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c83415aca7938877": {
+      "text": "Cast {v0} {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a0d37bfc114917be": {
+      "text": "No dates to chart.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7ca0d6c7afeb2c2d": {
+      "text": "on the map",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.948fcefe5345439c": {
+      "text": "the whole record",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9ee78ce2f0ecac99": {
+      "text": "conservation status",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b1809383ab754a8a": {
+      "text": "the ship's own journal",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d0e4b71fd8ecada7": {
+      "text": "ship's journal",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f87558869bcf8816": {
+      "text": "Observations",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.16a7d2b94a9ab725": {
+      "text": "no page yet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f4dd2c090ecd15ef": {
+      "text": "no such kind",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.765c1dd134a4327a": {
+      "text": "Nothing of this kind in the record yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6d3add25948633a5": {
+      "text": "That is not a place on the map.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7c706e7a8b983a5e": {
+      "text": "How this history was made",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1c4b8ff60530a1bf": {
+      "text": "Provenance",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9f28dfaff8c0e4e6": {
+      "text": "Bibliography",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cf4166250b80a26c": {
+      "text": "Plain text",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3664895579f0a7e6": {
+      "text": "Export",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3143319cd5502e27": {
+      "text": "the build's own BibTeX file",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b7be5a1363b39659": {
+      "text": "RIS, for EndNote, Zotero and Mendeley",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f903d47fe50eceb0": {
+      "text": "CSL-JSON, for citation processors and Zotero",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b4e413c3cde61c41": {
+      "text": "the MLA list as plain text",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.93c6b664dce6c207": {
+      "text": "Browse…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5a99e746347b5bf9": {
+      "text": "Ask Ada",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a488c7ae2d2e3bbd": {
+      "text": "Ask Doc",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4c8692dac9206cdf": {
+      "text": "Ask a Q",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.03f75d69d652a98e": {
+      "text": "open the Library in the chat and ask Ada, the librarian, about the region's past",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9429b1dc65906b5e": {
+      "text": "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d0a27ca03da4cfae": {
+      "text": "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.08c7ee7de2124efa": {
+      "text": "Open original in new tab ↗",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f09247433bef8304": {
+      "text": "Image preview",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.88980154513d7413": {
+      "text": "Tracks",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8d14f6e72de8f18a": {
+      "text": "Events",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.eb5cfb73677d98eb": {
+      "text": "Places",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.be7e2f20129365c2": {
+      "text": "Images",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.119e66d117ae8f0c": {
+      "text": "Maps",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8dc37869d63b05bd": {
+      "text": "Quotes",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.48e0ef1e260d7b6d": {
+      "text": "Texts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.de5236ee1561d9d4": {
+      "text": "Objects",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7db20897053bb278": {
+      "text": "People",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.85c3f9fa6f300eea": {
+      "text": "Animals",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.653ad8478a323db5": {
+      "text": "Vessels",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7cf40a646358bdfe": {
+      "text": "the crew are still at work on this page",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7743ce348d9284d6": {
+      "text": "draft",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.92a13b6f6d226c75": {
+      "text": "Flag this item for content review. For interface problems, use Feedback in the header.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.41d624f9bf379d48": {
+      "text": "click to withdraw",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.318d4e44fa3151e6": {
+      "text": "only an admin can withdraw it now",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.166484a88c2688a2": {
+      "text": "click to add your own flag",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2f04d6855ac0ab3f": {
+      "text": "Flagged for review by {v0} · {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.56630f4b80ceb0f1": {
+      "text": "Also flag",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.552127973f8424e1": {
+      "text": "Flag",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.915e352c6674b610": {
+      "text": "{v0} \"{v1}\" for review.\nWhat should be looked at? (optional)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f545fe7e666cbe0a": {
+      "text": "Withdraw the flags {v0} people have raised on \"{v1}\"?",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.813579ae9a07b8ad": {
+      "text": "The flag could not be saved: {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a599f2439ba9b7aa": {
+      "text": "{v0} BCE",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fa91ff493a7ab5b9": {
+      "text": "{v0} AD",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6ec6fd018d8f2587": {
+      "text": "day {v0} of {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.bb7e51c6d02be309": {
+      "text": "was here",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dcca230522f1a31b": {
+      "text": "near {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0eb650f10c5c5a55": {
+      "text": "see {v1} more",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.107b90ff3c1c35ab": {
+      "text": "see fewer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1516fbf1d4dae387": {
+      "text": "Nothing dated to the day on {v0} yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d4fe9d8548a4254a": {
+      "text": "The ship's position is not known to this build.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.60f308c1f079c289": {
+      "text": "Nothing in the wiki near the ship yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7c723452a98e32c9": {
+      "text": "On this day · {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.61695ef35daa3cc1": {
+      "text": "In this place{v2}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.41970d6661b348dd": {
+      "text": "map ↗",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.451215ee74092d80": {
+      "text": "this page's address",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ce1355534ad93ddc": {
+      "text": " · no picture yet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.efd63f646209f611": {
+      "text": "interactive resource · no picture yet",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e09008f4974d3204": {
+      "text": "{v2} pages · {v3} artifacts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.856801b740b24d2c": {
+      "text": "and {v0} more: narrow the search",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5bd724fab3969c96": {
+      "text": "No wiki has been published yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1fb561bcf13a11bf": {
+      "text": "Loading the wiki…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f67cb1850d1b7e77": {
+      "text": "Narratives",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3b73900b8d29f963": {
+      "text": "Explore",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a52981ae3b44bf34": {
+      "text": "{v0} topics, {v1} narrative pages and {v2} artifacts: {v3}. Every item is credited and sourced.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.21b3be752f52de62": {
+      "text": "no such topic",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.52e48c371494add8": {
+      "text": "the picture's own page",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6babc9a17d120bf7": {
+      "text": "No narrative pages yet; the artifacts below are what the crew has entered so far.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.314ae71b8c8dc9c9": {
+      "text": "Artifacts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.215b2f215791b683": {
+      "text": "That page is not in this build.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6e3da9a2a9be2af0": {
+      "text": "full text",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4c149b191dbab4cf": {
+      "text": "the ship's own copy",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.870d0f550c052952": {
+      "text": "on the ship · {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.61d73e9ff0008b26": {
+      "text": "the file the picture was rendered from",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.63d39b201b616eeb": {
+      "text": "the original · {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.426efff5200235a2": {
+      "text": "at the holding institution, on the web",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.546940feb432bb66": {
+      "text": "on the web ↗",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0e87632cd46bd490": {
+      "text": "date",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5a452459503be70d": {
+      "text": "position",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.edb465624291e405": {
+      "text": "note",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b8e1f80bd70ae078": {
+      "text": "event",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7592cb718abb8814": {
+      "text": "also written",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fe1390825c9e7347": {
+      "text": "also called",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4c3f03bb625194b7": {
+      "text": "primary source",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.130ab3f910dec4f9": {
+      "text": "secondary source",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.200d5e550cbca47d": {
+      "text": "That event is not in this build.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1331275bc537b4c2": {
+      "text": "Tags",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0e570ca6fabe24f9": {
+      "text": "Source",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f62c6abeb9378840": {
+      "text": "On the timeline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9046da16aea909ba": {
+      "text": "Pages",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1a7529ab14fd6195": {
+      "text": "Subjects",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.caf85b0888d78f1f": {
+      "text": "Sources",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e22820fcf5cd90e3": {
+      "text": "Topics",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.aea1058d135f60df": {
+      "text": "Biology",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.54cda0543a402949": {
+      "text": "Geology",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f86c74e7c90e56af": {
+      "text": "Glaciology",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5650875646bee33e": {
+      "text": "Sea ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4e4632bbe56e64fb": {
+      "text": "Oceanography",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7255c8f0c852b753": {
+      "text": "Hydrography",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.547801ae4e93ff14": {
+      "text": "Meteorology",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4eeb9335576b12a0": {
+      "text": "Astronomy",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.94a03054e2d4553d": {
+      "text": "Geomagnetism",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.03e12025cca65954": {
+      "text": "Freshwater",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f97e9da0e3b879f0": {
+      "text": "Other",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dfacd10042a687d3": {
+      "text": "the living things: mammals, birds, fish, plants, the small and the microbial",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.072a56956c6a4714": {
+      "text": "the rock, its fossils and minerals, the landforms",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9842a2a9342d3ad4": {
+      "text": "the ice on land: glaciers, ice caps, ice shelves and ice islands",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1f25d33066b92af4": {
+      "text": "the ice at sea, year by year, and its vocabulary",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dca8f84dac93f654": {
+      "text": "the water column: soundings, temperature, salinity, currents, tides",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.983a042d392d0565": {
+      "text": "the depths and the charts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.15641d776da60df4": {
+      "text": "the weather and the climate, as the expeditions and the stations recorded them",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.49febf4604a554f8": {
+      "text": "the sky: aurora, the polar night and the midnight sun, eclipses and comets",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c17608dbad847751": {
+      "text": "the field: declination, dip, the Magnetic Pole's wander, the storms",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.73a95a4f5f81d150": {
+      "text": "the rivers and the lakes, and what lives in them",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3a757c6d4218cbda": {
+      "text": "Taxa",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e93daa00ef5f0748": {
+      "text": "Rock units",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.accc2a1a15657ccc": {
+      "text": "Fossils",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.14c29f95db259c77": {
+      "text": "Minerals",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.653aa4c034f7667f": {
+      "text": "Landforms",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2a1a6355ed7e30b0": {
+      "text": "Ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7ca7dea906800f87": {
+      "text": "Water",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a0bba63812466406": {
+      "text": "Weather",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b72804afefc37b62": {
+      "text": "Sky",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f45fc1dfdc96db27": {
+      "text": "Field",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e45364b658fdec30": {
+      "text": "Phenomena",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e5d5b971139eefeb": {
+      "text": "ship",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9190eab60709df3a": {
+      "text": "Nothing observed on {v0} in the record yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2ba1eba95fdf0902": {
+      "text": "Nothing observed within {v0} km of the ship yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f82e5d44ddc42e5f": {
+      "text": "Observed on this day · {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9d88cdb29acfce7d": {
+      "text": "Observed near the ship{v2}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b51aabf677e8fb9d": {
+      "text": "{v0} m down",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.328143c3c16d54dc": {
+      "text": "{v0} m up",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9dfd3ad250c8ef49": {
+      "text": "{v1} observations · scroll to zoom, drag to pan, click a point for its row",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.99c40ab405926cb5": {
+      "text": "Date",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.68971283841aecdf": {
+      "text": "Subject",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d239e9cf6a51335b": {
+      "text": "Observation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1daaa38f33cd860e": {
+      "text": "Where",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f20b6db009508832": {
+      "text": "Observer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b9256368a77e50fd": {
+      "text": "{v0} subjects · {v1} observations",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d74ba0b0e6d85b62": {
+      "text": "Observations found",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fce182ecc225a516": {
+      "text": "The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ced67718ea0f31eb": {
+      "text": "Domains",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ca31dbf7d5c0699c": {
+      "text": "All observations",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1189d37778569eaa": {
+      "text": "Kinds of subject",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3297e071e7639648": {
+      "text": "Loading the record…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ed658a0ab4a7a906": {
+      "text": "Nothing in the record yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4c4e436f9a453c77": {
+      "text": "Glossary",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c7fa887aa9c79864": {
+      "text": "Nothing of this domain in the wiki yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.701008902fbdae6f": {
+      "text": "No such part of the domain.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2de5247a982a1cd6": {
+      "text": "Nothing here yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0afdff4af32c5761": {
+      "text": "That subject is not in this build.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ba118bf7fc9c1aed": {
+      "text": "English",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7458199fe97a1840": {
+      "text": "French",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c5f3df2e12190da5": {
+      "text": "in {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.69e4a02609393ab9": {
+      "text": " · under {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a9491f4c1bf7b0cf": {
+      "text": "subject",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.772c6953848bf5b1": {
+      "text": "observation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.21b2eed1e328a2c6": {
+      "text": "images",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1e6245009d677035": {
+      "text": "Pictures",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4960990121f22e16": {
+      "text": "Below it",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d5ed3e44e2a2090c": {
+      "text": "and {v0} more among the",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.706f0fd28dff4dd7": {
+      "text": "No observations of it in the record yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cb8448ba3d502c89": {
+      "text": "the backbone this subject resolves in",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7f0dfafd2c31b54d": {
+      "text": "Ship photograph",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1fcebdec11222f9d": {
+      "text": "the ship",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.325e9f7b656e6135": {
+      "text": "That observation is not in this build.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9cd578a09eb38dcb": {
+      "text": "{v0} m below the surface",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0c214926762f6d8c": {
+      "text": "{v0} m above",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7de8c035259e0769": {
+      "text": "a sensitive site: the position is published coarsened and the place left blank",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2d5e8600a4fba66e": {
+      "text": "sensitive",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.125466b821c6448a": {
+      "text": "By",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.03867aea70acaf4c": {
+      "text": "Evidence",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.99522e3aa1235d50": {
+      "text": "Also the event",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c76be7d10fcb8932": {
+      "text": "every observation of {v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cdd9848714e8c437": {
+      "text": "✓ {v0} photo{v1} saved to the share",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f053cefc9f544e4e": {
+      "text": "Import status below.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fd572435b2d4ec12": {
+      "text": "Not yet in the journal.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6f6cdd1488b7f202": {
+      "text": "Follow journal import",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4df96d3a4505b128": {
+      "text": "Add your credit and licence below.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.88d7c52212ef2f1e": {
+      "text": "Next: add to journal ↓",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d881b670fbaca077": {
+      "text": "Saved folder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c3f695f1d7db291a": {
+      "text": "Upload more photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2999a8e2b16d5bf1": {
+      "text": "Upload photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.66936de3e986716c": {
+      "text": "New subfolder for each upload. Originals stay unchanged. Keep this page open and your phone awake.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6cf20dab38bc6692": {
+      "text": "File limits",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.46085764706995c9": {
+      "text": "JPEG, PNG or WebP · 300 photos · 64 MiB each · 2 GiB total.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0c109e62332e2b1b": {
+      "text": "Destination:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.46393f6573e4995e": {
+      "text": "→ new subfolder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2f546e465f038b8a": {
+      "text": "Choose a folder above",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.14d34edf50ef6c87": {
+      "text": "Folder name",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d1e87d017416983b": {
+      "text": "Phone photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5e3147ab51e0084c": {
+      "text": "Photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5ce44dd77dae789f": {
+      "text": "Uploading…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f665b70e7794848b": {
+      "text": "Retry Remaining Photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.65afe1537c5ddabd": {
+      "text": "Upload Selected Photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3f1a2c73953d1a3a": {
+      "text": "New selection",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ced37498aeda0f51": {
+      "text": "Photo upload progress",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.75b474a2f6adf608": {
+      "text": "No photos selected.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2e12c729cccf7bc1": {
+      "text": "Uploading {v0}/{v1}: {v2} · {v3}% transferred",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.69bb0178a84c8298": {
+      "text": "Upload failed ({v0})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.183383d6bc23ecf9": {
+      "text": "Connection interrupted",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.44678314632642d7": {
+      "text": "Choose up to 300 photos and 2 GiB per batch.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.36887b74f7a93c6f": {
+      "text": "Use JPEG, PNG or WebP photos, each up to 64 MiB. HEIC and videos are not supported yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.387d96a031862484": {
+      "text": "{v0} photo{v1} selected · {v2} MiB. Ready to upload.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3ec2008b04aa3ec8": {
+      "text": "Preparing a new upload folder…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4d5ccfb86e516115": {
+      "text": "Saved {v0} photo{v1} to /Share/{v2}.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.28867ed59d573718": {
+      "text": "{v0}/{v1} saved. {v2}. Keep this page open and retry; saved photos will not be uploaded again.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d40e7693103b69eb": {
+      "text": "The ship's photographs and journal are kept aboard and are not part of the web copy.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c6daff2ebeeabc38": {
+      "text": "all {v0} entries",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e0cea039e3bd9fd0": {
+      "text": "Nothing in the ship's journal yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2348f99874421257": {
+      "text": "open",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7b0a3d74494a4f50": {
+      "text": "Add photos",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.352cfc749e55222e": {
+      "text": "Gallery",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.155f816c0407310c": {
+      "text": "Submit",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.282bfa6b4079b6f2": {
+      "text": "No photos yet. Choose Submit to add some.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0c712d87571a34c4": {
+      "text": "Observations without a picture",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.152f4db8f31a90d1": {
+      "text": "Camera / ship",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8ff81d3b055eeb94": {
+      "text": "Ship (Eastern)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ccd7d1e38d7fd793": {
+      "text": "With credit",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4099a2c228b17acc": {
+      "text": "Open access",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.79a9f4f6d201a55d": {
+      "text": "Rights reserved",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ebee3b57d3e9bab0": {
+      "text": "open this folder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f4ca95577b56fd90": {
+      "text": "Choose a /Share destination below.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7e8af09bf79ba0de": {
+      "text": "Choose a /Share folder to import.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e50876e696ee13c5": {
+      "text": "{v0} photograph{v1} · {v2} folder{v3}{v4}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1ed0b446e0b33e50": {
+      "text": "new photographs here are imported every ten minutes",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c19c477ad5130258": {
+      "text": "watched · {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.eb38ca40211a0821": {
+      "text": "Nothing here.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.640c2380690e2137": {
+      "text": "Reading the share…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b4debe034df4866d": {
+      "text": "Add to journal · {v0} photo{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5c71b8cd7822a418": {
+      "text": "Choose a folder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.33f5e62de396abb6": {
+      "text": " · {v0} unchanged failures skipped",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cae7d57bc067a514": {
+      "text": "Stop",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e6d9a8233ef32df5": {
+      "text": "Watched folders",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cbff5a3278aa8fc3": {
+      "text": " · {v0} failed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.20dd35463a5cd047": {
+      "text": "Imports Status",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.88f9b975979fbdbf": {
+      "text": "Import from:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f9e4378d7a0820f3": {
+      "text": "Import from",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.19cf96fc7bc1ce3a": {
+      "text": "/Share folder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d052579c6a317b1b": {
+      "text": "This device",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.eadcedd5ec01e36d": {
+      "text": "Add to the journal",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dcd1d5223f73b3a9": {
+      "text": "Name",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.350be3643ce78043": {
+      "text": "Organisation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.969ccbd3cf6300ec": {
+      "text": "Email",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.573850785e407d7b": {
+      "text": "Private to the ship",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f3ec8e880a46c8a6": {
+      "text": "Licence",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b9fe1464783e1c0d": {
+      "text": "Time zone",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.19ace23f956719cb": {
+      "text": "Licence & time zone",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.92b5025fa8382d1c": {
+      "text": "Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8d9ec6044a90f019": {
+      "text": "Keep importing from this /Share folder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.388afb1dcec1e796": {
+      "text": "Using this credit and licence.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0a26f41abd00f95e": {
+      "text": "Import failed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2194340e961ab3bd": {
+      "text": "Import finished",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.661ff40a07e037bb": {
+      "text": "Queued",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dca3bf165aacec42": {
+      "text": "{v0}/{v1} added · {v2} skipped · {v3} failed",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.21bffccd4f5d79e6": {
+      "text": "Failed images are skipped until their contents change.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a20e4b867b4749ca": {
+      "text": "{v0} unchanged failed images skipped.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0e04cd10f9afd7e5": {
+      "text": "Warnings",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.45989de49fb7f66d": {
+      "text": "Details",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f26efd3574998b71": {
+      "text": "View results",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a4e224f5c4bdc48f": {
+      "text": "Your import",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d3d5b27efc6d23af": {
+      "text": "Import progress",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4975878cc8a1f73b": {
+      "text": " ({v0} already in the journal)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e02f54320811fd1b": {
+      "text": "; the folder is watched",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.298624751ccc85f9": {
+      "text": "Importing {v0} photograph{v1}{v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f67521d9d0048cae": {
+      "text": "Not started: {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ac8af0eab24ec35a": {
+      "text": " · {v0} skipped",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a20d1e00196bf7a8": {
+      "text": "{v0}/{v1} added{v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2cff9baabf56ca00": {
+      "text": "Import",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.aec02cbd799774af": {
+      "text": "No such import.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.855421f02843acdb": {
+      "text": "{v0}'s photographs{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.14fce21c65897e07": {
+      "text": " · imported by the watch on this folder",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4da69789232ebb31": {
+      "text": " · {v0} already in the journal, passed over",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b958ce8b871ab36b": {
+      "text": "Temperature",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b9517046d8b64220": {
+      "text": "Salinity",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.943077f0507ddf71": {
+      "text": "Oxygen",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3eb40bdff9eccb86": {
+      "text": "Oxygen saturation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c76e27598822c367": {
+      "text": "Fluorescence",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3e10134259ab3285": {
+      "text": "Transmission",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2bec0153da8f8918": {
+      "text": "Buoyancy frequency",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5d1670193536d43f": {
+      "text": "Sound velocity",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.062f3d6dcebb394b": {
+      "text": "depth (m)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b929855f23c3c9af": {
+      "text": "pressure (dbar)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4cb4ea25583c2564": {
+      "text": "year",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b89edc48066641a6": {
+      "text": "Temperature (°C)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e72014bef788bed9": {
+      "text": "Temperature 2 (°C)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e5e165ea54b51893": {
+      "text": "Salinity 2 (PSU)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.da8187d488c1966a": {
+      "text": "Oxygen (µM)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c60d3aa541eb71eb": {
+      "text": "Transmission (%)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ed5eb9a37e2d8231": {
+      "text": "now",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a4c3ed04a95a3da1": {
+      "text": "done",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f12fde684b2ed4c6": {
+      "text": "canceled",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4a754148b88a68e1": {
+      "text": "soon",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1d9283d848ea941a": {
+      "text": "later",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c48bdea7d72e8b87": {
+      "text": "was scheduled",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6aef76c6cb359f6f": {
+      "text": "scheduled",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.27873558b00fcb84": {
+      "text": "undated",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3cb30133ed1b1fe6": {
+      "text": "changes to the schedule",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8fde4d9f78c0ecce": {
+      "text": "this operation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c4aa4acda87aa4a5": {
+      "text": "every transit",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.923037ebcf5db471": {
+      "text": "every {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1df151056c8c592d": {
+      "text": "Hide {count} finished",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.40458bfe83b031b7": {
+      "text": "Show {count} finished",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fc80b6fe040ec37c": {
+      "text": "Hide {count} formerly scheduled",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.be4bd4d451cbc7c6": {
+      "text": "Show {count} formerly scheduled",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9d131a2c668765f8": {
+      "text": "show {station} on the map",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.bb7bdd421882faae": {
+      "text": "open cast {cast} on the Casts tab",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.38cca6bea010af8a": {
+      "text": "OFF",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.35e0d0360a0af6d1": {
+      "text": "LIVE",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1f914c4386c0676e": {
+      "text": "CONNECTED",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0844247b432912ea": {
+      "text": "PORT OPEN",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9976c76f151ed9cb": {
+      "text": "PROBING",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5c3ce8d496e2626b": {
+      "text": "OFFLINE",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e77b141e2388d56c": {
+      "text": "holding",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8e2c7ac508139a02": {
+      "text": "offline",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.bdd51a4f2a7836d9": {
+      "text": "{names}: looking it up…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d7dbbada1efae15b": {
+      "text": "{names}: typing…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ebf44d5d8d142770": {
+      "text": "dip {v4}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ad03eb5e16bba9a9": {
+      "text": "no answer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.05a126f95630959f": {
+      "text": " m now",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6f8f5f94a7c5b0b5": {
+      "text": " · started ",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5ff56800f7898c03": {
+      "text": "A section needs at least two profiles with {v0} — {v1} selected.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a12af7a862beae85": {
+      "text": "Transect name (shared with everyone on the ship)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3c1091f0d39e5e69": {
+      "text": "Transect {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4601ca97bc8099ca": {
+      "text": "This browser could not save the transect. Check available storage and try again.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dde8fbebbc93ceb6": {
+      "text": "distance along the custom order (km)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.89a97309c8f1dde7": {
+      "text": "distance along the stations A–Z (km)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f65419496aa9e119": {
+      "text": "distance along section (km)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2b70854526b7a869": {
+      "text": "🖥 stop showing",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a4b898101968a83f": {
+      "text": "🖥 show",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6150f7fe79c4deef": {
+      "text": "{v0} in this browser's header bar",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.48b2ed9682896933": {
+      "text": "✉ stop emailing",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.947a239ce828c1a1": {
+      "text": "✉ email",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.09f05ffbbc0a6b04": {
+      "text": " (whatever the destination)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.115aea7bfa2185c7": {
+      "text": " at any station",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0fcab6e49f7b0e12": {
+      "text": ", for {v0}{v1}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.13183d47884423b3": {
+      "text": " to this operation",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ed763ac7a693c701": {
+      "text": "15 min heads-up and every change{v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.909cef7017a9aeed": {
+      "text": "Telegram: message",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6afd7d06ff48ae82": {
+      "text": "with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.10c4e1cbfd08e46b": {
+      "text": "CTD Rosette",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a3b0e9926d07b2eb": {
+      "text": "TM Rosette",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.694050382b6961b9": {
+      "text": "Box Core",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8af13d3a800670e9": {
+      "text": "Gravity Core",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4275e3786215385b": {
+      "text": "Multicorer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.db01be4b3343ff62": {
+      "text": "Piston Core",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1a84458321d6a387": {
+      "text": "Baited Cam",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.24b309ef05a800b9": {
+      "text": "Drop Camera",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f8a9e5642d494b00": {
+      "text": "Tucker Net",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6144cdc4cbc52ef1": {
+      "text": "Monster Net",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f7d5c55c6d3b2b59": {
+      "text": "Snow Catcher",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a7bcf53bf6b49f82": {
+      "text": "Agassiz Trawl",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.85b93fb74f25c215": {
+      "text": "Plankton Net",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d04736cd97fa7bf6": {
+      "text": "In-situ Pumps",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2fa21517ba5fd27b": {
+      "text": "Barge",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0fa9e71f0805ddfb": {
+      "text": "Helicopter",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4758a9bf0c2b3fcf": {
+      "text": "Mooring",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7c62dde8e91db1cf": {
+      "text": "Lander",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1ff9a5f8b4bd530e": {
+      "text": "Mapping",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d5386bd82e57020a": {
+      "text": "Crew Change",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fee60d38cb840402": {
+      "text": "Community Visit",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.525f2f103bb29c7e": {
+      "text": "Ice Station",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f71081fb0af48ae6": {
+      "text": "Break",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.25b165146228c719": {
+      "text": "{v0} found",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.281c7066818e5645": {
+      "text": "the human past, from the Tuniit to the ships of the last century: voyages as tracks, winterings and besetments as spans on the timeline, people and places as pages that link to one another",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6b2923e0d3ac1560": {
+      "text": "what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0e76960093379060": {
+      "text": "History",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c71ce8ccf3b44932": {
+      "text": "Nature",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1201f1849a1bb81e": {
+      "text": "event{v1}{v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.66c475876c2bb759": {
+      "text": "event · {v1}{v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.462fc526de8ab1c3": {
+      "text": "and {v0} more",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fb9d60f69a60736c": {
+      "text": "Mentioned in",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.70b49dd024b048a1": {
+      "text": "no topic",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.30e950fb0aeb06fc": {
+      "text": "Nothing of this kind in that collection.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fd22ac67438ab38f": {
+      "text": " · the routes from north to south, by where each began",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e9da50bc16479c66": {
+      "text": "the topic's page",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.246c9aa43eb5384e": {
+      "text": "{v0} collections, one a topic. Open one for its {v1}.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6b4ca2530b1a7e95": {
+      "text": "{v0} dates · {v1} spans · from {v2}; scroll to zoom, drag to pan, click a point for its row",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f8cf83a76a98df2d": {
+      "text": "What",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7e61847d61d65d9e": {
+      "text": "Topic",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.bed45cabd8e2a30e": {
+      "text": "This spot",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.763a1a9880efcdbb": {
+      "text": "{v0} things on the map share this spot. Pick one.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.71843f6b5b4296b7": {
+      "text": "narrative pages",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.22e919dd71885a5b": {
+      "text": "works cited",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.170062ed40915d72": {
+      "text": "people named",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0f50505ce224077f": {
+      "text": "artifacts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a971f5ed9bbf6db8": {
+      "text": "; {v0} pages are still drafts",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9eeead76de41e46b": {
+      "text": "; {v0} questions answered by a person",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.944eae254aeae6c5": {
+      "text": "Counted {v0}{v1}{v2}.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.122ac99e8677a8ae": {
+      "text": "The figures are counted when the history is next published.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.60ae4bd5abd3bd13": {
+      "text": "The record, in numbers",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9040f9be99523563": {
+      "text": "Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.009a8edd9a274f52": {
+      "text": "{v1} works",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b321eb029090b9e5": {
+      "text": "natural record's",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ae906fb992e31fe3": {
+      "text": "; the {v0} are left out while its label is off",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.6362b3d21b11ef29": {
+      "text": "{v0} works cited by the history, {v1} by the natural record{v2}.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3660315a9af3df25": {
+      "text": "page",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.03cd175b6554aff1": {
+      "text": "On the map ·",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5ef5ef0364b6939c": {
+      "text": "all",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.140bedbf9c3f6d56": {
+      "text": "none",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.47e908691c1f5010": {
+      "text": "All {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2c41a2181609b1a1": {
+      "text": "back to the map",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.46624cb945249939": {
+      "text": "back to the view before",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7aa72a235586990d": {
+      "text": "every observation of {v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1174bbc154b18b75": {
+      "text": "· {v2} · {v3} added{v4}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1e95c3df798b1771": {
+      "text": "{v11}click photo for fullscreen",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.355801a28de02d98": {
+      "text": "Camera · Texture (PC1)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ae7e8457b92d22a1": {
+      "text": "Camera · Brightness (PC2)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9cb84ab470f4d318": {
+      "text": "Camera · Colorfulness (PC3)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.69b5c442dbf98bee": {
+      "text": "Camera · Patchiness (PC4)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a4fa51e13388f6a2": {
+      "text": "Camera · mean RGB",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e28411a3404d21f9": {
+      "text": "Texture",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ec811d30a89ce96d": {
+      "text": "Brightness",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.69dbf100b46a548c": {
+      "text": "Colorfulness",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8b218f6aa2a8fa66": {
+      "text": "Patchiness",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dcd33cf5d38eeaae": {
+      "text": "Texture, Brightness, Colorfulness, Patchiness are provisional interpretations of PC1–4, not ice concentration.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fc3cd8012131af0e": {
+      "text": "Mean RGB (0–255)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d0ebd0e0e70f967c": {
+      "text": "Keeping last good camera data",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a6d6ce3d5aba07c2": {
+      "text": "Camera track unavailable",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2031be00edf5f5d8": {
+      "text": "Camera · ice type",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cffe53b675508c2d": {
+      "text": "Camera · concentration",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4f302ec94335124c": {
+      "text": "Camera · ice composition",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.36cb81396286c63c": {
+      "text": "Camera · ice fingerprints",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dc5414e0bf56f5c6": {
+      "text": "Camera · ROI",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0dc3965ee405ed5a": {
+      "text": "Camera · slices",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.674fc4afa9e75877": {
+      "text": "Camera · ice concentration",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.73a78f135698be34": {
+      "text": "Camera · slice mean RGB",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d969baa927520fc6": {
+      "text": "Ice composition",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.60f55cbfdbdc61d3": {
+      "text": "Surface types",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.389bd9a6782fe030": {
+      "text": "grease ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.789e8de747b02a7b": {
+      "text": "nilas",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.39e36c36e2bfc590": {
+      "text": "thin ice floe",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.32f3b45fdf19ffc4": {
+      "text": "icy bits",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.441d39221a44cb6d": {
+      "text": "brash ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8ed17198774cfa83": {
+      "text": "thick ice floe",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f4197b25d1dd1811": {
+      "text": "whitecaps",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c85dc98747c8a8ea": {
+      "text": "small waves",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.2b4b2eadf7b2aece": {
+      "text": "calm",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.38e3607df174e5f3": {
+      "text": "grease",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e5e59d10f196504b": {
+      "text": "bits",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.04352507fd1cc41b": {
+      "text": "brash",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1a0dc227b5aa78f8": {
+      "text": "thin",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7b1291e7ed8a6f3e": {
+      "text": "thick",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0f4168490e38b844": {
+      "text": "water",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cf35b1a611636def": {
+      "text": "new ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1aa41eb37828e832": {
+      "text": "broken ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8968c716fb239760": {
+      "text": "ice floe",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ae0f63e1d1e490ed": {
+      "text": "ice type",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a5119a3101d7daef": {
+      "text": "1 h centered mean",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.95538be430df3ed6": {
+      "text": "Total ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7c3f78c0fe8cf198": {
+      "text": "distance along track (km)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.277aafc886922dcd": {
+      "text": "Ice camera",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.02fe1d590ee931da": {
+      "text": "{v0}/{v1} pending",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fd0dd42cc4b9bac3": {
+      "text": "Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c648253f20e04217": {
+      "text": "Camera unavailable; keeping previous results",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3f996df8de74b85b": {
+      "text": "{v0}AI crew{v1}, answer when mentioned:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.36d67c4fc158725e": {
+      "text": "Ship intranet:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1598c481fdf5fae1": {
+      "text": "calendars:",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a0a44ed8cfc32b7e": {
+      "text": "everything",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0f82aca66af91493": {
+      "text": "length",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dec0f004eaa07c2a": {
+      "text": "width",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.39e0f5efdc39ec10": {
+      "text": "height",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ff0139d07c592e9a": {
+      "text": "confidence",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.181fdd46fc4a7246": {
+      "text": "origin",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.41cf6794ba4200b8": {
+      "text": "source",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5b7e6bf2dc4a32a6": {
+      "text": "method",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.cd42404d52ad55cc": {
+      "text": "value",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.385cfdbc00ec3203": {
+      "text": "unit",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e41f1d834710df8c": {
+      "text": "observer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8178ac72b28d77fc": {
+      "text": "licence",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.38f0bf30197b182f": {
+      "text": "CCGS Amundsen · live · {v0} {v1} · heading {v2}{v3}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b9535ce95cb158b0": {
+      "text": "CCGS Amundsen · latest · {v0} {v1} · heading {v2}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e5eae2271d99a903": {
+      "text": "no route",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a0daef01ab98f9cb": {
+      "text": "not available",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.70d1108086ae0c39": {
+      "text": "click the mark to remove it",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0b4cf4c5aadae0a6": {
+      "text": "no nearby photo",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3194ed03862a55fd": {
+      "text": "track readings",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.670803ab46a99495": {
+      "text": "Amundsen schedule",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a12151313ac5e31a": {
+      "text": "Page error: {v0} ({v1}:{v2})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ee0e0c08095f7418": {
+      "text": "Page error: {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0685824f630ccc8f": {
+      "text": "{v0} events",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dc79a80410c9d9c9": {
+      "text": "Cast {v0}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fcf7ed654535baea": {
+      "text": "ship time ({zone})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.436d201fdbc72ab9": {
+      "text": "Aboard the ship",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7fa67f0e7001ab10": {
+      "text": "Ask Ada answers from these pages with a local model on the ship: it cites the pages it was given and is not itself a source. Anything that looks wrong can be flagged from its card with the small flag in the corner; flags go to the layer's author.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.485150da6a173a27": {
+      "text": "Current flags: {count}.",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d7cfab3c32d024a0": {
+      "text": "Waypoint",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0578b438af18675f": {
+      "text": "from the ship: {distance} by air",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.497f6e6d2e54b567": {
+      "text": "by sea: working it out…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a86329cc29043c6f": {
+      "text": "{distance} by sea",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7a6e9e2b5d0ecb83": {
+      "text": "by sea: {reason}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b23a6a8439c0dde5": {
+      "text": "unknown",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.62a2fed3d6e08c44": {
+      "text": "pending",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.13a30363eb940c6c": {
+      "text": "filtered",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.24626cb1dc15eb75": {
+      "text": "classified",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4cb0b250c6250d52": {
+      "text": "ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.18980cbb612c9c6b": {
+      "text": "{percent}% ice",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }
 }
