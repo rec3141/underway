@@ -38,10 +38,10 @@
     <button data-tab="sources" role="tab" data-i18n-title="nav.sources" data-i18n-aria-label="nav.sources" title="Sources" aria-label="Sources">?</button>
     </nav>
     <div class="themepick">
-      <label class="group select" data-i18n-title="locale.coverage" title="French is available for navigation and feedback; other sections use English while translation is in progress."><span data-i18n="locale.label">Language</span> <select id="locale" data-locale-picker data-i18n-aria-label="locale.label" aria-label="Language"><option value="en">English</option><option value="fr-CA">Français (Canada)</option></select></label>
+      <label class="group select" data-i18n-title="locale.coverage" title="French covers the main controls and measurement labels. Some panels, source material and wiki articles remain in English."><span data-i18n="locale.label">Language</span> <select id="locale" data-locale-picker data-i18n-aria-label="locale.label" aria-label="Language"><option value="en">English</option><option value="fr-CA">Français (Canada)</option></select></label>
       <button type="button" id="feedback-open" class="feedback-link" data-i18n="feedback.open">Feedback</button>
-      <label class="group select" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><select id="theme" aria-label="Theme"></select></label>
-      <label class="group select" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" aria-label="Text size"></select></label>
+      <label class="group select" data-i18n-title="shell.themeHint" title="the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996"><select id="theme" data-i18n-aria-label="shell.theme" aria-label="Theme"></select></label>
+      <label class="group select" data-i18n-title="shell.textSizeHint" title="the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise"><select id="textsize" data-i18n-aria-label="shell.textSize" aria-label="Text size"></select></label>
     </div>
   </div>
   <div class="brand">
@@ -50,21 +50,21 @@
     <div class="sub" id="connection" role="status" hidden></div>
   </div>
   <div class="controls" id="controls-underway">
-    <div class="pickhint phone">Select leg and time span:</div>
+    <div class="pickhint phone" data-i18n="shell.selectLegSpan" data-i18n-locale>Select leg and time span:</div>
     <details class="group legmenu" id="legmenu">
       <summary id="legsummary">Legs</summary>
       <div class="pop">
-        <div class="pophead">Legs to show · <a href="#" id="legall">all</a> · <a href="#" id="legnone">none</a></div>
+        <div class="pophead"><span data-i18n="shell.legsToShow" data-i18n-locale>Legs to show · </span><a href="#" id="legall" data-i18n="shell.all" data-i18n-locale>all</a> · <a href="#" id="legnone" data-i18n="shell.none" data-i18n-locale>none</a></div>
         <ul id="leglist"></ul>
         <div class="popfoot" id="legfoot"></div>
       </div>
     </details>
-    <div class="group span" aria-label="Time span">
-      <span class="lbl">Show last</span>
+    <div class="group span" data-i18n-aria-label="shell.timeSpan" aria-label="Time span">
+      <span class="lbl" data-i18n="shell.showLast" data-i18n-locale>Show last</span>
       <output id="spanlabel" for="span">6h</output>
-      <input type="range" id="span" min="0" max="0" step="1" value="0" list="spanticks" aria-label="Time span shown">
+      <input type="range" id="span" min="0" max="0" step="1" value="0" list="spanticks" data-i18n-aria-label="shell.timeSpanShown" aria-label="Time span shown">
       <datalist id="spanticks"></datalist>
-      <select id="spansel" title="span" aria-label="Time span"></select>
+      <select id="spansel" data-i18n-title="shell.span" title="span" data-i18n-aria-label="shell.timeSpan" aria-label="Time span"></select>
     </div>
   </div>
 </header>
@@ -73,65 +73,65 @@
     <div class="schedcols" id="schedcols"></div>
     <div class="schedlinks" id="schedlinks"></div>
   </div>
-  <div class="ticker" id="schedticker" hidden title="show the schedule"><div class="tkwrap"><div class="tk" id="tk"></div></div><div class="tklinks" id="tickerlinks"></div></div>
+  <div class="ticker" id="schedticker" hidden data-i18n-title="shell.showSchedule" title="show the schedule"><div class="tkwrap"><div class="tk" id="tk"></div></div><div class="tklinks" id="tickerlinks"></div></div>
 </div>
 
 <main lang="en">
   <div class="plotctl" id="plotctl">
-    <div class="group xmode" aria-label="X axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="switch the graphs between time and distance along track">Time</button></div>
-    <label class="group select strip">Color by <select class="colourpick" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
+    <div class="group xmode" data-i18n-aria-label="shell.xAxisAria" aria-label="X axis"><span class="lbl" data-i18n="shell.xAxis" data-i18n-locale>X-axis</span><button type="button" class="xcycle" data-i18n-title="shell.xAxisHint" title="switch the graphs between time and distance along track">Time</button></div>
+    <label class="group select strip"><span data-i18n="shell.colorBy" data-i18n-locale>Color by </span><select class="colourpick" data-i18n-title="shell.colorHint" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
       <div class="map-toolbar">
-      <label class="group select mapcolour">Color by <select id="colour" class="colourpick" title="the variable that colours the track and the graph points"></select></label>
-      <div class="tools"><button id="mapdetailsopen" title="Map details" aria-label="Map details">ⓘ</button><button id="mapexport" title="Preview and export the map" aria-label="Export map">⇩</button><button id="mapreset" title="fit to track" aria-label="Reset map view">⟲</button><button id="mapnone" title="no map: the pane takes the whole width" aria-label="Minimise map">—</button><button id="mapfull" title="full map: the map takes the whole page" aria-label="Maximise map">⤢</button></div>
+      <label class="group select mapcolour"><span data-i18n="shell.colorBy" data-i18n-locale>Color by </span><select id="colour" class="colourpick" data-i18n-title="shell.colorHint" title="the variable that colours the track and the graph points"></select></label>
+      <div class="tools"><button id="mapdetailsopen" data-i18n-title="mapControls.details" title="Map details" data-i18n-aria-label="mapControls.details" aria-label="Map details">ⓘ</button><button id="mapexport" data-i18n-title="mapControls.exportHint" title="Preview and export the map" data-i18n-aria-label="mapControls.export" aria-label="Export map">⇩</button><button id="mapreset" data-i18n-title="mapControls.fit" title="fit to track" data-i18n-aria-label="mapControls.reset" aria-label="Reset map view">⟲</button><button id="mapnone" data-i18n-title="mapControls.minimizeHint" title="no map: the pane takes the whole width" data-i18n-aria-label="mapControls.minimize" aria-label="Minimise map">—</button><button id="mapfull" data-i18n-title="mapControls.maximizeHint" title="full map: the map takes the whole page" data-i18n-aria-label="mapControls.maximize" aria-label="Maximise map">⤢</button></div>
       </div>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
       <div class="wiki-split plan-photos">
-      <span class="pillset" title="the ship's own layers">
-      <button data-layer="plan" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it">Plan</button>
-      <button data-layer="track" title="the ship's track for the shown legs and span">Track</button>
-      <button data-layer="stations" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full">Stations</span><span class="short">Stns</span></button>
-      <button data-layer="events" title="geolocated entries of the ship's event log, for the shown legs and span">Events</button>
+      <span class="pillset" data-i18n-title="mapControls.shipLayers" title="the ship's own layers">
+      <button data-layer="plan" data-i18n-title="mapControls.planHint" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it" data-i18n="mapControls.plan" data-i18n-locale>Plan</button>
+      <button data-layer="track" data-i18n-title="mapControls.trackHint" title="the ship's track for the shown legs and span" data-i18n="mapControls.track" data-i18n-locale>Track</button>
+      <button data-layer="stations" data-i18n-title="mapControls.stationsHint" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full" data-i18n="mapControls.stations" data-i18n-locale>Stations</span><span class="short" data-i18n="mapControls.stationsShort" data-i18n-locale>Stns</span></button>
+      <button data-layer="events" data-i18n-title="mapControls.eventsHint" title="geolocated entries of the ship's event log, for the shown legs and span" data-i18n="mapControls.events" data-i18n-locale>Events</button>
       </span>
-      <button data-layer="photos" title="the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it">Photos</button>
-      <button data-layer="names" title="geographic names: bays, sounds, straits, islands, capes, lakes, rivers, glaciers and mountains, from the Canadian Geographical Names Database and GeoNames; more of them appear as you zoom in" hidden>Names</button>
+      <button data-layer="photos" data-i18n-title="mapControls.photosHint" title="the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it" data-i18n="mapControls.photos" data-i18n-locale>Photos</button>
+      <button data-layer="names" data-i18n-title="mapControls.namesHint" title="geographic names: bays, sounds, straits, islands, capes, lakes, rivers, glaciers and mountains, from the Canadian Geographical Names Database and GeoNames; more of them appear as you zoom in" hidden data-i18n="mapControls.names" data-i18n-locale>Names</button>
       </div>
       <div class="wiki-split">
-      <button data-layer="history" title="the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it" hidden>History</button>
+      <button data-layer="history" data-i18n-title="mapControls.historyHint" title="the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it" hidden data-i18n="mapControls.history" data-i18n-locale>History</button>
       <div class="mapmenu" id="maphistlayers" hidden></div>
       </div>
       <div class="wiki-split">
-      <button data-layer="nature" title="the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it" hidden>Nature</button>
+      <button data-layer="nature" data-i18n-title="mapControls.natureHint" title="the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it" hidden data-i18n="mapControls.nature" data-i18n-locale>Nature</button>
       <div class="mapmenu" id="mapnatlayers" hidden></div>
       </div>
       <button id="satpill" class="sat" title="recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour" hidden>Sat</button>
-      <span class="satnav" id="satnav" hidden><button id="satprev" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" title="the picture after">›</button></span>
-      <button id="icechart-toggle" aria-pressed="false" aria-controls="icechart-controls" title="Canadian Ice Service daily and regional ice charts">Ice charts</button>
+      <span class="satnav" id="satnav" hidden><button id="satprev" data-i18n-title="mapControls.previousImage" title="the picture before">‹</button><span class="satwhen" id="satwhen"></span><button id="satnext" data-i18n-title="mapControls.nextImage" title="the picture after">›</button></span>
+      <button id="icechart-toggle" aria-pressed="false" aria-controls="icechart-controls" data-i18n-title="mapControls.iceChartsHint" title="Canadian Ice Service daily and regional ice charts" data-i18n="mapControls.iceCharts" data-i18n-locale>Ice charts</button>
       </div>
       <div id="icechart-controls" class="icechart-controls" hidden>
-        <label>Region <select id="icechart-region"></select></label>
-        <label>Chart date (UTC) <select id="icechart-date"></select></label>
-        <label>Opacity <input id="icechart-opacity" type="range" min="0" max="80" value="40" step="5"><output id="icechart-opacity-value">40%</output></label>
-        <button id="icechart-retry" hidden>Retry chart</button>
+        <label><span data-i18n="mapControls.region" data-i18n-locale>Region </span><select id="icechart-region"></select></label>
+        <label><span data-i18n="mapControls.chartDate" data-i18n-locale>Chart date (UTC) </span><select id="icechart-date"></select></label>
+        <label><span data-i18n="mapControls.opacity" data-i18n-locale>Opacity </span><input id="icechart-opacity" type="range" min="0" max="80" value="40" step="5"><output id="icechart-opacity-value">40%</output></label>
+        <button id="icechart-retry" hidden data-i18n="mapControls.retryChart" data-i18n-locale>Retry chart</button>
         <span id="icechart-status" role="status"></span>
-        <div id="icechart-legend" class="icechart-legend" hidden aria-label="Ice concentration legend"></div>
-        <a href="https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations.html" target="_blank" rel="noopener">Canadian Ice Service / ECCC</a>
+        <div id="icechart-legend" class="icechart-legend" hidden data-i18n-aria-label="mapControls.iceLegend" aria-label="Ice concentration legend"></div>
+        <a href="https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations.html" target="_blank" rel="noopener" data-i18n="mapControls.iceService" data-i18n-locale>Canadian Ice Service / ECCC</a>
       </div>
     </div>
     <div id="map"></div>
     <div id="campop" class="campop" hidden>
       <div class="head"><b id="camtitle"></b><span id="camsub"></span>
-        <button id="camprev" title="previous day">‹</button><button id="camnext" title="next day">›</button><button id="camclose" title="close">✕</button></div>
+        <button id="camprev" data-i18n-title="mapControls.previousDay" title="previous day">‹</button><button id="camnext" data-i18n-title="mapControls.nextDay" title="next day">›</button><button id="camclose" data-i18n-title="mapControls.close" title="close">✕</button></div>
       <video id="camvideo" controls autoplay muted loop playsinline preload="metadata"></video>
       <div class="foot" id="camfoot"></div>
     </div>
     <div id="mapmsg" class="mapmsg" hidden></div>
-    <div id="mapscale" class="mapscale" title="the scale at the centre of the map" hidden><span class="bar"></span><span class="lbl"></span></div>
+    <div id="mapscale" class="mapscale" data-i18n-title="mapControls.scale" title="the scale at the centre of the map" hidden><span class="bar"></span><span class="lbl"></span></div>
     <dialog id="mapdetails" aria-labelledby="mapdetailstitle">
-    <div class="mapdetailshead"><h3 id="mapdetailstitle">Map details</h3><button id="mapdetailsclose" aria-label="Close map details">×</button></div>
+    <div class="mapdetailshead"><h3 id="mapdetailstitle" data-i18n="mapControls.details" data-i18n-locale>Map details</h3><button id="mapdetailsclose" data-i18n-aria-label="mapControls.closeDetails" aria-label="Close map details">×</button></div>
     <div class="map-foot" id="mapfoot"></div>
     <div class="map-attrib" id="mapattrib"></div>
     </dialog>
@@ -141,12 +141,12 @@
     <div class="pane" id="pane-underway">
       <div class="panels" id="panels"></div>
       <details id="underway-table" class="card" open>
-        <summary>Data tables</summary>
+        <summary data-i18n="tables.title" data-i18n-locale>Data tables</summary>
         <div class="pane-tools">
-          <div class="group seg" id="aggrule"><button data-r="1h" class="on">Hourly</button><button data-r="1d">Daily</button></div>
-          <label class="group select">Statistic <select id="aggstat"><option value="0">mean</option><option value="1">min</option><option value="2">max</option><option value="3">count</option></select></label>
-          <input type="search" id="tblsearch" placeholder="filter rows" aria-label="Filter rows">
-          <button id="tblcsv" title="download the visible table as tab-separated text">TSV</button>
+          <div class="group seg" id="aggrule"><button data-r="1h" class="on" data-i18n="tables.hourly" data-i18n-locale>Hourly</button><button data-r="1d" data-i18n="tables.daily" data-i18n-locale>Daily</button></div>
+          <label class="group select"><span data-i18n="tables.statistic" data-i18n-locale>Statistic </span><select id="aggstat"><option value="0" data-i18n="tables.mean" data-i18n-locale>mean</option><option value="1" data-i18n="tables.min" data-i18n-locale>min</option><option value="2" data-i18n="tables.max" data-i18n-locale>max</option><option value="3" data-i18n="tables.count" data-i18n-locale>count</option></select></label>
+          <input type="search" id="tblsearch" data-i18n-placeholder="tables.filterPlaceholder" placeholder="filter rows" data-i18n-aria-label="tables.filter" aria-label="Filter rows">
+          <button id="tblcsv" data-i18n-title="tables.download" title="download the visible table as tab-separated text">TSV</button>
           <span class="muted" id="tblmeta"></span>
         </div>
         <div class="tablewrap"><table id="aggtable"></table></div>
@@ -157,29 +157,29 @@
       <div class="cast-layout">
         <div class="castside">
           <div class="pane-tools compact">
-            <span class="lbl">Select Cast Type</span>
-            <div class="group seg small" id="castkind"><button data-k="all" class="on" title="every kind of cast">All</button><button data-k="live" title="the cast in the water, from Seasave's TCP/IP output">Live</button><button data-k="CTD" title="the classic rosette's CTD casts">Rosette</button><button data-k="TM" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" title="moving vessel profiler tows">MVP</button><button data-k="TRS" title="saved transects">TRS</button></div>
-            <div class="castfilter"><button id="castclear" title="deselect all">clear selection</button><input type="search" id="castsearch" placeholder="filter (station, label, date)" aria-label="Filter casts"><button id="castcsv" title="download the visible casts as tab-separated text">TSV</button></div>
+            <span class="lbl" data-i18n="castsControls.type" data-i18n-locale>Select Cast Type</span>
+            <div class="group seg small" id="castkind"><button data-k="all" class="on" data-i18n-title="castsControls.allHint" title="every kind of cast" data-i18n="castsControls.all" data-i18n-locale>All</button><button data-k="live" data-i18n-title="castsControls.liveHint" title="the cast in the water, from Seasave's TCP/IP output" data-i18n="castsControls.live" data-i18n-locale>Live</button><button data-k="CTD" data-i18n-title="castsControls.rosetteHint" title="the classic rosette's CTD casts" data-i18n="castsControls.rosette" data-i18n-locale>Rosette</button><button data-k="TM" data-i18n-title="castsControls.tmHint" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" data-i18n-title="castsControls.mvpHint" title="moving vessel profiler tows">MVP</button><button data-k="TRS" data-i18n-title="castsControls.trsHint" title="saved transects">TRS</button></div>
+            <div class="castfilter"><button id="castclear" data-i18n-title="castsControls.deselect" title="deselect all">clear selection</button><input type="search" id="castsearch" data-i18n-placeholder="castsControls.filterPlaceholder" placeholder="filter (station, label, date)" data-i18n-aria-label="castsControls.filter" aria-label="Filter casts"><button id="castcsv" data-i18n-title="castsControls.download" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
           <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
           <details id="cast-bottle-table" class="card cast-bottle-table">
-            <summary>Bottles fired</summary>
-            <div class="pane-tools compact"><input type="search" id="cast-bottle-search" placeholder="filter bottles" aria-label="Filter bottles fired"><span class="muted" id="cast-bottle-meta">Select casts, then open to load their bottle measurements.</span><button type="button" id="cast-bottle-tsv" title="download the filtered bottle firings at full precision as tab-separated text" disabled>TSV</button></div>
+            <summary data-i18n="castsControls.fired" data-i18n-locale>Bottles fired</summary>
+            <div class="pane-tools compact"><input type="search" id="cast-bottle-search" data-i18n-placeholder="castsControls.filterBottlesPlaceholder" placeholder="filter bottles" data-i18n-aria-label="castsControls.filterBottles" aria-label="Filter bottles fired"><span class="muted" id="cast-bottle-meta">Select casts, then open to load their bottle measurements.</span><button type="button" id="cast-bottle-tsv" data-i18n-title="castsControls.downloadBottles" title="download the filtered bottle firings at full precision as tab-separated text" disabled>TSV</button></div>
             <div class="tablewrap"><table id="cast-bottle-rows"></table></div>
           </details>
         </div>
         <div class="castmain">
           <div class="pane-tools compact">
-            <span class="lbl">Select Graph</span>
-            <div class="group seg" id="castmode"><button data-m="single" title="one cast, variables overlaid on their own axes">Single</button><button data-m="profiles" class="on" title="the selected casts as depth profiles, one graph per variable">Multi</button><button data-m="section" title="the selected casts side by side as a depth section along time or distance">Section</button></div>
-            <button type="button" id="castbottles" class="chip" title="mark the rosette's bottle firings on the casts (from the SeaBird .btl files)">Bottles</button>
-            <button type="button" id="castsmooth" class="chip" title="smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range">Smooth</button>
+            <span class="lbl" data-i18n="castsControls.graph" data-i18n-locale>Select Graph</span>
+            <div class="group seg" id="castmode"><button data-m="single" data-i18n-title="castsControls.singleHint" title="one cast, variables overlaid on their own axes" data-i18n="castsControls.single" data-i18n-locale>Single</button><button data-m="profiles" class="on" data-i18n-title="castsControls.multiHint" title="the selected casts as depth profiles, one graph per variable" data-i18n="castsControls.multi" data-i18n-locale>Multi</button><button data-m="section" data-i18n-title="castsControls.sectionHint" title="the selected casts side by side as a depth section along time or distance" data-i18n="castsControls.section" data-i18n-locale>Section</button></div>
+            <button type="button" id="castbottles" class="chip" data-i18n-title="castsControls.bottlesHint" title="mark the rosette's bottle firings on the casts (from the SeaBird .btl files)" data-i18n="castsControls.bottles" data-i18n-locale>Bottles</button>
+            <button type="button" id="castsmooth" class="chip" data-i18n-title="castsControls.smoothHint" title="smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range" data-i18n="castsControls.smooth" data-i18n-locale>Smooth</button>
             <span class="muted" id="castmeta"></span>
           </div>
           <div class="pane-tools compact" id="castrow2" hidden>
-            <button type="button" id="savetransect" disabled title="Save this section and its station order for everyone on the ship">Save transect</button>
-            <div class="group sectionx" id="castxmode" aria-label="Section x axis"><span class="lbl">X-axis</span><button type="button" class="xcycle" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
-            <label class="group select" id="castvarwrap">Color by <select id="castvar"></select></label>
+            <button type="button" id="savetransect" disabled data-i18n-title="castsControls.saveHint" title="Save this section and its station order for everyone on the ship" data-i18n="castsControls.saveTransect" data-i18n-locale>Save transect</button>
+            <div class="group sectionx" id="castxmode" data-i18n-aria-label="castsControls.xAxis" aria-label="Section x axis"><span class="lbl" data-i18n="shell.xAxis" data-i18n-locale>X-axis</span><button type="button" class="xcycle" data-i18n-title="castsControls.xAxisHint" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
+            <label class="group select" id="castvarwrap"><span data-i18n="shell.colorBy" data-i18n-locale>Color by </span><select id="castvar"></select></label>
           </div>
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>
         </div>
@@ -188,17 +188,17 @@
 
     <div class="pane" id="pane-calendar" hidden>
       <div class="pane-tools">
-        <div class="group seg" id="calview"><button data-v="agenda" class="on">Today</button><button data-v="timeline">Event Log</button><button data-v="month">Calendar</button></div>
-        <input type="search" id="calsearch" placeholder="filter events" aria-label="Filter events">
+        <div class="group seg" id="calview"><button data-v="agenda" class="on" data-i18n="calendarControls.today" data-i18n-locale>Today</button><button data-v="timeline" data-i18n="calendarControls.log" data-i18n-locale>Event Log</button><button data-v="month" data-i18n="calendarControls.calendar" data-i18n-locale>Calendar</button></div>
+        <input type="search" id="calsearch" data-i18n-placeholder="calendarControls.filterPlaceholder" placeholder="filter events" data-i18n-aria-label="calendarControls.filter" aria-label="Filter events">
       </div>
       <div id="calendar"></div>
     </div>
 
     <div class="pane" id="pane-stations" hidden>
       <div class="pane-tools">
-        <input type="search" id="stnsearch" placeholder="filter stations" aria-label="Filter stations">
-        <button id="stnclear" title="deselect every cast and drop the map focus">clear selection</button>
-        <button id="stncsv" title="download the visible table as tab-separated text">TSV</button>
+        <input type="search" id="stnsearch" data-i18n-placeholder="stationsControls.filterPlaceholder" placeholder="filter stations" data-i18n-aria-label="stationsControls.filter" aria-label="Filter stations">
+        <button id="stnclear" data-i18n-title="stationsControls.clearHint" title="deselect every cast and drop the map focus">clear selection</button>
+        <button id="stncsv" data-i18n-title="tables.download" title="download the visible table as tab-separated text">TSV</button>
         <span class="muted" id="stnmeta"></span>
       </div>
       <div class="tablewrap"><table id="stationtable"></table></div>
@@ -207,33 +207,33 @@
     <!-- the Wiki: the region's past and its nature in one pane; the two labels filter it, one or both on -->
     <div class="pane histpane" id="pane-wiki" hidden>
       <div class="pane-tools compact histtools">
-        <button type="button" id="histback" class="chip histback" title="back to the view before">‹ Back</button>
-        <button type="button" id="histhome" class="chip" title="the front page: today, here, the journal, the domains and the narratives">Home</button>
-        <button type="button" id="histexplore" class="chip histexplore" title="every topic, with its pages and artifacts">Explore</button>
-        <span class="domset" id="wikidomains" role="group" aria-label="What the wiki shows">
-          <button type="button" class="chip dom" data-domain="history" aria-pressed="false" title="the human past: voyages, people, places and artifacts">History</button>
-          <button type="button" class="chip dom" data-domain="nature" aria-pressed="false" title="the natural record: subjects, observations, the domains and the ship's journal">Nature</button>
+        <button type="button" id="histback" class="chip histback" title="back to the view before" data-i18n="wikiControls.back" data-i18n-locale>‹ Back</button>
+        <button type="button" id="histhome" class="chip" data-i18n-title="wikiControls.homeHint" title="the front page: today, here, the journal, the domains and the narratives" data-i18n="wikiControls.home" data-i18n-locale>Home</button>
+        <button type="button" id="histexplore" class="chip histexplore" data-i18n-title="wikiControls.exploreHint" title="every topic, with its pages and artifacts" data-i18n="wikiControls.explore" data-i18n-locale>Explore</button>
+        <span class="domset" id="wikidomains" role="group" data-i18n-aria-label="wikiControls.domains" aria-label="What the wiki shows">
+          <button type="button" class="chip dom" data-domain="history" aria-pressed="false" data-i18n-title="wikiControls.historyHint" title="the human past: voyages, people, places and artifacts" data-i18n="mapControls.history" data-i18n-locale>History</button>
+          <button type="button" class="chip dom" data-domain="nature" aria-pressed="false" data-i18n-title="wikiControls.natureHint" title="the natural record: subjects, observations, the domains and the ship's journal" data-i18n="mapControls.nature" data-i18n-locale>Nature</button>
         </span>
         <button type="button" id="histask" class="chip ask" title="ask the crew in the chat">Ask a Q</button>
-        <button type="button" id="wikiclose" class="chip" aria-label="Close panel" title="Close panel">×</button>
-        <div class="wiki-search-row"><input type="search" id="histsearch" class="histsearch" placeholder="search: voyages, people, places, species, ice, weather" aria-label="Search the wiki">
-        <select id="histkindsel" class="histsel" aria-label="Browse a kind, a domain or a page" title="everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal"></select>
+        <button type="button" id="wikiclose" class="chip" data-i18n-aria-label="wikiControls.close" aria-label="Close panel" data-i18n-title="wikiControls.close" title="Close panel">×</button>
+        <div class="wiki-search-row"><input type="search" id="histsearch" class="histsearch" data-i18n-placeholder="wikiControls.searchPlaceholder" placeholder="search: voyages, people, places, species, ice, weather" data-i18n-aria-label="wikiControls.search" aria-label="Search the wiki">
+        <select id="histkindsel" class="histsel" data-i18n-aria-label="wikiControls.browse" aria-label="Browse a kind, a domain or a page" data-i18n-title="wikiControls.browseHint" title="everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal"></select>
         </div>
       </div>
       <article class="histmain" id="histmain"><div class="empty">Loading the wiki…</div></article>
     </div>
 
     <div class="pane card" id="pane-sources" hidden>
-      <h2>Sources</h2>
+      <h2 data-i18n="sources.title" data-i18n-locale>Sources</h2>
       <div class="prov">
         <div class="meta">
-          {% if m.public %}<span>Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard</span>{% else %}<span>Ship intranet: {% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}
-          <span>Calendars: {% for l in site.links %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
-          <span>Dashboard by Eric Collins · <a href="https://github.com/rec3141/underway" target="_blank" rel="noopener">source</a> · Data: Amundsen Science (ACSD)</span>
-          <span class="right">underway v{{ site.version }} · built <time id="gen"></time></span>
+          {% if m.public %}<span data-i18n="sources.webCopy" data-i18n-locale>Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard</span>{% else %}<span><span data-i18n="sources.intranet" data-i18n-locale>Ship intranet: </span>{% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}
+          <span><span data-i18n="sources.calendars" data-i18n-locale>Calendars: </span>{% for l in site.links %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>
+          <span><span data-i18n="sources.by" data-i18n-locale>Dashboard by Eric Collins · </span><a href="https://github.com/rec3141/underway" target="_blank" rel="noopener" data-i18n="sources.source" data-i18n-locale>source</a><span data-i18n="sources.data" data-i18n-locale> · Data: Amundsen Science (ACSD)</span></span>
+          <span class="right">underway v{{ site.version }}<span data-i18n="sources.built" data-i18n-locale> · built </span><time id="gen"></time></span>
         </div>
-        <p class="sources-scroll-hint">Swipe the table sideways to see source columns and leg coverage.</p>
-        <div class="hscroll" tabindex="0" role="region" aria-label="Source columns and leg coverage"><table id="sources"></table></div>
+        <p class="sources-scroll-hint" data-i18n="sources.scroll" data-i18n-locale>Swipe the table sideways to see source columns and leg coverage.</p>
+        <div class="hscroll" tabindex="0" role="region" data-i18n-aria-label="sources.coverage" aria-label="Source columns and leg coverage"><table id="sources"></table></div>
         <div class="notes" id="notes"></div>
       </div>
     </div>
@@ -258,24 +258,24 @@
 window.__SITE__ = {{ site|tojson }};
 window.__MANIFEST__ = {{ m|tojson }};
 </script>
-<aside class="chat collapsed" id="chat" aria-label="ship chat">
+<aside class="chat collapsed" id="chat" data-i18n-aria-label="chatControls.chat" aria-label="ship chat">
   <div class="chathead">
     <button class="chattoggle" id="chathead"><span class="dot" id="chatdot"></span><b id="chattitle">Ship</b> <span class="muted" id="chatwho">…</span><span class="badge" id="chatunread" hidden></span><span class="caret">▴</span></button>
     <button class="chatside" id="chatsidebtn" title="open as a side bar">⇤</button>
-    <button class="chatclose" id="chatclosebtn" title="close the chat">✕</button>
+    <button class="chatclose" id="chatclosebtn" data-i18n-title="chatControls.close" title="close the chat">✕</button>
   </div>
   <div class="chatbody">
-    <div class="chatrooms" id="chatrooms" role="tablist" aria-label="chat rooms"></div>
+    <div class="chatrooms" id="chatrooms" role="tablist" data-i18n-aria-label="chatControls.rooms" aria-label="chat rooms"></div>
     <p class="chat-privacy" id="chatprivacy">Shared room — anyone on this dashboard can read, including unnamed visitors.</p>
     <div class="chatpicker" id="chatpicker" hidden></div>
     <div class="chatlog" id="chatlog"></div>
     <div class="chattyping muted" id="chattyping" hidden></div>
     <div class="chatcrew muted" id="chatcrew" hidden></div>
     <form class="chatform" id="chatform" autocomplete="off">
-      <button type="button" class="emojibtn" id="chatemoji" title="pick your emoji">🙂</button>
-      <input id="chatname" placeholder="name" maxlength="24" title="your name, remembered on this device">
-      <input id="chattext" placeholder="message · Enter to send" maxlength="500" aria-label="Message">
-      <button type="submit" title="send">➤</button>
+      <button type="button" class="emojibtn" id="chatemoji" data-i18n-title="chatControls.emoji" title="pick your emoji">🙂</button>
+      <input id="chatname" data-i18n-placeholder="chatControls.name" placeholder="name" maxlength="24" data-i18n-title="chatControls.nameHint" title="your name, remembered on this device">
+      <input id="chattext" data-i18n-placeholder="chatControls.messagePlaceholder" placeholder="message · Enter to send" maxlength="500" data-i18n-aria-label="chatControls.message" aria-label="Message">
+      <button type="submit" data-i18n-title="chatControls.send" title="send">➤</button>
     </form>
     <div class="emojipick" id="emojipick" hidden></div>
   </div>

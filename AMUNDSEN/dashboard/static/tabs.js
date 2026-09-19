@@ -3,9 +3,13 @@
 (() => {
   "use strict";
   const UW = window.UW;
+  const {t} = window.UWI18n;
+  const variableLabel = name => window.UWI18n?.variable?.(name) ?? name;
   const $ = (s) => document.querySelector(s);
   const { THEME, C, fz, CFG, fmtTs, fmtVal, dms, store } = UW;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const columnKeys = {"time (ship)":"underway.column.time","leg":"underway.column.leg","station":"underway.column.station","source":"underway.column.source","cast":"underway.column.cast","label":"underway.column.label","type":"underway.column.type","activities":"underway.column.activities","bottom (m)":"underway.column.bottom","cast depth (m)":"underway.column.castDepth","comments":"underway.column.comments","max depth (m)":"underway.column.maxDepth","bottles":"underway.column.bottles"};
+  const columnLabel = label => columnKeys[label] ? t(columnKeys[label], {zone:tzAbbr()}) : variableLabel(label);
   const pal = (i) => C.palette[i % C.palette.length];      // the theme's data palette, round and round
   const getJSON = UW.fetchJSON;
   const cachedJSON = window.UWData.generationCache(getJSON, () => UW.M.generated_utc);
@@ -220,7 +224,7 @@
   // rows belong to legs not shown, with a link that shows every leg.
   function spanNote(kept, all, f, tag = "tr", colspan = 1) {
     const n = all - kept; if (n <= 0) return "";
-    const text = `${n.toLocaleString()} ${n === 1 ? "row" : "rows"} from legs not shown · <a href="#" class="spanall">show all legs</a>`;
+    const text = `${esc(t("underway.table.hidden", {count:n.toLocaleString()}))} · <a href="#" class="spanall">${esc(t("underway.table.allLegs"))}</a>`;
     return tag === "li" ? `<li class="spannote">${text}</li>` : `<tr class="spannote"><td colspan="${colspan}">${text}</td></tr>`;
   }
   document.addEventListener("click", (e) => {
@@ -323,14 +327,14 @@
     if (casts.kind === "live") {                                   // the table box holds the Seasave setup instead
       if (!tbl.querySelector("#livecfgbox")) tbl.innerHTML = `<tbody><tr class="livesetup"><td colspan="${CAST_COLS.length}"><div id="livecfgbox"></div></td></tr></tbody>`;
       if (live.data) liveCfgForm(tbl, live.data);
-      $("#castclear").textContent = "clear selection"; $("#castclear").classList.remove("has"); return;
+      $("#castclear").textContent = t("underway.clearSelection"); $("#castclear").classList.remove("has"); return;
     }
     const { rows, inLegs, f } = castRows();
     renderBottleTable();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
     const head = CAST_COLS.map(([k, l]) => k === "sel"
       ? `<th class="select-all"><input type="checkbox" data-select-all aria-label="Select all shown casts" title="Select all shown casts"></th>`
-      : `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
+      : `<th data-k="${esc(k)}" title="${esc(t('underway.sort'))}">${esc(columnLabel(l))}${arrow(k)}</th>`).join("");
     const row = (c) => {
       const dips = dipSel(c.id), whole = casts.sel.has(c.id), part = dips.length > 0;
       const isTow = c.kind === "MVP" && c.n_profiles;
@@ -389,7 +393,7 @@
       store.set("casts.open", [...casts.open]); renderCastList();
     };
     const nsel = new Set([...casts.sel].map(parentId)).size;
-    $("#castclear").textContent = nsel ? `clear selection (${nsel})` : "clear selection";
+    $("#castclear").textContent = nsel ? t("underway.clearSelectionCount", {count:nsel}) : t("underway.clearSelection");
     $("#castclear").classList.toggle("has", nsel > 0);
   }
   function downloadCastsTSV() {
@@ -1650,8 +1654,8 @@
   function renderStations() {
     const rows = stationRows();
     const arrow = (k) => stn.sort.key === k ? (stn.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = `<th class="select-all"><input type="checkbox" data-select-all aria-label="Select all shown station casts" title="Select all shown station casts"></th>`
-      + STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
+    const head = `<th class="select-all"><input type="checkbox" data-select-all aria-label="${esc(t('underway.stations.selectAll'))}" title="${esc(t('underway.stations.selectAll'))}"></th>`
+      + STATION_COLS.map(([k, l]) => `<th data-k="${esc(k)}" title="${esc(t('underway.sort'))}">${esc(columnLabel(l))}${arrow(k)}</th>`).join("");
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const stationKey = (r) => `${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`;
@@ -1669,12 +1673,12 @@
       renderStations();
     };
     const nsel0 = new Set([...casts.sel].map(parentId)).size;
-    $("#stnclear").textContent = nsel0 ? `clear selection (${nsel0})` : "clear selection";
+    $("#stnclear").textContent = nsel0 ? t("underway.clearSelectionCount", {count:nsel0}) : t("underway.clearSelection");
     $("#stnclear").classList.toggle("has", nsel0 > 0);
     topScroll($("#stationtable").closest(".tablewrap"));
     const nsel = rows.filter((r) => r.cast && casts.sel.has(`${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`)).length;
     const nev = rows.filter((r) => !r.cast).length;
-    $("#stnmeta").textContent = `${rows.length.toLocaleString()} stations${nev ? ` (${nev} without a cast)` : ""}${nsel ? ` · ${nsel} selected for the Casts tab` : ""} · click a row to select its cast (again to deselect), or to find a station on the map`;
+    $("#stnmeta").textContent = t("underway.stations.summary", {count:rows.length.toLocaleString(),withoutCast:nev,selected:nsel});
     for (const th of $("#stationtable").querySelectorAll("th[data-k]")) th.onclick = () => {
       const k = th.dataset.k; stn.sort = { key: k, dir: stn.sort.key === k ? -stn.sort.dir : (k === "time" ? -1 : 1) }; store.set("stn.sort", stn.sort); renderStations();
     };
@@ -1742,7 +1746,7 @@
     const stat = ["mean", "min", "max", "n"][tbl.stat];
     const cols = [["t", "time (ship)"], ["leg", "leg"], ["lat", "lat"], ["lon", "lon"], ...d.variables.map((v) => [v, v])];
     const arrow = (k) => tbl.sort.key === k ? (tbl.sort.dir > 0 ? " ▲" : " ▼") : "";
-    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="sort">${esc(l.replace("(ship)",`(${tzAbbr()})`))}${arrow(k)}</th>`).join("");
+    const head = cols.map(([k, l]) => `<th data-k="${esc(k)}" title="${esc(t('underway.sort'))}">${esc(columnLabel(l))}${arrow(k)}</th>`).join("");
     const body = rows.slice(0, 2000).map((r) => `<tr><td class="mono">${fmtTs(r.t)}</td><td>${esc(r.legLabel)}</td><td class="mono">${r.lat ?? ""}</td><td class="mono">${r.lon ?? ""}</td>` +
       d.variables.map((v) => `<td class="mono">${r[v] ? (tbl.stat === 3 ? r[v][3] : fmtVal(r[v][tbl.stat], "")) : ""}</td>`).join("") + "</tr>").join("");
     $("#aggtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + tbl.hidden, UW.currentFilter(), "tr", cols.length)}${body}</tbody>`;
@@ -1753,7 +1757,7 @@
       for (const x of $("#aggtable").querySelectorAll("tbody tr.on")) x.classList.remove("on");
       tr.classList.add("on"); UW.focusMap(r.lat, r.lon, `${fmtTs(r.t)} · ${r.legLabel}`);
     };
-    $("#tblmeta").textContent = `${rows.length.toLocaleString()} rows · ${stat}${rows.length > 2000 ? " · showing first 2000" : ""}`;
+    $("#tblmeta").textContent = t("underway.table.rows", {count:rows.length.toLocaleString(),statistic:t("underway.stat."+stat)}) + (rows.length > 2000 ? t("underway.table.truncated") : "");
     for (const th of $("#aggtable").querySelectorAll("th")) th.onclick = () => {
       const k = th.dataset.k; tbl.sort = { key: k, dir: tbl.sort.key === k ? -tbl.sort.dir : (k === "t" ? -1 : 1) }; store.set("tbl.sort", tbl.sort); renderTable();
     };
@@ -1825,6 +1829,10 @@
     if (name !== "casts") clearTimeout(live.timer);
     refreshActiveTab(true);
   };
+  window.addEventListener("uw:localechange", () => {
+    renderTable();
+    if (!$("#pane-stations").hidden) renderStations();
+  });
   wireCasts(); wireStations(); wireCalendar(); wireTable();
   const active = document.querySelector("#tabs button.on")?.dataset.tab;
   if (active) UW.onTab(active);

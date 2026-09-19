@@ -37,7 +37,10 @@
     canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);
     canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
     canvas.dataset.edge=height<width?'left':'top';
-    canvas.setAttribute('aria-label',legend?`${legend.name}${legend.showScale?`: ${legend.low} to ${legend.high}`:''}`:'Map legend');
+    const label = legend ? (legend.showScale
+      ? (window.UWI18n?.t('mapLegend.range', {name:legend.name, low:legend.low, high:legend.high}) ?? `${legend.name}: ${legend.low} to ${legend.high}`)
+      : legend.name) : (window.UWI18n?.t('mapLegend.label') ?? 'Map legend');
+    canvas.setAttribute('aria-label',label);
     const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);draw(ctx,width,height,legend);
   }
   window.UWMapLegend={draw,render,formatRange};

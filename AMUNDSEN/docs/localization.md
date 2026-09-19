@@ -1,14 +1,23 @@
-# Page localization pilot
+# Page localization
 
-The initial UI slice covers dashboard navigation (desktop and mobile), map-size
-navigation, and the feedback dialog, including in-flight, success and retry
-messages. It offers English and Canadian French. Other panels and wiki content
-remain English in this pilot; the language control explains this coverage.
-French is an editorial draft awaiting language review, not a site-wide release.
+The selected Canadian French catalog contains 423 messages. Coverage includes
+desktop/mobile navigation, the feedback dialog, static page controls and
+accessibility labels, appearance options, the main Underway controls and chart
+groups, measurement names, table headings/summaries, map details and legends,
+ice-chart UI, graph/map export controls, and Sources explanations.
+
+This is not yet a site-wide translation. Most dynamic Casts/live-feed and
+Schedule workflows, generated wiki/article content, photo tools and chat
+dialogs still need work. Source-authored station/event descriptions, source
+column names, attribution records and user messages remain unchanged.
+French is an editorial draft awaiting independent language review.
 
 The implementation is independent of the wiki's record/field translation store.
 Both can share the same language choice when the wiki publisher is connected.
 Do not translate generated wiki HTML into these UI catalogs.
+
+The selected profile is `editorial-fr-ca-v2`; the original v1 candidates remain
+available for comparison and rollback. The game now has its own CTD catalog.
 
 ## Source, candidates and selection
 
@@ -66,6 +75,14 @@ messages use English plural rules even when the chosen language is French.
 Numbers should be passed as values; explicitly decide which scientific units,
 precision and numeric formatting must stay unchanged.
 
+`UWI18n.variable(name)` translates only the display name of the 30 known
+measurement fields. Dataset lookup keys, selection values, recorded units and
+TSV headers remain original. Unknown instrument labels fall back unchanged.
+Live switching refreshes cached labels/charts without reloading observation
+windows or resetting the chosen span, variable, filters or plot zoom. Export
+controls preserve entered dimensions; the preview image is a snapshot of the
+plot at opening, so reopen it to capture newly translated plot annotations.
+
 ## Validation
 
 ```sh
@@ -76,15 +93,16 @@ I18N_UI=1 UI_WIDTH=1400 PYTHON=python3 node tests/track-browser.cjs /path/to/chr
 ```
 
 The browser test uses an isolated HTTP fixture and mocked feedback endpoint. It
-checks live language switching, preservation of entered feedback, translated
+checks live language switching, preserved measurement selections/data and
+table search, graph export dimensions and data, entered feedback, translated
 submission state, mobile menus and desktop restoration. `I18N_SCREENSHOT=/path.png`
 optionally records the French dialog. Container/table resize callbacks are
 scheduled outside ResizeObserver delivery because localized text and responsive
 menus change the layout; MapLibre's duplicate automatic resize is disabled for
 the main map, whose existing app resize handler owns that lifecycle.
 
-Next slices: the remaining dashboard panels and their JS strings; then the
-science games from the canonical `rec3141/amundsen-game` source checkout.
+Next slices: detailed Casts/live setup and Schedule workflows, followed by
+photo/chat tools and wiki-serving integration.
 Game state, control bindings, variable names and numerical datasets are not
 translation inputs. Published `/game/` files are generated output, not the place
 to maintain translations.

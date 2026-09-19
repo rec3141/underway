@@ -3,6 +3,44 @@
   'use strict';
   const catalog = window.UW_UI_CATALOG || {sourceLocale:'en', locales:{en:{label:'English', messages:{}}}};
   const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  // Measurement names remain immutable lookup keys; only their display changes.
+  const variableKeys = {
+    "SST (°C)": "variable.sst",
+    "Salinity (PSU)": "variable.salinity",
+    "Excess heat (°C)": "variable.excessHeat",
+    "TSG line warming (°C)": "variable.tsgWarming",
+    "TSG flow (V)": "variable.tsgFlow",
+    "Fluorescence (µg/L)": "variable.fluorescence",
+    "Oxygen (mL/L)": "variable.oxygen",
+    "Short-wave radiation (W/m²)": "variable.solar",
+    "Bottom depth (m)": "variable.bottomDepth",
+    "Rosette depth (m)": "variable.rosetteDepth",
+    "Rosette rate (m/s)": "variable.rosetteRate",
+    "Cable length (m)": "variable.cableLength",
+    "Cable rate (m/s)": "variable.cableRate",
+    "Air temperature (°C)": "variable.airTemperature",
+    "Relative humidity (%)": "variable.humidity",
+    "Atmospheric pressure (hPa)": "variable.pressure",
+    "True wind direction (°)": "variable.windDirection",
+    "Relative wind speed (kn)": "variable.windSpeed",
+    "Heading (°)": "variable.heading",
+    "Ship speed (kn)": "variable.shipSpeed",
+    "Sea state · 4σ heave (m)": "variable.seaState",
+    "Roll & pitch RMS (°)": "variable.rollPitch",
+    "Time elapsed (h)": "variable.elapsed",
+    "Distance travelled (km)": "variable.distance",
+    "Surprise (−log10 p)": "variable.surprise",
+    "Surprise · 15 min": "variable.surprise0",
+    "Surprise · 1 h": "variable.surprise1",
+    "Surprise · 3 h": "variable.surprise2",
+    "Surprise · 12 h": "variable.surprise3",
+    "Surprise · 48 h": "variable.surprise4"
+  };
+  function variable(name) {
+    if (!has(variableKeys, name)) return name;
+    const result = t(variableKeys[name]);
+    return result === variableKeys[name] ? name : result;
+  }
   const supported = value => typeof value === 'string' && has(catalog.locales, value);
   let stored;
   try { stored = JSON.parse(localStorage.getItem('uw:locale')); } catch (_) {}
@@ -27,6 +65,9 @@
       for (const node of nodes) {
         const value = t(node.getAttribute(marker));
         if (attr) node.setAttribute(attr, value); else node.textContent = value;
+        if (!attr || /^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(node.tagName)) {
+          node.lang = has(catalog.locales[locale]?.messages || {}, node.getAttribute(marker)) ? locale : catalog.sourceLocale;
+        }
       }
     }
     for (const picker of root.querySelectorAll('[data-locale-picker]')) picker.value = locale;
@@ -54,6 +95,6 @@
     document.documentElement.lang = locale;
     apply();
   }
-  window.UWI18n = Object.freeze({t, apply, setLocale, get locale() { return locale; }});
+  window.UWI18n = Object.freeze({t, variable, apply, setLocale, get locale() { return locale; }});
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
 })();

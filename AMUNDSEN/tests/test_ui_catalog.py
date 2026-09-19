@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -16,7 +17,9 @@ class CatalogTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         shutil.copytree(ROOT/'locales', self.root/'locales')
-        self.variant = self.root/'locales/variants/fr-CA/editorial-fr-ca-v1.json'
+        policy = json.loads((self.root/'locales/selection.json').read_text())
+        profile = policy['locales']['fr-CA']['defaultProfile']
+        self.variant = self.root/'locales/variants/fr-CA'/f'{profile}.json'
 
     def edit(self, path, change):
         data = json.loads(path.read_text()); change(data)
@@ -26,6 +29,13 @@ class CatalogTests(unittest.TestCase):
         data, coverage = catalog.compile_catalog()
         self.assertEqual((ROOT/'dashboard/static/i18n-catalog.js').read_text(), catalog.javascript(data))
         self.assertFalse(coverage['fr-CA']['fallbacks'])
+
+    def test_template_bindings_have_source_messages(self):
+        source = json.loads((ROOT/'locales/en.json').read_text())['messages']
+        template = (ROOT/'dashboard/templates/index.html.j2').read_text()
+        bindings = re.findall(r'data-i18n(?:-title|-placeholder|-aria-label)?="([^"]+)"', template)
+        self.assertTrue(bindings)
+        self.assertFalse(set(bindings) - set(source))
 
     def test_source_edit_rejects_stale_translation(self):
         self.edit(self.root/'locales/en.json', lambda d:d['messages']['nav.map'].update(text='Ocean map'))

@@ -1,0 +1,2157 @@
+{
+  "locale": "fr-CA",
+  "profile": {
+    "id": "editorial-fr-ca-v2",
+    "translator": "lead-assistant",
+    "model": "GPT-6",
+    "glossary": "dashboard-ui-v2",
+    "method": "Editorial Canadian French UI expansion; original measurements and user-authored content preserved. Draft for review."
+  },
+  "messages": {
+    "map.next": {
+      "source": "{current} · click for {next}",
+      "text": "{current} · cliquez pour passer à {next}",
+      "status": "draft"
+    },
+    "nav.map": {
+      "source": "Map",
+      "text": "Carte",
+      "status": "draft"
+    },
+    "nav.schedule": {
+      "source": "Schedule",
+      "text": "Horaire",
+      "status": "draft"
+    },
+    "nav.stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "nav.underway": {
+      "source": "Underway",
+      "text": "Mesures en route",
+      "status": "draft"
+    },
+    "nav.casts": {
+      "source": "Casts",
+      "text": "Profils",
+      "status": "draft"
+    },
+    "nav.photos": {
+      "source": "Photos",
+      "text": "Photos",
+      "status": "draft"
+    },
+    "nav.wiki": {
+      "source": "Wiki",
+      "text": "Wiki",
+      "status": "draft"
+    },
+    "nav.chat": {
+      "source": "Chat",
+      "text": "Clavardage",
+      "status": "draft"
+    },
+    "nav.games": {
+      "source": "Games",
+      "text": "Jeux",
+      "status": "draft"
+    },
+    "nav.sources": {
+      "source": "Sources",
+      "text": "Sources",
+      "status": "draft"
+    },
+    "nav.science": {
+      "source": "Science",
+      "text": "Science",
+      "status": "draft"
+    },
+    "nav.extras": {
+      "source": "Extras",
+      "text": "Autres",
+      "status": "draft"
+    },
+    "nav.label": {
+      "source": "Main navigation",
+      "text": "Navigation principale",
+      "status": "draft"
+    },
+    "map.none": {
+      "source": "No map",
+      "text": "Sans carte",
+      "status": "draft"
+    },
+    "map.half": {
+      "source": "Half map",
+      "text": "Demi-carte",
+      "status": "draft"
+    },
+    "map.full": {
+      "source": "Full map",
+      "text": "Carte pleine page",
+      "status": "draft"
+    },
+    "map.mode": {
+      "source": "Map: {mode}",
+      "text": "Carte : {mode}",
+      "status": "draft"
+    },
+    "locale.label": {
+      "source": "Language",
+      "text": "Langue",
+      "status": "draft"
+    },
+    "feedback.open": {
+      "source": "Feedback",
+      "text": "Commentaires",
+      "status": "draft"
+    },
+    "feedback.title": {
+      "source": "Feedback about this page",
+      "text": "Commentaires sur cette page",
+      "status": "draft"
+    },
+    "feedback.description": {
+      "source": "Report a problem or suggest an improvement. The current page and view settings are included.",
+      "text": "Signalez un problème ou proposez une amélioration. La page actuelle et les paramètres d’affichage sont inclus.",
+      "status": "draft"
+    },
+    "feedback.message": {
+      "source": "Your feedback",
+      "text": "Vos commentaires",
+      "status": "draft"
+    },
+    "feedback.name": {
+      "source": "Name (optional)",
+      "text": "Nom (facultatif)",
+      "status": "draft"
+    },
+    "feedback.cancel": {
+      "source": "Cancel",
+      "text": "Annuler",
+      "status": "draft"
+    },
+    "feedback.submit": {
+      "source": "Submit feedback",
+      "text": "Envoyer les commentaires",
+      "status": "draft"
+    },
+    "feedback.close": {
+      "source": "Close",
+      "text": "Fermer",
+      "status": "draft"
+    },
+    "feedback.saving": {
+      "source": "Saving feedback…",
+      "text": "Enregistrement des commentaires…",
+      "status": "draft"
+    },
+    "feedback.saved": {
+      "source": "Thank you—your feedback has been saved.",
+      "text": "Merci! Vos commentaires ont été enregistrés.",
+      "status": "draft"
+    },
+    "feedback.failed": {
+      "source": "Could not save feedback.",
+      "text": "Impossible d’enregistrer les commentaires.",
+      "status": "draft"
+    },
+    "feedback.timeout": {
+      "source": "The request timed out. Your feedback is still here; please retry.",
+      "text": "Le délai de la demande est écoulé. Vos commentaires sont toujours ici; veuillez réessayer.",
+      "status": "draft"
+    },
+    "feedback.retry": {
+      "source": "{error} Your feedback is still here; please retry.",
+      "text": "{error} Vos commentaires sont toujours ici; veuillez réessayer.",
+      "status": "draft"
+    },
+    "feedback.appearance": {
+      "source": "Feedback and appearance",
+      "text": "Commentaires et apparence",
+      "status": "draft"
+    },
+    "nav.mapHint": {
+      "source": "how much of the page the map takes: half, all of it, or none",
+      "text": "part de la page occupée par la carte : la moitié, la totalité ou aucune",
+      "status": "draft"
+    },
+    "nav.photosHint": {
+      "source": "Photo gallery and imports",
+      "text": "Galerie de photos et importations",
+      "status": "draft"
+    },
+    "nav.wikiHint": {
+      "source": "the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask",
+      "text": "le passé et la nature de la région : voyages, personnes, lieux et artéfacts, roche, glace, eau, ciel et êtres vivants, sur la carte et dans un wiki, avec l’équipage à qui poser vos questions",
+      "status": "draft"
+    },
+    "nav.chatHint": {
+      "source": "ship chat",
+      "text": "clavardage à bord",
+      "status": "draft"
+    },
+    "locale.coverage": {
+      "source": "French covers the main controls and measurement labels. Some panels, source material and wiki articles remain in English.",
+      "text": "Le français couvre les principales commandes et les libellés des mesures. Certains panneaux, documents sources et articles du wiki restent en anglais.",
+      "status": "draft"
+    },
+    "shell.selectLegSpan": {
+      "source": "Select leg and time span:",
+      "text": "Choisir le tronçon et la période :",
+      "status": "draft"
+    },
+    "shell.legsToShow": {
+      "source": "Legs to show · ",
+      "text": "Tronçons à afficher · ",
+      "status": "draft"
+    },
+    "shell.all": {
+      "source": "all",
+      "text": "tous",
+      "status": "draft"
+    },
+    "shell.none": {
+      "source": "none",
+      "text": "aucun",
+      "status": "draft"
+    },
+    "shell.showLast": {
+      "source": "Show last",
+      "text": "Afficher les derniers",
+      "status": "draft"
+    },
+    "shell.xAxis": {
+      "source": "X-axis",
+      "text": "Axe X",
+      "status": "draft"
+    },
+    "shell.colorBy": {
+      "source": "Color by ",
+      "text": "Colorer selon ",
+      "status": "draft"
+    },
+    "mapControls.plan": {
+      "source": "Plan",
+      "text": "Plan",
+      "status": "draft"
+    },
+    "mapControls.track": {
+      "source": "Track",
+      "text": "Trajet",
+      "status": "draft"
+    },
+    "mapControls.stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "mapControls.stationsShort": {
+      "source": "Stns",
+      "text": "Stns",
+      "status": "draft"
+    },
+    "mapControls.events": {
+      "source": "Events",
+      "text": "Événements",
+      "status": "draft"
+    },
+    "mapControls.photos": {
+      "source": "Photos",
+      "text": "Photos",
+      "status": "draft"
+    },
+    "mapControls.names": {
+      "source": "Names",
+      "text": "Noms",
+      "status": "draft"
+    },
+    "mapControls.history": {
+      "source": "History",
+      "text": "Histoire",
+      "status": "draft"
+    },
+    "mapControls.nature": {
+      "source": "Nature",
+      "text": "Nature",
+      "status": "draft"
+    },
+    "mapControls.iceCharts": {
+      "source": "Ice charts",
+      "text": "Cartes des glaces",
+      "status": "draft"
+    },
+    "mapControls.region": {
+      "source": "Region ",
+      "text": "Région ",
+      "status": "draft"
+    },
+    "mapControls.chartDate": {
+      "source": "Chart date (UTC) ",
+      "text": "Date de la carte (UTC) ",
+      "status": "draft"
+    },
+    "mapControls.opacity": {
+      "source": "Opacity ",
+      "text": "Opacité ",
+      "status": "draft"
+    },
+    "mapControls.retryChart": {
+      "source": "Retry chart",
+      "text": "Réessayer le chargement",
+      "status": "draft"
+    },
+    "mapControls.iceService": {
+      "source": "Canadian Ice Service / ECCC",
+      "text": "Service canadien des glaces / ECCC",
+      "status": "draft"
+    },
+    "mapControls.details": {
+      "source": "Map details",
+      "text": "Détails de la carte",
+      "status": "draft"
+    },
+    "tables.title": {
+      "source": "Data tables",
+      "text": "Tableaux de données",
+      "status": "draft"
+    },
+    "tables.hourly": {
+      "source": "Hourly",
+      "text": "Par heure",
+      "status": "draft"
+    },
+    "tables.daily": {
+      "source": "Daily",
+      "text": "Par jour",
+      "status": "draft"
+    },
+    "tables.statistic": {
+      "source": "Statistic ",
+      "text": "Statistique ",
+      "status": "draft"
+    },
+    "tables.mean": {
+      "source": "mean",
+      "text": "moyenne",
+      "status": "draft"
+    },
+    "tables.min": {
+      "source": "min",
+      "text": "min",
+      "status": "draft"
+    },
+    "tables.max": {
+      "source": "max",
+      "text": "max",
+      "status": "draft"
+    },
+    "tables.count": {
+      "source": "count",
+      "text": "nombre",
+      "status": "draft"
+    },
+    "castsControls.type": {
+      "source": "Select Cast Type",
+      "text": "Choisir le type de profil",
+      "status": "draft"
+    },
+    "castsControls.all": {
+      "source": "All",
+      "text": "Tous",
+      "status": "draft"
+    },
+    "castsControls.live": {
+      "source": "Live",
+      "text": "En direct",
+      "status": "draft"
+    },
+    "castsControls.rosette": {
+      "source": "Rosette",
+      "text": "Rosette",
+      "status": "draft"
+    },
+    "castsControls.clear": {
+      "source": "clear selection",
+      "text": "Effacer la sélection",
+      "status": "draft"
+    },
+    "castsControls.fired": {
+      "source": "Bottles fired",
+      "text": "Bouteilles fermées",
+      "status": "draft"
+    },
+    "castsControls.graph": {
+      "source": "Select Graph",
+      "text": "Choisir le graphique",
+      "status": "draft"
+    },
+    "castsControls.single": {
+      "source": "Single",
+      "text": "Unique",
+      "status": "draft"
+    },
+    "castsControls.multi": {
+      "source": "Multi",
+      "text": "Multiples",
+      "status": "draft"
+    },
+    "castsControls.section": {
+      "source": "Section",
+      "text": "Coupe",
+      "status": "draft"
+    },
+    "castsControls.bottles": {
+      "source": "Bottles",
+      "text": "Bouteilles",
+      "status": "draft"
+    },
+    "castsControls.smooth": {
+      "source": "Smooth",
+      "text": "Lisser",
+      "status": "draft"
+    },
+    "castsControls.saveTransect": {
+      "source": "Save transect",
+      "text": "Enregistrer le transect",
+      "status": "draft"
+    },
+    "calendarControls.today": {
+      "source": "Today",
+      "text": "Aujourd’hui",
+      "status": "draft"
+    },
+    "calendarControls.log": {
+      "source": "Event Log",
+      "text": "Journal des opérations",
+      "status": "draft"
+    },
+    "calendarControls.calendar": {
+      "source": "Calendar",
+      "text": "Calendrier",
+      "status": "draft"
+    },
+    "wikiControls.back": {
+      "source": "‹ Back",
+      "text": "‹ Retour",
+      "status": "draft"
+    },
+    "wikiControls.home": {
+      "source": "Home",
+      "text": "Accueil",
+      "status": "draft"
+    },
+    "wikiControls.explore": {
+      "source": "Explore",
+      "text": "Explorer",
+      "status": "draft"
+    },
+    "wikiControls.ask": {
+      "source": "Ask a Q",
+      "text": "Poser une question",
+      "status": "draft"
+    },
+    "sources.title": {
+      "source": "Sources",
+      "text": "Sources",
+      "status": "draft"
+    },
+    "sources.webCopy": {
+      "source": "Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard",
+      "text": "Version Web : publiée depuis le navire lorsque la connexion est disponible; le clavardage, le téléversement de photos, les données en direct, les alertes et les commentaires fonctionnent uniquement à bord",
+      "status": "draft"
+    },
+    "sources.intranet": {
+      "source": "Ship intranet: ",
+      "text": "Intranet du navire : ",
+      "status": "draft"
+    },
+    "sources.calendars": {
+      "source": "Calendars: ",
+      "text": "Calendriers : ",
+      "status": "draft"
+    },
+    "sources.by": {
+      "source": "Dashboard by Eric Collins · ",
+      "text": "Tableau de bord par Eric Collins · ",
+      "status": "draft"
+    },
+    "sources.source": {
+      "source": "source",
+      "text": "code source",
+      "status": "draft"
+    },
+    "sources.data": {
+      "source": " · Data: Amundsen Science (ACSD)",
+      "text": " · Données : Amundsen Science (ACSD)",
+      "status": "draft"
+    },
+    "sources.built": {
+      "source": " · built ",
+      "text": " · généré le ",
+      "status": "draft"
+    },
+    "sources.scroll": {
+      "source": "Swipe the table sideways to see source columns and leg coverage.",
+      "text": "Faites défiler le tableau horizontalement pour voir les colonnes sources et les tronçons couverts.",
+      "status": "draft"
+    },
+    "shell.themeHint": {
+      "source": "the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996",
+      "text": "Apparence de la page : Auto suit le mode clair ou sombre du système; Claude et Minimal (style épuré, gros caractères) offrent chacun les deux modes; Navigator rappelle le Web de 1996",
+      "status": "draft"
+    },
+    "shell.theme": {
+      "source": "Theme",
+      "text": "Thème",
+      "status": "draft"
+    },
+    "shell.textSizeHint": {
+      "source": "the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise",
+      "text": "Taille des caractères, indépendamment du thème : grande pour Minimal et normale pour Claude, sauf indication contraire",
+      "status": "draft"
+    },
+    "shell.textSize": {
+      "source": "Text size",
+      "text": "Taille du texte",
+      "status": "draft"
+    },
+    "shell.timeSpan": {
+      "source": "Time span",
+      "text": "Période",
+      "status": "draft"
+    },
+    "shell.timeSpanShown": {
+      "source": "Time span shown",
+      "text": "Période affichée",
+      "status": "draft"
+    },
+    "shell.span": {
+      "source": "span",
+      "text": "période",
+      "status": "draft"
+    },
+    "shell.showSchedule": {
+      "source": "show the schedule",
+      "text": "afficher le programme",
+      "status": "draft"
+    },
+    "shell.xAxisAria": {
+      "source": "X axis",
+      "text": "Axe X",
+      "status": "draft"
+    },
+    "shell.xAxisHint": {
+      "source": "switch the graphs between time and distance along track",
+      "text": "basculer l’axe des graphiques entre le temps et la distance parcourue",
+      "status": "draft"
+    },
+    "shell.colorHint": {
+      "source": "the variable that colours the track and the graph points",
+      "text": "variable qui détermine la couleur du trajet et des points des graphiques",
+      "status": "draft"
+    },
+    "mapControls.exportHint": {
+      "source": "Preview and export the map",
+      "text": "Prévisualiser et exporter la carte",
+      "status": "draft"
+    },
+    "mapControls.export": {
+      "source": "Export map",
+      "text": "Exporter la carte",
+      "status": "draft"
+    },
+    "mapControls.fit": {
+      "source": "fit to track",
+      "text": "cadrer le trajet",
+      "status": "draft"
+    },
+    "mapControls.reset": {
+      "source": "Reset map view",
+      "text": "Réinitialiser la vue de la carte",
+      "status": "draft"
+    },
+    "mapControls.minimizeHint": {
+      "source": "no map: the pane takes the whole width",
+      "text": "sans carte : le panneau occupe toute la largeur",
+      "status": "draft"
+    },
+    "mapControls.minimize": {
+      "source": "Minimise map",
+      "text": "Réduire la carte",
+      "status": "draft"
+    },
+    "mapControls.maximizeHint": {
+      "source": "full map: the map takes the whole page",
+      "text": "carte seule : la carte occupe toute la page",
+      "status": "draft"
+    },
+    "mapControls.maximize": {
+      "source": "Maximise map",
+      "text": "Agrandir la carte",
+      "status": "draft"
+    },
+    "mapControls.shipLayers": {
+      "source": "the ship's own layers",
+      "text": "couches de données du navire",
+      "status": "draft"
+    },
+    "mapControls.planHint": {
+      "source": "the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it",
+      "text": "trajet et stations prévus pour le tronçon, tirés du fichier KMZ de l’expédition; déposez un nouveau fichier KMZ ou KML sur la carte pour les remplacer",
+      "status": "draft"
+    },
+    "mapControls.trackHint": {
+      "source": "the ship's track for the shown legs and span",
+      "text": "trajet du navire pour les tronçons et la période affichés",
+      "status": "draft"
+    },
+    "mapControls.stationsHint": {
+      "source": "CTD casts (white) and stations worked without a cast, from the event log (green)",
+      "text": "profils CTD (en blanc) et stations échantillonnées sans profil, tirées du journal des opérations (en vert)",
+      "status": "draft"
+    },
+    "mapControls.eventsHint": {
+      "source": "geolocated entries of the ship's event log, for the shown legs and span",
+      "text": "entrées géolocalisées du journal des opérations du navire pour les tronçons et la période affichés",
+      "status": "draft"
+    },
+    "mapControls.photosHint": {
+      "source": "the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it",
+      "text": "images : une caméra pour la vidéo accélérée de chaque jour et les photos du navire provenant de /Share; cliquez sur une image pour l’ouvrir",
+      "status": "draft"
+    },
+    "mapControls.namesHint": {
+      "source": "geographic names: bays, sounds, straits, islands, capes, lakes, rivers, glaciers and mountains, from the Canadian Geographical Names Database and GeoNames; more of them appear as you zoom in",
+      "text": "noms géographiques : baies, bras de mer, détroits, îles, caps, lacs, rivières, glaciers et montagnes, provenant de la Base de données toponymiques du Canada et de GeoNames; d’autres noms apparaissent en agrandissant la carte",
+      "status": "draft"
+    },
+    "mapControls.historyHint": {
+      "source": "the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it",
+      "text": "histoire dans le wiki : voyages, épaves, hivernages, lieux et artéfacts; cliquez sur un élément pour en savoir plus",
+      "status": "draft"
+    },
+    "mapControls.natureHint": {
+      "source": "the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it",
+      "text": "nature dans le wiki : observations, sondages, mesures et journal du navire; cliquez sur un élément pour le lire",
+      "status": "draft"
+    },
+    "mapControls.satelliteHint": {
+      "source": "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour",
+      "text": "images satellitaires récentes autour du navire : radar Sentinel-1 (qui détecte la glace à travers les nuages), puis Sentinel-2 en couleurs naturelles",
+      "status": "draft"
+    },
+    "mapControls.previousImage": {
+      "source": "the picture before",
+      "text": "image précédente",
+      "status": "draft"
+    },
+    "mapControls.nextImage": {
+      "source": "the picture after",
+      "text": "image suivante",
+      "status": "draft"
+    },
+    "mapControls.iceChartsHint": {
+      "source": "Canadian Ice Service daily and regional ice charts",
+      "text": "cartes quotidiennes et régionales des glaces du Service canadien des glaces",
+      "status": "draft"
+    },
+    "mapControls.iceLegend": {
+      "source": "Ice concentration legend",
+      "text": "Légende de la concentration des glaces",
+      "status": "draft"
+    },
+    "mapControls.previousDay": {
+      "source": "previous day",
+      "text": "jour précédent",
+      "status": "draft"
+    },
+    "mapControls.nextDay": {
+      "source": "next day",
+      "text": "jour suivant",
+      "status": "draft"
+    },
+    "mapControls.close": {
+      "source": "close",
+      "text": "fermer",
+      "status": "draft"
+    },
+    "mapControls.scale": {
+      "source": "the scale at the centre of the map",
+      "text": "échelle au centre de la carte",
+      "status": "draft"
+    },
+    "mapControls.closeDetails": {
+      "source": "Close map details",
+      "text": "Fermer les détails de la carte",
+      "status": "draft"
+    },
+    "tables.filterPlaceholder": {
+      "source": "filter rows",
+      "text": "filtrer les lignes",
+      "status": "draft"
+    },
+    "tables.filter": {
+      "source": "Filter rows",
+      "text": "Filtrer les lignes",
+      "status": "draft"
+    },
+    "tables.download": {
+      "source": "download the visible table as tab-separated text",
+      "text": "télécharger le tableau affiché en texte délimité par des tabulations",
+      "status": "draft"
+    },
+    "castsControls.allHint": {
+      "source": "every kind of cast",
+      "text": "tous les types de profils",
+      "status": "draft"
+    },
+    "castsControls.liveHint": {
+      "source": "the cast in the water, from Seasave's TCP/IP output",
+      "text": "profil en cours d’acquisition dans l’eau, provenant de la sortie TCP/IP de Seasave",
+      "status": "draft"
+    },
+    "castsControls.rosetteHint": {
+      "source": "the classic rosette's CTD casts",
+      "text": "profils CTD de la rosette classique",
+      "status": "draft"
+    },
+    "castsControls.tmHint": {
+      "source": "the trace-metal rosette's casts",
+      "text": "profils de la rosette pour les métaux traces",
+      "status": "draft"
+    },
+    "castsControls.mvpHint": {
+      "source": "moving vessel profiler tows",
+      "text": "remorquages du profileur de navire en mouvement",
+      "status": "draft"
+    },
+    "castsControls.trsHint": {
+      "source": "saved transects",
+      "text": "transects enregistrés",
+      "status": "draft"
+    },
+    "castsControls.deselect": {
+      "source": "deselect all",
+      "text": "tout désélectionner",
+      "status": "draft"
+    },
+    "castsControls.filterPlaceholder": {
+      "source": "filter (station, label, date)",
+      "text": "filtrer (station, libellé, date)",
+      "status": "draft"
+    },
+    "castsControls.filter": {
+      "source": "Filter casts",
+      "text": "Filtrer les profils",
+      "status": "draft"
+    },
+    "castsControls.download": {
+      "source": "download the visible casts as tab-separated text",
+      "text": "télécharger les profils affichés en texte délimité par des tabulations",
+      "status": "draft"
+    },
+    "castsControls.filterBottlesPlaceholder": {
+      "source": "filter bottles",
+      "text": "filtrer les bouteilles",
+      "status": "draft"
+    },
+    "castsControls.filterBottles": {
+      "source": "Filter bottles fired",
+      "text": "Filtrer les bouteilles fermées",
+      "status": "draft"
+    },
+    "castsControls.downloadBottles": {
+      "source": "download the filtered bottle firings at full precision as tab-separated text",
+      "text": "télécharger les fermetures de bouteilles filtrées, à pleine précision, en texte délimité par des tabulations",
+      "status": "draft"
+    },
+    "castsControls.singleHint": {
+      "source": "one cast, variables overlaid on their own axes",
+      "text": "un profil, avec les variables superposées sur leurs axes respectifs",
+      "status": "draft"
+    },
+    "castsControls.multiHint": {
+      "source": "the selected casts as depth profiles, one graph per variable",
+      "text": "profils sélectionnés en fonction de la profondeur, un graphique par variable",
+      "status": "draft"
+    },
+    "castsControls.sectionHint": {
+      "source": "the selected casts side by side as a depth section along time or distance",
+      "text": "profils sélectionnés côte à côte, en coupe verticale selon le temps ou la distance",
+      "status": "draft"
+    },
+    "castsControls.bottlesHint": {
+      "source": "mark the rosette's bottle firings on the casts (from the SeaBird .btl files)",
+      "text": "indiquer les fermetures des bouteilles de la rosette sur les profils (à partir des fichiers SeaBird .btl)",
+      "status": "draft"
+    },
+    "castsControls.smoothHint": {
+      "source": "smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range",
+      "text": "lisser les capteurs bruités (fluorescence, CDOM, transmission, nitrates) le long de chaque profil : moyenne mobile sur 7 à 21 m selon la plage de profondeur",
+      "status": "draft"
+    },
+    "castsControls.saveHint": {
+      "source": "Save this section and its station order for everyone on the ship",
+      "text": "Enregistrer cette coupe et l’ordre de ses stations pour tout le monde à bord",
+      "status": "draft"
+    },
+    "castsControls.xAxis": {
+      "source": "Section x axis",
+      "text": "Axe X de la coupe",
+      "status": "draft"
+    },
+    "castsControls.xAxisHint": {
+      "source": "the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips",
+      "text": "axe X de la coupe : temps, distance le long des profils dans l’ordre chronologique, stations de A à Z ou ordre personnalisé à l’aide des pastilles",
+      "status": "draft"
+    },
+    "calendarControls.filterPlaceholder": {
+      "source": "filter events",
+      "text": "filtrer les événements",
+      "status": "draft"
+    },
+    "calendarControls.filter": {
+      "source": "Filter events",
+      "text": "Filtrer les événements",
+      "status": "draft"
+    },
+    "stationsControls.filterPlaceholder": {
+      "source": "filter stations",
+      "text": "filtrer les stations",
+      "status": "draft"
+    },
+    "stationsControls.filter": {
+      "source": "Filter stations",
+      "text": "Filtrer les stations",
+      "status": "draft"
+    },
+    "stationsControls.clearHint": {
+      "source": "deselect every cast and drop the map focus",
+      "text": "désélectionner tous les profils et annuler le cadrage de la carte",
+      "status": "draft"
+    },
+    "wikiControls.backHint": {
+      "source": "back to the view before",
+      "text": "revenir à la vue précédente",
+      "status": "draft"
+    },
+    "wikiControls.homeHint": {
+      "source": "the front page: today, here, the journal, the domains and the narratives",
+      "text": "page d’accueil : aujourd’hui, ici, le journal, les domaines et les récits",
+      "status": "draft"
+    },
+    "wikiControls.exploreHint": {
+      "source": "every topic, with its pages and artifacts",
+      "text": "tous les sujets, avec leurs pages et leurs artéfacts",
+      "status": "draft"
+    },
+    "wikiControls.domains": {
+      "source": "What the wiki shows",
+      "text": "Contenu affiché dans le wiki",
+      "status": "draft"
+    },
+    "wikiControls.historyHint": {
+      "source": "the human past: voyages, people, places and artifacts",
+      "text": "passé humain : voyages, personnes, lieux et artéfacts",
+      "status": "draft"
+    },
+    "wikiControls.natureHint": {
+      "source": "the natural record: subjects, observations, the domains and the ship's journal",
+      "text": "patrimoine naturel : sujets, observations, domaines et journal du navire",
+      "status": "draft"
+    },
+    "wikiControls.askHint": {
+      "source": "ask the crew in the chat",
+      "text": "poser une question à l’équipage dans le clavardage",
+      "status": "draft"
+    },
+    "wikiControls.close": {
+      "source": "Close panel",
+      "text": "Fermer le panneau",
+      "status": "draft"
+    },
+    "wikiControls.searchPlaceholder": {
+      "source": "search: voyages, people, places, species, ice, weather",
+      "text": "rechercher : voyages, personnes, lieux, espèces, glace, météo",
+      "status": "draft"
+    },
+    "wikiControls.search": {
+      "source": "Search the wiki",
+      "text": "Rechercher dans le wiki",
+      "status": "draft"
+    },
+    "wikiControls.browse": {
+      "source": "Browse a kind, a domain or a page",
+      "text": "Parcourir un type, un domaine ou une page",
+      "status": "draft"
+    },
+    "wikiControls.browseHint": {
+      "source": "everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal",
+      "text": "tous les éléments d’un type sur une page; bibliographie; création du wiki; archives; journal du navire",
+      "status": "draft"
+    },
+    "sources.coverage": {
+      "source": "Source columns and leg coverage",
+      "text": "Colonnes sources et tronçons couverts",
+      "status": "draft"
+    },
+    "chatControls.chat": {
+      "source": "ship chat",
+      "text": "clavardage du navire",
+      "status": "draft"
+    },
+    "chatControls.sidebar": {
+      "source": "open as a side bar",
+      "text": "ouvrir dans un panneau latéral",
+      "status": "draft"
+    },
+    "chatControls.close": {
+      "source": "close the chat",
+      "text": "fermer le clavardage",
+      "status": "draft"
+    },
+    "chatControls.rooms": {
+      "source": "chat rooms",
+      "text": "salons de clavardage",
+      "status": "draft"
+    },
+    "chatControls.emoji": {
+      "source": "pick your emoji",
+      "text": "choisir votre émoji",
+      "status": "draft"
+    },
+    "chatControls.name": {
+      "source": "name",
+      "text": "nom",
+      "status": "draft"
+    },
+    "chatControls.nameHint": {
+      "source": "your name, remembered on this device",
+      "text": "votre nom, conservé sur cet appareil",
+      "status": "draft"
+    },
+    "chatControls.messagePlaceholder": {
+      "source": "message · Enter to send",
+      "text": "message · Entrée pour envoyer",
+      "status": "draft"
+    },
+    "chatControls.message": {
+      "source": "Message",
+      "text": "Message",
+      "status": "draft"
+    },
+    "chatControls.send": {
+      "source": "send",
+      "text": "envoyer",
+      "status": "draft"
+    },
+    "iceChart.dayAfter": {
+      "source": "1 day after map end",
+      "text": "1 jour après la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.dayBefore": {
+      "source": "1 day before map end",
+      "text": "1 jour avant la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.unknown": {
+      "source": "Unknown",
+      "text": "Inconnu",
+      "status": "draft"
+    },
+    "iceChart.latest": {
+      "source": "Latest on/before map end",
+      "text": "La plus récente à la fin de la période ou avant",
+      "status": "draft"
+    },
+    "iceChart.timeout": {
+      "source": "Chart request timed out",
+      "text": "Le délai de chargement de la carte est dépassé",
+      "status": "draft"
+    },
+    "iceChart.unavailable": {
+      "source": "Cached chart unavailable",
+      "text": "Carte en cache indisponible",
+      "status": "draft"
+    },
+    "iceChart.noCharts": {
+      "source": "No ice charts cached for this dashboard.",
+      "text": "Aucune carte des glaces en cache pour ce tableau de bord.",
+      "status": "draft"
+    },
+    "iceChart.validAfter": {
+      "source": "valid after map end",
+      "text": "valide après la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.sameDate": {
+      "source": "same date as map end",
+      "text": "même date que la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.rasterHelp": {
+      "source": "Daily raster analysis for the ship area; use the original chart for egg codes.",
+      "text": "Analyse matricielle quotidienne du secteur du navire; consultez la carte originale pour les codes de l’œuf.",
+      "status": "draft"
+    },
+    "iceChart.polygonHelp": {
+      "source": "Click a polygon for its egg code. Regional analysis; conditions can change between charts.",
+      "text": "Cliquez sur un polygone pour voir son code de l’œuf. Analyse régionale; les conditions peuvent changer entre les cartes.",
+      "status": "draft"
+    },
+    "iceChart.title": {
+      "source": "CIS ice egg",
+      "text": "Code de l’œuf du SCG",
+      "status": "draft"
+    },
+    "iceChart.close": {
+      "source": "Close",
+      "text": "Fermer",
+      "status": "draft"
+    },
+    "iceChart.eggLabel": {
+      "source": "Egg code: total concentration; partial concentrations; stages of development; ice forms",
+      "text": "Code de l’œuf : concentration totale; concentrations partielles; stades de développement; formes de glace",
+      "status": "draft"
+    },
+    "iceChart.iceType": {
+      "source": "Ice type",
+      "text": "Type de glace",
+      "status": "draft"
+    },
+    "iceChart.concentration": {
+      "source": "Concentration",
+      "text": "Concentration",
+      "status": "draft"
+    },
+    "iceChart.stage": {
+      "source": "Stage of development",
+      "text": "Stade de développement",
+      "status": "draft"
+    },
+    "iceChart.form": {
+      "source": "Form / floe size",
+      "text": "Forme / taille des floes",
+      "status": "draft"
+    },
+    "iceChart.notReported": {
+      "source": "Not reported",
+      "text": "Non indiqué",
+      "status": "draft"
+    },
+    "iceChart.unknownReported": {
+      "source": "Unknown / not reported",
+      "text": "Inconnu / non indiqué",
+      "status": "draft"
+    },
+    "iceChart.note": {
+      "source": "The oval shows the three main ice types in decoded egg codes; missing values are shown as —. This regional chart is separate from camera observations.",
+      "text": "L’ovale présente les trois principaux types de glace sous forme de codes de l’œuf décodés; les valeurs manquantes sont indiquées par —. Cette carte régionale est distincte des observations par caméra.",
+      "status": "draft"
+    },
+    "iceChart.sourceCodes": {
+      "source": "Source SIGRID codes",
+      "text": "Codes SIGRID de la source",
+      "status": "draft"
+    },
+    "iceChart.original": {
+      "source": "Original chart data",
+      "text": "Données de la carte originale",
+      "status": "draft"
+    },
+    "iceChart.guide": {
+      "source": "Egg-code guide",
+      "text": "Guide du code de l’œuf",
+      "status": "draft"
+    },
+    "iceChart.licence": {
+      "source": "Open Government Licence",
+      "text": "Licence du gouvernement ouvert",
+      "status": "draft"
+    },
+    "iceChart.noBefore": {
+      "source": "No cached chart on or before {date}. Choose an available date.",
+      "text": "Aucune carte en cache pour le {date} ou avant. Choisissez une date disponible.",
+      "status": "draft"
+    },
+    "iceChart.daysAfter": {
+      "source": "{count} days after map end",
+      "text": "{count} jours après la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.daysBefore": {
+      "source": "{count} days before map end",
+      "text": "{count} jours avant la fin de la période",
+      "status": "draft"
+    },
+    "iceChart.loadingImage": {
+      "source": "Loading image…",
+      "text": "Chargement de l’image…",
+      "status": "draft"
+    },
+    "iceChart.loadingPolygons": {
+      "source": "Loading polygons…",
+      "text": "Chargement des polygones…",
+      "status": "draft"
+    },
+    "iceChart.total": {
+      "source": "Total concentration: {value}",
+      "text": "Concentration totale : {value}",
+      "status": "draft"
+    },
+    "iceChart.sigrid": {
+      "source": " (SIGRID code {code})",
+      "text": " (code SIGRID {code})",
+      "status": "draft"
+    },
+    "iceChart.trace": {
+      "source": "Trace ice thicker than type A: {value} (<1/10).",
+      "text": "Trace de glace plus épaisse que le type A : {value} (<1/10).",
+      "status": "draft"
+    },
+    "iceChart.region.eastern": {
+      "source": "Eastern Arctic",
+      "text": "Arctique de l’Est",
+      "status": "draft"
+    },
+    "iceChart.region.western": {
+      "source": "Western Arctic",
+      "text": "Arctique de l’Ouest",
+      "status": "draft"
+    },
+    "iceChart.region.hudson": {
+      "source": "Hudson Bay",
+      "text": "Baie d’Hudson",
+      "status": "draft"
+    },
+    "iceChart.region.eastCoast": {
+      "source": "East Coast",
+      "text": "Côte Est",
+      "status": "draft"
+    },
+    "iceChart.region.greatLakes": {
+      "source": "Great Lakes",
+      "text": "Grands Lacs",
+      "status": "draft"
+    },
+    "iceChart.region.eureka": {
+      "source": "Eureka (daily raster)",
+      "text": "Eureka (carte matricielle quotidienne)",
+      "status": "draft"
+    },
+    "variable.sst": {
+      "source": "SST (°C)",
+      "text": "Température de surface (°C)",
+      "status": "draft"
+    },
+    "variable.salinity": {
+      "source": "Salinity (PSU)",
+      "text": "Salinité (PSU)",
+      "status": "draft"
+    },
+    "variable.excessHeat": {
+      "source": "Excess heat (°C)",
+      "text": "Excès de chaleur (°C)",
+      "status": "draft"
+    },
+    "variable.tsgWarming": {
+      "source": "TSG line warming (°C)",
+      "text": "Réchauffement dans la conduite du TSG (°C)",
+      "status": "draft"
+    },
+    "variable.tsgFlow": {
+      "source": "TSG flow (V)",
+      "text": "Débit du TSG (V)",
+      "status": "draft"
+    },
+    "variable.fluorescence": {
+      "source": "Fluorescence (µg/L)",
+      "text": "Fluorescence (µg/L)",
+      "status": "draft"
+    },
+    "variable.oxygen": {
+      "source": "Oxygen (mL/L)",
+      "text": "Oxygène (mL/L)",
+      "status": "draft"
+    },
+    "variable.solar": {
+      "source": "Short-wave radiation (W/m²)",
+      "text": "Rayonnement à ondes courtes (W/m²)",
+      "status": "draft"
+    },
+    "variable.bottomDepth": {
+      "source": "Bottom depth (m)",
+      "text": "Profondeur du fond (m)",
+      "status": "draft"
+    },
+    "variable.rosetteDepth": {
+      "source": "Rosette depth (m)",
+      "text": "Profondeur de la rosette (m)",
+      "status": "draft"
+    },
+    "variable.rosetteRate": {
+      "source": "Rosette rate (m/s)",
+      "text": "Vitesse verticale de la rosette (m/s)",
+      "status": "draft"
+    },
+    "variable.cableLength": {
+      "source": "Cable length (m)",
+      "text": "Longueur du câble (m)",
+      "status": "draft"
+    },
+    "variable.cableRate": {
+      "source": "Cable rate (m/s)",
+      "text": "Vitesse du câble (m/s)",
+      "status": "draft"
+    },
+    "variable.airTemperature": {
+      "source": "Air temperature (°C)",
+      "text": "Température de l’air (°C)",
+      "status": "draft"
+    },
+    "variable.humidity": {
+      "source": "Relative humidity (%)",
+      "text": "Humidité relative (%)",
+      "status": "draft"
+    },
+    "variable.pressure": {
+      "source": "Atmospheric pressure (hPa)",
+      "text": "Pression atmosphérique (hPa)",
+      "status": "draft"
+    },
+    "variable.windDirection": {
+      "source": "True wind direction (°)",
+      "text": "Direction du vent vrai (°)",
+      "status": "draft"
+    },
+    "variable.windSpeed": {
+      "source": "Relative wind speed (kn)",
+      "text": "Vitesse du vent relatif (kn)",
+      "status": "draft"
+    },
+    "variable.heading": {
+      "source": "Heading (°)",
+      "text": "Cap (°)",
+      "status": "draft"
+    },
+    "variable.shipSpeed": {
+      "source": "Ship speed (kn)",
+      "text": "Vitesse du navire (kn)",
+      "status": "draft"
+    },
+    "variable.seaState": {
+      "source": "Sea state · 4σ heave (m)",
+      "text": "État de la mer · 4σ du pilonnement (m)",
+      "status": "draft"
+    },
+    "variable.rollPitch": {
+      "source": "Roll & pitch RMS (°)",
+      "text": "Roulis et tangage RMS (°)",
+      "status": "draft"
+    },
+    "variable.elapsed": {
+      "source": "Time elapsed (h)",
+      "text": "Temps écoulé (h)",
+      "status": "draft"
+    },
+    "variable.distance": {
+      "source": "Distance travelled (km)",
+      "text": "Distance parcourue (km)",
+      "status": "draft"
+    },
+    "variable.surprise": {
+      "source": "Surprise (−log10 p)",
+      "text": "Surprise (−log10 p)",
+      "status": "draft"
+    },
+    "variable.surprise0": {
+      "source": "Surprise · 15 min",
+      "text": "Surprise · 15 min",
+      "status": "draft"
+    },
+    "variable.surprise1": {
+      "source": "Surprise · 1 h",
+      "text": "Surprise · 1 h",
+      "status": "draft"
+    },
+    "variable.surprise2": {
+      "source": "Surprise · 3 h",
+      "text": "Surprise · 3 h",
+      "status": "draft"
+    },
+    "variable.surprise3": {
+      "source": "Surprise · 12 h",
+      "text": "Surprise · 12 h",
+      "status": "draft"
+    },
+    "variable.surprise4": {
+      "source": "Surprise · 48 h",
+      "text": "Surprise · 48 h",
+      "status": "draft"
+    },
+    "export.close": {
+      "source": "Close export preview",
+      "text": "Fermer l’aperçu d’exportation",
+      "status": "draft"
+    },
+    "export.instructions": {
+      "source": "Drag the panel’s bottom-right corner, or enter exact image dimensions. Large previews can be scrolled.",
+      "text": "Faites glisser le coin inférieur droit du panneau ou saisissez les dimensions exactes de l’image. Les grands aperçus peuvent être parcourus avec les barres de défilement.",
+      "status": "draft"
+    },
+    "export.width": {
+      "source": "Width (px)",
+      "text": "Largeur (px)",
+      "status": "draft"
+    },
+    "export.height": {
+      "source": "Height (px)",
+      "text": "Hauteur (px)",
+      "status": "draft"
+    },
+    "export.scale": {
+      "source": "PNG DPI scale",
+      "text": "Facteur de résolution PNG",
+      "status": "draft"
+    },
+    "export.png": {
+      "source": "Export PNG",
+      "text": "Exporter en PNG",
+      "status": "draft"
+    },
+    "export.svg": {
+      "source": "Export SVG",
+      "text": "Exporter en SVG",
+      "status": "draft"
+    },
+    "export.preparing": {
+      "source": "Preparing download…",
+      "text": "Préparation du téléchargement…",
+      "status": "draft"
+    },
+    "export.downloaded": {
+      "source": "Downloaded.",
+      "text": "Téléchargement lancé.",
+      "status": "draft"
+    },
+    "export.failed": {
+      "source": "Export failed. Try a smaller size or resolution, and check that map tiles have loaded.",
+      "text": "Échec de l’exportation. Réduisez les dimensions ou la résolution et vérifiez que les tuiles cartographiques sont chargées.",
+      "status": "draft"
+    },
+    "export.map": {
+      "source": "Map",
+      "text": "Carte",
+      "status": "draft"
+    },
+    "export.graph": {
+      "source": "Graph",
+      "text": "Graphique",
+      "status": "draft"
+    },
+    "export.title": {
+      "source": "Export · {title}",
+      "text": "Exporter · {title}",
+      "status": "draft"
+    },
+    "export.mapNote": {
+      "source": "Map SVG contains a raster image; graph SVGs retain vector detail.",
+      "text": "Le SVG d’une carte contient une image matricielle; les SVG des graphiques conservent leurs éléments vectoriels.",
+      "status": "draft"
+    },
+    "export.graphNote": {
+      "source": "SVG keeps its vector detail at any size.",
+      "text": "Le SVG conserve ses éléments vectoriels à toutes les dimensions.",
+      "status": "draft"
+    },
+    "export.previewFailed": {
+      "source": "Could not prepare the preview. Check that map tiles have loaded, then try again.",
+      "text": "Impossible de préparer l’aperçu. Vérifiez que les tuiles cartographiques sont chargées, puis réessayez.",
+      "status": "draft"
+    },
+    "export.graphHint": {
+      "source": "Preview and export this graph",
+      "text": "Prévisualiser et exporter ce graphique",
+      "status": "draft"
+    },
+    "export.graphAria": {
+      "source": "Export graph",
+      "text": "Exporter le graphique",
+      "status": "draft"
+    },
+    "mapLegend.range": {
+      "source": "{name}: {low} to {high}",
+      "text": "{name} : de {low} à {high}",
+      "status": "draft"
+    },
+    "mapLegend.label": {
+      "source": "Map legend",
+      "text": "Légende de la carte",
+      "status": "draft"
+    },
+    "underway.updateUnavailable": {
+      "source": "{scopes} update unavailable · retrying; displayed data may be older",
+      "text": "Mise à jour indisponible ({scopes}) · nouvelle tentative en cours; les données affichées peuvent être anciennes",
+      "status": "draft"
+    },
+    "underway.scope.Underway": {
+      "source": "Underway",
+      "text": "Mesures en route",
+      "status": "draft"
+    },
+    "underway.scope.Track": {
+      "source": "Track",
+      "text": "Trajectoire",
+      "status": "draft"
+    },
+    "underway.scope.Basemap": {
+      "source": "Basemap",
+      "text": "Fond de carte",
+      "status": "draft"
+    },
+    "underway.scope.Casts": {
+      "source": "Casts",
+      "text": "Profils",
+      "status": "draft"
+    },
+    "underway.scope.Stations": {
+      "source": "Stations",
+      "text": "Stations",
+      "status": "draft"
+    },
+    "underway.scope.Schedule": {
+      "source": "Schedule",
+      "text": "Horaire",
+      "status": "draft"
+    },
+    "underway.scope.Table": {
+      "source": "Table",
+      "text": "Tableau",
+      "status": "draft"
+    },
+    "underway.theme.auto": {
+      "source": "Auto (system)",
+      "text": "Auto (système)",
+      "status": "draft"
+    },
+    "underway.theme.claude-dark": {
+      "source": "Claude dark",
+      "text": "Claude sombre",
+      "status": "draft"
+    },
+    "underway.theme.claude-light": {
+      "source": "Claude light",
+      "text": "Claude clair",
+      "status": "draft"
+    },
+    "underway.theme.minimal-dark": {
+      "source": "Minimal dark",
+      "text": "Minimal sombre",
+      "status": "draft"
+    },
+    "underway.theme.minimal-light": {
+      "source": "Minimal light",
+      "text": "Minimal clair",
+      "status": "draft"
+    },
+    "underway.theme.navigator": {
+      "source": "Navigator",
+      "text": "Navigateur",
+      "status": "draft"
+    },
+    "underway.theme.navigator-dark": {
+      "source": "Navigator dark",
+      "text": "Navigateur sombre",
+      "status": "draft"
+    },
+    "underway.size.auto": {
+      "source": "Theme's size",
+      "text": "Taille du thème",
+      "status": "draft"
+    },
+    "underway.size.normal": {
+      "source": "Normal text",
+      "text": "Texte normal",
+      "status": "draft"
+    },
+    "underway.size.large": {
+      "source": "Large text",
+      "text": "Grand texte",
+      "status": "draft"
+    },
+    "underway.age.seconds": {
+      "source": "{count} s ago",
+      "text": "il y a {count} s",
+      "status": "draft"
+    },
+    "underway.age.minutes": {
+      "source": "{count} min ago",
+      "text": "il y a {count} min",
+      "status": "draft"
+    },
+    "underway.age.hours": {
+      "source": "{count} h ago",
+      "text": "il y a {count} h",
+      "status": "draft"
+    },
+    "underway.age.days": {
+      "source": "{count} d ago",
+      "text": "il y a {count} j",
+      "status": "draft"
+    },
+    "underway.axis.time": {
+      "source": "ship time ({zone})",
+      "text": "heure du navire ({zone})",
+      "status": "draft"
+    },
+    "underway.axis.distance": {
+      "source": "distance along track (km)",
+      "text": "distance parcourue (km)",
+      "status": "draft"
+    },
+    "underway.legs.summary": {
+      "source": "Legs · {shown}/{total}",
+      "text": "Tronçons · {shown}/{total}",
+      "status": "draft"
+    },
+    "underway.legs.loaded": {
+      "source": "{shown} of {total} legs shown · the {span} window loaded",
+      "text": "{shown} tronçons sur {total} affichés · période chargée : {span}",
+      "status": "draft"
+    },
+    "underway.live": {
+      "source": "LIVE",
+      "text": "EN DIRECT",
+      "status": "draft"
+    },
+    "underway.refresh": {
+      "source": "last refresh {time}",
+      "text": "dernière actualisation : {time}",
+      "status": "draft"
+    },
+    "underway.dataAge": {
+      "source": "data {age}",
+      "text": "données : {age}",
+      "status": "draft"
+    },
+    "underway.status": {
+      "source": "STATUS",
+      "text": "ÉTAT",
+      "status": "draft"
+    },
+    "underway.showSchedule": {
+      "source": "show the schedule",
+      "text": "afficher l’horaire",
+      "status": "draft"
+    },
+    "underway.span.leg": {
+      "source": "this leg",
+      "text": "ce tronçon",
+      "status": "draft"
+    },
+    "underway.span.all": {
+      "source": "all",
+      "text": "tout",
+      "status": "draft"
+    },
+    "underway.span.days": {
+      "source": "{count} d",
+      "text": "{count} j",
+      "status": "draft"
+    },
+    "underway.span.years": {
+      "source": "{count} y",
+      "text": "{count} a",
+      "status": "draft"
+    },
+    "underway.time": {
+      "source": "Time",
+      "text": "Temps",
+      "status": "draft"
+    },
+    "underway.distance": {
+      "source": "Distance",
+      "text": "Distance",
+      "status": "draft"
+    },
+    "underway.empty.source": {
+      "source": "source column not found in any leg",
+      "text": "colonne source introuvable pour tous les tronçons",
+      "status": "draft"
+    },
+    "underway.empty.legs": {
+      "source": "no data for the selected legs",
+      "text": "aucune donnée pour les tronçons sélectionnés",
+      "status": "draft"
+    },
+    "underway.axis.depthRoot": {
+      "source": "depth (m, √ spacing)",
+      "text": "profondeur (m, échelle √)",
+      "status": "draft"
+    },
+    "underway.axis.depth": {
+      "source": "depth (m)",
+      "text": "profondeur (m)",
+      "status": "draft"
+    },
+    "underway.empty.track": {
+      "source": "nothing to show: no legs selected, or no track in this span",
+      "text": "rien à afficher : aucun tronçon sélectionné ou aucune trajectoire pour cette période",
+      "status": "draft"
+    },
+    "underway.empty.data": {
+      "source": "no data",
+      "text": "aucune donnée",
+      "status": "draft"
+    },
+    "underway.sat.newest": {
+      "source": "the newest picture",
+      "text": "l’image la plus récente",
+      "status": "draft"
+    },
+    "underway.sat.earlier": {
+      "source": "an earlier picture; › steps forward",
+      "text": "une image antérieure; › passe à la suivante",
+      "status": "draft"
+    },
+    "underway.sat.off": {
+      "source": "Sat off",
+      "text": "Sat. désactivé",
+      "status": "draft"
+    },
+    "underway.hideSchedule": {
+      "source": "click to hide the schedule",
+      "text": "cliquer pour masquer l’horaire",
+      "status": "draft"
+    },
+    "underway.plan.description": {
+      "source": "the leg's planned cruise track and stations from the expedition's KMZ",
+      "text": "trajectoire et stations prévues pour le tronçon, tirées du fichier KMZ de l’expédition",
+      "status": "draft"
+    },
+    "underway.chart.reorder": {
+      "source": "drag to reorder",
+      "text": "glisser pour réordonner",
+      "status": "draft"
+    },
+    "underway.chart.colour": {
+      "source": "colour everything by this variable",
+      "text": "colorer l’ensemble selon cette variable",
+      "status": "draft"
+    },
+    "underway.chart.log": {
+      "source": "log10 y-axis",
+      "text": "axe y en log10",
+      "status": "draft"
+    },
+    "underway.chart.reset": {
+      "source": "reset zoom",
+      "text": "réinitialiser le zoom",
+      "status": "draft"
+    },
+    "underway.chart.depthRoot": {
+      "source": "compress the depth axis (square root)",
+      "text": "comprimer l’axe de profondeur (racine carrée)",
+      "status": "draft"
+    },
+    "underway.chart.toggleDepth": {
+      "source": "Toggle square-root depth spacing",
+      "text": "Activer ou désactiver l’échelle de profondeur en racine carrée",
+      "status": "draft"
+    },
+    "underway.chart.minimise": {
+      "source": "minimise to its group",
+      "text": "réduire dans son groupe",
+      "status": "draft"
+    },
+    "underway.chart.expand": {
+      "source": "expand",
+      "text": "agrandir",
+      "status": "draft"
+    },
+    "underway.chart.latest": {
+      "source": "Latest displayed observation: {time} {zone}",
+      "text": "Dernière observation affichée : {time} {zone}",
+      "status": "draft"
+    },
+    "underway.chart.noObservations": {
+      "source": "No observations",
+      "text": "Aucune observation",
+      "status": "draft"
+    },
+    "underway.chart.restoreGroup": {
+      "source": "restore every {group} panel",
+      "text": "rétablir tous les graphiques du groupe {group}",
+      "status": "draft"
+    },
+    "underway.chart.minimiseGroup": {
+      "source": "minimise every {group} panel to this group",
+      "text": "réduire tous les graphiques dans le groupe {group}",
+      "status": "draft"
+    },
+    "underway.chart.lowFlow": {
+      "source": " · LOW FLOW",
+      "text": " · FAIBLE DÉBIT",
+      "status": "draft"
+    },
+    "underway.chart.combined": {
+      "source": "Combined",
+      "text": "Combiné",
+      "status": "draft"
+    },
+    "underway.chart.toggle": {
+      "source": "{name}: {action}",
+      "text": "{name} : {action}",
+      "status": "draft"
+    },
+    "underway.chart.minimiseAction": {
+      "source": "minimise",
+      "text": "réduire",
+      "status": "draft"
+    },
+    "underway.chart.restoreAction": {
+      "source": "restore",
+      "text": "rétablir",
+      "status": "draft"
+    },
+    "underway.chart.latestROI": {
+      "source": "Latest ROI",
+      "text": "Dernière région d’intérêt",
+      "status": "draft"
+    },
+    "underway.chart.excessHeatHint": {
+      "source": "; water temperature minus the salinity-based freezing point at surface pressure (0 dbar)",
+      "text": "; température de l’eau moins son point de congélation calculé à partir de la salinité à la pression de surface (0 dbar)",
+      "status": "draft"
+    },
+    "underway.colourScale": {
+      "source": "{variable}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span",
+      "text": "{variable} : échelle de couleur de la trajectoire et des points du graphique, du 5e au 95e centile de la période",
+      "status": "draft"
+    },
+    "underway.track.rebuild": {
+      "source": "Track detail needs a new dashboard build",
+      "text": "Une nouvelle version du tableau de bord est requise pour afficher le détail de la trajectoire",
+      "status": "draft"
+    },
+    "underway.track.loading": {
+      "source": "Loading visible track…",
+      "text": "Chargement de la trajectoire visible…",
+      "status": "draft"
+    },
+    "underway.track.limited": {
+      "source": "Track density limit reached · zoom in or shorten the span for more points",
+      "text": "Limite de densité de la trajectoire atteinte · agrandir ou raccourcir la période pour afficher plus de points",
+      "status": "draft"
+    },
+    "underway.track.unavailable": {
+      "source": "Track unavailable · retrying",
+      "text": "Trajectoire indisponible · nouvelle tentative en cours",
+      "status": "draft"
+    },
+    "underway.track.points": {
+      "source": "{count} visible track points · {detail}",
+      "text": "{count} points de trajectoire visibles · {detail}",
+      "status": "draft"
+    },
+    "underway.map.summary": {
+      "source": {
+        "one": "{span} span · {count} leg selected · {distance} km travelled",
+        "other": "{span} span · {count} legs selected · {distance} km travelled"
+      },
+      "text": {
+        "one": "Période : {span} · {count} tronçon sélectionné · {distance} km parcourus",
+        "other": "Période : {span} · {count} tronçons sélectionnés · {distance} km parcourus"
+      },
+      "status": "draft"
+    },
+    "underway.map.casts": {
+      "source": {
+        "one": "{count} CTD cast",
+        "other": "{count} CTD casts"
+      },
+      "text": {
+        "one": "{count} profil CTD",
+        "other": "{count} profils CTD"
+      },
+      "status": "draft"
+    },
+    "underway.map.otherStations": {
+      "source": {
+        "one": "{count} other station",
+        "other": "{count} other stations"
+      },
+      "text": {
+        "one": "{count} autre station",
+        "other": "{count} autres stations"
+      },
+      "status": "draft"
+    },
+    "underway.map.stationHint": {
+      "source": "click a station to add its cast · ",
+      "text": "cliquer sur une station pour ajouter son profil · ",
+      "status": "draft"
+    },
+    "underway.map.navigation": {
+      "source": "scroll to zoom · drag to pan · ⟲ fits",
+      "text": "molette pour zoomer · glisser pour déplacer · ⟲ pour ajuster",
+      "status": "draft"
+    },
+    "underway.column.time": {
+      "source": "time ({zone})",
+      "text": "heure ({zone})",
+      "status": "draft"
+    },
+    "underway.column.leg": {
+      "source": "leg",
+      "text": "tronçon",
+      "status": "draft"
+    },
+    "underway.column.station": {
+      "source": "station",
+      "text": "station",
+      "status": "draft"
+    },
+    "underway.column.source": {
+      "source": "source",
+      "text": "source",
+      "status": "draft"
+    },
+    "underway.column.cast": {
+      "source": "cast",
+      "text": "profil",
+      "status": "draft"
+    },
+    "underway.column.label": {
+      "source": "label",
+      "text": "libellé",
+      "status": "draft"
+    },
+    "underway.column.type": {
+      "source": "type",
+      "text": "type",
+      "status": "draft"
+    },
+    "underway.column.activities": {
+      "source": "activities",
+      "text": "activités",
+      "status": "draft"
+    },
+    "underway.column.bottom": {
+      "source": "bottom (m)",
+      "text": "fond (m)",
+      "status": "draft"
+    },
+    "underway.column.castDepth": {
+      "source": "cast depth (m)",
+      "text": "profondeur du profil (m)",
+      "status": "draft"
+    },
+    "underway.column.comments": {
+      "source": "comments",
+      "text": "commentaires",
+      "status": "draft"
+    },
+    "underway.column.maxDepth": {
+      "source": "max depth (m)",
+      "text": "profondeur max. (m)",
+      "status": "draft"
+    },
+    "underway.column.bottles": {
+      "source": "bottles",
+      "text": "bouteilles",
+      "status": "draft"
+    },
+    "underway.sort": {
+      "source": "sort",
+      "text": "trier",
+      "status": "draft"
+    },
+    "underway.table.hidden": {
+      "source": {
+        "one": "{count} row from legs not shown",
+        "other": "{count} rows from legs not shown"
+      },
+      "text": {
+        "one": "{count} ligne d’un tronçon non affiché",
+        "other": "{count} lignes de tronçons non affichés"
+      },
+      "status": "draft"
+    },
+    "underway.table.allLegs": {
+      "source": "show all legs",
+      "text": "afficher tous les tronçons",
+      "status": "draft"
+    },
+    "underway.clearSelection": {
+      "source": "clear selection",
+      "text": "effacer la sélection",
+      "status": "draft"
+    },
+    "underway.clearSelectionCount": {
+      "source": "clear selection ({count})",
+      "text": "effacer la sélection ({count})",
+      "status": "draft"
+    },
+    "underway.table.rows": {
+      "source": {
+        "one": "{count} row · {statistic}",
+        "other": "{count} rows · {statistic}"
+      },
+      "text": {
+        "one": "{count} ligne · {statistic}",
+        "other": "{count} lignes · {statistic}"
+      },
+      "status": "draft"
+    },
+    "underway.table.truncated": {
+      "source": " · showing first 2000",
+      "text": " · affichage des 2000 premières",
+      "status": "draft"
+    },
+    "underway.stat.mean": {
+      "source": "mean",
+      "text": "moyenne",
+      "status": "draft"
+    },
+    "underway.stat.min": {
+      "source": "min",
+      "text": "min",
+      "status": "draft"
+    },
+    "underway.stat.max": {
+      "source": "max",
+      "text": "max",
+      "status": "draft"
+    },
+    "underway.stat.n": {
+      "source": "n",
+      "text": "n",
+      "status": "draft"
+    },
+    "underway.stations.selectAll": {
+      "source": "Select all shown station casts",
+      "text": "Sélectionner tous les profils des stations affichées",
+      "status": "draft"
+    },
+    "underway.stations.summary": {
+      "source": "{count} stations ({withoutCast} without a cast) · {selected} selected for the Casts tab · click a row to select its cast (again to deselect), or to find a station on the map",
+      "text": "{count} stations ({withoutCast} sans profil) · {selected} sélectionnées pour l’onglet Profils · cliquer sur une ligne pour sélectionner son profil (à nouveau pour le désélectionner) ou pour situer une station sur la carte",
+      "status": "draft"
+    },
+    "underway.group.Surprise": {
+      "source": "Surprise",
+      "text": "Surprise",
+      "status": "draft"
+    },
+    "underway.group.Lab": {
+      "source": "Lab",
+      "text": "Laboratoire",
+      "status": "draft"
+    },
+    "underway.group.Met Station": {
+      "source": "Met Station",
+      "text": "Station météo",
+      "status": "draft"
+    },
+    "underway.group.Bridge": {
+      "source": "Bridge",
+      "text": "Passerelle",
+      "status": "draft"
+    },
+    "underway.group.Winches": {
+      "source": "Winches",
+      "text": "Treuils",
+      "status": "draft"
+    },
+    "underway.group.Other": {
+      "source": "Other",
+      "text": "Autres",
+      "status": "draft"
+    },
+    "underway.chart.groupSummary": {
+      "source": "{group} chart summaries",
+      "text": "Résumés des graphiques — {group}",
+      "status": "draft"
+    },
+    "underway.track.detailKm": {
+      "source": "{distance} km detail",
+      "text": "résolution : {distance} km",
+      "status": "draft"
+    },
+    "underway.track.detailM": {
+      "source": "{distance} m detail",
+      "text": "résolution : {distance} m",
+      "status": "draft"
+    },
+    "underway.track.all": {
+      "source": "all points · visible area",
+      "text": "tous les points · zone visible",
+      "status": "draft"
+    },
+    "provenance.sat.radar": {
+      "source": "S1 radar",
+      "text": "Radar S1",
+      "status": "draft"
+    },
+    "provenance.sat.optical": {
+      "source": "S2 optical",
+      "text": "Optique S2",
+      "status": "draft"
+    },
+    "provenance.unknown": {
+      "source": "unknown",
+      "text": "inconnue",
+      "status": "draft"
+    },
+    "provenance.none": {
+      "source": "none",
+      "text": "aucune",
+      "status": "draft"
+    },
+    "provenance.sat.next": {
+      "source": "{label}, newest scene {time} · click for {next}",
+      "text": "{label}, scène la plus récente : {time} · cliquer pour passer à {next}",
+      "status": "draft"
+    },
+    "provenance.sat.hint": {
+      "source": "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour",
+      "text": "images satellites récentes autour du navire : radar Sentinel-1 (détecte la glace à travers les nuages), puis Sentinel-2 en couleurs naturelles",
+      "status": "draft"
+    },
+    "provenance.map.unavailable": {
+      "source": "Map unavailable; other plots and tables remain usable. Try resetting the map.",
+      "text": "Carte indisponible; les autres graphiques et tableaux restent utilisables. Essayez de réinitialiser la carte.",
+      "status": "draft"
+    },
+    "provenance.pump.warning": {
+      "source": "Intake pump voltage {voltage} V: water measurements may be unreliable",
+      "text": "Tension de la pompe d’admission : {voltage} V. Les mesures de l’eau peuvent être peu fiables.",
+      "status": "draft"
+    },
+    "provenance.pump.off": {
+      "source": "intake pump off",
+      "text": "pompe d’admission arrêtée",
+      "status": "draft"
+    },
+    "provenance.pump.trace": {
+      "source": "pump off",
+      "text": "pompe arrêtée",
+      "status": "draft"
+    },
+    "provenance.sat.footer": {
+      "source": "{label} · newest scene {time} {zone} · Copernicus Sentinel data",
+      "text": "{label} · scène la plus récente : {time} {zone} · données Copernicus Sentinel",
+      "status": "draft"
+    },
+    "provenance.sat.detail": {
+      "source": "high-resolution detail",
+      "text": "détail à haute résolution",
+      "status": "draft"
+    },
+    "provenance.plan.drop": {
+      "source": "drop a KMZ or KML on the map to add a plan of your own",
+      "text": "déposer un fichier KMZ ou KML sur la carte pour ajouter votre propre plan",
+      "status": "draft"
+    },
+    "provenance.plan.footer": {
+      "source": "Plan {name} · stations: {count}",
+      "text": "Plan {name} · stations : {count}",
+      "status": "draft"
+    },
+    "provenance.panel": {
+      "source": "panel",
+      "text": "graphique",
+      "status": "draft"
+    },
+    "provenance.column": {
+      "source": "source column (Instrument — Variable)",
+      "text": "colonne source (Instrument — Variable)",
+      "status": "draft"
+    },
+    "provenance.derived": {
+      "source": "derived",
+      "text": "calculée",
+      "status": "draft"
+    },
+    "provenance.notFound": {
+      "source": "not found",
+      "text": "introuvable",
+      "status": "draft"
+    },
+    "provenance.notComputed": {
+      "source": "not computed",
+      "text": "non calculé",
+      "status": "draft"
+    },
+    "provenance.surprise": {
+      "source": "Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.",
+      "text": "Chaque échelle correspond à −log10 de la valeur p du χ² associée à la distance de Mahalanobis par rapport à la moyenne et à la covariance à pondération exponentielle des minutes précédentes (plafonnée à 6); le score combiné est la moyenne des différentes échelles. Les valeurs supérieures à 3 sont ombrées.",
+      "status": "draft"
+    },
+    "provenance.zoom": {
+      "source": "Zooming: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.",
+      "text": "Zoom : la molette permet de zoomer sur un graphique, Maj+molette sur l’axe x seulement et Ctrl+molette sur l’axe y seulement; un double-clic réinitialise le zoom.",
+      "status": "draft"
+    },
+    "provenance.heat": {
+      "source": "Excess heat (°C): SST minus the UNESCO 1983 seawater freezing point at surface pressure (0 dbar), calculated from paired temperature and salinity observations. Positive values are above freezing; negative values are below. Missing inputs or salinity outside 0–40 PSU leave gaps. The freezing-point fit is validated over 4–40 PSU; lower salinities use an extrapolation toward freshwater.",
+      "text": "Excès de chaleur (°C) : température de surface de la mer moins le point de congélation de l’eau de mer selon l’UNESCO (1983) à la pression de surface (0 dbar), calculé à partir d’observations appariées de température et de salinité. Les valeurs positives sont au-dessus du point de congélation; les valeurs négatives, en dessous. Des données manquantes ou une salinité hors de la plage de 0–40 PSU produisent des lacunes. L’ajustement du point de congélation est validé pour 4–40 PSU; aux salinités inférieures, il est extrapolé vers l’eau douce.",
+      "status": "draft"
+    },
+    "provenance.inputs": {
+      "source": "Inputs: {files} daily files across {legs} legs; latest {latest}.",
+      "text": "Entrées : {files} fichiers quotidiens répartis sur {legs} tronçons; le plus récent : {latest}.",
+      "status": "draft"
+    },
+    "provenance.record": {
+      "source": "Record: {start} → {end} {zone}. {columns} distinct columns seen; the per-leg columns show where a source column exists.",
+      "text": "Période couverte : {start} → {end} {zone}. {columns} colonnes distinctes recensées; les colonnes par tronçon indiquent où une colonne source est présente.",
+      "status": "draft"
+    },
+    "provenance.times": {
+      "source": "Times and time axes are ship time ({zone}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation.",
+      "text": "Les heures et les axes temporels sont à l’heure du navire ({zone}); les fichiers TSV exportés utilisent l’UTC. Les interruptions dans les courbes correspondent à des données manquantes, sans interpolation.",
+      "status": "draft"
+    },
+    "provenance.basemap.raster": {
+      "source": "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid)",
+      "text": "relief ombré GEBCO 2024 — bathymétrie et terres (grille de 15 secondes d’arc)",
+      "status": "draft"
+    },
+    "provenance.basemap.vector": {
+      "source": "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers",
+      "text": "littoral et terres d’OpenStreetMap (ODbL) et glaciers de Natural Earth 10 m",
+      "status": "draft"
+    },
+    "provenance.basemap.natural": {
+      "source": "Natural Earth 10 m coastline, land and glaciers",
+      "text": "littoral, terres et glaciers de Natural Earth 10 m",
+      "status": "draft"
+    },
+    "provenance.basemap.depth": {
+      "source": "depth bands",
+      "text": "bandes de profondeur",
+      "status": "draft"
+    },
+    "provenance.basemap": {
+      "source": "Basemap: {layers}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally.",
+      "text": "Fond de carte : {layers}; lieux habités provenant de GeoNames (CC BY 4.0; Nunavut, T.N.-O., Labrador, nord du Québec, de l’Ontario et du Manitoba, et Groenland); toutes les données sont servies localement.",
+      "status": "draft"
+    },
+    "provenance.names": {
+      "source": "Geographic names from the Canadian Geographical Names Database (Open Government Licence – Canada) and GeoNames (CC BY 4.0), more of them the closer you zoom.",
+      "text": "Les noms géographiques proviennent de la Base de données toponymiques du Canada (Licence du gouvernement ouvert – Canada) et de GeoNames (CC BY 4.0); leur nombre augmente à mesure que vous zoomez.",
+      "status": "draft"
+    },
+    "provenance.globe": {
+      "source": "The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.",
+      "text": "La carte est un globe : les distances et les superficies sont donc fidèles aux latitudes du navire. Les tuiles utilisent la projection Web Mercator et s’arrêtent à 85° N; le pôle lui-même est donc vide.",
+      "status": "draft"
+    }
+  }
+}

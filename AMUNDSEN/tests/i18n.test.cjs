@@ -7,8 +7,8 @@ const script = fs.readFileSync(path.join(__dirname,'../dashboard/static/i18n.js'
 function setup(search='', stored=null) {
   const document={readyState:'loading',addEventListener(){},documentElement:{lang:'en'},querySelectorAll(){return []}};
   const window={UW_UI_CATALOG:{sourceLocale:'en',locales:{
-    en:{messages:{hello:'Hello {name}',only:'English only',bottles:{one:'{count} bottle',other:'{count} bottles'},fallback:{one:'{count} bottle',other:'{count} bottles'}}},
-    'fr-CA':{messages:{hello:'Bonjour {name}',bottles:{one:'{count} bouteille',other:'{count} bouteilles'}}}
+    en:{messages:{'variable.salinity':'Salinity (PSU)',hello:'Hello {name}',only:'English only',bottles:{one:'{count} bottle',other:'{count} bottles'},fallback:{one:'{count} bottle',other:'{count} bottles'}}},
+    'fr-CA':{messages:{'variable.salinity':'Salinité (PSU)',hello:'Bonjour {name}',bottles:{one:'{count} bouteille',other:'{count} bouteilles'}}}
   }},dispatchEvent(){}};
   const context={window,document,localStorage:{getItem(){return stored},setItem(k,v){stored=v}},location:{search,href:'https://example.test/underway/'+search},history:{replaceState(){}},URL,URLSearchParams,Intl,CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail}}};
   vm.runInNewContext(script,context);
@@ -31,4 +31,13 @@ test('plural rules follow message language, including English fallback',()=>{
 test('bad saved language safely falls back; valid saved language persists',()=>{
   assert.equal(setup('','invalid JSON').locale,'en');
   assert.equal(setup('','"fr-CA"').locale,'fr-CA');
+});
+test('measurement translation is display-only, with unknown and missing catalog fallbacks',()=>{
+  const i18n=setup('?lang=fr-CA');
+  assert.equal(i18n.variable('Salinity (PSU)'),'Salinité (PSU)');
+  assert.equal(i18n.variable('SST (°C)'),'SST (°C)');
+  assert.equal(i18n.variable('custom instrument (V)'),'custom instrument (V)');
+  assert.equal(i18n.variable('__proto__'),'__proto__');
+  i18n.setLocale('en');
+  assert.equal(i18n.variable('Salinity (PSU)'),'Salinity (PSU)');
 });

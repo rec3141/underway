@@ -1,6 +1,20 @@
 /* A separate, resizable copy of a graph; exporting never changes the live plot. */
 (() => {
   'use strict';
+  const {t} = window.UWI18n;
+  let statusKey = '', isMap = false, titleSource = '', titlePlot = null;
+  function status(key) { statusKey = key; if (dialog) dialog.querySelector('.export-status').textContent = key ? t(key) : ''; }
+  function localize() {
+    if (!dialog) return;
+    window.UWI18n.apply(dialog);
+    const title = isMap ? t('export.map') : titlePlot?.closest('.panel')?.querySelector('h3')?.textContent || titleSource || t('export.graph');
+    dialog.querySelector('h3').textContent = t('export.title', {title});
+    dialog.querySelector('.export-format-note').textContent = t(isMap ? 'export.mapNote' : 'export.graphNote');
+    status(statusKey);
+    // A translated caption may resize the controls, not the chosen image.
+    if (dialog.open) dialogSize = `${dialog.clientWidth}:${dialog.clientHeight}`;
+  }
+  window.addEventListener('uw:localechange', localize);
   let dialog, preview, observer, frame, version = 0, filename, ready = false, mapPreview = null, dialogSize = '', legend = null, legendCanvas = null, credit = '';
   function previewLegend(){if(legendCanvas){const {width,height}=dimensions();UWMapLegend.render(legendCanvas,width,height,legend);}}
   const scaleInput = () => dialog.querySelector('input[type=range]');
@@ -37,15 +51,15 @@
   }
   function setup() {
     if (dialog) return;
-    dialog=document.createElement('dialog');dialog.className='plot-export-dialog';
+    dialog=document.createElement('dialog');dialog.className='plot-export-dialog';dialog.dataset.i18nLocale='';
     dialog.setAttribute('aria-labelledby','plot-export-title');
-    dialog.innerHTML=`<div class="plot-export-heading"><h3 id="plot-export-title"></h3><button type="button" class="export-close" aria-label="Close export preview">×</button></div>
+    dialog.innerHTML=`<div class="plot-export-heading"><h3 id="plot-export-title"></h3><button type="button" class="export-close" aria-label="Close export preview" data-i18n-aria-label="export.close">×</button></div>
       <div class="plot-export-body"><aside class="plot-export-controls">
-      <p class="muted">Drag the panel’s bottom-right corner, or enter exact image dimensions. Large previews can be scrolled.</p>
-      <label>Width (px)<input name="width" type="number" min="160" max="4096" step="1"></label>
-      <label>Height (px)<input name="height" type="number" min="160" max="4096" step="1"></label>
-      <label>PNG DPI scale <input type="range" min="1" max="4" step="0.5" value="2"></label><output></output>
-      <p class="export-format-note muted"></p><button type="button" data-format="png">Export PNG</button><button type="button" data-format="svg">Export SVG</button><p class="export-status" role="status"></p>
+      <p class="muted" data-i18n="export.instructions">Drag the panel’s bottom-right corner, or enter exact image dimensions. Large previews can be scrolled.</p>
+      <label><span data-i18n="export.width">Width (px)</span><input name="width" type="number" min="160" max="4096" step="1"></label>
+      <label><span data-i18n="export.height">Height (px)</span><input name="height" type="number" min="160" max="4096" step="1"></label>
+      <label><span data-i18n="export.scale">PNG DPI scale</span> <input type="range" min="1" max="4" step="0.5" value="2"></label><output></output>
+      <p class="export-format-note muted"></p><button type="button" data-format="png" data-i18n="export.png">Export PNG</button><button type="button" data-format="svg" data-i18n="export.svg">Export SVG</button><p class="export-status" role="status"></p>
       </aside><div class="export-viewport"><div class="export-canvas"></div></div></div>`;
     document.body.append(dialog);preview=dialog.querySelector('.export-canvas');
     dialog.querySelector('.export-close').onclick=()=>dialog.close();
@@ -64,14 +78,14 @@
     });
     for(const button of dialog.querySelectorAll('[data-format]'))button.onclick=async()=>{
       if(!ready)return;
-      const buttons=[...dialog.querySelectorAll('[data-format]')],status=dialog.querySelector('.export-status');
-      buttons.forEach(b=>b.disabled=true);status.textContent='Preparing download…';
+      const buttons=[...dialog.querySelectorAll('[data-format]')];
+      buttons.forEach(b=>b.disabled=true);status('export.preparing');
       try {
         const format=button.dataset.format,scale=format==='png'?Number(scaleInput().value):1;
         const url=mapPreview?await mapImage(format,scale):await Plotly.toImage(preview,{format,...dimensions(),scale});
         const link=document.createElement('a');link.href=url;link.download=`${filename}.${format}`;document.body.append(link);link.click();link.remove();
-        status.textContent='Downloaded.';
-      } catch {status.textContent='Export failed. Try a smaller size or resolution, and check that map tiles have loaded.';}
+        status('export.downloaded');
+      } catch {status('export.failed');}
       finally {buttons.forEach(b=>b.disabled=false);}
     };
   }
@@ -102,12 +116,13 @@
     setup();const current=++version;ready=false;
     legend=sourceMap?structuredClone(window.UW.mapLegend):null;legendCanvas=null;
     credit=document.querySelector('#mapattrib')?.textContent?.trim()||'';
-    const title=sourceMap?'Map':plot.closest('.panel')?.querySelector('h3')?.textContent||'Graph';
+    isMap = !!sourceMap; titlePlot = plot;
+    const title=sourceMap?t('export.map'):plot.closest('.panel')?.querySelector('h3')?.textContent||t('export.graph');
+    titleSource = title;
     filename=title.replace(/[^\p{L}\p{N}._-]+/gu,'-').replace(/^-|-$/g,'')||'graph';
-    dialog.querySelector('h3').textContent=`Export · ${title}`;
-    dialog.querySelector('.export-status').textContent='';
+    status(''); localize();
     dialog.querySelectorAll('[data-format]').forEach(b=>b.disabled=true);
-    dialog.querySelector('.export-format-note').textContent=sourceMap?'Map SVG contains a raster image; graph SVGs retain vector detail.':'SVG keeps its vector detail at any size.';
+
     preview.style.width='';preview.style.height='';dialogSize='';
     if(!dialog.open)dialog.showModal();observer.observe(dialog);observer.observe(preview);resolution();
     try {
@@ -126,12 +141,12 @@
       }
       if(current!==version){if(!dialog.open)Plotly.purge(preview);return;}
       ready=true;dialog.querySelectorAll('[data-format]').forEach(b=>b.disabled=false);resolution();
-    } catch {if(current===version)dialog.querySelector('.export-status').textContent='Could not prepare the preview. Check that map tiles have loaded, then try again.';}
+    } catch {if(current===version)status('export.previewFailed');}
   }
   window.UWPlotExport={openMap:map=>open(null,map),attach(plot){
     const tools=plot.closest('.panel')?.querySelector('.head .tools');if(!tools)return;
     let button=tools.querySelector('.plot-export');
-    if(!button){button=document.createElement('button');button.type='button';button.className='plot-export';button.textContent='⇩';button.title='Preview and export this graph';button.setAttribute('aria-label','Export graph');tools.prepend(button);}
+    if(!button){button=document.createElement('button');button.type='button';button.className='plot-export';button.textContent='⇩';button.dataset.i18nTitle='export.graphHint';button.dataset.i18nAriaLabel='export.graphAria';window.UWI18n.apply(button);tools.prepend(button);}
     // Keep these common actions adjacent and in the same order in every view.
     for(const selector of ['.plot-export','.reset','.min','.wide']){const action=tools.querySelector(selector);if(action)tools.append(action);}
     button.onclick=()=>open(plot);

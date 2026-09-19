@@ -1,7 +1,10 @@
 {
   "locale": "en",
   "messages": {
-    "map.next": {"text":"{current} · click for {next}","context":"Map size cycling; mode names are translated separately."},
+    "map.next": {
+      "text": "{current} · click for {next}",
+      "context": "Map size cycling; mode names are translated separately."
+    },
     "nav.map": {
       "text": "Map",
       "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
@@ -147,8 +150,1563 @@
       "context": "Dashboard navigation; casts are CTD profiles, not moulds or fishing casts."
     },
     "locale.coverage": {
-      "text": "French is available for navigation and feedback; other sections use English while translation is in progress.",
+      "text": "French covers the main controls and measurement labels. Some panels, source material and wiki articles remain in English.",
       "context": "Dashboard controls."
+    },
+    "shell.selectLegSpan": {
+      "text": "Select leg and time span:",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.legsToShow": {
+      "text": "Legs to show · ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.all": {
+      "text": "all",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.none": {
+      "text": "none",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.showLast": {
+      "text": "Show last",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.xAxis": {
+      "text": "X-axis",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.colorBy": {
+      "text": "Color by ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.plan": {
+      "text": "Plan",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.track": {
+      "text": "Track",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.stations": {
+      "text": "Stations",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.stationsShort": {
+      "text": "Stns",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.events": {
+      "text": "Events",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.photos": {
+      "text": "Photos",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.names": {
+      "text": "Names",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.history": {
+      "text": "History",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.nature": {
+      "text": "Nature",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.iceCharts": {
+      "text": "Ice charts",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.region": {
+      "text": "Region ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.chartDate": {
+      "text": "Chart date (UTC) ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.opacity": {
+      "text": "Opacity ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.retryChart": {
+      "text": "Retry chart",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.iceService": {
+      "text": "Canadian Ice Service / ECCC",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "mapControls.details": {
+      "text": "Map details",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "tables.title": {
+      "text": "Data tables",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.hourly": {
+      "text": "Hourly",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.daily": {
+      "text": "Daily",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.statistic": {
+      "text": "Statistic ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.mean": {
+      "text": "mean",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.min": {
+      "text": "min",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.max": {
+      "text": "max",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "tables.count": {
+      "text": "count",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.type": {
+      "text": "Select Cast Type",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.all": {
+      "text": "All",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.live": {
+      "text": "Live",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.rosette": {
+      "text": "Rosette",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.clear": {
+      "text": "clear selection",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.fired": {
+      "text": "Bottles fired",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.graph": {
+      "text": "Select Graph",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.single": {
+      "text": "Single",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.multi": {
+      "text": "Multi",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.section": {
+      "text": "Section",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.bottles": {
+      "text": "Bottles",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.smooth": {
+      "text": "Smooth",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "castsControls.saveTransect": {
+      "text": "Save transect",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "calendarControls.today": {
+      "text": "Today",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "calendarControls.log": {
+      "text": "Event Log",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "calendarControls.calendar": {
+      "text": "Calendar",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "wikiControls.back": {
+      "text": "‹ Back",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "wikiControls.home": {
+      "text": "Home",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "wikiControls.explore": {
+      "text": "Explore",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "wikiControls.ask": {
+      "text": "Ask a Q",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.title": {
+      "text": "Sources",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.webCopy": {
+      "text": "Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.intranet": {
+      "text": "Ship intranet: ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.calendars": {
+      "text": "Calendars: ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.by": {
+      "text": "Dashboard by Eric Collins · ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.source": {
+      "text": "source",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.data": {
+      "text": " · Data: Amundsen Science (ACSD)",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.built": {
+      "text": " · built ",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "sources.scroll": {
+      "text": "Swipe the table sideways to see source columns and leg coverage.",
+      "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
+    },
+    "shell.themeHint": {
+      "text": "the look of the page: Auto follows the system's light or dark; Claude and Minimal (flat, bigger type), each dark or light; Navigator, the web of 1996",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.theme": {
+      "text": "Theme",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.textSizeHint": {
+      "text": "the size of the type, apart from the theme: Minimal's is large, Claude's normal, unless told otherwise",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.textSize": {
+      "text": "Text size",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.timeSpan": {
+      "text": "Time span",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.timeSpanShown": {
+      "text": "Time span shown",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.span": {
+      "text": "span",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.showSchedule": {
+      "text": "show the schedule",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.xAxisAria": {
+      "text": "X axis",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.xAxisHint": {
+      "text": "switch the graphs between time and distance along track",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "shell.colorHint": {
+      "text": "the variable that colours the track and the graph points",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.exportHint": {
+      "text": "Preview and export the map",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.export": {
+      "text": "Export map",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.fit": {
+      "text": "fit to track",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.reset": {
+      "text": "Reset map view",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.minimizeHint": {
+      "text": "no map: the pane takes the whole width",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.minimize": {
+      "text": "Minimise map",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.maximizeHint": {
+      "text": "full map: the map takes the whole page",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.maximize": {
+      "text": "Maximise map",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.shipLayers": {
+      "text": "the ship's own layers",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.planHint": {
+      "text": "the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.trackHint": {
+      "text": "the ship's track for the shown legs and span",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.stationsHint": {
+      "text": "CTD casts (white) and stations worked without a cast, from the event log (green)",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.eventsHint": {
+      "text": "geolocated entries of the ship's event log, for the shown legs and span",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.photosHint": {
+      "text": "the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.namesHint": {
+      "text": "geographic names: bays, sounds, straits, islands, capes, lakes, rivers, glaciers and mountains, from the Canadian Geographical Names Database and GeoNames; more of them appear as you zoom in",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.historyHint": {
+      "text": "the wiki's history: voyages, wrecks, winterings, places and artifacts; click one to read about it",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.natureHint": {
+      "text": "the wiki's nature: sightings, soundings, readings and the ship's own journal; click one to read it",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.satelliteHint": {
+      "text": "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.previousImage": {
+      "text": "the picture before",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.nextImage": {
+      "text": "the picture after",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.iceChartsHint": {
+      "text": "Canadian Ice Service daily and regional ice charts",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.iceLegend": {
+      "text": "Ice concentration legend",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.previousDay": {
+      "text": "previous day",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.nextDay": {
+      "text": "next day",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.close": {
+      "text": "close",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.scale": {
+      "text": "the scale at the centre of the map",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "mapControls.closeDetails": {
+      "text": "Close map details",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "tables.filterPlaceholder": {
+      "text": "filter rows",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "tables.filter": {
+      "text": "Filter rows",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "tables.download": {
+      "text": "download the visible table as tab-separated text",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.allHint": {
+      "text": "every kind of cast",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.liveHint": {
+      "text": "the cast in the water, from Seasave's TCP/IP output",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.rosetteHint": {
+      "text": "the classic rosette's CTD casts",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.tmHint": {
+      "text": "the trace-metal rosette's casts",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.mvpHint": {
+      "text": "moving vessel profiler tows",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.trsHint": {
+      "text": "saved transects",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.deselect": {
+      "text": "deselect all",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.filterPlaceholder": {
+      "text": "filter (station, label, date)",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.filter": {
+      "text": "Filter casts",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.download": {
+      "text": "download the visible casts as tab-separated text",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.filterBottlesPlaceholder": {
+      "text": "filter bottles",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.filterBottles": {
+      "text": "Filter bottles fired",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.downloadBottles": {
+      "text": "download the filtered bottle firings at full precision as tab-separated text",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.singleHint": {
+      "text": "one cast, variables overlaid on their own axes",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.multiHint": {
+      "text": "the selected casts as depth profiles, one graph per variable",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.sectionHint": {
+      "text": "the selected casts side by side as a depth section along time or distance",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.bottlesHint": {
+      "text": "mark the rosette's bottle firings on the casts (from the SeaBird .btl files)",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.smoothHint": {
+      "text": "smooth the jittery sensors (fluorescence, CDOM, transmission, nitrates) down each profile: a running mean over 7 to 21 m by depth range",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.saveHint": {
+      "text": "Save this section and its station order for everyone on the ship",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.xAxis": {
+      "text": "Section x axis",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "castsControls.xAxisHint": {
+      "text": "the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "calendarControls.filterPlaceholder": {
+      "text": "filter events",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "calendarControls.filter": {
+      "text": "Filter events",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "stationsControls.filterPlaceholder": {
+      "text": "filter stations",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "stationsControls.filter": {
+      "text": "Filter stations",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "stationsControls.clearHint": {
+      "text": "deselect every cast and drop the map focus",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.backHint": {
+      "text": "back to the view before",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.homeHint": {
+      "text": "the front page: today, here, the journal, the domains and the narratives",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.exploreHint": {
+      "text": "every topic, with its pages and artifacts",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.domains": {
+      "text": "What the wiki shows",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.historyHint": {
+      "text": "the human past: voyages, people, places and artifacts",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.natureHint": {
+      "text": "the natural record: subjects, observations, the domains and the ship's journal",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.askHint": {
+      "text": "ask the crew in the chat",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.close": {
+      "text": "Close panel",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.searchPlaceholder": {
+      "text": "search: voyages, people, places, species, ice, weather",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.search": {
+      "text": "Search the wiki",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.browse": {
+      "text": "Browse a kind, a domain or a page",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "wikiControls.browseHint": {
+      "text": "everything of a kind on one page; the bibliography; how the wiki was made; the record; the ship's journal",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "sources.coverage": {
+      "text": "Source columns and leg coverage",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.chat": {
+      "text": "ship chat",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.sidebar": {
+      "text": "open as a side bar",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.close": {
+      "text": "close the chat",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.rooms": {
+      "text": "chat rooms",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.emoji": {
+      "text": "pick your emoji",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.name": {
+      "text": "name",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.nameHint": {
+      "text": "your name, remembered on this device",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.messagePlaceholder": {
+      "text": "message · Enter to send",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.message": {
+      "text": "Message",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "chatControls.send": {
+      "text": "send",
+      "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
+    },
+    "iceChart.dayAfter": {
+      "text": "1 day after map end",
+      "context": "Ice-chart validity, exactly one day after the selected map end."
+    },
+    "iceChart.dayBefore": {
+      "text": "1 day before map end",
+      "context": "Ice-chart validity, exactly one day before the selected map end."
+    },
+    "iceChart.unknown": {
+      "text": "Unknown",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.latest": {
+      "text": "Latest on/before map end",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.timeout": {
+      "text": "Chart request timed out",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.unavailable": {
+      "text": "Cached chart unavailable",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.noCharts": {
+      "text": "No ice charts cached for this dashboard.",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.validAfter": {
+      "text": "valid after map end",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.sameDate": {
+      "text": "same date as map end",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.rasterHelp": {
+      "text": "Daily raster analysis for the ship area; use the original chart for egg codes.",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.polygonHelp": {
+      "text": "Click a polygon for its egg code. Regional analysis; conditions can change between charts.",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.title": {
+      "text": "CIS ice egg",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.close": {
+      "text": "Close",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.eggLabel": {
+      "text": "Egg code: total concentration; partial concentrations; stages of development; ice forms",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.iceType": {
+      "text": "Ice type",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.concentration": {
+      "text": "Concentration",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.stage": {
+      "text": "Stage of development",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.form": {
+      "text": "Form / floe size",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.notReported": {
+      "text": "Not reported",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.unknownReported": {
+      "text": "Unknown / not reported",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.note": {
+      "text": "The oval shows the three main ice types in decoded egg codes; missing values are shown as —. This regional chart is separate from camera observations.",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.sourceCodes": {
+      "text": "Source SIGRID codes",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.original": {
+      "text": "Original chart data",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.guide": {
+      "text": "Egg-code guide",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.licence": {
+      "text": "Open Government Licence",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.noBefore": {
+      "text": "No cached chart on or before {date}. Choose an available date.",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.daysAfter": {
+      "text": "{count} days after map end",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.daysBefore": {
+      "text": "{count} days before map end",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.loadingImage": {
+      "text": "Loading image…",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.loadingPolygons": {
+      "text": "Loading polygons…",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.total": {
+      "text": "Total concentration: {value}",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.sigrid": {
+      "text": " (SIGRID code {code})",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.trace": {
+      "text": "Trace ice thicker than type A: {value} (<1/10).",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.region.eastern": {
+      "text": "Eastern Arctic",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.region.western": {
+      "text": "Western Arctic",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.region.hudson": {
+      "text": "Hudson Bay",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.region.eastCoast": {
+      "text": "East Coast",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.region.greatLakes": {
+      "text": "Great Lakes",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "iceChart.region.eureka": {
+      "text": "Eureka (daily raster)",
+      "context": "Ice-chart UI; scientific data and source labels stay unchanged."
+    },
+    "variable.sst": {
+      "text": "SST (°C)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.salinity": {
+      "text": "Salinity (PSU)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.excessHeat": {
+      "text": "Excess heat (°C)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.tsgWarming": {
+      "text": "TSG line warming (°C)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.tsgFlow": {
+      "text": "TSG flow (V)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.fluorescence": {
+      "text": "Fluorescence (µg/L)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.oxygen": {
+      "text": "Oxygen (mL/L)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.solar": {
+      "text": "Short-wave radiation (W/m²)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.bottomDepth": {
+      "text": "Bottom depth (m)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.rosetteDepth": {
+      "text": "Rosette depth (m)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.rosetteRate": {
+      "text": "Rosette rate (m/s)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.cableLength": {
+      "text": "Cable length (m)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.cableRate": {
+      "text": "Cable rate (m/s)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.airTemperature": {
+      "text": "Air temperature (°C)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.humidity": {
+      "text": "Relative humidity (%)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.pressure": {
+      "text": "Atmospheric pressure (hPa)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.windDirection": {
+      "text": "True wind direction (°)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.windSpeed": {
+      "text": "Relative wind speed (kn)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.heading": {
+      "text": "Heading (°)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.shipSpeed": {
+      "text": "Ship speed (kn)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.seaState": {
+      "text": "Sea state · 4σ heave (m)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.rollPitch": {
+      "text": "Roll & pitch RMS (°)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.elapsed": {
+      "text": "Time elapsed (h)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.distance": {
+      "text": "Distance travelled (km)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.surprise": {
+      "text": "Surprise (−log10 p)",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.surprise0": {
+      "text": "Surprise · 15 min",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.surprise1": {
+      "text": "Surprise · 1 h",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.surprise2": {
+      "text": "Surprise · 3 h",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.surprise3": {
+      "text": "Surprise · 12 h",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "variable.surprise4": {
+      "text": "Surprise · 48 h",
+      "context": "Scientific display label only. Preserve original dataset keys and stated units; do not relabel TSG flow voltage as volumetric flow."
+    },
+    "export.close": {
+      "text": "Close export preview",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.instructions": {
+      "text": "Drag the panel’s bottom-right corner, or enter exact image dimensions. Large previews can be scrolled.",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.width": {
+      "text": "Width (px)",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.height": {
+      "text": "Height (px)",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.scale": {
+      "text": "PNG DPI scale",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.png": {
+      "text": "Export PNG",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.svg": {
+      "text": "Export SVG",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.preparing": {
+      "text": "Preparing download…",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.downloaded": {
+      "text": "Downloaded.",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.failed": {
+      "text": "Export failed. Try a smaller size or resolution, and check that map tiles have loaded.",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.map": {
+      "text": "Map",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.graph": {
+      "text": "Graph",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.title": {
+      "text": "Export · {title}",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.mapNote": {
+      "text": "Map SVG contains a raster image; graph SVGs retain vector detail.",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.graphNote": {
+      "text": "SVG keeps its vector detail at any size.",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.previewFailed": {
+      "text": "Could not prepare the preview. Check that map tiles have loaded, then try again.",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.graphHint": {
+      "text": "Preview and export this graph",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "export.graphAria": {
+      "text": "Export graph",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "mapLegend.range": {
+      "text": "{name}: {low} to {high}",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "mapLegend.label": {
+      "text": "Map legend",
+      "context": "Map/graph export UI. Dimensions and data remain unchanged."
+    },
+    "underway.updateUnavailable": {
+      "text": "{scopes} update unavailable · retrying; displayed data may be older",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Underway": {
+      "text": "Underway",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Track": {
+      "text": "Track",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Basemap": {
+      "text": "Basemap",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Casts": {
+      "text": "Casts",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Stations": {
+      "text": "Stations",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Schedule": {
+      "text": "Schedule",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.scope.Table": {
+      "text": "Table",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.auto": {
+      "text": "Auto (system)",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.claude-dark": {
+      "text": "Claude dark",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.claude-light": {
+      "text": "Claude light",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.minimal-dark": {
+      "text": "Minimal dark",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.minimal-light": {
+      "text": "Minimal light",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.navigator": {
+      "text": "Navigator",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.theme.navigator-dark": {
+      "text": "Navigator dark",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.size.auto": {
+      "text": "Theme's size",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.size.normal": {
+      "text": "Normal text",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.size.large": {
+      "text": "Large text",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.age.seconds": {
+      "text": "{count} s ago",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.age.minutes": {
+      "text": "{count} min ago",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.age.hours": {
+      "text": "{count} h ago",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.age.days": {
+      "text": "{count} d ago",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.axis.time": {
+      "text": "ship time ({zone})",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.axis.distance": {
+      "text": "distance along track (km)",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.legs.summary": {
+      "text": "Legs · {shown}/{total}",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.legs.loaded": {
+      "text": "{shown} of {total} legs shown · the {span} window loaded",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.live": {
+      "text": "LIVE",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.refresh": {
+      "text": "last refresh {time}",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.dataAge": {
+      "text": "data {age}",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.status": {
+      "text": "STATUS",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.showSchedule": {
+      "text": "show the schedule",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.span.leg": {
+      "text": "this leg",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.span.all": {
+      "text": "all",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.span.days": {
+      "text": "{count} d",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.span.years": {
+      "text": "{count} y",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.time": {
+      "text": "Time",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.distance": {
+      "text": "Distance",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.empty.source": {
+      "text": "source column not found in any leg",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.empty.legs": {
+      "text": "no data for the selected legs",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.axis.depthRoot": {
+      "text": "depth (m, √ spacing)",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.axis.depth": {
+      "text": "depth (m)",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.empty.track": {
+      "text": "nothing to show: no legs selected, or no track in this span",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.empty.data": {
+      "text": "no data",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.sat.newest": {
+      "text": "the newest picture",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.sat.earlier": {
+      "text": "an earlier picture; › steps forward",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.sat.off": {
+      "text": "Sat off",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.hideSchedule": {
+      "text": "click to hide the schedule",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.plan.description": {
+      "text": "the leg's planned cruise track and stations from the expedition's KMZ",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.reorder": {
+      "text": "drag to reorder",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.colour": {
+      "text": "colour everything by this variable",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.log": {
+      "text": "log10 y-axis",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.reset": {
+      "text": "reset zoom",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.depthRoot": {
+      "text": "compress the depth axis (square root)",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.toggleDepth": {
+      "text": "Toggle square-root depth spacing",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.minimise": {
+      "text": "minimise to its group",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.expand": {
+      "text": "expand",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.latest": {
+      "text": "Latest displayed observation: {time} {zone}",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.noObservations": {
+      "text": "No observations",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.restoreGroup": {
+      "text": "restore every {group} panel",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.minimiseGroup": {
+      "text": "minimise every {group} panel to this group",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.lowFlow": {
+      "text": " · LOW FLOW",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.combined": {
+      "text": "Combined",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.toggle": {
+      "text": "{name}: {action}",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.minimiseAction": {
+      "text": "minimise",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.restoreAction": {
+      "text": "restore",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.latestROI": {
+      "text": "Latest ROI",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.chart.excessHeatHint": {
+      "text": "; water temperature minus the salinity-based freezing point at surface pressure (0 dbar)",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.colourScale": {
+      "text": "{variable}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.track.rebuild": {
+      "text": "Track detail needs a new dashboard build",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.track.loading": {
+      "text": "Loading visible track…",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.track.limited": {
+      "text": "Track density limit reached · zoom in or shorten the span for more points",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.track.unavailable": {
+      "text": "Track unavailable · retrying",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.track.points": {
+      "text": "{count} visible track points · {detail}",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.map.summary": {
+      "text": {
+        "one": "{span} span · {count} leg selected · {distance} km travelled",
+        "other": "{span} span · {count} legs selected · {distance} km travelled"
+      },
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.map.casts": {
+      "text": {
+        "one": "{count} CTD cast",
+        "other": "{count} CTD casts"
+      },
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.map.otherStations": {
+      "text": {
+        "one": "{count} other station",
+        "other": "{count} other stations"
+      },
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.map.stationHint": {
+      "text": "click a station to add its cast · ",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.map.navigation": {
+      "text": "scroll to zoom · drag to pan · ⟲ fits",
+      "context": "Dashboard display text; preserve identifiers and units."
+    },
+    "underway.column.time": {
+      "text": "time ({zone})",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.leg": {
+      "text": "leg",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.station": {
+      "text": "station",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.source": {
+      "text": "source",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.cast": {
+      "text": "cast",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.label": {
+      "text": "label",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.type": {
+      "text": "type",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.activities": {
+      "text": "activities",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.bottom": {
+      "text": "bottom (m)",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.castDepth": {
+      "text": "cast depth (m)",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.comments": {
+      "text": "comments",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.maxDepth": {
+      "text": "max depth (m)",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.column.bottles": {
+      "text": "bottles",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.sort": {
+      "text": "sort",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.table.hidden": {
+      "text": {
+        "one": "{count} row from legs not shown",
+        "other": "{count} rows from legs not shown"
+      },
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.table.allLegs": {
+      "text": "show all legs",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.clearSelection": {
+      "text": "clear selection",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.clearSelectionCount": {
+      "text": "clear selection ({count})",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.table.rows": {
+      "text": {
+        "one": "{count} row · {statistic}",
+        "other": "{count} rows · {statistic}"
+      },
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.table.truncated": {
+      "text": " · showing first 2000",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.stat.mean": {
+      "text": "mean",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.stat.min": {
+      "text": "min",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.stat.max": {
+      "text": "max",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.stat.n": {
+      "text": "n",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.stations.selectAll": {
+      "text": "Select all shown station casts",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.stations.summary": {
+      "text": "{count} stations ({withoutCast} without a cast) · {selected} selected for the Casts tab · click a row to select its cast (again to deselect), or to find a station on the map",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.group.Surprise": {
+      "text": "Surprise",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.group.Lab": {
+      "text": "Lab",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.group.Met Station": {
+      "text": "Met Station",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.group.Bridge": {
+      "text": "Bridge",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.group.Winches": {
+      "text": "Winches",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.group.Other": {
+      "text": "Other",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.chart.groupSummary": {
+      "text": "{group} chart summaries",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.track.detailKm": {
+      "text": "{distance} km detail",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.track.detailM": {
+      "text": "{distance} m detail",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "underway.track.all": {
+      "text": "all points · visible area",
+      "context": "Dashboard display label; source identifiers unchanged."
+    },
+    "provenance.sat.radar": {
+      "text": "S1 radar",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.sat.optical": {
+      "text": "S2 optical",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.unknown": {
+      "text": "unknown",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.none": {
+      "text": "none",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.sat.next": {
+      "text": "{label}, newest scene {time} · click for {next}",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.sat.hint": {
+      "text": "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.map.unavailable": {
+      "text": "Map unavailable; other plots and tables remain usable. Try resetting the map.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.pump.warning": {
+      "text": "Intake pump voltage {voltage} V: water measurements may be unreliable",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.pump.off": {
+      "text": "intake pump off",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.pump.trace": {
+      "text": "pump off",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.sat.footer": {
+      "text": "{label} · newest scene {time} {zone} · Copernicus Sentinel data",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.sat.detail": {
+      "text": "high-resolution detail",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.plan.drop": {
+      "text": "drop a KMZ or KML on the map to add a plan of your own",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.plan.footer": {
+      "text": "Plan {name} · stations: {count}",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.panel": {
+      "text": "panel",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.column": {
+      "text": "source column (Instrument — Variable)",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.derived": {
+      "text": "derived",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.notFound": {
+      "text": "not found",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.notComputed": {
+      "text": "not computed",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.surprise": {
+      "text": "Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.zoom": {
+      "text": "Zooming: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.heat": {
+      "text": "Excess heat (°C): SST minus the UNESCO 1983 seawater freezing point at surface pressure (0 dbar), calculated from paired temperature and salinity observations. Positive values are above freezing; negative values are below. Missing inputs or salinity outside 0–40 PSU leave gaps. The freezing-point fit is validated over 4–40 PSU; lower salinities use an extrapolation toward freshwater.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.inputs": {
+      "text": "Inputs: {files} daily files across {legs} legs; latest {latest}.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.record": {
+      "text": "Record: {start} → {end} {zone}. {columns} distinct columns seen; the per-leg columns show where a source column exists.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.times": {
+      "text": "Times and time axes are ship time ({zone}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.basemap.raster": {
+      "text": "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid)",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.basemap.vector": {
+      "text": "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.basemap.natural": {
+      "text": "Natural Earth 10 m coastline, land and glaciers",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.basemap.depth": {
+      "text": "depth bands",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.basemap": {
+      "text": "Basemap: {layers}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.names": {
+      "text": "Geographic names from the Canadian Geographical Names Database (Open Government Licence – Canada) and GeoNames (CC BY 4.0), more of them the closer you zoom.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "provenance.globe": {
+      "text": "The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
     }
   }
 }

@@ -1,6 +1,53 @@
 /* Dated CIS vector and raster charts load from the local cache, independently of ship observations. */
 (() => {
   'use strict';
+  // Display-only translations: source metadata, numeric codes and measurements are unchanged.
+  const messageKeys = {
+    "Unknown": "iceChart.unknown",
+    "Latest on/before map end": "iceChart.latest",
+    "Chart request timed out": "iceChart.timeout",
+    "Cached chart unavailable": "iceChart.unavailable",
+    "No ice charts cached for this dashboard.": "iceChart.noCharts",
+    "valid after map end": "iceChart.validAfter",
+    "same date as map end": "iceChart.sameDate",
+    "Daily raster analysis for the ship area; use the original chart for egg codes.": "iceChart.rasterHelp",
+    "Click a polygon for its egg code. Regional analysis; conditions can change between charts.": "iceChart.polygonHelp",
+    "CIS ice egg": "iceChart.title",
+    "Close": "iceChart.close",
+    "Egg code: total concentration; partial concentrations; stages of development; ice forms": "iceChart.eggLabel",
+    "Ice type": "iceChart.iceType",
+    "Concentration": "iceChart.concentration",
+    "Stage of development": "iceChart.stage",
+    "Form / floe size": "iceChart.form",
+    "Not reported": "iceChart.notReported",
+    "Unknown / not reported": "iceChart.unknownReported",
+    "The oval shows the three main ice types in decoded egg codes; missing values are shown as —. This regional chart is separate from camera observations.": "iceChart.note",
+    "Source SIGRID codes": "iceChart.sourceCodes",
+    "Original chart data": "iceChart.original",
+    "Egg-code guide": "iceChart.guide",
+    "Open Government Licence": "iceChart.licence",
+    "No cached chart on or before {date}. Choose an available date.": "iceChart.noBefore",
+    "{count} days after map end": "iceChart.daysAfter",
+    "{count} days before map end": "iceChart.daysBefore",
+    "1 day after map end": "iceChart.dayAfter",
+    "1 day before map end": "iceChart.dayBefore",
+    "Loading image…": "iceChart.loadingImage",
+    "Loading polygons…": "iceChart.loadingPolygons",
+    "Total concentration: {value}": "iceChart.total",
+    " (SIGRID code {code})": "iceChart.sigrid",
+    "Trace ice thicker than type A: {value} (<1/10).": "iceChart.trace",
+    "Eastern Arctic": "iceChart.region.eastern",
+    "Western Arctic": "iceChart.region.western",
+    "Hudson Bay": "iceChart.region.hudson",
+    "East Coast": "iceChart.region.eastCoast",
+    "Great Lakes": "iceChart.region.greatLakes",
+    "Eureka (daily raster)": "iceChart.region.eureka"
+  };
+  const t = (source, values = {}) => {
+    const key = Object.prototype.hasOwnProperty.call(messageKeys, source) ? messageKeys[source] : null;
+    const translated = key && window.UWI18n?.t(key, values);
+    return translated && translated !== key ? translated : source.replace(/\{(\w+)\}/g, (match, name) => values[name] ?? match);
+  };
   const UW = (window.UW = window.UW || {});
   const SOURCE = 'cis-ice-chart', FILL = 'cis-ice-fill', OUTLINE = 'cis-ice-outline', RASTER = 'cis-ice-raster';
   const DAY = 86400000;
@@ -14,7 +61,7 @@
   const el = (tag, text, className) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (className) node.className = className; return node; };
   const $ = id => document.getElementById(id);
   let enabled = false, initialized = false, charts = [], view = null, chart = null, collection = null;
-  let region = '', chosen = '', day = '', generation = 0, controller = null, loading = false, failure = '', ensureBusy = false, detail = null;
+  let region = '', chosen = '', day = '', generation = 0, controller = null, loading = false, failure = '', ensureBusy = false, detail = null, detailProperties = null;
   let opacity = .4, signature = '', reference = '';
   const cache = new Map();
 
@@ -36,8 +83,13 @@
       if (view?.map?.getLayer(RASTER)) view.map.setPaintProperty(RASTER, 'raster-opacity', opacity);
     };
     $('icechart-retry').onclick = () => load(true);
+    renderLegend();
+  }
+
+  function renderLegend() {
     const legend = $('icechart-legend');
-    for (const [label, value] of [['<1/10', 0], ['1–3/10', 2], ['4–6/10', 5], ['7–8/10', 8], ['9–10/10', 10], ['Unknown', null]]) {
+    legend.replaceChildren();
+    for (const [label, value] of [['<1/10', 0], ['1–3/10', 2], ['4–6/10', 5], ['7–8/10', 8], ['9–10/10', 10], [t("Unknown"), null]]) {
       const item = el('span', label), swatch = el('i'); swatch.style.backgroundColor = colour(value); item.prepend(swatch); legend.append(item);
     }
   }
@@ -63,9 +115,9 @@
     const regional = charts.filter(c => c.region === region).sort((a, b) => b.date.localeCompare(a.date));
     const previous = chart;
     chart = regional.find(c => c.id === chosen) || defaultChart(regional, reference);
-    $('icechart-region').replaceChildren(...regions.map(r => new Option(r, r)));
+    $('icechart-region').replaceChildren(...regions.map(r => new Option(t(r), r)));
     $('icechart-region').value = region;
-    $('icechart-date').replaceChildren(new Option('Latest on/before map end', ''), ...regional.map(c => new Option(c.date, c.id)));
+    $('icechart-date').replaceChildren(new Option(t("Latest on/before map end"), ''), ...regional.map(c => new Option(c.date, c.id)));
     $('icechart-date').value = chosen && regional.some(c => c.id === chosen) ? chosen : '';
     $('icechart-toggle').classList.toggle('on', enabled);
     $('icechart-toggle').setAttribute('aria-pressed', String(enabled));
@@ -117,13 +169,13 @@
 
   function status() {
     let text;
-    if (!charts.length) text = 'No ice charts cached for this dashboard.';
-    else if (!chart) text = `No cached chart on or before ${day}. Choose an available date.`;
+    if (!charts.length) text = t("No ice charts cached for this dashboard.");
+    else if (!chart) text = t('No cached chart on or before {date}. Choose an available date.', {date: day});
     else {
       const delta = Math.round((Date.parse(day) - Date.parse(chart.date)) / DAY);
-      const age = delta < 0 ? `${-delta} days after map end` : delta === 0 ? (Date.parse(chart.valid_time || chart.date) > Date.parse(reference) ? 'valid after map end' : 'same date as map end') : `${delta} days before map end`;
-      const ready = chart.kind === 'raster' ? 'Daily raster analysis for the ship area; use the original chart for egg codes.' : 'Click a polygon for its egg code. Regional analysis; conditions can change between charts.';
-      text = `${chart.region} · ${validLabel(chart)} · ${age}. ${loading ? `Loading ${chart.kind === 'raster' ? 'image' : 'polygons'}…` : failure || ready}`;
+      const age = delta < 0 ? (delta === -1 ? t('1 day after map end') : t('{count} days after map end', {count: -delta})) : delta === 0 ? (Date.parse(chart.valid_time || chart.date) > Date.parse(reference) ? t("valid after map end") : t("same date as map end")) : (delta === 1 ? t('1 day before map end') : t('{count} days before map end', {count: delta}));
+      const ready = chart.kind === 'raster' ? t("Daily raster analysis for the ship area; use the original chart for egg codes.") : t("Click a polygon for its egg code. Regional analysis; conditions can change between charts.");
+      text = `${t(chart.region)} · ${validLabel(chart)} · ${age}. ${loading ? t(chart.kind === 'raster' ? 'Loading image…' : 'Loading polygons…') : failure ? t(failure) : ready}`;
     }
     $('icechart-status').textContent = text;
     $('icechart-retry').hidden = !failure;
@@ -163,43 +215,65 @@
     if (!event?.point || !enabled || !collection || chart?.kind === 'raster' || !m?.getLayer(FILL)) return false;
     const feature = m.queryRenderedFeatures(event.point, {layers: [FILL]})[0];
     if (!feature) return false;
+    detailProperties = feature.properties;
+    renderDetail();
+    return true;
+  }
+
+  function renderDetail() {
+    if (!detailProperties || !chart) return;
     if (!detail) {
       detail = el('dialog', null, 'icechart-detail'); detail.setAttribute('aria-labelledby', 'icechart-detail-title'); document.body.append(detail);
     }
-    const p = feature.properties, head = el('div', null, 'icechart-detail-head'), title = el('h3', 'CIS ice egg'); title.id = 'icechart-detail-title';
-    const close = el('button', 'Close'); close.onclick = () => detail.close(); head.append(title, close);
-    const meta = el('p', `${chart.region} · ${validLabel(chart)}`);
-    const egg = el('div', null, 'icechart-egg'); egg.setAttribute('aria-label', 'Egg code: total concentration; partial concentrations; stages of development; ice forms');
+    const p = detailProperties, head = el('div', null, 'icechart-detail-head'), title = el('h3', t("CIS ice egg")); title.id = 'icechart-detail-title';
+    const close = el('button', t("Close")); close.onclick = () => detail.close(); head.append(title, close);
+    const meta = el('p', `${t(chart.region)} · ${validLabel(chart)}`);
+    const egg = el('div', null, 'icechart-egg'); egg.setAttribute('aria-label', t("Egg code: total concentration; partial concentrations; stages of development; ice forms"));
     egg.append(el('div', p.egg_ct || '—', 'icechart-egg-total'));
     for (const row of [['ca', 'cb', 'cc'], ['sa', 'sb', 'sc'], ['fa', 'fb', 'fc']]) {
       const line = el('div', null, 'icechart-egg-row');
       for (const key of row) line.append(el('span', p['egg_' + key] || '—'));
       egg.append(line);
     }
-    const concentration = el('p', `Total concentration: ${p.concentration_label || 'unknown'}${p.CT ? ' (SIGRID code ' + p.CT + ')' : ''}`);
+    const concentration = el('p', t('Total concentration: {value}', {value: p.concentration_label || t('Unknown')}) + (p.CT ? t(' (SIGRID code {code})', {code: p.CT}) : ''));
     const table = el('table'), header = el('tr');
-    for (const label of ['Ice type', 'Concentration', 'Stage of development', 'Form / floe size']) header.append(el('th', label));
+    for (const label of [t("Ice type"), t("Concentration"), t("Stage of development"), t("Form / floe size")]) header.append(el('th', label));
     const thead = el('thead'); thead.append(header); table.append(thead);
     const tbody = el('tbody');
     for (const suffix of ['a', 'b', 'c']) {
       const up = suffix.toUpperCase(), tr = el('tr');
-      for (const value of [up, p['concentration_' + suffix + '_label'] || 'Not reported', p['stage_' + suffix] || 'Unknown / not reported', p['form_' + suffix] || 'Unknown / not reported']) tr.append(el('td', value));
+      for (const value of [up, p['concentration_' + suffix + '_label'] || t("Not reported"), p['stage_' + suffix] || t("Unknown / not reported"), p['form_' + suffix] || t("Unknown / not reported")]) tr.append(el('td', value));
       tbody.append(tr);
     }
     table.append(tbody);
-    const note = el('p', 'The oval shows the three main ice types in decoded egg codes; missing values are shown as —. This regional chart is separate from camera observations.');
-    const raw = el('details'), summary = el('summary', 'Source SIGRID codes'); raw.append(summary, el('pre', ['CT', 'CA', 'CB', 'CC', 'SA', 'SB', 'SC', 'FA', 'FB', 'FC', 'CN', 'CD', 'CF'].map(k => k + ': ' + code(p[k])).join('  ')));
+    const note = el('p', t("The oval shows the three main ice types in decoded egg codes; missing values are shown as —. This regional chart is separate from camera observations."));
+    const raw = el('details'), summary = el('summary', t("Source SIGRID codes")); raw.append(summary, el('pre', ['CT', 'CA', 'CB', 'CC', 'SA', 'SB', 'SC', 'FA', 'FB', 'FC', 'CN', 'CD', 'CF'].map(k => k + ': ' + code(p[k])).join('  ')));
     const supplemental = el('div');
-    if (p.trace_thicker_ice) supplemental.append(el('p', 'Trace ice thicker than type A: ' + p.trace_thicker_ice + ' (<1/10).'));
+    if (p.trace_thicker_ice) supplemental.append(el('p', t('Trace ice thicker than type A: {value} (<1/10).', {value: p.trace_thicker_ice})));
     const footer = el('p', chart.attribution || 'Canadian Ice Service / ECCC');
     const source = safeLink(chart.source_url);
-    if (source) { const link = el('a', 'Original chart data'); link.href = source; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
-    const guide = el('a', 'Egg-code guide'); guide.href = 'https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations/publications/interpreting-charts/chapter-1.html'; guide.target = '_blank'; guide.rel = 'noopener'; footer.append(document.createTextNode(' · '), guide);
+    if (source) { const link = el('a', t("Original chart data")); link.href = source; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
+    const guide = el('a', t("Egg-code guide")); guide.href = 'https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations/publications/interpreting-charts/chapter-1.html'; guide.target = '_blank'; guide.rel = 'noopener'; footer.append(document.createTextNode(' · '), guide);
     const licence = safeLink(chart.licence_url);
-    if (licence) { const link = el('a', 'Open Government Licence'); link.href = licence; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
+    if (licence) { const link = el('a', t("Open Government Licence")); link.href = licence; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
     detail.replaceChildren(head, meta, egg, concentration, table, supplemental, note, raw, footer); if (!detail.open) detail.showModal();
     return true;
   }
+
+  window.addEventListener?.('uw:localechange', () => {
+    if (!initialized) return;
+    // Re-label the existing options in place; do not call select/load or touch map state.
+    for (const option of $('icechart-region').options) option.textContent = t(option.value);
+    const latest = $('icechart-date').options[0];
+    if (latest) latest.textContent = t('Latest on/before map end');
+    renderLegend(); status();
+    if (detail?.open) {
+      const expanded = !!detail.querySelector('details')?.open;
+      renderDetail();
+      const raw = detail.querySelector('details');
+      if (raw) raw.open = expanded;
+    }
+  });
 
   UW.iceCharts = {refresh, click};
   UW.iceChartHelpers = {colour, defaultChart, code, safeLink};

@@ -16,15 +16,31 @@
   // the plan drop) is hidden rather than left to fail against api/
   const PUBLIC = !!M?.public;
   const $ = (s) => document.querySelector(s);
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const {t} = window.UWI18n;
-  window.addEventListener('uw:localechange', () => window.UW?.refreshMapLabels?.());
+  const variableLabel = name => window.UWI18n?.variable?.(name) ?? name;
+  window.addEventListener('uw:localechange', () => {
+    window.UW?.refreshMapLabels?.();
+    renderLegMenu(); renderControls(); renderStatus(); renderPanels(); renderProvenance();
+    // Relabel the current view. Do not reload windows, reset the track, or
+    // invoke onFilter: those paths change selections and request fresh data.
+    if (trackStatusKey) setTrackStatus(trackStatusKey, trackStatusValues);
+    refreshMapFooter();
+    if (window.UW?.mapLegend) {
+      window.UW.mapLegend.name = variableLabel(state.colour);
+      renderMapLegend();
+    }
+    for (const option of $('#theme').options) option.textContent = t('underway.theme.' + option.value);
+    for (const option of $('#textsize').options) option.textContent = t('underway.size.' + option.value);
+    setLoadError('', false);
+  });
   const { fetchJSON } = window.UWData;
   const loadErrors = new Set();
   function setLoadError(scope, failed) {
     failed ? loadErrors.add(scope) : loadErrors.delete(scope);
     const el = $("#connection");
     el.hidden = !loadErrors.size;
-    el.textContent = loadErrors.size ? `${[...loadErrors].join(", ")} update unavailable · retrying; displayed data may be older` : "";
+    el.textContent = loadErrors.size ? t("underway.updateUnavailable", {scopes: [...loadErrors].map(scope => ['Underway', 'Track', 'Basemap', 'Casts', 'Stations', 'Schedule', 'Table'].includes(scope) ? t('underway.scope.' + scope) : scope).join(', ')}) : "";
   }
   const store = {
     get(k, d) { try { return JSON.parse(localStorage.getItem("uw:" + k)) ?? d; } catch { return d; } },
@@ -134,11 +150,11 @@
   applyTheme(themeName());
   {
     const sel = $("#theme");
-    sel.innerHTML = Object.entries(THEMES).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+    sel.innerHTML = Object.entries(THEMES).map(([k, l]) => `<option value="${k}">${esc(t("underway.theme." + k))}</option>`).join("");
     sel.value = themeName();
     sel.onchange = () => { store.set("theme", sel.value); applyTheme(sel.value, true); };
     const ssel = $("#textsize");
-    ssel.innerHTML = Object.entries(SIZES).map(([k, l]) => `<option value="${k}">${l}</option>`).join("");
+    ssel.innerHTML = Object.entries(SIZES).map(([k, l]) => `<option value="${k}">${esc(t("underway.size." + k))}</option>`).join("");
     ssel.value = sizeName();
     ssel.onchange = () => { store.set("textsize", ssel.value); applyTheme(themeName(), true); };
     lightOS.addEventListener?.("change", () => { if (themeName() === "auto") applyTheme("auto", true); });
@@ -211,16 +227,16 @@
     month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   const ago = (iso) => {
     const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
-    if (s < 90) return `${Math.round(s)} s ago`;
-    if (s < 5400) return `${Math.round(s / 60)} min ago`;
-    if (s < 48 * 3600) return `${(s / 3600).toFixed(1)} h ago`;
-    return `${Math.round(s / 86400)} d ago`;
+    if (s < 90) return t("underway.age.seconds", {count:Math.round(s)});
+    if (s < 5400) return t("underway.age.minutes", {count:Math.round(s / 60)});
+    if (s < 48 * 3600) return t("underway.age.hours", {count:(s / 3600).toFixed(1)});
+    return t("underway.age.days", {count:Math.round(s / 86400)});
   };
   const lastFinite = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i] != null) return arr[i]; return null; };
   const fmtVal = (v, unit) => v == null ? "—" : `${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)}${unit ? " " + unit : ""}`;
   const dms = (lat, lon) => `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
   const xvals = (d) => state.xmode === "time" ? d.t.map((t) => plotDate(shipAxis(t))) : d.dist_km;
-  const xTitle = () => state.xmode === "time" ? `ship time (${tzAbbr()})` : "distance along track (km)";
+  const xTitle = () => state.xmode === "time" ? t("underway.axis.time", {zone:tzAbbr()}) : t("underway.axis.distance");
   const minmax = (a) => { let lo = Infinity, hi = -Infinity; for (const x of a) if (x != null) { if (x < lo) lo = x; if (x > hi) hi = x; } return [lo, hi]; };
   const cssId = (s) => s.replace(/[^a-z0-9]+/gi, "_");
   const legById = (id) => M.legs.find((l) => l.id === id);
@@ -393,8 +409,8 @@
       };
       ul.appendChild(li);
     }
-    $("#legsummary").textContent = `Legs · ${shownLegs().length}/${M.legs.length}`;
-    $("#legfoot").textContent = `${shownLegs().length} of ${M.legs.length} legs shown · the ${coverWindowOf(M).label} window loaded`;
+    $("#legsummary").textContent = t("underway.legs.summary", {shown:shownLegs().length,total:M.legs.length});
+    $("#legfoot").textContent = t("underway.legs.loaded", {shown:shownLegs().length,total:M.legs.length,span:spanLabel(coverWindowOf(M).label)});
     $("#legall").onclick = (e) => { e.preventDefault(); showAllLegs(); };
     $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); loadWindow(); };
   }
@@ -411,7 +427,7 @@
     }
     const end = M.data_range.end;
     const ageMin = (Date.now() - new Date(end)) / 60000;
-    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: SITE.local_tz, year: "numeric", month: "long", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+    const parts = Object.fromEntries(new Intl.DateTimeFormat(window.UWI18n.locale === "fr-CA" ? "fr-CA" : "en-GB", { timeZone: SITE.local_tz, year: "numeric", month: "long", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short" }).formatToParts(new Date()).map((p) => [p.type, p.value]));
     const zone = new Intl.DateTimeFormat("en-US", { timeZone: SITE.local_tz, timeZoneName: "short" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value || "";   // EDT, where en-GB says GMT-4
     const now = `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute} ${zone}`;   // 06 September 2026 14:45 EDT
     const live = ageMin < 15;
@@ -420,7 +436,6 @@
     // the age coloured from green (fresh) through amber to red (three hours or more)
     const ageColour = (iso) => { const m = (Date.now() - Date.parse(iso)) / 60000; return `hsl(${Math.round(120 * (1 - Math.min(1, Math.max(0, m) / 180)))}, 70%, 60%)`; };
     const when = (iso) => iso ? `${fmtTs(Date.parse(iso)).slice(11)} <span style="color:${ageColour(iso)}">(${esc(ago(iso))})</span>` : "—";
-    const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const rows = (M.source_info || []).map((s) => {
       const t = s.key === "live" && window.UW?.intranetLatest?.fetched ? new Date(window.UW.intranetLatest.fetched * 1000).toISOString() : s.time;
       return `<tr><td>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>` : esc(s.label)}</td><td class="mono">${when(t)}</td></tr>`;
@@ -428,37 +443,42 @@
     const gen = Date.parse(M.generated_utc);
     const open = $("#srcpop")?.open;
     // the sources box opens on hover, or on a click on "last refresh" or LIVE
-    const schedWord = M.calendar && schedMode() === "hidden" ? `<span class="status-tail status-short"> · <span class="schedlink" id="schedlink" title="show the schedule">STATUS</span></span>` : "";
+    const schedWord = M.calendar && schedMode() === "hidden" ? `<span class="status-tail status-short"> · <span class="schedlink" id="schedlink" title="${esc(t('underway.showSchedule'))}">${esc(t('underway.status'))}</span></span>` : "";
     const notice = inapp.msgs.at(-1);
     const statusWord = notice && Date.now() - notice.receivedAt < 120000
       ? `<span class="status-tail status-notice"> · <span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span></span>` : schedWord;
-    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> · </span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">last refresh ${fmtTs(gen).slice(11)}${live ? ` · <span class="live">LIVE</span>` : ` · <span class="stale">data ${ago(end)}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
+    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> · </span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">${esc(t("underway.refresh", {time:fmtTs(gen).slice(11)}))}${live ? ` · <span class="live">${esc(t("underway.live"))}</span>` : ` · <span class="stale">${esc(t("underway.dataAge", {age:ago(end)}))}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
     const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
   setInterval(() => { if (M?.data_range) renderStatus(); }, 20000);
 
+  function spanLabel(label) {
+    if (label === "leg" || label === "all") return t("underway.span." + label);
+    const match = /^(\d+)(d|y)$/.exec(label);
+    return match ? t("underway.span." + (match[2] === "d" ? "days" : "years"), {count:match[1]}) : label;
+  }
   function renderControls() {
     const r = $("#span"), ticks = $("#spanticks");
     const labels = M.windows.map((w) => w.label);
     r.max = labels.length - 1;
-    ticks.innerHTML = labels.map((l, i) => `<option value="${i}" label="${l}"></option>`).join("");
+    ticks.innerHTML = labels.map((l, i) => `<option value="${i}" label="${esc(spanLabel(l))}"></option>`).join("");
     let idx = labels.indexOf(state.win);
     if (idx < 0) idx = Math.max(0, labels.indexOf(M.default_window));
     r.value = idx;
-    $("#spanlabel").textContent = labels[idx]; r.setAttribute("aria-valuetext", labels[idx]);
+    $("#spanlabel").textContent = spanLabel(labels[idx]); r.setAttribute("aria-valuetext", spanLabel(labels[idx]));
     const pick = (label) => { state.win = label; store.set("win", state.win); requestFit(); loadWindow(); };
-    r.oninput = () => { $("#spanlabel").textContent = labels[r.value]; r.setAttribute("aria-valuetext", labels[r.value]); };
+    r.oninput = () => { $("#spanlabel").textContent = spanLabel(labels[r.value]); r.setAttribute("aria-valuetext", spanLabel(labels[r.value])); };
     r.onchange = () => pick(labels[r.value]);
     // the same choice as a dropdown, which is what a phone shows instead of the slider
     const sel0 = $("#spansel");
-    sel0.innerHTML = labels.map((l) => `<option value="${l}">${l === "leg" ? "this leg" : l}</option>`).join("");
+    sel0.innerHTML = labels.map((l) => `<option value="${l}">${esc(spanLabel(l))}</option>`).join("");
     sel0.value = labels[idx];
     sel0.onchange = () => pick(sel0.value);
 
     // every X-axis toggle (the header's and the cast section's) shows the mode and cycles it
     for (const b of document.querySelectorAll(".xmode .xcycle")) {
-      b.textContent = state.xmode === "time" ? "Time" : "Distance";
+      b.textContent = state.xmode === "time" ? t("underway.time") : t("underway.distance");
       b.onclick = () => { state.xmode = state.xmode === "time" ? "distance" : "time"; store.set("xmode", state.xmode); renderControls(); renderPanels(); window.UW?.onXMode?.(); };
     }
     // every colour picker (the map's, and the underway strip's) lists the same variables and sets the same choice
@@ -468,7 +488,7 @@
       for (const v of [...M.variables, ...extraColours.values()]) {
         if (!v.resolved) continue;
         const o = document.createElement("option");
-        o.value = v.name; o.textContent = v.name;
+        o.value = v.name; o.textContent = variableLabel(v.name);
         sel.appendChild(o);
       }
       sel.value = state.colour;
@@ -572,15 +592,15 @@
     if (state.sat && !imgs[state.sat]) state.sat = "";
     const im = imgs[state.sat];
     b.classList.toggle("on", !!im);
-    b.textContent = im ? (state.sat === "s1" ? "S1 radar" : "S2 optical") : "Sat off";
-    b.title = im ? `${im.label}, newest scene ${im.scene ? fmtTs(Date.parse(im.scene)) + " " + tzAbbr() : "unknown"} · click for ${state.sat === "s1" && imgs.s2 ? "Sentinel-2" : "none"}` : "recent satellite imagery around the ship: Sentinel-1 radar (sees ice through cloud), then Sentinel-2 true colour";
+    b.textContent = im ? (state.sat === "s1" ? t("provenance.sat.radar") : t("provenance.sat.optical")) : t("underway.sat.off");
+    b.title = im ? t("provenance.sat.next", {label:im.label,time:im.scene ? fmtTs(Date.parse(im.scene)) + ' ' + tzAbbr() : t('provenance.unknown'),next:state.sat === 's1' && imgs.s2 ? 'Sentinel-2' : t('provenance.none')}) : t("provenance.sat.hint");
     b.onclick = () => { const i = kinds.indexOf(state.sat); state.sat = i < 0 ? kinds[0] : (kinds[i + 1] || ""); state.satAt = null; store.set("sat", state.sat); renderSatPill(); renderMap(); };
     // the stepper: back and forth through the archive, the newest last
     const pic = satPicture();
     if (!pic) return;
     $("#satnav").hidden = false;
     $("#satwhen").textContent = `${fmtTs(Date.parse(pic.scene)).slice(5)} ${tzAbbr()}` + (pic.n > 1 ? ` · ${pic.index + 1}/${pic.n}` : "");
-    $("#satwhen").title = pic.index === pic.n - 1 ? "the newest picture" : "an earlier picture; › steps forward";
+    $("#satwhen").title = pic.index === pic.n - 1 ? t("underway.sat.newest") : t("underway.sat.earlier");
     $("#satprev").disabled = pic.index === 0;
     $("#satnext").disabled = pic.index === pic.n - 1;
     const step = (d) => { const rows = satSeries(), j = pic.index + d; if (j < 0 || j >= rows.length) return; state.satAt = j === rows.length - 1 ? null : (rows[j].key||rows[j].url); renderSatPill(); renderMap(); };
@@ -1018,7 +1038,7 @@
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
 
   // Map detail is selected before transfer; charts retain their time bins.
-  const detailLabel = (km) => km >= 1 ? `${km} km detail` : km ? `${km * 1000} m detail` : 'all points · visible area';
+  const detailLabel = (km) => km >= 1 ? t("underway.track.detailKm", {distance:km}) : km ? t("underway.track.detailM", {distance:km * 1000}) : t("underway.track.all");
   // Chart windows never download the monolithic native track files.
   const windowFile = (w) => w?.file;
   // the ship's position: the intranet live page when it is newer than the
@@ -1128,7 +1148,7 @@
   function renderColourBar(v, lim) {
     const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
     const [low,high]=UWMapLegend.formatRange(lim);
-    UW.mapLegend=state.track?{name:state.colour,stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low,high}:null;
+    UW.mapLegend=state.track?{name:variableLabel(state.colour),stops,showScale:!!(!v?.rgb&&lim&&isFinite(lim[0])&&isFinite(lim[1])),low,high}:null;
     renderMapLegend();
     for (const bar of document.querySelectorAll(".cbar")) {
       const show = !v?.rgb && lim && isFinite(lim[0]) && isFinite(lim[1]);
@@ -1137,7 +1157,7 @@
       bar.querySelector(".grad").style.background = `linear-gradient(90deg, ${stops.map(([t, col]) => `${col} ${(t * 100).toFixed(1)}%`).join(", ")})`;
       bar.querySelector(".lo").textContent = low;
       bar.querySelector(".hi").textContent = high;
-      bar.title = `${state.colour}: the colour scale of the track and the graph points, from the 5th to the 95th percentile of the span`;
+      bar.title = t("underway.colourScale", {variable:variableLabel(state.colour)});
     }
   }
   function renderMapLegend() {
@@ -1151,14 +1171,17 @@
   let mapView = null, mapData = null;
   const trackLoader = window.UWTrack?.createLoader();
   let trackData = null, trackKey = '', trackTimer = null, trackStatus = '', trackSequence = 0;
-  function setTrackStatus(message) {
+  let trackStatusKey = '', trackStatusValues = {};
+  function setTrackStatus(key, values = {}) {
+    trackStatusKey = key; trackStatusValues = values;
+    const message = key ? t(key, key === 'underway.track.points' ? {...values,detail:detailLabel(values.spacingKm)} : values) : '';
     trackStatus = message;
     const el = $('#trackstatus');
     if (el) el.textContent = message;
   }
   function resetTrack() {
     clearTimeout(trackTimer); trackLoader?.cancel(); ++trackSequence;
-    trackData = null; trackKey = ''; trackStatus = '';
+    trackData = null; trackKey = ''; trackStatus = ''; trackStatusKey = ''; trackStatusValues = {};
     setLoadError('Track', false);
   }
   function trackSpacing() {
@@ -1171,7 +1194,7 @@
   }
   function scheduleTrack() {
     if (!state.track || !mapView?.map || !state.span) return;
-    if (!M.track || !trackLoader) { setTrackStatus('Track detail needs a new dashboard build'); return; }
+    if (!M.track || !trackLoader) { setTrackStatus("underway.track.rebuild"); return; }
     const box = mapView.map.getBounds(), f = spanFilter();
     const bounds = [box.getWest(), box.getSouth(), box.getEast(), box.getNorth()].map(x => +x.toFixed(5));
     const legs = shownLegs().map(l => l.index), spacingKm = trackSpacing();
@@ -1179,7 +1202,7 @@
     if (key === trackKey) return;
     clearTimeout(trackTimer); trackLoader.cancel();
     const sequence = ++trackSequence;
-    trackKey = key; setTrackStatus('Loading visible track…');
+    trackKey = key; setTrackStatus("underway.track.loading");
     const track = M.track, generation = M.generated_utc;
     trackTimer = setTimeout(async () => {
       try {
@@ -1195,13 +1218,13 @@
         vars['Distance travelled (km)'] = distances;
         trackData = {...next, vars, dist_km:distances, limits:state.span.limits,
           label:state.span.label, start:state.span.start, end:state.span.end};
-        setTrackStatus(next.limited ? 'Track density limit reached · zoom in or shorten the span for more points' :
-          `${next.shown.toLocaleString()} visible track points · ${detailLabel(next.spacing_km)}`);
+        setTrackStatus(next.limited ? "underway.track.limited" :
+          "underway.track.points", {count:next.shown.toLocaleString(),spacingKm:next.spacing_km});
         setLoadError('Track', false);
         renderMap();
       } catch (error) {
         if (sequence !== trackSequence || error.name === 'AbortError') return;
-        trackKey = ''; setTrackStatus('Track unavailable · retrying');
+        trackKey = ''; setTrackStatus("underway.track.unavailable");
         setLoadError('Track', true);
         // Keep the last successful track and retry without blocking charts.
         trackTimer = setTimeout(scheduleTrack, 5000);
@@ -1229,11 +1252,13 @@
     const at = e?.lngLat?.wrap?.() || e?.lngLat;
     if (at) setFocus(at.lat, at.lng, "Waypoint", { waypoint: true });
   }
+  let refreshMapFooter = () => {};
   function renderMap() {
+    refreshMapFooter = () => {};
     const overview = state.span;
     const d = trackData || {...overview, t:[], lat:[], lon:[], leg:[], dist_km:[], vars:{}, pump_low:[], n:0, shown:0};
     const el = $("#map");
-    if (!overview || !(overview.shown ?? overview.n)) { mapView?.clear(); mapMessage(overview ? "nothing to show: no legs selected, or no track in this span" : "no data"); $("#mapfoot").textContent = ""; return; }
+    if (!overview || !(overview.shown ?? overview.n)) { mapView?.clear(); mapMessage(overview ? t("underway.empty.track") : t("underway.empty.data")); $("#mapfoot").textContent = ""; return; }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1330,10 +1355,11 @@
       mapMessage("");
     } catch (e) {
       console.warn("map draw:", e);
-      mapMessage("Map unavailable; other plots and tables remain usable. Try resetting the map.");
+      mapMessage(t("provenance.map.unavailable"));
     }
     try { renderColourBar(v, lim); } catch { /* the bar is decoration */ }
 
+    refreshMapFooter = () => {
     // distance travelled: the along-track extent of each selected leg's
     // points in the span (dist_km runs on through the whole record)
     const ext = new Map();
@@ -1341,13 +1367,15 @@
     const km = [...ext.values()].reduce((a, [lo, hi]) => a + hi - lo, 0);
     const nLegs = shownLegs().length;
     $("#mapfoot").innerHTML =
-      `<span><b>${d.label}</b> span · <b>${nLegs}</b> leg${nLegs === 1 ? "" : "s"} selected · <b>${km.toFixed(0)} km</b> travelled</span>` +
-      (state.track ? `<span id="trackstatus" role="status">${esc(trackStatus || 'Loading visible track…')}</span>` : '') +
-      (st.length ? `<span><b>${st.filter((s) => s.kind !== "event").length}</b> CTD casts${st.some((s) => s.kind === "event") ? ` · <b>${st.filter((s) => s.kind === "event").length}</b> other stations` : ""}</span>` : "") +
+      `<span>${esc(t("underway.map.summary", {span:spanLabel(d.label),count:nLegs,distance:km.toFixed(0)}))}</span>` +
+      (state.track ? `<span id="trackstatus" role="status">${esc(trackStatus || t("underway.track.loading"))}</span>` : '') +
+      (st.length ? `<span>${esc(t("underway.map.casts", {count:st.filter((s) => s.kind !== "event").length}))}${st.some((s) => s.kind === "event") ? ` · ${esc(t("underway.map.otherStations", {count:st.filter((s) => s.kind === "event").length}))}` : ""}</span>` : "") +
       `<span class="mono">${fmtTs(Date.parse(d.start))} → ${fmtTs(Date.parse(d.end))} ${tzAbbr()}</span>` +
-      (state.sat && satPicture() ? `<span><b>${satPicture().label}</b> · newest scene ${fmtTs(Date.parse(satPicture().scene))} ${tzAbbr()}${details.length ? ` · ${details.map((im) => esc(im.label || 'high-resolution detail')).join(' + ')}` : ""} · Copernicus Sentinel data</span>` : "") +
-      plansShown().map((pl) => `<span title="drop a KMZ or KML on the map to add a plan of your own"><b>Plan</b> ${esc(pl.name)} · ${pl.stations.length} stations</span>`).join("") +
-      `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>click a station to add its cast · </span>scroll to zoom · drag to pan · ⟲ fits</span>`;
+      (state.sat && satPicture() ? `<span>${esc(t("provenance.sat.footer", {label:satPicture().label,time:fmtTs(Date.parse(satPicture().scene)),zone:tzAbbr()}))}${details.length ? ` · ${details.map((im) => esc(im.label || t("provenance.sat.detail"))).join(" + ")}` : ""}</span>` : "") +
+      plansShown().map((pl) => `<span title="${esc(t('provenance.plan.drop'))}">${esc(t("provenance.plan.footer", {name:pl.name,count:pl.stations.length}))}</span>`).join("") +
+      `<span class="hint"><span class="maphint" id="maphint" ${document.querySelector("main")?.classList.contains("tab-casts") ? "" : "hidden"}>${esc(t("underway.map.stationHint"))}</span>${esc(t("underway.map.navigation"))}</span>`;
+    };
+    refreshMapFooter();
   }
 
   // ------------------------------------------------------------ panels
@@ -1377,22 +1405,22 @@
   const panelElements = new Map();
   function panelEl(name) {
     let el = panelElements.get(name);
-    if (el) return el;
+    if (el) { window.UWI18n.apply(el); return el; }
     const v = VAR[name] || extraPanels.get(name);
     el = document.createElement("section");
     el.className = "panel card"; el.id = "p-" + cssId(name); el.dataset.name = name; el.draggable = true;
     if (name.startsWith("Surprise")) el.classList.add("surprise");
     el.innerHTML = `<div class="head">
-        <span class="handle" title="drag to reorder">⋮⋮</span>
-        <h3 title="colour everything by this variable">${name}</h3>
+        <span class="handle" data-i18n-title="underway.chart.reorder">⋮⋮</span>
+        <h3 data-i18n-title="underway.chart.colour">${name}</h3>
         <div class="tools"><span class="now"></span>
-          ${!isDepth(name) && v?.log_ok ? '<button class="log" title="log10 y-axis">log</button>' : ""}
-          <button class="reset" title="reset zoom">⟲</button>
-          ${isDepth(name) ? '<button class="dscale depthscale" title="compress the depth axis (square root)" aria-label="Toggle square-root depth spacing">⇅</button>' : ''}
-          <button class="min" title="minimise to its group">—</button>
-          <button class="wide" title="expand">⤢</button>
+          ${!isDepth(name) && v?.log_ok ? '<button class="log" data-i18n-title="underway.chart.log">log</button>' : ""}
+          <button class="reset" data-i18n-title="underway.chart.reset">⟲</button>
+          ${isDepth(name) ? '<button class="dscale depthscale" data-i18n-title="underway.chart.depthRoot" data-i18n-aria-label="underway.chart.toggleDepth">⇅</button>' : ''}
+          <button class="min" data-i18n-title="underway.chart.minimise">—</button>
+          <button class="wide" data-i18n-title="underway.chart.expand">⤢</button>
         </div></div><div class="plot"></div>`;
-    el.querySelector("h3").textContent = v?.label || name;
+    el.querySelector("h3").textContent = variableLabel(v?.label || name);
     el.querySelector("h3").onclick = () => selectPanel(name);
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = extraPanels.get(name).description || name; }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
@@ -1402,6 +1430,7 @@
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
     el.querySelector(".min").onclick = () => setPanelState(name, "min");
     wireCardDrag(el, name);
+    window.UWI18n.apply(el);
     panelElements.set(name, el);
     panelWatch?.observe(el);
     return el;
@@ -1410,6 +1439,7 @@
   // Group cards collect panels by where their data come from: an
   // extra panel names its group when it registers; a variable's follows its
   // source instrument
+  const groupLabel = name => ["Surprise","Lab","Met Station","Bridge","Winches","Other"].includes(name) ? t("underway.group." + name) : name;
   const GROUPS = ["Surprise", "Lab", "Met Station", "Bridge", "Winches", "Other"];
   const GROUP_OF_INSTRUMENT = { TSG: "Lab", AVOS: "Met Station", ATS_Portside: "Met Station", ATS: "Met Station", POSMV: "Bridge", Multibeam: "Bridge" };
   function panelGroup(name) {
@@ -1476,22 +1506,24 @@
       let box = document.getElementById("g-" + cssId(g));
       if (!box) {
         box = document.createElement("section"); box.className = "panel card dockgroup"; box.id = "g-" + cssId(g);
-        box.innerHTML = `<div class="head"><span class="handle" title="drag to reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" role="region" aria-label="${g} chart summaries"></div>`;
+        box.innerHTML = `<div class="head"><span class="handle" data-i18n-title="underway.chart.reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" role="region" aria-label="${esc(t('underway.chart.groupSummary', {group:groupLabel(g)}))}"></div>`;
         wireCardDrag(box, "group:" + g);
       }
+      window.UWI18n.apply(box);
+      box.querySelector(".chips").setAttribute("aria-label", t("underway.chart.groupSummary", {group:groupLabel(g)}));
       cards.push(box);
       const minned = members.filter((n) => state.panel[n] === "min"), allMin = minned.length === members.length;
-      box.querySelector(".gname").textContent = g;
+      box.querySelector(".gname").textContent = groupLabel(g);
       const summary=members.map(n=>extraPanels.get(n)?.groupSummary).find(Boolean);
       const times=members.map(n=>extraPanels.get(n)?.updated?.() ?? (()=>{const y=state.data?.vars[n];if(!y)return null;for(let i=y.length-1;i>=0;i--)if(y[i]!=null)return state.data.t[i];return null})()).filter(t=>t!=null);
       const updated=times.length?Math.max(...times):null;
       const groupAge = box.querySelector('.gn');
       groupAge.dataset.summary = summary ? summary() || '' : '';
       if (updated != null) groupAge.dataset.updated = updated; else delete groupAge.dataset.updated;
-      groupAge.textContent = [groupAge.dataset.summary, updated != null ? ago(updated) : 'no data'].filter(Boolean).join(' · ');
-      box.querySelector('.gn').title=updated?`Latest displayed observation: ${fmtTs(updated)} ${tzAbbr()}`:'No observations';
+      groupAge.textContent = [groupAge.dataset.summary, updated != null ? ago(updated) : t("underway.empty.data")].filter(Boolean).join(' · ');
+      box.querySelector('.gn').title=updated?t("underway.chart.latest", {time:fmtTs(updated),zone:tzAbbr()}):t("underway.chart.noObservations");
       box.querySelector(".gtog").textContent = allMin ? "▲" : "—";
-      box.querySelector(".ghead").title = allMin ? `restore every ${g} panel` : `minimise every ${g} panel to this group`;
+      box.querySelector(".ghead").title = allMin ? t("underway.chart.restoreGroup", {group:groupLabel(g)}) : t("underway.chart.minimiseGroup", {group:groupLabel(g)});
       box.querySelector(".ghead").onclick = () => {
         for (const n of members) { if (allMin) delete state.panel[n]; else state.panel[n] = "min"; }
         store.set("panel", state.panel);
@@ -1502,8 +1534,8 @@
       const voltage=state.data?.vars['TSG flow (V)']?.at(-1);
       const low=g==='Lab'&&voltage!=null&&voltage<(SITE.low_flow_v??0.5);
       box.classList.toggle('pump-alarm',low);
-      box.querySelector('.gname').textContent=g+(low?' · LOW FLOW':'');
-      box.title=low?`Intake pump voltage ${voltage.toFixed(2)} V: water measurements may be unreliable`:'';
+      box.querySelector('.gname').textContent=groupLabel(g)+(low?t("underway.chart.lowFlow"):'');
+      box.title=low?t("provenance.pump.warning", {voltage:voltage.toFixed(2)}):'';
       for (const name of members) {
         let chip = document.getElementById("c-" + cssId(name));
         if (!chip) { chip = document.createElement("button"); chip.className = "chip"; chip.id = "c-" + cssId(name); chip.onclick = () => setPanelState(name, state.panel[name] === 'min' ? null : 'min'); }
@@ -1514,13 +1546,13 @@
         const spec=extraPanels.get(name),preview=spec?.chip?.();
         chip.classList.toggle('ice-summary-chip',!!preview);
         chip.replaceChildren();
-        const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||(name===SURPRISE?'Combined':name.replace(/^Surprise · /,''));
-        if(preview?.image){const img=document.createElement('img');img.src=preview.image;img.alt='Latest ROI';img.className='chip-preview';label.prepend(img)}
+        const label=document.createElement('span');label.className='cname';label.textContent=spec?.label||(name===SURPRISE?t("underway.chart.combined"):variableLabel(name).replace(/^Surprise · /,''));
+        if(preview?.image){const img=document.createElement('img');img.src=preview.image;img.alt=t("underway.chart.latestROI");img.className='chip-preview';label.prepend(img)}
         const latestValue=y?lastFinite(y):null;
         const value=document.createElement('b');value.textContent=preview?.text??(/^(Rosette depth|Cable length)/.test(name)&&latestValue!=null?`${Math.round(latestValue)} m`:fmtVal(latestValue,VAR[name]?.unit));
         const arrow=document.createElement('span');arrow.className='chart-state';arrow.textContent=open?'▲':'▼';arrow.setAttribute('aria-hidden','true');chip.append(arrow,label,value);
-        chip.title = `${spec?.label||name}: ${open?'minimise':'restore'}`;
-        if (name === 'Excess heat (°C)') chip.title += '; water temperature minus the salinity-based freezing point at surface pressure (0 dbar)';
+        chip.title = t("underway.chart.toggle", {name:variableLabel(spec?.label||name),action:t(open?'underway.chart.minimiseAction':'underway.chart.restoreAction')});
+        if (name === 'Excess heat (°C)') chip.title += t("underway.chart.excessHeatHint");
       }
     }
     const saved = store.get("cards.order", []);
@@ -1595,13 +1627,13 @@
       Promise.resolve().then(() => { if (plot.data) Plotly.relayout(plot, { dragmode: on ? "pan" : false }).catch(() => {}); });
       return;
     }
-    let title = name;
+    let title = variableLabel(name);
     let y = d?.vars[name];
     el.querySelector("h3").textContent = title;
     // the div keeps its "plot" class while empty, so a later render finds it again
     const empty = (msg) => { if (plot.data) Plotly.purge(plot); plot.className = "plot empty"; plot.textContent = msg; el.querySelector(".now").textContent = ""; };
-    if (!v.resolved) return empty("source column not found in any leg");
-    if (!d || !y || !y.some((x) => x != null)) return empty("no data for the selected legs");
+    if (!v.resolved) return empty(t("underway.empty.source"));
+    if (!d || !y || !y.some((x) => x != null)) return empty(t("underway.empty.legs"));
     if (plot.classList.contains("empty")) { plot.className = "plot"; plot.textContent = ""; }
     const wholeMetres=/^(Rosette depth|Cable length)/.test(name),last=lastFinite(y);
     el.querySelector(".now").textContent = wholeMetres&&last!=null?`${Math.round(last)} m`:fmtVal(last,v.unit);
@@ -1632,9 +1664,9 @@
       trace.mode = "markers";
       traces.unshift({ x, y, type: "scatter", mode: "lines", hoverinfo: "skip", connectgaps: false,
                        line: { width: 1, color: "rgba(160,180,200,.45)" } });
-      traces.push({ x, y: y.map((q, i) => (low[i] ? q : null)), type: "scatter", mode: "markers", name: "pump off",
+      traces.push({ x, y: y.map((q, i) => (low[i] ? q : null)), type: "scatter", mode: "markers", name: t("provenance.pump.trace"),
                     marker: { size: 3.5, color: "#7d8895", opacity: .55 }, text: legText,
-                    hovertemplate: `%{y:.3~f} ${v.unit} · <i>intake pump off</i><br>%{x}<br>%{text}<extra></extra>` });
+                    hovertemplate: `%{y:.3~f} ${v.unit} · <i>${esc(t("provenance.pump.off"))}</i><br>%{x}<br>%{text}<extra></extra>` });
     }
     const depth = isDepth(name), compressed = depth && !!state.depthScale[name];
     const depthY = (n) => n == null ? null : compressed ? Math.sqrt(Math.max(0,n)) : n;
@@ -1667,7 +1699,7 @@
     if (depth) {
       const maxD = Math.max(1, minmax(y)[1] * 1.03);
       layout.yaxis = { ...layout.yaxis, autorange:false, range:[depthY(maxD),0],
-        title:{...layout.yaxis.title,text:compressed?'depth (m, √ spacing)':'depth (m)'} };
+        title:{...layout.yaxis.title,text:compressed?t("underway.axis.depthRoot"):t("underway.axis.depth")} };
       if (compressed) {
         const ticks = [0,5,10,20,30,50,75,100,150,200,300,400,500,750,1000,1500,2000,3000,4000,5000,6000,8000,10000,12000].filter(n=>n<=maxD);
         layout.yaxis.tickvals = ticks.map(depthY); layout.yaxis.ticktext = ticks.map(String);
@@ -1718,22 +1750,25 @@
 
   // ------------------------------------------------------------ provenance
   function renderProvenance() {
-    const legCols = M.legs.map((l) => `<th title="${l.label}">${l.year % 100}·${l.number}</th>`).join("");
+    const legCols = M.legs.map((l) => `<th title="${esc(l.label)}">${l.year % 100}·${l.number}</th>`).join("");
     const rows = M.variables.map((v) =>
-      `<tr><td>${v.name}</td><td class="src ${v.resolved ? "" : "bad"}">${v.derived ? "<i>derived</i>" : (v.source || "not found")}</td>` +
+      `<tr><td>${esc(variableLabel(v.name))}</td><td class="src ${v.resolved ? "" : "bad"}">${v.derived ? `<i>${esc(t("provenance.derived"))}</i>` : v.source ? `<span lang="en">${esc(v.source)}</span>` : esc(t("provenance.notFound"))}</td>` +
       M.legs.map((l) => `<td class="cov">${v.derived ? "·" : (v.coverage?.[l.id] ? "✓" : '<span class="bad">–</span>')}</td>`).join("") + "</tr>");
-    $("#sources").innerHTML = `<tr><th>panel</th><th>source column (Instrument — Variable)</th>${legCols}</tr>${rows.join("")}`;
-    const f = M.files;
+    $("#sources").innerHTML = `<tr><th>${esc(t("provenance.panel"))}</th><th>${esc(t("provenance.column"))}</th>${legCols}</tr>${rows.join("")}`;
+    const paragraph = (key, values) => `<p>${esc(t("provenance." + key, values))}</p>`;
+    const layers = [
+      SITE.raster ? t("provenance.basemap.raster") : "",
+      t(SITE.vector ? "provenance.basemap.vector" : "provenance.basemap.natural"),
+      SITE.raster ? "" : t("provenance.basemap.depth")
+    ].filter(Boolean).join(" · ");
+    $("#sources").lang = $("#notes").lang = window.UWI18n.locale;
     $("#notes").innerHTML =
-      `<p><b>Surprise</b>: ${M.surprise.note || "not computed"}. Each scale is −log10 of the χ² p-value of the Mahalanobis distance from an exponentially weighted mean and covariance of the minutes before (capped at 6); the combined score is the mean over scales. Above 3 is shaded.</p>` +
-      `<p><b>Zooming</b>: scroll zooms a graph, Shift+scroll its x axis only, Ctrl+scroll its y axis only; double-click resets.</p>` +
-      `<p><b>Excess heat (°C)</b>: SST minus the UNESCO 1983 seawater freezing point at surface pressure (0 dbar), calculated from paired temperature and salinity observations. Positive values are above freezing; negative values are below. Missing inputs or salinity outside 0–40 PSU leave gaps. The freezing-point fit is validated over 4–40 PSU; lower salinities use an extrapolation toward freshwater.</p>` +
-      `<p><b>Inputs</b>: ${f.total} daily files across ${M.legs.length} legs; latest <code>${f.latest}</code>.</p>` +
-      `<p><b>Record</b>: ${fmtTs(Date.parse(M.data_range.start))} → ${fmtTs(Date.parse(M.data_range.end))} ${tzAbbr()}. ${M.columns_seen.length} distinct columns seen; ` +
-      `the per-leg columns show where a source column exists.</p>` +
-      `<p>Times and time axes are ship time (${SITE.local_tz}); TSV exports carry UTC. Gaps in lines are missing data, not interpolation. ` +
-      `Basemap: ${SITE.raster ? "GEBCO 2024 shaded relief — bathymetry and land (15 arc-second grid) — and " : ""}${SITE.vector ? "OpenStreetMap coastline and land (ODbL) and Natural Earth 10 m glaciers" : "Natural Earth 10 m coastline, land and glaciers"}${SITE.raster ? "" : " and depth bands"}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland)${SITE.names ? "; geographic names from the Canadian Geographical Names Database (Open Government Licence – Canada) and GeoNames (CC BY 4.0), more of them the closer you zoom" : ""}; all served locally. ` +
-      `The map is a globe, so distances and areas read true at the ship's latitudes; the tiles are Web Mercator and end at 85° N, so the pole itself is blank.</p>`;
+      `<p><b>Surprise</b>: ${M.surprise.note ? `<span lang="en">${esc(M.surprise.note)}</span>` : esc(t("provenance.notComputed"))}. ${esc(t("provenance.surprise"))}</p>` +
+      paragraph("zoom") + paragraph("heat") +
+      paragraph("inputs", {files:M.files.total,legs:M.legs.length,latest:M.files.latest}) +
+      paragraph("record", {start:fmtTs(Date.parse(M.data_range.start)),end:fmtTs(Date.parse(M.data_range.end)),zone:tzAbbr(),columns:M.columns_seen.length}) +
+      paragraph("times", {zone:SITE.local_tz}) + paragraph("basemap", {layers}) +
+      (SITE.names ? paragraph("names") : "") + paragraph("globe");
   }
 
   // ------------------------------------------------------------ data flow
@@ -1838,7 +1873,7 @@
     const mode = schedMode(), folded = mode === "ticker";
     if (mode === "hidden") { bar.hidden = true; renderStatus(); return; }
     bar.classList.toggle("folded", folded);
-    bar.title = folded ? "click to hide the schedule" : "";
+    bar.title = folded ? t("underway.hideSchedule") : "";
     $("#schedrow").hidden = folded;
     // the fold must not bubble to the bar, whose handler is installed by the re-render
     $("#schedrow").onclick = (ev) => { if (ev.target.closest("a")) return; ev.stopPropagation(); setSchedMode("ticker"); };
@@ -1872,7 +1907,6 @@
     if (!id) { id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)); store.set("alerts.webid", id); }
     return id;
   }
-  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const inapp = { msgs: [] };
   let alertTimer = null;
   function renderInapp() {
@@ -2013,7 +2047,7 @@
       // the web copy: the tabs and buttons for what runs only aboard go
       for (const sel of ['#tabs button[data-tab="photos"]', "#tabchat", "#feedback-open"]) { const b = $(sel); if (b) b.hidden = true; }
       const plan = document.querySelector('#maplayers button[data-layer="plan"]');
-      if (plan) plan.title = "the leg's planned cruise track and stations from the expedition's KMZ";
+      if (plan) plan.title = t("underway.plan.description");
     } else wirePlanDrop();
     renderPlanPills();
     document.addEventListener("click", (e) => { for (const m of document.querySelectorAll("details.legmenu[open]")) if (!m.contains(e.target)) m.open = false; });   // a click outside closes the legs menu and the map's kind menus
