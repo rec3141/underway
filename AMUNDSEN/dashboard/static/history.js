@@ -197,6 +197,13 @@
       if (!window.confirm(ui("Withdraw the flags {v0} people have raised on \"{v1}\"?", {v0: (f.raisers.length), v1: (a.title)}))) return;
     } else if (f.mine && f.raisers.length > 1) { UW.toast?.(flagTitle(f)); return; }
     else on = false;
+    if (on && window.UWI18n.locale !== 'en') {
+      const locale = window.UWI18n.locale, translation = UW.M.history?.locales?.[locale];
+      const context = translation
+        ? `locale=${locale}; revision=${translation.stamp}; profiles=${(translation.profiles || []).join(',')}`
+        : `locale=${locale}; wiki=English fallback`;
+      note = `[Translation context: ${context}]\n${note}`;
+    }
     try {
       const r = await fetch("/api/history/flag", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, on, token, name, title: a.title, page: a.page, note }) });

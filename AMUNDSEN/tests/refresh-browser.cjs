@@ -532,11 +532,17 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await until('document.querySelector("#histmain h2 .flag")?.classList.contains("on")');
       assert.equal(wikiFlags[0].id,'page:test-narrative');
       assert.equal(wikiFlags[0].page,'test-narrative');
+      assert.equal(wikiFlags[0].note,'Review this narrative');
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      await until('document.querySelector("#histmain h2 .flag")?.dataset.flag==="page:test-narrative"');
       await evaluate('UW.wikiOpen("explore")');
       await until('document.querySelector("#histmain h2 .flag")?.dataset.flag==="page:explore"');
       await evaluate('document.querySelector("#histmain h2 .flag").click()');
       await until('document.querySelector("#histmain h2 .flag")?.classList.contains("on")');
       assert.equal(wikiFlags[1].page,'explore');
+      assert.match(wikiFlags[1].note,/Translation context: locale=fr-CA; wiki=English fallback/);
+      assert.match(wikiFlags[1].note,/Review this narrative/);
+      await evaluate('UWI18n.setLocale("en")');
       await evaluate('UW.wikiOpen("artifact/photo-one")');
       await until('document.querySelector("#histmain figure img")?.naturalWidth===1600');
       assert.equal(await evaluate('document.querySelector(".artpeople a")?.dataset.slug'),'person/etukishook');
