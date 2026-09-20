@@ -252,19 +252,29 @@ The units:
 | `underway-alerts.timer`, `underway-telegram.service` | schedule alerts by Telegram and email; the Telegram bot |
 | `underway-gcal.timer` | queued Google Calendar items |
 | `underway-satellite.timer` | Sentinel imagery around the ship |
+| `underway-history.timer` | the Wiki tab's layer from grid, every 20 minutes (`tools/history-pull.sh`) |
 | `underway-camera.timer`, `underway-camera-sync.timer` | the camera timelapses and their daily copy to the leg's photo folder |
 | `underway-mdns.service` | publishes `underway.local` on the Wi-Fi interface |
 | `ship-routes.timer` | keeps the ship's 10.0.0.x network off the UM VPN (only needed with that VPN) |
 
-The Wiki tab's data is pulled from grid by a line in the service account's
-crontab, clear of the round minutes when the build and the pull run:
+`underway-history.timer` runs at minutes 3, 23 and 43, clear of the round
+minutes when the build and the deploy pull run. It brings four things: the
+arctic-history code by git, the English research database, the reviewed
+translation release behind the wiki's language variants, and the fetched
+files. The two databases swap inside the build's own lock, together, because
+the publisher rechecks each translation against the English source it was made
+from. `tools/history-pull.sh status` shows the row counts on both sides and
+which locales the installed release offers; `journalctl -u underway-history`
+is the log. The timer needs the service account's ssh key on grid, so it is
+enabled once that works:
 
-```
-3,23,43 * * * * /data/underway_server/app/AMUNDSEN/tools/history-pull.sh >> ~/.local/state/underway/history-pull.log 2>&1
+```sh
+sudo systemctl enable --now underway-history.timer
 ```
 
-(cron expands no variables: write the installation's own `UNDERWAY_HOME`; the
-script reads the rest from the site file.)
+Without a clone at `ARCTIC_HISTORY_ROOT` the unit's condition skips it and the
+Wiki tab is simply absent. No release on grid leaves whatever release the ship
+already has; an empty release is how the crew withdraws every locale.
 
 ### Taking over
 

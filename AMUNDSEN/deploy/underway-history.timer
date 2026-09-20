@@ -1,0 +1,13 @@
+[Unit]
+Description=Pull the history layer from grid every 20 minutes
+
+[Timer]
+OnBootSec=5min
+# clear of the round minutes, where the build and the deploy pull run
+OnCalendar=*-*-* *:03/20:00
+AccuracySec=30s
+Unit=underway-history.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

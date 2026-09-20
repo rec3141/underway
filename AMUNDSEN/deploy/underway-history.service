@@ -1,0 +1,26 @@
+[Unit]
+Description=Pull the Wiki tab's history layer from grid
+Documentation=file://@UNDERWAY_HOME@/app/AMUNDSEN/tools/history-pull.sh
+Wants=network-online.target
+After=network-online.target
+# without a clone the Wiki tab is absent and there is nothing to pull
+ConditionPathIsDirectory=@ARCTIC_HISTORY_ROOT@
+
+[Service]
+Type=oneshot
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/tools/history-pull.sh
+# a first pull over Starlink copies the whole database and every fetched file
+TimeoutStartSec=45min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+# the account's ssh key opens the session to grid; grid is never written to
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths=-@ARCTIC_HISTORY_ROOT@ @UNDERWAY_HOME@/cache
+StandardOutput=journal
+StandardError=journal
