@@ -10,6 +10,9 @@
     const title = isMap ? t('export.map') : titlePlot?.closest('.panel')?.querySelector('h3')?.textContent || titleSource || t('export.graph');
     dialog.querySelector('h3').textContent = t('export.title', {title});
     dialog.querySelector('.export-format-note').textContent = t(isMap ? 'export.mapNote' : 'export.graphNote');
+    const kmz = dialog.querySelector('.export-kmz');
+    kmz.textContent = window.UWI18n.text('Export KMZ');
+    kmz.hidden = !isMap;
     status(statusKey);
     // A translated caption may resize the controls, not the chosen image.
     if (dialog.open) dialogSize = `${dialog.clientWidth}:${dialog.clientHeight}`;
@@ -18,6 +21,7 @@
   let dialog, preview, observer, frame, version = 0, filename, ready = false, mapPreview = null, dialogSize = '', legend = null, legendCanvas = null, credit = '';
   function previewLegend(){if(legendCanvas){const {width,height}=dimensions();UWMapLegend.render(legendCanvas,width,height,legend);}}
   const scaleInput = () => dialog.querySelector('input[type=range]');
+  const exportButtons = () => [...dialog.querySelectorAll('[data-format], .export-kmz')];
   const dimensions = () => ({width:Math.max(1,preview.clientWidth),height:Math.max(1,preview.clientHeight)});
   function includeCastLegend(data, layout) {
     const casts = new Map();
@@ -59,7 +63,7 @@
       <label><span data-i18n="export.width">Width (px)</span><input name="width" type="number" min="160" max="4096" step="1"></label>
       <label><span data-i18n="export.height">Height (px)</span><input name="height" type="number" min="160" max="4096" step="1"></label>
       <label><span data-i18n="export.scale">PNG DPI scale</span> <input type="range" min="1" max="4" step="0.5" value="2"></label><output></output>
-      <p class="export-format-note muted"></p><button type="button" data-format="png" data-i18n="export.png">Export PNG</button><button type="button" data-format="svg" data-i18n="export.svg">Export SVG</button><p class="export-status" role="status"></p>
+      <p class="export-format-note muted"></p><button type="button" data-format="png" data-i18n="export.png">Export PNG</button><button type="button" data-format="svg" data-i18n="export.svg">Export SVG</button><button type="button" class="export-kmz" hidden></button><p class="export-status" role="status"></p>
       </aside><div class="export-viewport"><div class="export-canvas"></div></div></div>`;
     document.body.append(dialog);preview=dialog.querySelector('.export-canvas');
     dialog.querySelector('.export-close').onclick=()=>dialog.close();
@@ -78,7 +82,7 @@
     });
     for(const button of dialog.querySelectorAll('[data-format]'))button.onclick=async()=>{
       if(!ready)return;
-      const buttons=[...dialog.querySelectorAll('[data-format]')];
+      const buttons=exportButtons();
       buttons.forEach(b=>b.disabled=true);status('export.preparing');
       try {
         const format=button.dataset.format,scale=format==='png'?Number(scaleInput().value):1;
@@ -86,6 +90,15 @@
         const link=document.createElement('a');link.href=url;link.download=`${filename}.${format}`;document.body.append(link);link.click();link.remove();
         status('export.downloaded');
       } catch {status('export.failed');}
+      finally {buttons.forEach(b=>b.disabled=false);}
+    };
+    // The KMZ holds every layer the map has loaded, on screen or not, so it
+    // comes from the live map view rather than the preview's framed copy.
+    dialog.querySelector('.export-kmz').onclick=async()=>{
+      const buttons=exportButtons();
+      buttons.forEach(b=>b.disabled=true);status('export.preparing');
+      try {await window.UWMapKMZ.download(window.UW?.mapView,{title:titleSource});status('export.downloaded');}
+      catch {status('export.failed');}
       finally {buttons.forEach(b=>b.disabled=false);}
     };
   }
@@ -121,7 +134,7 @@
     titleSource = title;
     filename=title.replace(/[^\p{L}\p{N}._-]+/gu,'-').replace(/^-|-$/g,'')||'graph';
     status(''); localize();
-    dialog.querySelectorAll('[data-format]').forEach(b=>b.disabled=true);
+    exportButtons().forEach(b=>b.disabled=true);
 
     preview.style.width='';preview.style.height='';dialogSize='';
     if(!dialog.open)dialog.showModal();observer.observe(dialog);observer.observe(preview);resolution();
@@ -140,7 +153,7 @@
       await Plotly.newPlot(preview,data,{...layout,paper_bgcolor:background,plot_bgcolor:background,...dimensions(),autosize:false},{displayModeBar:false,staticPlot:true});
       }
       if(current!==version){if(!dialog.open)Plotly.purge(preview);return;}
-      ready=true;dialog.querySelectorAll('[data-format]').forEach(b=>b.disabled=false);resolution();
+      ready=true;exportButtons().forEach(b=>b.disabled=false);resolution();
     } catch {if(current===version)status('export.previewFailed');}
   }
   window.UWPlotExport={openMap:map=>open(null,map),attach(plot){
