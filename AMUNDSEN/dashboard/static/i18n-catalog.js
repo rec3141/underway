@@ -221,7 +221,6 @@ window.UW_UI_CATALOG = {
         "pages.0a26f41abd00f95e": "Import failed",
         "pages.0aea8f23338523f0": "the Library: ask Ada, the librarian, about the region's past",
         "pages.0afdff4af32c5761": "That subject is not in this build.",
-        "pages.0b3c57fe9dd876bc": "the waypoint could not be saved",
         "pages.0b4cf4c5aadae0a6": "no nearby photo",
         "pages.0b4fceb51bb721d7": "now · next · later · done · canceled · was scheduled · logged",
         "pages.0b707e48a42f2d90": "compress the depth axis (square root) — applies to every cast graph",
@@ -326,6 +325,7 @@ window.UW_UI_CATALOG = {
         "pages.24b309ef05a800b9": "Drop Camera",
         "pages.25781429f18f9f88": "in water",
         "pages.25b165146228c719": "{v0} found",
+        "pages.26963612170619a8": "saved",
         "pages.26d9b3b1f470ca66": "live feed unavailable (server not reachable)",
         "pages.277aafc886922dcd": "Ice camera",
         "pages.27873558b00fcb84": "undated",
@@ -623,7 +623,6 @@ window.UW_UI_CATALOG = {
         "pages.88d7c52212ef2f1e": "Next: add to journal ↓",
         "pages.88de1d0c64d7275c": "The waypoint could not be saved ({why})",
         "pages.88f9b975979fbdbf": "Import from:",
-        "pages.891bbe0519fc7608": "name this waypoint",
         "pages.892b302902eaa39f": "selected tows",
         "pages.894bb2b7ac07d55d": "Next photo",
         "pages.8954bdd0658bdc1b": "Header-bar alerts stay in this browser and clear with ✕. Every alert email carries an unsubscribe link. Times are ship time.",
@@ -669,7 +668,6 @@ window.UW_UI_CATALOG = {
         "pages.948fcefe5345439c": "the whole record",
         "pages.94a03054e2d4553d": "Geomagnetism",
         "pages.95538be430df3ed6": "Total ice",
-        "pages.960d0a5aa86a9d6d": "saved · the Stations tab can remove it",
         "pages.969ccbd3cf6300ec": "Email",
         "pages.97a5e41b45ddd2b2": "apply",
         "pages.983a042d392d0565": "the depths and the charts",
@@ -707,6 +705,7 @@ window.UW_UI_CATALOG = {
         "pages.a12af7a862beae85": "Transect name (shared with everyone on the ship)",
         "pages.a178f6d7069a2b24": "bottle {v0}{v1}",
         "pages.a19de0c38d4dff59": "🔔 Get alerts for scheduled operations",
+        "pages.a1e52386fd63d69a": "click to rename",
         "pages.a20d1e00196bf7a8": "{v0}/{v1} added{v2}{v3}",
         "pages.a20e4b867b4749ca": "{v0} unchanged failed images skipped.",
         "pages.a310ada4cbd505c9": "dip {v0}",
@@ -876,6 +875,7 @@ window.UW_UI_CATALOG = {
         "pages.dcca230522f1a31b": "near {v0}",
         "pages.dcd1d5223f73b3a9": "Name",
         "pages.dcd33cf5d38eeaae": "Texture, Brightness, Colorfulness, Patchiness are provisional interpretations of PC1–4, not ice concentration.",
+        "pages.dd2efee10b8fc011": "Waypoint {n}",
         "pages.ddb2e5cbcd7b1935": "Awaiting classification",
         "pages.dde8fbebbc93ceb6": "distance along the custom order (km)",
         "pages.de1ad6abb8b174a1": "not saved: {v0}",
@@ -1460,7 +1460,6 @@ window.UW_UI_CATALOG = {
         "pages.0a26f41abd00f95e": "Échec de l’importation",
         "pages.0aea8f23338523f0": "la bibliothèque : interrogez Ada, la bibliothécaire, sur le passé de la région",
         "pages.0afdff4af32c5761": "Ce sujet ne figure pas dans cette version.",
-        "pages.0b3c57fe9dd876bc": "le repère n’a pas pu être enregistré",
         "pages.0b4cf4c5aadae0a6": "aucune photo à proximité",
         "pages.0b4fceb51bb721d7": "en cours · suivante · à venir · terminée · annulée · anciennement prévue · consignée",
         "pages.0b707e48a42f2d90": "comprimer l’axe de profondeur (racine carrée) — s’applique à tous les graphiques de profils",
@@ -1565,6 +1564,7 @@ window.UW_UI_CATALOG = {
         "pages.24b309ef05a800b9": "Caméra descendue",
         "pages.25781429f18f9f88": "à l’eau",
         "pages.25b165146228c719": "Résultats : {v0}",
+        "pages.26963612170619a8": "enregistré",
         "pages.26d9b3b1f470ca66": "flux en direct indisponible (serveur inaccessible)",
         "pages.277aafc886922dcd": "Caméra de glace",
         "pages.27873558b00fcb84": "sans date",
@@ -1862,7 +1862,6 @@ window.UW_UI_CATALOG = {
         "pages.88d7c52212ef2f1e": "Suivant : ajouter au journal ↓",
         "pages.88de1d0c64d7275c": "Le repère n’a pas pu être enregistré ({why})",
         "pages.88f9b975979fbdbf": "Importer depuis :",
-        "pages.891bbe0519fc7608": "nommer ce repère",
         "pages.892b302902eaa39f": "remorquages sélectionnés",
         "pages.894bb2b7ac07d55d": "Photo suivante",
         "pages.8954bdd0658bdc1b": "Les alertes d’en-tête restent dans ce navigateur et s’effacent avec ✕. Chaque courriel d’alerte contient un lien de désabonnement. Les heures sont celles du navire.",
@@ -1908,7 +1907,6 @@ window.UW_UI_CATALOG = {
         "pages.948fcefe5345439c": "l’ensemble des données",
         "pages.94a03054e2d4553d": "Géomagnétisme",
         "pages.95538be430df3ed6": "Glace totale",
-        "pages.960d0a5aa86a9d6d": "enregistré · l’onglet Stations permet de le retirer",
         "pages.969ccbd3cf6300ec": "Courriel",
         "pages.97a5e41b45ddd2b2": "appliquer",
         "pages.983a042d392d0565": "les profondeurs et les cartes marines",
@@ -1946,6 +1944,7 @@ window.UW_UI_CATALOG = {
         "pages.a12af7a862beae85": "Nom du transect (partagé avec tout le monde à bord)",
         "pages.a178f6d7069a2b24": "bouteille {v0}{v1}",
         "pages.a19de0c38d4dff59": "🔔 Recevoir des alertes pour les opérations prévues",
+        "pages.a1e52386fd63d69a": "cliquer pour renommer",
         "pages.a20d1e00196bf7a8": "{v0}/{v1} ajoutées{v2}{v3}",
         "pages.a20e4b867b4749ca": "Images en échec inchangées ignorées : {v0}.",
         "pages.a310ada4cbd505c9": "plongée {v0}",
@@ -2115,6 +2114,7 @@ window.UW_UI_CATALOG = {
         "pages.dcca230522f1a31b": "près de {v0}",
         "pages.dcd1d5223f73b3a9": "Nom",
         "pages.dcd33cf5d38eeaae": "Texture, luminosité, intensité des couleurs et hétérogénéité sont des interprétations provisoires des composantes PC1–4, pas des concentrations de glace.",
+        "pages.dd2efee10b8fc011": "Repère {n}",
         "pages.ddb2e5cbcd7b1935": "En attente de classification",
         "pages.dde8fbebbc93ceb6": "distance selon l’ordre personnalisé (km)",
         "pages.de1ad6abb8b174a1": "non enregistré : {v0}",
@@ -3347,10 +3347,6 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f2658fbe6543f396f8cb2137a6bbe1e057430ccadfbc179c6a9b2d58241071f2"
         },
-        "pages.0b3c57fe9dd876bc": {
-          "profile": "editorial-fr-ca-v5",
-          "sourceSha256": "c70fa6040689de19e5e8250fd5436381e03a0e584bfa752c6aade50bbb7a4e24"
-        },
         "pages.0b4cf4c5aadae0a6": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bb71427ef433a3262c5084a5afef5af4524ad755d36017db5955fdf80edba046"
@@ -3766,6 +3762,10 @@ window.UW_UI_CATALOG = {
         "pages.25b165146228c719": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "54a1048f250e71e918986720cca06d5e0564fcf1d750313239d765a17532319b"
+        },
+        "pages.26963612170619a8": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "a9347c50430fb5947a6d022b1ae4dcfc5f961af3fd9a22899aff3b4437c0136b"
         },
         "pages.26d9b3b1f470ca66": {
           "profile": "editorial-fr-ca-v4",
@@ -4955,10 +4955,6 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4662e321cbb578be51551e22df16b7d615a911215cf2d340618c327b3b102c04"
         },
-        "pages.891bbe0519fc7608": {
-          "profile": "editorial-fr-ca-v5",
-          "sourceSha256": "9a0d096696944a9d09f321ce2e5442e0cc1f82fe71bb1ec710776af912b767f2"
-        },
         "pages.892b302902eaa39f": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cae271c1e6884865b0d119cc8a05de8135c3484a1041003a323f8a13f2f07bb4"
@@ -5139,10 +5135,6 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b670745bb46ece52e6813c39a1c6348092fbf5123dba248b0a26974f111fac07"
         },
-        "pages.960d0a5aa86a9d6d": {
-          "profile": "editorial-fr-ca-v5",
-          "sourceSha256": "ca0e5247e00a6275c9346b925c6f4efd2c529667981a1fef6d61cab52d2d9d16"
-        },
         "pages.969ccbd3cf6300ec": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0b57e967ff55ce5d934b1ac35a1e4a404e69444be35dba221b8a345b161d4ec6"
@@ -5290,6 +5282,10 @@ window.UW_UI_CATALOG = {
         "pages.a19de0c38d4dff59": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "449ae0a794283af7cb1aa25f2b4034fa265694cc00b2a0e49a1aa6649a8a52ce"
+        },
+        "pages.a1e52386fd63d69a": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "67cb6de53098feade0f24643cb0e52e327b1b5ad7e50c465283405fba1dff741"
         },
         "pages.a20d1e00196bf7a8": {
           "profile": "editorial-fr-ca-v4",
@@ -5966,6 +5962,10 @@ window.UW_UI_CATALOG = {
         "pages.dcd33cf5d38eeaae": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "aa06f6a962be0d24829e824dfd3dd640db0343e7c9d7e9d95e2c10f271d9ffbe"
+        },
+        "pages.dd2efee10b8fc011": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "e6fd42beb485fcc12f1d12ee57562f3d937a3326ff7930a3d4a377fe9d7859ec"
         },
         "pages.ddb2e5cbcd7b1935": {
           "profile": "editorial-fr-ca-v4",

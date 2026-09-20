@@ -410,12 +410,16 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 #map { position: relative; }
 .maptip { position: absolute; z-index: 5; pointer-events: none; max-width: min(360px, 80%); padding: 5px 8px; border-radius: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px var(--shadow); font-size: var(--t-sm); line-height: 1.35; }
 .maptip.pinned { pointer-events: auto; user-select: text; cursor: text; }
-.focusbox .wpname { outline: none; border-bottom: 1px dashed var(--line); cursor: text; }
-.focusbox .wpname:focus { border-bottom-color: var(--accent); }
-.focusbox .wptools { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-.focusbox .wptools .muted { font-size: var(--t-xs); }
+.focusbox .wphead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
+/* the name is a field, and says so: a dashed box, a pencil, and a caret on hover */
+.focusbox .wpname { outline: none; padding: 1px 6px; border: 1px dashed var(--muted); border-radius: 5px; background: var(--card); cursor: text; min-width: 4em; }
+.focusbox .wpname:hover { border-color: var(--accent); }
+.focusbox .wpname:focus { border-style: solid; border-color: var(--accent); }
+.focusbox .wppencil { color: var(--muted); cursor: pointer; font-size: var(--t-sm); }
+.focusbox .wppencil:hover { color: var(--accent); }
 .focusbox .wpsave { padding: 1px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--accent); color: var(--bg); cursor: pointer; }
 .focusbox .wpsave[disabled] { opacity: .6; cursor: default; }
+.focusbox .wpstate { font-size: var(--t-xs); }
 .focusbox .wpground:empty { display: none; }   /* a clicked mark's box: it stays, for copying from */
 .map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: var(--t-xs); padding: 3px 8px 0; opacity: .8; }
 .map-legend { position:absolute; top:0; left:0; z-index:3; pointer-events:none; }
