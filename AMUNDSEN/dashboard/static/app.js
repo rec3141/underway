@@ -1156,6 +1156,9 @@
     : f.route.sea_km != null ? ui("by sea: {distance}", { distance: kmLine(f.route.sea_km) })
     : ui("by sea: {reason}", { reason: ui(f.route.reason || "no route") });
 
+  // what the box must not sit on: the route drawn to the mark, and the ship at its far end
+  const tipClear = (f) => [...(f.route?.path || []), ...(lastShip?.lat != null ? [[lastShip.lat, lastShip.lon]] : [])];
+
   // the box again from the latest answers, without disturbing a name being typed
   function refreshFocusBox(f, ship) {
     const box = mapView?.pinnedBox?.();
@@ -1164,6 +1167,7 @@
     if (ship?.lat != null) put("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
     put("wpsea", seaText(f));
     put("wpground", groundLine(f.route?.elev_m));
+    mapView.pin(f.lat, f.lon, box, f, tipClear(f));    // the route has arrived: put the box, at its final size, clear of the line
   }
 
   function setFocus(lat, lon, label, extra = {}) {
@@ -1215,7 +1219,7 @@
     const f = state.focus;
     if (!mapView) return;
     if (!f) { mapView.unpin(); return; }
-    if (!mapView.pinnedIs(f)) mapView.pin(f.lat, f.lon, focusBox(f, lastShip), f); else refreshFocusBox(f, lastShip);
+    if (!mapView.pinnedIs(f)) mapView.pin(f.lat, f.lon, focusBox(f, lastShip), f, tipClear(f)); else refreshFocusBox(f, lastShip);
   }
   const lastFix = (d) => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; };
   // called by the live poller: move the marker without redrawing the map
