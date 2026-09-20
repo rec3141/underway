@@ -19,7 +19,18 @@
   const $ = (s) => document.querySelector(s);
   const { store, C, fz } = UW;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const cachedJSON = window.UWData.generationCache(UW.fetchJSON, () => UW.M.history?.stamp || "");
+  // Localized trees are immutable publisher snapshots. Identifiers and source
+  // references remain shared; an absent locale deliberately uses English.
+  function dataSource() {
+    const manifest = UW.M.history || {}, locale = window.UWI18n.locale;
+    const entry = manifest.locales?.[locale];
+    const localized = entry && /^data\/history\/locales\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/$/.test(entry.base || "") && entry.stamp;
+    const base = localized ? entry.base : "data/history/";
+    return { base, generation: JSON.stringify([manifest.stamp || "", locale, base, localized ? entry.stamp : ""]) };
+  }
+  const dataGeneration = () => dataSource().generation;
+  const cachedJSON = window.UWData.generationCache(UW.fetchJSON, dataGeneration);
+  const currentView = () => { const generation = dataGeneration(), slug = hist.slug; return () => generation === dataGeneration() && slug === hist.slug; };
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
   // Older builds persisted layers enabled by ordinary Wiki navigation.
@@ -113,32 +124,36 @@
   // ---------------------------------------------------------------- data
   async function ensure() {
     if (!UW.M.history) { hist.index = null; return false; }
-    if (hist.stamp === UW.M.history.stamp && hist.index) return true;
-    if (hist.loading) return hist.loading;
-    hist.loading = (async () => {
+    const source = dataSource();
+    if (hist.stamp === source.generation && hist.index) return true;
+    if (hist.loading?.generation === source.generation) return hist.loading.promise;
+    const request = (async () => {
       const maybe = (k, u) => cachedJSON(k, u).catch(() => null);
       const [index, arts, tl, pl, pe, fa, ev, an, ve, pv] = await Promise.all([
-        cachedJSON("index", "data/history/index.json"),
-        cachedJSON("artifacts", "data/history/artifacts.json"),
-        cachedJSON("timeline", "data/history/timeline.json"),
-        maybe("places", "data/history/places.json"),
-        maybe("people", "data/history/people.json"),
-        maybe("faces", "data/history/faces.json"),
-        maybe("events", "data/history/events.json"),
-        maybe("animals", "data/history/animals.json"),
-        maybe("vessels", "data/history/vessels.json"),
+        cachedJSON("index", source.base + "index.json"),
+        cachedJSON("artifacts", source.base + "artifacts.json"),
+        cachedJSON("timeline", source.base + "timeline.json"),
+        maybe("places", source.base + "places.json"),
+        maybe("people", source.base + "people.json"),
+        maybe("faces", source.base + "faces.json"),
+        maybe("events", source.base + "events.json"),
+        maybe("animals", source.base + "animals.json"),
+        maybe("vessels", source.base + "vessels.json"),
         maybe("provenance", "data/history/provenance.json"),
       ]);
+      if (source.generation !== dataGeneration()) return false;
       hist.animals = an?.animals || []; hist.vessels = ve?.vessels || []; hist.provenance = pv || null;
       hist.index = index;
       hist.artifacts = arts.artifacts || []; hist.timeline = tl.timeline || [];
       hist.places = pl?.places || []; hist.people = pe?.people || []; hist.faces = fa?.faces || null; hist.events = ev?.events || [];
-      hist.stamp = UW.M.history.stamp; hist.pages = new Map(); hist.bib = null; hist.names = null;
+      hist.stamp = source.generation; hist.pages = new Map(); hist.bib = null; hist.names = null;
       for (const a of hist.artifacts) a._year = yearOf(a.date_start);
       await loadFlags();
       return true;
-    })().finally(() => { hist.loading = null; });
-    return hist.loading;
+    })().catch(error => { if (source.generation !== dataGeneration()) return false; throw error; })
+      .finally(() => { if (hist.loading?.promise === request) hist.loading = null; });
+    hist.loading = { generation: source.generation, promise: request };
+    return request;
   }
   // both halves: the natural half's files come through nature.js, once it has loaded
   const ensureAll = () => Promise.all([ensure(), UW.natureViews?.ensure?.() ?? null]).then(([ok]) => ok);
@@ -203,8 +218,11 @@
     return coastLoading;
   }
   async function page(slug) {
+    if (!await ensure()) throw new Error("Wiki data changed during download");
+    const source = dataSource();
     if (hist.pages.has(slug)) return hist.pages.get(slug);
-    const p = await cachedJSON(`page:${slug}`, `data/history/pages/${encodeURIComponent(slug.replace(/\//g, "__"))}.json`);
+    const p = await cachedJSON(`page:${slug}`, `${source.base}pages/${encodeURIComponent(slug.replace(/\//g, "__"))}.json`);
+    if (source.generation !== dataGeneration()) throw new Error("Wiki language changed during download");
     hist.pages.set(slug, p);
     return p;
   }
@@ -591,7 +609,9 @@
     get nature() { return ui("what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal"); },
   };
   async function renderMain() {
+    const current = currentView();
     await renderMainBody();
+    if (!current()) return;
     if (!hist.index || UW.public || (hist.slug.startsWith('artifact/') && artifactById(hist.slug.slice(9)))) return;
     const el = $('#histmain'), heading = el.querySelector('h2');
     const target = {id: 'page:' + (hist.slug || 'home'), page: hist.slug, title: heading?.textContent.trim() || 'Wiki'};
@@ -601,6 +621,7 @@
     else el.insertAdjacentHTML('afterbegin', '<div class="wiki-page-flag">' + flagMark(target) + '</div>');
   }
   async function renderMainBody() {
+    const current = currentView();
     ns = NS.wiki;
     const el = $("#histmain");
     el.scrollTop = 0;                                              // a new view opens at its top
@@ -626,7 +647,7 @@
         `<div class="topicgrid">${t.map((x) => topicCard(x, true)).join("")}</div>` + (natv?.exploreExtraHTML?.() || "");
       return;
     }
-    if (/^kind\/track(\/|$)/.test(hist.slug) || hist.slug.startsWith("topic/") || hist.slug.startsWith("artifact/")) { await ensureCoast(); ns = NS.wiki; }
+    if (/^kind\/track(\/|$)/.test(hist.slug) || hist.slug.startsWith("topic/") || hist.slug.startsWith("artifact/")) { await ensureCoast(); if (!current()) return; ns = NS.wiki; }
     if (hist.slug.startsWith("kind/")) { const [, k, ...rest] = hist.slug.split("/"); renderKind(el, k, rest.join("/")); return; }
     if (hist.slug === "bib") { await renderBib(el); return; }
     if (hist.slug === "provenance") { renderProvenance(el); return; }
@@ -637,6 +658,7 @@
   }
   // a topic: its narrative pages and its artifacts of every kind
   async function renderTopic(el, slug) {
+    const current = currentView();
     const n = ns, t = topicOf(slug);
     if (!t) { el.innerHTML = `<div class="empty">${uh("no such topic")}</div>`; return; }
     const pages = hist.index.pages.filter((p) => p.topic === t.slug && p.kind === "page");
@@ -644,6 +666,7 @@
     // mention, in the order they are mentioned, then the rest in a fixed
     // order that looks like none
     const order = await mentionOrder(pages);
+    if (!current()) return;
     ns = n;
     const found = hist.artifacts.filter((a) => a.topic === t.slug).sort((p, q) => ((order.get(p.page) ?? 1e9) - (order.get(q.page) ?? 1e9)) || byMix(p, q));
     const counts = GROUPS.flatMap((g) => [g.head, ...g.under]).filter((k) => TYPES[k]).map((k) => [k, found.filter((a) => a.type === k).length]).filter(([, n]) => n)
@@ -671,12 +694,14 @@
     window.UWPhotoGallery.wireDetail(figure, {items,id:artifact.id,onSelect:id=>open('artifact/'+id),onGallery:()=>open(context.slug)});
   }
   async function renderPage(el, slug) {
+    const current = currentView();
     const n = ns;
     // an event's page comes from the publisher; a build without them gets the pane's own
     if (slug.startsWith("event/") && !hist.index.pages.some((x) => x.slug === slug)) { renderEvent(el, slug.slice(6)); return; }
     let p;
     try { p = await page(slug); }
-    catch { el.innerHTML = crumb() + `<div class="empty">${uh("That page is not in this build.")}</div>`; return; }
+    catch { if (current()) el.innerHTML = crumb() + `<div class="empty">${uh("That page is not in this build.")}</div>`; return; }
+    if (!current()) return;
     ns = n;
     const t = topicOf(p.topic);
     const a = p.kind === "artifact" ? artifactById(p.ref) : null;
@@ -732,6 +757,7 @@
     }
     if (p.kind === "source") {
       const bib = await bibliography();
+      if (!current()) return;
       ns = n;
       const e = bib.find((x) => x.key === p.slug.split("/").pop());
       // the bibliography's note joins the archive, the call number, the
@@ -865,6 +891,7 @@
   // the first mention of each name in the text nodes under root becomes a
   // link; `linked` holds the pages already linked, `taken` the names already spoken for
   function linkMentions(root, rx, byName, linked, taken) {
+    if (!byName.size) return; // An empty alternation matches forever at the same offset.
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.parentElement.closest("a, h2, h3, h4, code, .wanted, figcaption") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
     const texts = []; for (let n = walker.nextNode(); n; n = walker.nextNode()) texts.push(n);
     for (const node of texts) {
@@ -1232,7 +1259,9 @@
     return by;
   }
   async function renderBib(el) {
+    const current = currentView();
     const bib = await bibliography();
+    if (!current()) return;
     const by = citedBy(), both = domainsOn().length === DOMAINS_ALL.length;
     // the works the labels on cite; one nobody cites shows while both are on
     const inScope = (e) => domainsOn().some((d) => by[d].has(e.key)) || (both && !by.history.has(e.key) && !by.nature.has(e.key));
@@ -1628,13 +1657,27 @@
     if (!$("#pane-wiki").hidden || UW.state.history || UW.state.nature) ensureAll().then(() => { if (!$("#pane-wiki").hidden) render(); else { renderChips(); UW.renderMap(); } }).catch(() => {}); };
   // the pane's helpers and pieces for the natural half (nature.js, loaded
   // next), so the two halves read alike
-  UW.histShared = { ensure, esc, yearOf, yearLabel, dateLabel, km, markdown, crossLink, coordLink, mapLink, facts, sourceRef, peopleStrip,
+  UW.histShared = { ensure, dataSource, dataGeneration, currentView, esc, yearOf, yearLabel, dateLabel, km, markdown, crossLink, coordLink, mapLink, facts, sourceRef, peopleStrip,
     artifactCard, artifactById, eventById, topicOf, statusTag, pageLink, whereName, yearTicks, pageDomain, topicDomain, topicColour, topicImage, data: () => hist,
     crumb, here, open, slug: () => hist.slug, rerender: () => renderMain(), refresh: () => render(), menu: renderMenu, KINDS, TYPES, topicCard, collectionChip, backlinksHTML, wireBackmore, letterList, domainOn, focusPoint };
   wire();
+  let localeRefresh = Promise.resolve();
   window.addEventListener('uw:localechange', () => {
-    if (!$('#pane-wiki').hidden && hist.artifacts) window.UWI18n.preserve($('#pane-wiki'), render).catch(console.error);
-    else { renderChips(); renderTools(); }
+    const generation = dataGeneration();
+    // Serialize preserve/restore so rapid toggles cannot resurrect an older draft.
+    localeRefresh = localeRefresh.catch(() => {}).then(async () => {
+      if (generation !== dataGeneration()) return;
+      const refresh = async () => {
+        const ok = await ensureAll();
+        if (!ok || generation !== dataGeneration()) return;
+        // Snapshot immediately before replacement, not before network waits:
+        // text entered while the new language downloads is still the user's.
+        if (!$('#pane-wiki').hidden) await window.UWI18n.preserve($('#pane-wiki'), render);
+        else { renderChips(); renderTools(); if (UW.state.history || UW.state.nature) UW.renderMap(); }
+      };
+      if (!$('#pane-wiki').hidden || hist.index || UW.state.history || UW.state.nature) await refresh();
+      else { renderChips(); renderTools(); }
+    }).catch(console.error);
   });
   document.addEventListener("uw:theme", () => { if (!$("#pane-wiki").hidden && hist.artifacts) render(); });   // the chips, dots and the timeline take the new colours
   if (hashSlug() != null && $("#pane-wiki").hidden) UW.showTab("wiki");

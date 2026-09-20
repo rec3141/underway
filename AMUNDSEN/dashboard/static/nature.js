@@ -22,7 +22,7 @@
   const $ = (s) => document.querySelector(s);
   const { store, C, fz } = UW;
   const esc = H.esc;
-  const cachedJSON = window.UWData.generationCache(UW.fetchJSON, () => UW.M.history?.stamp || "");
+  const cachedJSON = window.UWData.generationCache(UW.fetchJSON, H.dataGeneration);
   const debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
 
   // the domains: a colour each from the theme's palette, read when used
@@ -62,26 +62,30 @@
   // ---------------------------------------------------------------- data
   async function ensure() {
     if (!UW.M.history) { nat.subjects = null; return false; }
-    if (nat.stamp === UW.M.history.stamp && nat.subjects) { await loadJournal(); return true; }
-    if (nat.loading) return nat.loading;
-    nat.loading = (async () => {
+    const source = H.dataSource();
+    if (nat.stamp === source.generation && nat.subjects) { await loadJournal(); return true; }
+    if (nat.loading?.generation === source.generation) return nat.loading.promise;
+    const request = (async () => {
       const maybe = (k, u) => cachedJSON(k, u).catch(() => null);
       const [index, su, ob] = await Promise.all([
-        maybe("nat:index", "data/history/index.json"),
-        maybe("nat:subjects", "data/history/subjects.json"),
-        maybe("nat:observations", "data/history/observations.json"),
+        maybe("nat:index", source.base + "index.json"),
+        maybe("nat:subjects", source.base + "subjects.json"),
+        maybe("nat:observations", source.base + "observations.json"),
       ]);
+      if (source.generation !== H.dataGeneration()) return false;
       nat.topics = (index?.topics || []).filter((t) => t.domain === "nature");
       nat.subjects = su?.subjects || []; nat.obs = ob?.observations || [];
       nat.available = !!(su || ob);
-      nat.stamp = UW.M.history.stamp; nat.pages = new Map();
+      nat.stamp = source.generation; nat.pages = new Map();
       for (const s of nat.subjects) { s.page ||= `subject/${slugify(s.name)}`; s.domain ||= ""; }
       for (const o of nat.obs) prep(o);
       index_();
       await Promise.all([loadJournal(), H.ensure().catch(() => null)]);
       return true;
-    })().finally(() => { nat.loading = null; });
-    return nat.loading;
+    })().catch(error => { if (source.generation !== H.dataGeneration()) return false; throw error; })
+      .finally(() => { if (nat.loading?.promise === request) nat.loading = null; });
+    nat.loading = { generation: source.generation, promise: request };
+    return request;
   }
   // a row as the map and the lists read it: a decimal year, a day when it has one
   function prep(o) {
@@ -125,8 +129,11 @@
     return [...(nat.obs || []), ...nat.journal.filter((o) => !ids.has(o.id))];
   }
   async function page(slug) {
+    if (!await ensure()) throw new Error("Wiki data changed during download");
+    const source = H.dataSource();
     if (nat.pages.has(slug)) return nat.pages.get(slug);
-    const p = await cachedJSON(`nat:page:${slug}`, `data/history/pages/${encodeURIComponent(slug.replace(/\//g, "__"))}.json`);
+    const p = await cachedJSON(`nat:page:${slug}`, `${source.base}pages/${encodeURIComponent(slug.replace(/\//g, "__"))}.json`);
+    if (source.generation !== H.dataGeneration()) throw new Error("Wiki language changed during download");
     nat.pages.set(slug, p);
     return p;
   }
@@ -405,9 +412,11 @@
     return `<div class="peoplelist subjlist tree">${roots.map((s) => node(s, 0)).join("")}</div>`;
   }
   async function renderSubject(el, slug) {
+    const current = H.currentView();
     const s = subjectBySlug(slug);
     let p = null;
     try { p = await page(slug); } catch { /* a subject without a page yet: the row is enough */ }
+    if (!current()) return;
     if (!s && !p) { el.innerHTML = crumb() + `<div class="empty">${uh("That subject is not in this build.")}</div>`; return; }
     const row = s || { name: p.title, kind: "", domain: "", page: slug };
     const D = domainOf(row.domain), t = row.topic ? topicOf(row.topic) : null;
@@ -743,8 +752,10 @@
   }
   // an import's page: what became of each photograph, live while it runs
   async function renderImport(el, id) {
+    const current = H.currentView();
     let j = null;
     try { const r = await fetch(`api/nature/import?job=${encodeURIComponent(id)}`, { cache: "no-store" }); if (r.ok) j = await r.json(); } catch { /* shown as missing */ }
+    if (!current()) return;
     if (!j) { el.innerHTML = crumb(here(uh("Import"), slug())) + `<p class="muted">${uh("No such import.")}</p>`; return; }
     const live = j.status === "queued" || j.status === "running";
     const item = (it) => {

@@ -62,6 +62,16 @@ function dataset(p) {
   if(process.env.STATUS_UI && p==='/api/alerts/inbox') return {messages:[{t:'2026-09-13T12:00:00Z',text:'Schedule changed: test station'}]};
   if(process.env.WIKI_LAYER_UI && p==='/data/history/artifacts.json') return {artifacts:[{id:'test',page:'artifact/test',type:'image',title:'Test artifact',lat:76,lon:-78}]};
   if(process.env.WIKI_LAYER_UI && p==='/data/history/pages/artifact__test.json') return {slug:'artifact/test',ref:'test',kind:'artifact',title:'Test artifact',html:'Test description'};
+  if(process.env.WIKI_LOCALE_UI && p.startsWith('/data/history/')) {
+    const fr=p.includes('/locales/fr-CA/'), rev=p.includes('/r2/')?' 2':'';
+    const page={slug:'voyage',kind:'page',title:fr?'Voyage français'+rev:'English voyage',html:fr?'Un récit traduit.':'An English account.'};
+    if(p.endsWith('/index.json')) return {topics:[],pages:[page]};
+    if(p.endsWith('/pages/voyage.json')) return page;
+    if(p.endsWith('/pages/subject__seal.json')) return {slug:'subject/seal',kind:'subject',title:'Seal',html:fr?'Description traduite du phoque.':'English seal description.'};
+    if(p.endsWith('/subjects.json')) return {subjects:[{name:'Pagophilus groenlandicus',page:'subject/seal',english:'Harp seal',french:'Phoque du Groenland',domain:'biology',kind:'taxon',description:fr?'Description française':'English description'}]};
+    if(p.endsWith('/observations.json')) return {observations:[]};
+    return {};
+  }
   if((process.env.PHOTO_UI||process.env.NATURE_UI||process.env.WIKI_UI||process.env.WIKI_LAYER_UI||process.env.UPLOAD_UI||process.env.CHAT_WIKI_UI) && p.startsWith('/data/history/')) {
     if(p.endsWith('/index.json')) return {topics:[],pages:[]};
     if(p.endsWith('/subjects.json')) return {subjects:[{name:'Seal',domain:'biology',kind:'taxon'},{name:'Rock',domain:'geology',kind:'mineral'}]};
@@ -210,6 +220,46 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.WIKI_LOCALE_UI) {
+      await evaluate('UWI18n.setLocale("en"); UW.M.history={stamp:"english",locales:{"fr-CA":{base:"data/history/locales/fr-CA/r1/",stamp:"r1"}}}; UW.showTab("wiki")');
+      await until('!!UW.histShared.data().index');
+      console.log('PASS wiki locale fixture loaded');
+      await evaluate('UW.histShared.open("voyage")');
+      await until('document.querySelector("#histmain h2")?.textContent.includes("English voyage")');
+      console.log('PASS English article loaded');
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      await until('document.querySelector("#histmain h2")?.textContent.includes("Voyage français")');
+      console.log('PASS French article loaded');
+      assert.equal(await evaluate('location.hash'),'#wiki/voyage');
+      assert.equal(await evaluate('UW.histShared.data().index.pages[0].slug'),'voyage');
+      await evaluate('UW.histShared.open("subject/seal")');
+      await until('document.querySelector("#histmain").textContent.includes("Description traduite du phoque")');
+      assert.equal(await evaluate('document.querySelector("#histmain").textContent.includes("Pagophilus groenlandicus")'),true);
+      await evaluate('UWI18n.setLocale("en")');
+      await until('document.querySelector("#histmain").textContent.includes("English seal description")');
+      await evaluate('UW.histShared.open("voyage")');
+      await until('document.querySelector("#histmain h2")?.textContent.includes("English voyage")');
+      hold.add('/data/history/locales/fr-CA/r2/index.json');
+      await evaluate('UW.M.history.locales["fr-CA"]={base:"data/history/locales/fr-CA/r2/",stamp:"r2"}; UWI18n.setLocale("fr-CA")');
+      for(let i=0;i<100&&!held.length;i++) await wait(20);
+      assert.equal(held.length,1);
+      await evaluate('UWI18n.setLocale("en")');
+      hold.clear(); for(const {res,value} of held.splice(0)){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(value));}
+      await until('UW.histShared.data().stamp===UW.histShared.dataGeneration()');
+      assert.equal(await evaluate('document.querySelector("#histmain h2")?.textContent.includes("English voyage")'),true);
+      await evaluate('UWI18n.setLocale("fr-CA")');
+      await until('document.querySelector("#histmain h2")?.textContent.includes("Voyage français 2")');
+      await evaluate('UWI18n.setLocale("en")');
+      await until('document.querySelector("#histmain h2")?.textContent.includes("English voyage")');
+      await evaluate('delete UW.M.history.locales; UWI18n.setLocale("fr-CA")');
+      await until('UW.histShared.data().stamp===UW.histShared.dataGeneration()');
+      assert.equal(await evaluate('document.querySelector("#histmain h2")?.textContent.includes("English voyage")'),true);
+      assert(requests.some(u=>u.includes('/locales/fr-CA/r1/pages/subject__seal.json')));
+      assert(!requests.some(u=>u.includes('/locales/')&&u.includes('provenance.json')));
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS wiki article and Nature locale roundtrip, stable IDs, revision cache, stale response rejection, English fallback, shared provenance');
+      return;
+    }
     if(process.env.PAGES_I18N) {
       await evaluate('UWI18n.setLocale("fr-CA"); UW.showTab("casts")');
       await until('document.querySelector("#casttable tbody tr[data-id]")');

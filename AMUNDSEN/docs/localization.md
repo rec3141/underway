@@ -117,7 +117,33 @@ the main map, whose existing app resize handler owns that lifecycle.
 
 The extended browser pass checks French Casts/live setup, calendars, wiki,
 upload forms and chat, including locale round-trips with drafts and plot zoom.
-Remaining integration work: reviewed wiki article candidates into the publisher.
+The wiki publisher can advertise reviewed article snapshots in
+`history.locales`, for example:
+
+```json
+{"fr-CA":{"base":"data/history/locales/fr-CA/0123456789abcdef/","stamp":"0123456789abcdef"}}
+```
+
+History and Nature load indexes, cards, timelines and article pages from the
+selected locale's immutable tree. Without an advertised locale they retain the
+existing English paths. The publisher supplies English fallback for individual
+unapproved or stale fields; the browser never reads the draft translation store.
+Source provenance, bibliography, media, live journal entries and contributor
+drafts remain shared. Cache identity includes the English build, selected locale,
+snapshot path and translation revision. Obsolete downloads cannot replace a
+newer locale's data. Language switches retain the article slug, navigation, map
+state and unfinished forms; draft capture occurs after downloads, just before
+the DOM is replaced.
+
+```sh
+WIKI_LOCALE_UI=1 WIKI_UI=1 UI_WIDTH=1400 PYTHON=python3 node tests/refresh-browser.cjs /path/to/chromium
+```
+
+This fixture tests translated article and Nature-subject roundtrips, stable
+scientific identifiers, a changed translator revision, delayed obsolete
+responses, English fallback and shared provenance. It does not approve or publish
+any production translation.
+
 Game state, control bindings, variable names and numerical datasets are not
 translation inputs. Published `/game/` files are generated output, not the place
 to maintain translations.
