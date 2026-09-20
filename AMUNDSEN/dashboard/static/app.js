@@ -1116,6 +1116,7 @@
     box.append(head);
     const line = (cls, text) => { const el = document.createElement("div"); el.className = cls; el.textContent = text; box.append(el); return el; };
     if (!f.html || !f.html.includes(dms(f.lat, f.lon))) line("wpwhere", dms(f.lat, f.lon));
+    if (f.waypoint && f.at) line("wpwhen", ui("marked: {when}", { when: `${fmtTs(tms(f.at))} ${tzAbbr()}` }));
     if (ship?.lat != null) {
       line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
       line("wpsea", seaText(f));
@@ -1131,14 +1132,14 @@
     pencil.className = "wppencil"; pencil.textContent = "✎"; pencil.title = ui("click to rename"); pencil.setAttribute("aria-hidden", "true");
     pencil.onclick = () => { name.focus(); getSelection().selectAllChildren(name); };
     const save = document.createElement("button");
-    save.type = "button"; save.className = "wpsave"; save.hidden = true; save.textContent = ui("Save");
+    save.type = "button"; save.className = "wpsave"; save.hidden = !!f.saved; save.textContent = ui("Save");
     save.title = ui("keep this waypoint on everyone's Stations tab");
     const state = document.createElement("span");
     state.className = "wpstate muted"; state.textContent = f.saved ? ui("saved") : "";
     head.append(name, pencil, save, state);
 
     const typed = () => name.textContent.trim().slice(0, 80);
-    name.oninput = () => { save.hidden = !typed() || typed() === (f.label || ui("Waypoint")); state.textContent = ""; };
+    name.oninput = () => { save.hidden = !typed(); state.textContent = ""; };
     name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); name.blur(); if (!save.hidden) save.onclick(); } };
     save.onclick = async () => {
       const label = typed();
@@ -1190,7 +1191,7 @@
   async function saveWaypoint(f, label) {
     try {
       const r = await fetch("api/waypoints", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ waypoint: { id: f.saved?.id, name: label, lat: f.lat, lon: f.lon }, name: store.get("chat.name", "") }) });
+        body: JSON.stringify({ waypoint: { id: f.saved?.id, name: label, lat: f.lat, lon: f.lon, time: f.at }, name: store.get("chat.name", "") }) });
       const body = await r.json();
       if (!r.ok || !body.waypoint) throw new Error(body.error || "no answer");
       f.saved = body.waypoint; f.label = label;
@@ -1332,7 +1333,7 @@
     }
     if (typeof p?.customdata === "string" && p.customdata.startsWith("wp:")) {
       const kept = (state.waypoints || []).find((w) => w.id === p.customdata);
-      if (kept) setFocus(kept.lat, kept.lon, kept.name, { waypoint: true, saved: kept });
+      if (kept) setFocus(kept.lat, kept.lon, kept.name, { waypoint: true, saved: kept, at: kept.created_utc });
       return;
     }
     if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
@@ -1340,7 +1341,7 @@
   // a click on open map takes the mark away; a waypoint is made by the
   // deliberate gesture instead, so panning and reading never leave marks
   function mapEmptyClick() { if (state.focus) { state.focus = null; renderMap(); } }
-  function mapWaypoint(lat, lon) { setFocus(lat, lon, nextWaypointName(), { waypoint: true }); }
+  function mapWaypoint(lat, lon) { setFocus(lat, lon, nextWaypointName(), { waypoint: true, at: new Date().toISOString() }); }
   function nextWaypointName() {
     const taken = new Set((state.waypoints || []).map((w) => w.name));
     let n = (state.waypoints || []).length + 1, name;
@@ -1420,7 +1421,8 @@
       type: "scattermap", mode: "markers+text", name: "waypoints", showlegend: false,
       lat: kept.map((w) => w.lat), lon: kept.map((w) => w.lon), hoverinfo: "text",
       customdata: kept.map((w) => w.id), text: kept.map((w) => w.name),
-      hovertext: kept.map((w) => `<b>${escF(w.name)}</b> · ${uh("waypoint")}${w.by ? " · " + escF(w.by) : ""}<br>${dms(w.lat, w.lon)}`),
+      hovertext: kept.map((w) => `<b>${escF(w.name)}</b> · ${uh("waypoint")}${w.by ? " · " + escF(w.by) : ""}` +
+        `<br>${dms(w.lat, w.lon)}${w.created_utc ? `<br>${escF(fmtTs(tms(w.created_utc)))} ${escF(tzAbbr())}` : ""}`),
       textposition: "top right", textfont: { size: fz(11), color: C.accent2 },
       marker: { size: 10, color: C.accent2, symbol: "circle", opacity: .95 },
     });

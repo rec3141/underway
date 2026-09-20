@@ -48,16 +48,34 @@ def validate(waypoint) -> dict:
     note = waypoint.get("note", "")
     if not isinstance(note, str) or len(note) > 500:
         raise ValueError("A waypoint's note must be at most 500 characters")
-    return {"id": ident, "name": name.strip(), "lat": round(lat, 6), "lon": round(lon, 6), "note": note.strip()}
+    return {"id": ident, "name": name.strip(), "lat": round(lat, 6), "lon": round(lon, 6), "note": note.strip(),
+            "time": _utc(waypoint.get("time"))}
+
+
+def _utc(value):
+    """A time the map sends, as a UTC stamp to the second; None when it is not one."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        when = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    when = when.replace(tzinfo=timezone.utc) if when.tzinfo is None else when.astimezone(timezone.utc)
+    return when.isoformat(timespec="seconds")
 
 
 def save(waypoint, who="") -> dict:
-    """Store (or replace) a waypoint; the stored record is returned."""
+    """Store (or replace) a waypoint; the stored record is returned.
+
+    A waypoint is stamped with the moment it was marked on the map, which the
+    map sends; renaming it later leaves that stamp alone.
+    """
     body = validate(waypoint)
     body["by"] = str(who or "")[:60].strip()
+    marked = body.pop("time", None)
     with closing(connect()) as con, con:
         kept = con.execute("SELECT created_utc FROM waypoints WHERE id = ?", (body["id"],)).fetchone()
-        body["created_utc"] = kept["created_utc"] if kept else datetime.now(timezone.utc).isoformat(timespec="seconds")
+        body["created_utc"] = kept["created_utc"] if kept else (marked or datetime.now(timezone.utc).isoformat(timespec="seconds"))
         con.execute("INSERT OR REPLACE INTO waypoints VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (body["id"], body["created_utc"], body["name"], body["lat"], body["lon"], body["by"], body["note"]))
     return body

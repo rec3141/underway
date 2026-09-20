@@ -27,7 +27,9 @@ Read with `python -m dashboard.feedback` on 2026-09-18; all done in that change.
   `elevation:` from GEBCO, and no longer explains how to remove the mark.
 - A waypoint's name is editable; it arrives numbered ("Waypoint 3"), sits in a
   field with a pencil beside it, and Save on the same line keeps it for everyone
-  on the Stations tab, whose row removes it again.
+  on the Stations tab, whose row removes it again. Save is offered whether or
+  not the name is changed, and the mark carries the time it was made, which the
+  box shows and the record keeps.
 - The map exports as KMZ with everything loaded, off screen included.
 
 ## Notes recovered from page flags

@@ -4891,6 +4891,10 @@
     "pages.26963612170619a8": {
       "text": "saved",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3e2af2a41f645ab1": {
+      "text": "marked: {when}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }
 }
