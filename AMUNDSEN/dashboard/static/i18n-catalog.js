@@ -406,6 +406,7 @@ window.UW_UI_CATALOG = {
         "pages.3c1091f0d39e5e69": "Transect {v0}",
         "pages.3cb30133ed1b1fe6": "changes to the schedule",
         "pages.3e10134259ab3285": "Transmission",
+        "pages.3e2af2a41f645ab1": "marked: {when}",
         "pages.3e5b90ae053ff3e7": "Chart",
         "pages.3e8f1b9fcd487c52": " is here",
         "pages.3ea5bb4ae53b1c00": "Rosette sheet ↗",
@@ -1645,6 +1646,7 @@ window.UW_UI_CATALOG = {
         "pages.3c1091f0d39e5e69": "Transect {v0}",
         "pages.3cb30133ed1b1fe6": "les modifications à l’horaire",
         "pages.3e10134259ab3285": "Transmission",
+        "pages.3e2af2a41f645ab1": "marqué : {when}",
         "pages.3e5b90ae053ff3e7": "Graphique",
         "pages.3e8f1b9fcd487c52": " est présent",
         "pages.3ea5bb4ae53b1c00": "Fiche de rosette ↗",
@@ -4086,6 +4088,10 @@ window.UW_UI_CATALOG = {
         "pages.3e10134259ab3285": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5e1db3868e0da40c22b90b954d6c15d44aa0d110404689c1ab55c63082aa3fe3"
+        },
+        "pages.3e2af2a41f645ab1": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "f3d6135c0ba861c4fe6a60bd99cbb118db0a9845afae57064cdf4b03a0a8625d"
         },
         "pages.3e5b90ae053ff3e7": {
           "profile": "editorial-fr-ca-v4",

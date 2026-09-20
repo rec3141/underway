@@ -1646,12 +1646,12 @@
     const f = UW.currentFilter();
     let all = (UW.M.stations || []).filter((s) => f.legs.has(s.leg)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
     // the waypoints people have kept: a position and a name, no leg, so never filtered out
-    all = all.concat((UW.waypoints?.() || []).map((w) => ({ station: w.name, kind: "waypoint", waypoint: w.id, legLabel: "",
-      lat: w.lat, lon: w.lon, time: null, leg: null, comments: [w.by, w.note].filter(Boolean).join(" · ") })));
+    all = all.concat((UW.waypoints?.() || []).map((w) => ({ station: w.name, kind: "waypoint", waypoint: w.id, legLabel: "", always: true,
+      lat: w.lat, lon: w.lon, time: w.created_utc || null, leg: null, comments: [w.by, w.note].filter(Boolean).join(" · ") })));
     // the planned stations (the cruise plan KMZ): no time or leg, so never filtered out
     for (const pl of UW.plansShown?.() || []) all = all.concat(pl.stations.map((st) => ({ station: st.name, kind: `kmz ${pl.imported}`, legLabel: st.group, type: st.type || "", bottom_m: st.depth_m ?? null, activities: st.ops || "", label: st.region || "", comments: st.desc || "", lat: st.lat, lon: st.lon, time: null, leg: null })));
     if (q) all = all.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
-    const rows = all.filter((s) => UW.inFilter(s.leg, s.time, f));
+    const rows = all.filter((s) => s.always || UW.inFilter(s.leg, s.time, f));   // a waypoint or a planned station belongs to no leg or span
     stn.hidden = all.length - rows.length;
     const k = stn.sort.key, dir = stn.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];

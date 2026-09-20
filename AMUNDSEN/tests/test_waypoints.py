@@ -63,6 +63,18 @@ class WaypointTests(unittest.TestCase):
         self.assertEqual(self.call("POST", "/api/waypoints/delete", {"id": "wp:../x"})[0], 400)
         self.assertEqual(self.call("GET", "/api/waypoints"), (200, {"waypoints": []}))
 
+    def test_the_moment_it_was_marked_is_kept(self):
+        made = waypoints.save({**MARK, "time": "2026-09-20T17:16:03.500Z"})
+        self.assertEqual(made["created_utc"], "2026-09-20T17:16:03+00:00")
+        # renaming it later leaves the stamp alone
+        again = waypoints.save({**MARK, "id": made["id"], "name": "Polynya", "time": "2026-09-21T09:00:00Z"})
+        self.assertEqual(again["created_utc"], made["created_utc"])
+        # a time the map could not give, or one it garbled, falls back to now
+        for bad in (None, "", "nonsense", 17):
+            fresh = waypoints.save({**MARK, "id": f"wp:{abs(hash(str(bad))):032x}"[:35], "time": bad})
+            self.assertTrue(fresh["created_utc"].endswith("+00:00"))
+        self.assertNotIn("time", made)
+
     def test_name_and_position_are_tidied(self):
         kept = waypoints.save({**MARK, "name": "  Ice edge  ", "lat": 78.50000004}, who="  Ada  ")["id"]
         row = waypoints.listing()[0]
