@@ -1,9 +1,12 @@
-"""Distances from the ship to a point on the map: by air (great circle) and
-by sea, the shortest walk over water on a coarse lon/lat grid.
+"""What lies between the ship and a point on the map: the distance by air (a
+great circle) and by sea (the shortest walk over water on a coarse lon/lat
+grid), and GEBCO's elevation at the point.
 
-The grid is the mask ``tools/make_sea_mask.sh`` builds from GEBCO (a byte per
-cell, 1 for water) at ``UNDERWAY_SEA_MASK`` (default sea-mask.npz beside the
-tile pyramid). Without the file the sea distance is simply not available.
+The grid is the file ``tools/make_sea_mask.sh`` builds from GEBCO (per cell:
+whether it holds water, and the elevation there) at ``UNDERWAY_SEA_MASK``
+(default sea-mask.npz beside the tile pyramid). Without the file neither the
+sea distance nor the elevation is available. A grid built before elevations
+were stored still routes; it just has no depth to give.
 
 A route is Dijkstra over the cells of a window round the two points, on 16
 moves (the 8 neighbours and the 8 knight's moves, so a route bends in 22.5
@@ -51,8 +54,9 @@ def air_km(lat1, lon1, lat2, lon2):
 class Mask:
     """A lon/lat grid of water cells: row 0 at ``lat0`` (the south edge), column 0 at ``lon0``."""
 
-    def __init__(self, water, lon0, lat0, dlon, dlat):
+    def __init__(self, water, lon0, lat0, dlon, dlat, elev=None):
         self.water = np.asarray(water, dtype=bool)
+        self.elev = None if elev is None else np.asarray(elev)
         self.lon0, self.lat0, self.dlon, self.dlat = float(lon0), float(lat0), float(dlon), float(dlat)
         self.nrow, self.ncol = self.water.shape
 
@@ -61,13 +65,20 @@ class Mask:
         with np.load(path) as z:
             nrow, ncol = (int(v) for v in z["shape"])
             water = np.unpackbits(z["water"], axis=1, count=ncol)[:nrow]
-            return cls(water, z["lon0"], z["lat0"], z["dlon"], z["dlat"])
+            return cls(water, z["lon0"], z["lat0"], z["dlon"], z["dlat"], z["elev"] if "elev" in z.files else None)
 
     def cell(self, lat, lon):
         """The (row, column) holding a point, or None outside the grid."""
         i = int(math.floor((lat - self.lat0) / self.dlat))
         j = int(math.floor((lon - self.lon0) / self.dlon))
         return (i, j) if 0 <= i < self.nrow and 0 <= j < self.ncol else None
+
+    def elevation(self, lat, lon):
+        """GEBCO's elevation in metres at a point (negative below sea level), or None."""
+        if self.elev is None:
+            return None
+        cell = self.cell(lat, lon)
+        return None if cell is None else int(self.elev[cell])
 
 
 _mask: Mask | None = None
@@ -150,21 +161,34 @@ def _graph(water, lat_of_row, dlat_km, dlon_km_at):
     return coo_matrix((np.concatenate(wts), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n)).tocsr()
 
 
+def _check(*values):
+    for v in values:
+        if not isinstance(v, (int, float)) or not math.isfinite(v):
+            raise ValueError("Coordinates must be finite numbers")
+    for lat, lon in zip(values[::2], values[1::2]):
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError("Coordinates out of range")
+
+
+def place(lat2, lon2) -> dict:
+    """What is known about a point on its own: the elevation of the ground there."""
+    _check(lat2, lon2)
+    m = mask()
+    return {"elev_m": None if m is None else m.elevation(lat2, lon2)}
+
+
 def route(lat1, lon1, lat2, lon2) -> dict:
-    """Both distances from (lat1, lon1) to (lat2, lon2), and the sea route's path.
+    """Both distances from (lat1, lon1) to (lat2, lon2), the sea route's path, and the point's elevation.
 
     ``sea_km`` and ``path`` are None when there is no route: ``reason`` says why.
     """
-    for v in (lat1, lon1, lat2, lon2):
-        if not isinstance(v, (int, float)) or not math.isfinite(v):
-            raise ValueError("Coordinates must be finite numbers")
-    if not (-90 <= lat1 <= 90 and -90 <= lat2 <= 90 and -180 <= lon1 <= 180 and -180 <= lon2 <= 180):
-        raise ValueError("Coordinates out of range")
-    out = {"air_km": round(air_km(lat1, lon1, lat2, lon2), 2), "sea_km": None, "path": None, "reason": None}
+    _check(lat1, lon1, lat2, lon2)
+    out = {"air_km": round(air_km(lat1, lon1, lat2, lon2), 2), "sea_km": None, "path": None, "reason": None, "elev_m": None}
     m = mask()
     if m is None:
         out["reason"] = "no sea mask on this server"
         return out
+    out["elev_m"] = m.elevation(lat2, lon2)
     sea = _route_cached(round(lat1, 3), round(lon1, 3), round(lat2, 3), round(lon2, 3))
     if isinstance(sea, str):
         out["reason"] = sea

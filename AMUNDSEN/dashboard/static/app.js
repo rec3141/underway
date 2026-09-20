@@ -65,6 +65,7 @@
     log: store.get("log", {}),
     track: store.get("track", true),                    // the ship's track on the map
     stations: store.get("stations", true),
+    waypoints: [],                                      // the positions people have kept (api/waypoints)
     events: store.get("events", false),                 // event-log entries on the map
     photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
     communities: true,                                  // the settlements with people in them are always on the map
@@ -1070,7 +1071,7 @@
       marker: ship.heading != null ? { symbol: "ship", size: 11, opacity: 1, angle: shipRotate() } : { size: 12, color: "#d52b1e", opacity: 1 },
     });
     if (state.focus) {
-      const f = state.focus, html = focusHtml(f, ship);
+      const f = state.focus, html = `${escF(f.label || ui("Waypoint"))}<br>${dms(f.lat, f.lon)}`;
       // the sea route to the mark, under it
       if (f.route?.path?.length > 1) out.push({
         type: "scattermap", mode: "lines", name: "searoute", hoverinfo: "skip", showlegend: false,
@@ -1096,18 +1097,73 @@
     const a = Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin((lon2 - lon1) * r / 2) ** 2;
     return 2 * 6371.0088 * Math.asin(Math.sqrt(a));
   };
-  function focusHtml(f, ship) {
-    const escF = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    let s = f.html || `<b>${escF(f.label || ui("Waypoint"))}</b>`;       // a clicked point keeps its own box
-    const where = dms(f.lat, f.lon);
-    if (!s.includes(where)) s += `<br>${where}`;
+  const escF = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const kmLine = (km) => ui("{km} km ({nmi} nmi)", { km: km.toFixed(1), nmi: (km / 1.852).toFixed(1) });
+  // GEBCO's seabed or ground at the mark, to the metre it is charted to
+  const groundLine = (elev) => elev == null ? ""
+    : elev < 0 ? ui("depth: {metres} m", { metres: Math.round(-elev) }) : ui("elevation: {metres} m", { metres: Math.round(elev) });
+
+  // The mark's box: what it is, where, how far from the ship by air and by
+  // sea, and what the ground does there. A waypoint's name can be typed
+  // over, and a name that has been changed can be kept for everyone.
+  function focusBox(f, ship) {
+    const box = document.createElement("div");
+    box.className = "focusbox";
+    const head = document.createElement("div");
+    if (f.waypoint) {
+      const name = document.createElement("b");
+      name.className = "wpname"; name.contentEditable = "plaintext-only"; name.spellcheck = false;
+      name.textContent = f.label || ui("Waypoint");
+      name.title = ui("name this waypoint");
+      head.append(name);
+    } else head.innerHTML = f.html || `<b>${escF(f.label || "")}</b>`;
+    box.append(head);
+    const line = (cls, text) => { const el = document.createElement("div"); el.className = cls; el.textContent = text; box.append(el); return el; };
+    if (!f.html || !f.html.includes(dms(f.lat, f.lon))) line("wpwhere", dms(f.lat, f.lon));
     if (ship?.lat != null) {
-      s += '<br>' + uh('from the ship: {distance} by air', {distance: kmNmi(haversineKm(ship.lat, ship.lon, f.lat, f.lon))});
-      s += '<br>' + (!f.route ? uh('by sea: working it out…')
-        : f.route.sea_km != null ? uh('{distance} by sea', {distance: kmNmi(f.route.sea_km)}) : uh('by sea: {reason}', {reason: escF(ui(f.route.reason || 'no route'))}));
+      line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
+      line("wpsea", seaText(f));
     }
-    return f.waypoint ? s + `<br><small>${uh("click the mark to remove it")}</small>` : s;
+    line("wpground", groundLine(f.route?.elev_m));
+    if (f.waypoint) {
+      const tools = document.createElement("div");
+      tools.className = "wptools";
+      const save = document.createElement("button");
+      save.type = "button"; save.className = "wpsave"; save.hidden = true; save.textContent = ui("Save");
+      save.title = ui("keep this waypoint on everyone's Stations tab");
+      const said = document.createElement("span");
+      said.className = "muted"; said.textContent = f.saved ? ui("saved · the Stations tab can remove it") : ui("click the mark to remove it");
+      tools.append(save, said);
+      box.append(tools);
+      const name = head.querySelector(".wpname");
+      name.oninput = () => { save.hidden = name.textContent.trim() === (f.label || ui("Waypoint")) || !name.textContent.trim(); };
+      name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); if (!save.hidden) save.onclick(); } };
+      save.onclick = async () => {
+        const label = name.textContent.trim().slice(0, 80);
+        if (!label) return;
+        save.disabled = true; said.textContent = ui("saving…");
+        const kept = await saveWaypoint(f, label);
+        save.disabled = false;
+        if (!kept) { said.textContent = ui("the waypoint could not be saved"); return; }
+        save.hidden = true; said.textContent = ui("saved · the Stations tab can remove it");
+      };
+    }
+    return box;
   }
+  const seaText = (f) => !f.route ? ui("by sea: working it out…")
+    : f.route.sea_km != null ? ui("by sea: {distance}", { distance: kmLine(f.route.sea_km) })
+    : ui("by sea: {reason}", { reason: ui(f.route.reason || "no route") });
+
+  // the box again from the latest answers, without disturbing a name being typed
+  function refreshFocusBox(f, ship) {
+    const box = mapView?.pinnedBox?.();
+    if (!box || !mapView.pinnedIs(f)) return;
+    const put = (cls, text) => { const el = box.querySelector("." + cls); if (el) el.textContent = text; };
+    if (ship?.lat != null) put("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
+    put("wpsea", seaText(f));
+    put("wpground", groundLine(f.route?.elev_m));
+  }
+
   function setFocus(lat, lon, label, extra = {}) {
     state.focus = { lat: +lat, lon: +lon, label: label || "", ...extra };
     renderMap();
@@ -1116,23 +1172,48 @@
   // air distance follows the ship live, the sea one stays from when it was asked
   function fetchRoute(ship) {
     const f = state.focus;
-    if (!f || f.route || f.routeAsked || ship?.lat == null || PUBLIC) return;
+    if (!f || f.route || f.routeAsked || PUBLIC) return;
     f.routeAsked = true;
     const seq = ++routeSeq;
-    fetch(`api/searoute?from=${ship.lat},${ship.lon}&to=${f.lat},${f.lon}`).then((r) => r.json())
+    const from = ship?.lat != null ? `from=${ship.lat},${ship.lon}&` : "";
+    fetch(`api/searoute?${from}to=${f.lat},${f.lon}`).then((r) => r.json())
       .then((route) => { f.route = route.error ? { sea_km: null, reason: route.error } : route; })
       .catch(() => { f.route = { sea_km: null, reason: "not available" }; })
       .then(() => {
         if (seq !== routeSeq || state.focus !== f || !mapView) return;
         mapView.setTraces("live", liveTraces(lastShip));
-        if (mapView.pinnedIs(f)) mapView.pin(f.lat, f.lon, focusHtml(f, lastShip), f);
+        refreshFocusBox(f, lastShip);
       });
+  }
+  // a waypoint kept for everyone: it joins the stations, where it can be removed
+  async function saveWaypoint(f, label) {
+    try {
+      const r = await fetch("api/waypoints", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ waypoint: { id: f.saved?.id, name: label, lat: f.lat, lon: f.lon }, name: store.get("chat.name", "") }) });
+      const body = await r.json();
+      if (!r.ok || !body.waypoint) throw new Error(body.error || "no answer");
+      f.saved = body.waypoint; f.label = label;
+      await loadWaypoints();
+      return body.waypoint;
+    } catch (err) { toast(ui("The waypoint could not be saved ({why})", { why: err.message })); return null; }
+  }
+  // every browser's waypoints, listed beside the stations
+  async function loadWaypoints() {
+    if (PUBLIC) return;
+    try {
+      const r = await fetch("api/waypoints");
+      if (!r.ok) return;
+      state.waypoints = (await r.json()).waypoints || [];
+      renderMap();
+      window.UW?.onWaypointsChanged?.();
+    } catch { /* offline: the map keeps what it has */ }
   }
   // the mark's box is pinned while there is a mark, and goes with it
   function syncFocusTip() {
     const f = state.focus;
     if (!mapView) return;
-    if (f) mapView.pin(f.lat, f.lon, focusHtml(f, lastShip), f); else mapView.unpin();
+    if (!f) { mapView.unpin(); return; }
+    if (!mapView.pinnedIs(f)) mapView.pin(f.lat, f.lon, focusBox(f, lastShip), f); else refreshFocusBox(f, lastShip);
   }
   const lastFix = (d) => { for (let i = d.lat.length - 1; i >= 0; i--) if (d.lat[i] != null) return i; return -1; };
   // called by the live poller: move the marker without redrawing the map
@@ -1248,13 +1329,17 @@
       const html = String(p.hovertext || p.text || "");
       setFocus(p.lat, p.lon, html.split(/<br\s*\/?>/i)[0].replace(/<[^>]+>/g, ""), { html });
     }
+    if (typeof p?.customdata === "string" && p.customdata.startsWith("wp:")) {
+      const kept = (state.waypoints || []).find((w) => w.id === p.customdata);
+      if (kept) setFocus(kept.lat, kept.lon, kept.name, { waypoint: true, saved: kept });
+      return;
+    }
     if (p?.customdata) window.UW?.onStationClick?.(p.customdata);
   }
-  // a click on open map drops a waypoint there: its position and distances from the ship
-  function mapEmptyClick(e) {
-    const at = e?.lngLat?.wrap?.() || e?.lngLat;
-    if (at) setFocus(at.lat, at.lng, "Waypoint", { waypoint: true });
-  }
+  // a click on open map takes the mark away; a waypoint is made by the
+  // deliberate gesture instead, so panning and reading never leave marks
+  function mapEmptyClick() { if (state.focus) { state.focus = null; renderMap(); } }
+  function mapWaypoint(lat, lon) { setFocus(lat, lon, ui("Waypoint"), { waypoint: true }); }
   let refreshMapFooter = () => {};
   function renderMap() {
     refreshMapFooter = () => {};
@@ -1323,6 +1408,15 @@
       : `<b>${uh("Cast {v0}", {v0: (s.cast)})}</b> ${s.station}${s.label ? " · " + s.label : ""} · ${legById(s.leg)?.label || s.leg}` +
         `<br>${s.time || ""}${s.type ? "<br>" + s.type : ""}${s.bottom_m != null ? `<br>bottom ${s.bottom_m} m` : ""}${stWhere(s)}` +
         `${s.comments ? "<br><i>" + s.comments + "</i>" : ""}`;
+    const kept = state.stations ? (state.waypoints || []) : [];
+    if (kept.length) traces.push({
+      type: "scattermap", mode: "markers+text", name: "waypoints", showlegend: false,
+      lat: kept.map((w) => w.lat), lon: kept.map((w) => w.lon), hoverinfo: "text",
+      customdata: kept.map((w) => w.id), text: kept.map((w) => w.name),
+      hovertext: kept.map((w) => `<b>${escF(w.name)}</b> · ${uh("waypoint")}${w.by ? " · " + escF(w.by) : ""}<br>${dms(w.lat, w.lon)}`),
+      textposition: "top right", textfont: { size: fz(11), color: C.accent2 },
+      marker: { size: 10, color: C.accent2, symbol: "circle", opacity: .95 },
+    });
     state.stationList = st;
     if (st.length) traces.push({
       type: "scattermap", mode: "markers+text", name: "stations", showlegend: false,
@@ -1339,7 +1433,7 @@
     const details = sat?.details || (sat?.near ? [sat.near] : []);
     mapData = d;
     if (!mapView) {
-      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(e); }, onZoom: onMapZoom,
+      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(); }, onWaypoint: mapWaypoint, onZoom: onMapZoom,
         onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
       window.UW.mapView = mapView;
       $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
@@ -1992,6 +2086,17 @@
       else for (const name of extraPanels.keys()) renderPanel(name);
     },
     clearFocus() { state.focus = null; },
+    waypoints: () => state.waypoints || [],
+    reloadWaypoints: loadWaypoints,
+    async deleteWaypoint(id) {
+      try {
+        const r = await fetch("api/waypoints/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+        if (!r.ok) throw new Error();
+      } catch { toast(ui("The waypoint could not be deleted: the server did not answer")); return false; }
+      if (state.focus?.saved?.id === id) state.focus = null;
+      await loadWaypoints();
+      return true;
+    },
     moveShip,
     registerPanel(name, spec) {
       extraPanels.set(name, spec);
@@ -2053,6 +2158,7 @@
       if (plan) plan.title = t("underway.plan.description");
     } else wirePlanDrop();
     renderPlanPills();
+    loadWaypoints();
     document.addEventListener("click", (e) => { for (const m of document.querySelectorAll("details.legmenu[open]")) if (!m.contains(e.target)) m.open = false; });   // a click outside closes the legs menu and the map's kind menus
   })();
 })();

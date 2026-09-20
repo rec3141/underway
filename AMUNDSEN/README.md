@@ -420,28 +420,50 @@ boxed run with bounds — so the map never asks for a tile that is not there
 and is **not** committed (a few GB); regenerate it on a new machine. Needs
 GDAL with Python bindings (`gdal-bin python3-gdal` on Ubuntu).
 
-## Sea distances (optional)
+## Exporting the map
 
-A click on open map drops a waypoint; a click on a station marks it. The
-mark's box gives the position and the distance from the ship by air (a great
-circle) and by sea: the shortest walk over water on a coarse lon/lat grid,
-worked out by `dashboard/searoute.py` (`GET /api/searoute?from=lat,lon&to=lat,lon`)
-and drawn on the map. The grid is a water mask built once from the same GEBCO
-release as the tiles:
+The map's ⇩ button opens the export panel, which writes a PNG or an SVG of the
+view, and a **KMZ** of everything the map has loaded, off screen included:
+the track, the stations, the waypoints, the cruise plan, the event log, the
+camera positions, the wiki's history and nature layers, the ice chart's
+polygons and the ship, each a folder of placemarks in Google Earth. It carries
+what the page holds in memory, so it is as complete as the layers switched on
+and the span chosen when it is taken, and it names positions and labels rather
+than a picture of them. `static/map-kmz.js` builds it: the KML from the map's
+traces, then a zip written in the browser (`tests/kmz.test.cjs` reads one back
+the way Google Earth does). Nothing is fetched to make it.
+
+## Waypoints and sea distances
+
+A double click on open map, or a press held on it, drops a waypoint; a click
+on a station marks that. The mark's box gives the position, the distance from
+the ship by air (a great circle) and by sea, and the depth or ground height
+there. It stays until the mark is clicked again or another point is, and its
+text can be selected and copied.
+
+A waypoint's name can be typed over. Saving it keeps it for everyone
+(`api/waypoints`, `db/waypoints.sqlite`): it joins the Stations tab beside the
+logged stations and draws on the map with them, and the row there removes it.
+
+The sea distance and the depth come from `dashboard/searoute.py`
+(`GET /api/searoute?to=lat,lon` for the ground alone, with `&from=lat,lon` as
+well for the distances and the route drawn on the map). Both read a grid built
+once from the same GEBCO release as the tiles, carrying per cell whether it
+holds water and what the elevation is:
 
 ```sh
 tools/make_sea_mask.sh gebco_2024_sub_ice_topo_geotiff.zip \
-    "$UNDERWAY_TILES_DIR/sea-mask.npz"          # the western Arctic and Labrador Sea, ~2 min
+    "$UNDERWAY_TILES_DIR/sea-mask.npz"          # the western Arctic and Labrador Sea, ~3 min
 ```
 
 The server reads `UNDERWAY_SEA_MASK` (default `sea-mask.npz` under
 `UNDERWAY_TILES_DIR`) and picks a new file up without a restart; without one
-the box shows the air distance only. The default box is lon −150…−15,
-lat 45…86 at 0.04° × 0.02° (about 1 × 2 km at 78° N; ~80 KB packed); pass
-another box and cell size for another region. A route is an estimate for
-planning, not a track to steer: the grid keeps a strait open when any GEBCO
-sample in a cell is below sea level, so an islet narrower than a cell is not
-there. Needs GDAL (`gdal-bin`) and numpy.
+the box shows the air distance only, and a grid built before elevations were
+stored still routes. The default box is lon −150…−15, lat 45…86 at
+0.04° × 0.02° (about 1 × 2 km at 78° N, 10 MB); pass another box and cell size
+for another region. A route is an estimate for planning, not a track to steer,
+and the depth is GEBCO's at that cell, not a sounding. Needs GDAL (`gdal-bin`)
+and numpy.
 
 ## A finer coastline (optional)
 

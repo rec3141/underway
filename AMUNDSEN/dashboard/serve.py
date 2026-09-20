@@ -210,15 +210,29 @@ class Handler(SimpleHTTPRequestHandler):
             except (OSError, sqlite3.Error):
                 log.exception("transects read failed")
                 return self._json(500, {"error": "Shared transects could not be read"})
+        if u.path == "/api/waypoints":
+            # the positions people have marked on the map (dashboard.waypoints)
+            from .waypoints import listing
+            try:
+                return self._json(200, {"waypoints": listing()})
+            except (OSError, sqlite3.Error):
+                log.exception("waypoints read failed")
+                return self._json(500, {"error": "Waypoints could not be read"})
         if u.path == "/api/searoute":
-            # ?from=lat,lon&to=lat,lon: the distance by air and by sea, and the sea route's path
-            from .searoute import route
+            # ?to=lat,lon for the ground there, &from=lat,lon as well for the
+            # distance by air and by sea and the sea route's path
+            from .searoute import place, route
             q = parse_qs(u.query)
             try:
-                pts = [float(v) for key in ("from", "to") for v in q.get(key, [""])[0].split(",")]
-                if len(pts) != 4:
-                    raise ValueError("from and to must each be lat,lon")
-                return self._json(200, route(*pts))
+                here = [float(v) for v in q.get("to", [""])[0].split(",")]
+                if len(here) != 2:
+                    raise ValueError("to must be lat,lon")
+                if not q.get("from", [""])[0]:
+                    return self._json(200, place(*here))
+                start = [float(v) for v in q["from"][0].split(",")]
+                if len(start) != 2:
+                    raise ValueError("from must be lat,lon")
+                return self._json(200, route(*start, *here))
             except ValueError as e:
                 return self._json(400, {"error": str(e)})
             except Exception:                            # noqa: BLE001
@@ -377,6 +391,24 @@ class Handler(SimpleHTTPRequestHandler):
                 self.close_connection = True
                 log.exception('photo upload failed')
                 return self._json(500, {'error': 'Upload failed; keep this page open and retry.'})
+        if u.path in ("/api/waypoints", "/api/waypoints/delete"):
+            # keep a marked position for everyone ({"waypoint": {...}, "name": who}), or drop one ({"id": ...})
+            from .waypoints import remove, save
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 8192:
+                    raise ValueError("Waypoint request must be at most 8192 bytes")
+                payload = json.loads(self.rfile.read(n))
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                if u.path.endswith("/delete"):
+                    return self._json(200, {"ok": True, "removed": remove(payload.get("id"))})
+                return self._json(200, {"ok": True, "waypoint": save(payload.get("waypoint"), str(payload.get("name", "")))})
+            except (ValueError, UnicodeDecodeError) as e:
+                return self._json(400, {"error": str(e)})
+            except Exception:
+                log.exception("waypoint save failed")
+                return self._json(500, {"error": "Could not save the waypoint. Please try again."})
         if u.path in ("/api/transects", "/api/transects/delete"):
             # share a section with every browser ({"transect": {...}, "name": who}), or drop one ({"id": ...})
             from .transects import remove, save

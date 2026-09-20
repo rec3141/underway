@@ -19,6 +19,16 @@ Read with `python -m dashboard.feedback` on 2026-09-18; all done in that change.
 - Bottles table: station, lat and lon columns after cast.
 - "Clear selection" on Casts and Stations also empties the filter box.
 
+## Asked for on 2026-09-20
+
+- A waypoint is made by a double click or a held press, not by a single click,
+  which was catching ordinary navigation; the map's own double-click zoom is off.
+- The mark's box reads: name, position, `by air:`, `by sea:`, then `depth:` or
+  `elevation:` from GEBCO.
+- A waypoint's name is editable; typing shows a Save button, and saving keeps it
+  for everyone on the Stations tab, whose row removes it again.
+- The map exports as KMZ with everything loaded, off screen included.
+
 ## Notes recovered from page flags
 
 Copied before clearing the flags on 2026-09-11. These notes are pending; they are not all interface issues.

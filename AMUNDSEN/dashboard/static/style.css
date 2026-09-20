@@ -409,7 +409,14 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 /* the map's hover box (static/map.js): the point's text beside the pointer */
 #map { position: relative; }
 .maptip { position: absolute; z-index: 5; pointer-events: none; max-width: min(360px, 80%); padding: 5px 8px; border-radius: 6px; background: var(--card-2); color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px var(--shadow); font-size: var(--t-sm); line-height: 1.35; }
-.maptip.pinned { pointer-events: auto; user-select: text; cursor: text; }   /* a clicked mark's box: it stays, for copying from */
+.maptip.pinned { pointer-events: auto; user-select: text; cursor: text; }
+.focusbox .wpname { outline: none; border-bottom: 1px dashed var(--line); cursor: text; }
+.focusbox .wpname:focus { border-bottom-color: var(--accent); }
+.focusbox .wptools { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.focusbox .wptools .muted { font-size: var(--t-xs); }
+.focusbox .wpsave { padding: 1px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--accent); color: var(--bg); cursor: pointer; }
+.focusbox .wpsave[disabled] { opacity: .6; cursor: default; }
+.focusbox .wpground:empty { display: none; }   /* a clicked mark's box: it stays, for copying from */
 .map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: var(--t-xs); padding: 3px 8px 0; opacity: .8; }
 .map-legend { position:absolute; top:0; left:0; z-index:3; pointer-events:none; }
 #mapdetails { width:min(600px,calc(100vw - 32px)); max-height:80dvh; overflow:auto; padding:16px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius); }

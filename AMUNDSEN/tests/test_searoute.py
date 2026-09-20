@@ -14,8 +14,10 @@ from dashboard import searoute
 from dashboard.serve import Handler, ThreadingHTTPServer
 
 
-def write_mask(path, water, lon0=-100.0, lat0=70.0, dlon=0.1, dlat=0.1):
-    np.savez_compressed(path, water=np.packbits(water, axis=1), shape=np.array(water.shape), lon0=lon0, lat0=lat0, dlon=dlon, dlat=dlat)
+def write_mask(path, water, lon0=-100.0, lat0=70.0, dlon=0.1, dlat=0.1, elev=None):
+    extra = {} if elev is None else {"elev": elev}
+    np.savez_compressed(path, water=np.packbits(water, axis=1), shape=np.array(water.shape),
+                        lon0=lon0, lat0=lat0, dlon=dlon, dlat=dlat, **extra)
 
 
 class SeaRouteTests(unittest.TestCase):
@@ -81,6 +83,23 @@ class SeaRouteTests(unittest.TestCase):
             r = searoute.route(71.0, -99.5, 71.0, -96.5)
         self.assertIsNotNone(r["sea_km"], r["reason"])
 
+    def test_elevation_comes_with_the_route_and_on_its_own(self):
+        water = np.ones((40, 40), dtype=bool)
+        elev = np.full((40, 40), -350, dtype=np.int16)
+        elev[20:, :] = 240                                # land across the north half
+        write_mask(self.path, water, elev=elev)
+        self.assertEqual(searoute.place(71.0, -99.0)["elev_m"], -350)
+        self.assertEqual(searoute.place(73.0, -99.0)["elev_m"], 240)
+        self.assertIsNone(searoute.place(10.0, 10.0)["elev_m"])       # outside the grid
+        self.assertEqual(searoute.route(71.0, -99.0, 73.0, -97.0)["elev_m"], 240)
+
+    def test_a_grid_without_elevations_still_routes(self):
+        write_mask(self.path, np.ones((40, 40), dtype=bool))
+        r = searoute.route(71.0, -99.0, 72.0, -97.0)
+        self.assertIsNotNone(r["sea_km"])
+        self.assertIsNone(r["elev_m"])
+        self.assertIsNone(searoute.place(71.0, -99.0)["elev_m"])
+
     def test_bad_coordinates(self):
         with self.assertRaises(ValueError):
             searoute.route(91.0, 0.0, 0.0, 0.0)
@@ -119,6 +138,8 @@ class SeaRouteEndpointTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertGreater(body["sea_km"], 0)
         self.assertIsNone(body["reason"])
+        self.assertEqual(self.get("/api/searoute?to=72,-97")[1]["elev_m"], None)   # the point alone, with no ship
         self.assertEqual(self.get("/api/searoute?from=71&to=72,-97")[0], 400)
+        self.assertEqual(self.get("/api/searoute")[0], 400)
         self.assertEqual(self.get("/api/searoute?from=71,x&to=72,-97")[0], 400)
         self.assertEqual(self.get("/api/searoute?from=91,0&to=72,-97")[0], 400)

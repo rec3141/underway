@@ -4,7 +4,31 @@
     "fr-CA": {
       "label": "Français (Canada)",
       "defaultProfile": "editorial-fr-ca-v4",
-      "overrides": {}
+      "overrides": {
+        "pages.8b4ac18844ccb594": "editorial-fr-ca-v5",
+        "pages.624590df41303701": "editorial-fr-ca-v5",
+        "pages.f334059dec34ecdd": "editorial-fr-ca-v5",
+        "pages.428eecd36e94b0fd": "editorial-fr-ca-v5",
+        "pages.c99e156c2475bb09": "editorial-fr-ca-v5",
+        "pages.891bbe0519fc7608": "editorial-fr-ca-v5",
+        "pages.1fcfa9e7d2fe37da": "editorial-fr-ca-v5",
+        "pages.712b48f32ecbdb73": "editorial-fr-ca-v5",
+        "pages.960d0a5aa86a9d6d": "editorial-fr-ca-v5",
+        "pages.31f2cd60c65a153d": "editorial-fr-ca-v5",
+        "pages.0b3c57fe9dd876bc": "editorial-fr-ca-v5",
+        "pages.88de1d0c64d7275c": "editorial-fr-ca-v5",
+        "pages.de8f62bf94b51a6d": "editorial-fr-ca-v5",
+        "pages.4cfbc780ecbad3e8": "editorial-fr-ca-v5",
+        "pages.18df78caad706cb7": "editorial-fr-ca-v5",
+        "underway.waypointRemove": "editorial-fr-ca-v5",
+        "underway.waypointRemoveAsk": "editorial-fr-ca-v5",
+        "pages.a84e6ee24d708b39": "editorial-fr-ca-v5",
+        "pages.5d8dbdbc15cdab20": "editorial-fr-ca-v5",
+        "pages.565fb3d628a49ea4": "editorial-fr-ca-v5",
+        "pages.ca6ce4b1b305caf0": "editorial-fr-ca-v5",
+        "pages.d088705308d76bf1": "editorial-fr-ca-v5",
+        "pages.8c3614627ec45c9d": "editorial-fr-ca-v5"
+      }
     }
   }
 }
