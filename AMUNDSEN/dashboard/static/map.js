@@ -243,7 +243,7 @@
       });
       this.map.getCanvas().addEventListener("mouseleave", () => { if (!this.pinned) this.tip.hidden = true; });
       this.map.on("movestart", () => { if (!this.pinned) this.tip.hidden = true; });
-      this.map.on("move", () => { if (this.pinned) this.placeTip(this.pinned.html, this.map.project([this.pinned.lon, this.pinned.lat])); });
+      this.map.on("move", () => { if (this.pinned) this.placeTip(this.pinned.html, this.map.project([this.pinned.lon, this.pinned.lat]), this.pinned.clear); });
       this.map.on("click", (e) => {
         if (this._eatClick) { this._eatClick = false; return; }   // the click that ends a long press
         const hit = this.pick(e.point, true);
@@ -408,11 +408,13 @@
     // a box pinned at a point of the map: it stays (following the map as it
     // pans) and its text can be selected and copied, until it is unpinned;
     // `key` names what is shown, for a caller to refresh it while it is up
-    pin(lat, lon, content, key = null) {
+    // `clear` is lat/lon pairs the box should keep off, such as the line drawn
+    // to the point it belongs to
+    pin(lat, lon, content, key = null, clear = []) {
       if (!this.map || lat == null || lon == null) return;
-      this.pinned = { lat: +lat, lon: +lon, html: content, key };
+      this.pinned = { lat: +lat, lon: +lon, html: content, key, clear };
       this.tip.classList.add("pinned");
-      this.placeTip(content, this.map.project([+lon, +lat]));
+      this.placeTip(content, this.map.project([+lon, +lat]), clear);
     }
     unpin() {
       if (!this.pinned) return;
@@ -423,18 +425,29 @@
     pinnedIs(key) { return !!this.pinned && this.pinned.key === key; }
     pinnedBox() { return this.pinned && this.tip.firstElementChild; }
 
-    placeTip(content, pt) {
+    placeTip(content, pt, clear = []) {
       if (content instanceof Node) { if (this.tip.firstChild !== content) this.tip.replaceChildren(content); }
       else this.tip.innerHTML = content;
       this.tip.hidden = false;
-      // beside the point: to its right, else its left, else below or above
-      // it, so the box never covers the point (a pinned box takes the clicks)
+      // beside the point, never over it: to its right, else its left, else
+      // below or above. Of those, the one that covers least of what has to
+      // stay in view, so a box does not sit on the line drawn to its point.
       const w = this.el.clientWidth, h = this.el.clientHeight, tw = this.tip.offsetWidth, th = this.tip.offsetHeight;
-      let x = pt.x + 14, y = Math.max(2, Math.min(pt.y - th / 2, h - th - 2));
-      if (x + tw > w - 2) x = pt.x - 14 - tw;
-      if (x < 2) { x = Math.max(2, Math.min(pt.x - tw / 2, w - tw - 2)); y = pt.y + 14 + th > h - 2 ? pt.y - 14 - th : pt.y + 14; }
-      this.tip.style.left = `${x}px`;
-      this.tip.style.top = `${y}px`;
+      const beside = Math.max(2, Math.min(pt.y - th / 2, h - th - 2));
+      const over = Math.max(2, Math.min(pt.x - tw / 2, w - tw - 2));
+      const spots = [{ x: pt.x + 14, y: beside }, { x: pt.x - 14 - tw, y: beside },
+        { x: over, y: pt.y + 14 }, { x: over, y: pt.y - 14 - th }];
+      const keep = clear.map((p) => this.map.project([+p[1], +p[0]]));
+      let best = null;
+      for (const spot of spots) {
+        const off = spot.x < 2 || spot.x + tw > w - 2 || spot.y < 2 || spot.y + th > h - 2;
+        const hits = keep.filter((q) => q.x > spot.x - 6 && q.x < spot.x + tw + 6 && q.y > spot.y - 6 && q.y < spot.y + th + 6).length;
+        const score = (off ? 1e4 : 0) + hits;
+        if (!best || score < best.score) best = { ...spot, score };
+        if (!score) break;
+      }
+      this.tip.style.left = `${Math.max(2, Math.min(best.x, Math.max(2, w - tw - 2)))}px`;
+      this.tip.style.top = `${Math.max(2, Math.min(best.y, Math.max(2, h - th - 2)))}px`;
     }
   }
 
