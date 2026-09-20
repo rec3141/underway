@@ -4820,10 +4820,6 @@
       "text": "elevation: {metres} m",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
-    "pages.891bbe0519fc7608": {
-      "text": "name this waypoint",
-      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
-    },
     "pages.1fcfa9e7d2fe37da": {
       "text": "Save",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
@@ -4832,16 +4828,8 @@
       "text": "keep this waypoint on everyone's Stations tab",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
-    "pages.960d0a5aa86a9d6d": {
-      "text": "saved · the Stations tab can remove it",
-      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
-    },
     "pages.31f2cd60c65a153d": {
       "text": "saving…",
-      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
-    },
-    "pages.0b3c57fe9dd876bc": {
-      "text": "the waypoint could not be saved",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
     "pages.88de1d0c64d7275c": {
@@ -4890,6 +4878,18 @@
     },
     "pages.8c3614627ec45c9d": {
       "text": "not available",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.dd2efee10b8fc011": {
+      "text": "Waypoint {n}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a1e52386fd63d69a": {
+      "text": "click to rename",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.26963612170619a8": {
+      "text": "saved",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }

@@ -24,9 +24,10 @@ Read with `python -m dashboard.feedback` on 2026-09-18; all done in that change.
 - A waypoint is made by a double click or a held press, not by a single click,
   which was catching ordinary navigation; the map's own double-click zoom is off.
 - The mark's box reads: name, position, `by air:`, `by sea:`, then `depth:` or
-  `elevation:` from GEBCO.
-- A waypoint's name is editable; typing shows a Save button, and saving keeps it
-  for everyone on the Stations tab, whose row removes it again.
+  `elevation:` from GEBCO, and no longer explains how to remove the mark.
+- A waypoint's name is editable; it arrives numbered ("Waypoint 3"), sits in a
+  field with a pencil beside it, and Save on the same line keeps it for everyone
+  on the Stations tab, whose row removes it again.
 - The map exports as KMZ with everything loaded, off screen included.
 
 ## Notes recovered from page flags

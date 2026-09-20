@@ -33,11 +33,6 @@
       "text": "altitude : {metres} m",
       "status": "draft"
     },
-    "pages.891bbe0519fc7608": {
-      "source": "name this waypoint",
-      "text": "nommer ce repère",
-      "status": "draft"
-    },
     "pages.1fcfa9e7d2fe37da": {
       "source": "Save",
       "text": "Enregistrer",
@@ -48,19 +43,9 @@
       "text": "conserver ce repère dans l’onglet Stations de tout le monde",
       "status": "draft"
     },
-    "pages.960d0a5aa86a9d6d": {
-      "source": "saved · the Stations tab can remove it",
-      "text": "enregistré · l’onglet Stations permet de le retirer",
-      "status": "draft"
-    },
     "pages.31f2cd60c65a153d": {
       "source": "saving…",
       "text": "enregistrement…",
-      "status": "draft"
-    },
-    "pages.0b3c57fe9dd876bc": {
-      "source": "the waypoint could not be saved",
-      "text": "le repère n’a pas pu être enregistré",
       "status": "draft"
     },
     "pages.88de1d0c64d7275c": {
@@ -121,6 +106,21 @@
     "pages.8c3614627ec45c9d": {
       "source": "not available",
       "text": "non disponible",
+      "status": "draft"
+    },
+    "pages.dd2efee10b8fc011": {
+      "source": "Waypoint {n}",
+      "text": "Repère {n}",
+      "status": "draft"
+    },
+    "pages.a1e52386fd63d69a": {
+      "source": "click to rename",
+      "text": "cliquer pour renommer",
+      "status": "draft"
+    },
+    "pages.26963612170619a8": {
+      "source": "saved",
+      "text": "enregistré",
       "status": "draft"
     }
   }

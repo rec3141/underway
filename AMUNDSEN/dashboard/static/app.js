@@ -1104,19 +1104,15 @@
     : elev < 0 ? ui("depth: {metres} m", { metres: Math.round(-elev) }) : ui("elevation: {metres} m", { metres: Math.round(elev) });
 
   // The mark's box: what it is, where, how far from the ship by air and by
-  // sea, and what the ground does there. A waypoint's name can be typed
-  // over, and a name that has been changed can be kept for everyone.
+  // sea, and what the ground does there. A waypoint's name is a field: it
+  // arrives numbered, can be typed over, and Save beside it keeps the
+  // waypoint for everyone.
   function focusBox(f, ship) {
     const box = document.createElement("div");
     box.className = "focusbox";
     const head = document.createElement("div");
-    if (f.waypoint) {
-      const name = document.createElement("b");
-      name.className = "wpname"; name.contentEditable = "plaintext-only"; name.spellcheck = false;
-      name.textContent = f.label || ui("Waypoint");
-      name.title = ui("name this waypoint");
-      head.append(name);
-    } else head.innerHTML = f.html || `<b>${escF(f.label || "")}</b>`;
+    head.className = f.waypoint ? "wphead" : "";
+    if (!f.waypoint) head.innerHTML = f.html || `<b>${escF(f.label || "")}</b>`;
     box.append(head);
     const line = (cls, text) => { const el = document.createElement("div"); el.className = cls; el.textContent = text; box.append(el); return el; };
     if (!f.html || !f.html.includes(dms(f.lat, f.lon))) line("wpwhere", dms(f.lat, f.lon));
@@ -1125,29 +1121,34 @@
       line("wpsea", seaText(f));
     }
     line("wpground", groundLine(f.route?.elev_m));
-    if (f.waypoint) {
-      const tools = document.createElement("div");
-      tools.className = "wptools";
-      const save = document.createElement("button");
-      save.type = "button"; save.className = "wpsave"; save.hidden = true; save.textContent = ui("Save");
-      save.title = ui("keep this waypoint on everyone's Stations tab");
-      const said = document.createElement("span");
-      said.className = "muted"; said.textContent = f.saved ? ui("saved · the Stations tab can remove it") : ui("click the mark to remove it");
-      tools.append(save, said);
-      box.append(tools);
-      const name = head.querySelector(".wpname");
-      name.oninput = () => { save.hidden = name.textContent.trim() === (f.label || ui("Waypoint")) || !name.textContent.trim(); };
-      name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); if (!save.hidden) save.onclick(); } };
-      save.onclick = async () => {
-        const label = name.textContent.trim().slice(0, 80);
-        if (!label) return;
-        save.disabled = true; said.textContent = ui("saving…");
-        const kept = await saveWaypoint(f, label);
-        save.disabled = false;
-        if (!kept) { said.textContent = ui("the waypoint could not be saved"); return; }
-        save.hidden = true; said.textContent = ui("saved · the Stations tab can remove it");
-      };
-    }
+    if (!f.waypoint) return box;
+
+    const name = document.createElement("b");
+    name.className = "wpname"; name.contentEditable = "plaintext-only"; name.spellcheck = false;
+    name.textContent = f.label || ui("Waypoint");
+    name.title = ui("click to rename");
+    const pencil = document.createElement("span");
+    pencil.className = "wppencil"; pencil.textContent = "✎"; pencil.title = ui("click to rename"); pencil.setAttribute("aria-hidden", "true");
+    pencil.onclick = () => { name.focus(); getSelection().selectAllChildren(name); };
+    const save = document.createElement("button");
+    save.type = "button"; save.className = "wpsave"; save.hidden = true; save.textContent = ui("Save");
+    save.title = ui("keep this waypoint on everyone's Stations tab");
+    const state = document.createElement("span");
+    state.className = "wpstate muted"; state.textContent = f.saved ? ui("saved") : "";
+    head.append(name, pencil, save, state);
+
+    const typed = () => name.textContent.trim().slice(0, 80);
+    name.oninput = () => { save.hidden = !typed() || typed() === (f.label || ui("Waypoint")); state.textContent = ""; };
+    name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); name.blur(); if (!save.hidden) save.onclick(); } };
+    save.onclick = async () => {
+      const label = typed();
+      if (!label) return;
+      save.disabled = true; state.textContent = ui("saving…");
+      const kept = await saveWaypoint(f, label);
+      save.disabled = false;
+      save.hidden = !!kept;
+      state.textContent = kept ? ui("saved") : "";
+    };
     return box;
   }
   const seaText = (f) => !f.route ? ui("by sea: working it out…")
@@ -1339,7 +1340,13 @@
   // a click on open map takes the mark away; a waypoint is made by the
   // deliberate gesture instead, so panning and reading never leave marks
   function mapEmptyClick() { if (state.focus) { state.focus = null; renderMap(); } }
-  function mapWaypoint(lat, lon) { setFocus(lat, lon, ui("Waypoint"), { waypoint: true }); }
+  function mapWaypoint(lat, lon) { setFocus(lat, lon, nextWaypointName(), { waypoint: true }); }
+  function nextWaypointName() {
+    const taken = new Set((state.waypoints || []).map((w) => w.name));
+    let n = (state.waypoints || []).length + 1, name;
+    do { name = ui("Waypoint {n}", { n: n++ }); } while (taken.has(name));
+    return name;
+  }
   let refreshMapFooter = () => {};
   function renderMap() {
     refreshMapFooter = () => {};
