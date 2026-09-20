@@ -49,7 +49,8 @@ class SourceSyncTests(unittest.TestCase):
     def test_site_push_excludes_generated_chunks_and_preserves_grid_data(self):
         # Exercise the actual push filter arguments with real local rsync.
         script = SCRIPT.with_name('publish-web.sh').read_text().replace('\\\n', ' ')
-        command = next(line.strip() for line in script.splitlines() if line.strip().startswith('$RSYNC --delete '))
+        command = next(line.strip() for line in script.splitlines()
+                       if line.strip().startswith('$RSYNC --delete ') and '"$WEBROOT/"' in line)
         words = shlex.split(command)
         filters = words[1:words.index('$WEBROOT/')]
         with tempfile.TemporaryDirectory() as tmp:

@@ -101,15 +101,41 @@ history_layer() {
   [[ -f $HIST/db/history/history.sqlite ]] || { echo "no history database at $HIST" >&2; return 1; }
   mkdir -p "$MIRROR"
   PYTHONPATH="$HERE:$HIST" "$PY" - "$MIRROR" <<'PYEOF'
-import sys, json
+import sys, json, os, tempfile
 from pathlib import Path
 from dashboard import history
 root = Path(sys.argv[1])
 entry = history.publish(root)
 if not entry:
     sys.exit("the history layer did not publish")
+# Grid exports its own revision: never advertise the incoming ship's locale
+# tree. Replace the whole history entry so removed locales disappear too.
+manifest = root / 'data/manifest.json'
+if manifest.is_file():
+    data = json.loads(manifest.read_text())
+    data['history'] = entry
+    fd, temporary = tempfile.mkstemp(prefix='.manifest-', suffix='.tmp', dir=manifest.parent)
+    try:
+        with os.fdopen(fd, 'w') as stream:
+            json.dump(data, stream, indent=1)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, manifest.stat().st_mode & 0o777)
+        os.replace(temporary, manifest)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 print("history layer:", json.dumps({k: entry[k] for k in ("pages", "artifacts", "topics") if k in entry}))
 PYEOF
+}
+
+publish_locale_data() {
+  # Immutable locale revisions must arrive in full before the manifest or
+  # embedded page can reference them. Keep older revisions for open clients.
+  [[ -d $MIRROR/data/history/locales ]] || return 0
+  ssh "${TARGET%%:*}" "mkdir -p '${TARGET#*:}/data/history/locales'"
+  $RSYNC --exclude '*.tmp' --exclude '*.part' \
+    "$MIRROR/data/history/locales/" "$TARGET/data/history/locales/" | stats
 }
 
 static_assets() {
@@ -249,11 +275,12 @@ case "${1:-}" in
     # the tiles, once `tiles` has put them there by hand (the first copy is too
     # long for a scheduled deploy): after that a changed set follows
     [[ -f $GRID_HOME/.tiles-published ]] && publish_tiles
+    publish_locale_data
     echo "== $MIRROR -> $TARGET (no cameras, journal photographs or tiles)"
     # two passes: the page and its data, then the history's files (whole unless
     # a cap is set: an index of ten thousand artifacts is bigger than a picture)
     $RSYNC --delete \
-      --exclude 'camera/' --exclude 'journal/' --exclude 'static/tiles/' --exclude 'data/history/files/' \
+      --exclude 'camera/' --exclude 'journal/' --exclude 'static/tiles/' --exclude 'data/history/files/' --exclude 'data/history/locales/' \
       --exclude '*.tmp' --exclude '*.part' "$MIRROR/" "$TARGET/" | stats
     if [[ ${MAX_MB} != 0 ]]; then
       echo "== the history's files, up to $MAX_MB MB each"
