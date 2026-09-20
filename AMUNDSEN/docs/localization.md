@@ -11,7 +11,7 @@ and gallery tools, chat controls, wiki navigation, and camera controls are also 
 Generated wiki/article content is a separate translation pipeline and is not
 published by this UI change. Source-authored station/event descriptions, source
 column names, attribution records and user messages remain unchanged.
-French is an editorial draft awaiting independent language review.
+French is an editorial draft.
 
 The implementation is independent of the wiki's record/field translation store.
 Both can share the same language choice when the wiki publisher is connected.
