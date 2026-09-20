@@ -4799,6 +4799,98 @@
     "pages.18980cbb612c9c6b": {
       "text": "{percent}% ice",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8b4ac18844ccb594": {
+      "text": "{km} km ({nmi} nmi)",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.624590df41303701": {
+      "text": "by air: {distance}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.f334059dec34ecdd": {
+      "text": "by sea: {distance}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.428eecd36e94b0fd": {
+      "text": "depth: {metres} m",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c99e156c2475bb09": {
+      "text": "elevation: {metres} m",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.891bbe0519fc7608": {
+      "text": "name this waypoint",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.1fcfa9e7d2fe37da": {
+      "text": "Save",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.712b48f32ecbdb73": {
+      "text": "keep this waypoint on everyone's Stations tab",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.960d0a5aa86a9d6d": {
+      "text": "saved · the Stations tab can remove it",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.31f2cd60c65a153d": {
+      "text": "saving…",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.0b3c57fe9dd876bc": {
+      "text": "the waypoint could not be saved",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.88de1d0c64d7275c": {
+      "text": "The waypoint could not be saved ({why})",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.de8f62bf94b51a6d": {
+      "text": "The waypoint could not be deleted: the server did not answer",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.4cfbc780ecbad3e8": {
+      "text": "waypoint",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.18df78caad706cb7": {
+      "text": "Export KMZ",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "underway.waypointRemove": {
+      "text": "remove this waypoint for everyone",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "underway.waypointRemoveAsk": {
+      "text": "Remove the waypoint “{name}” for everyone?",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "pages.a84e6ee24d708b39": {
+      "text": "the point is on land",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.5d8dbdbc15cdab20": {
+      "text": "no sea route within the charted area",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.565fb3d628a49ea4": {
+      "text": "outside the charted area",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.ca6ce4b1b305caf0": {
+      "text": "no sea mask on this server",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.d088705308d76bf1": {
+      "text": "the ship's position is not on charted water",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8c3614627ec45c9d": {
+      "text": "not available",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }
 }

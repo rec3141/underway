@@ -1,0 +1,127 @@
+{
+  "locale": "fr-CA",
+  "profile": {
+    "id": "editorial-fr-ca-v5",
+    "translator": "lead-assistant",
+    "model": "Claude Opus 5",
+    "glossary": "dashboard-ui-v4",
+    "method": "Canadian French for the map's waypoint box, the saved waypoints and the KMZ export. Draft for review."
+  },
+  "messages": {
+    "pages.8b4ac18844ccb594": {
+      "source": "{km} km ({nmi} nmi)",
+      "text": "{km} km ({nmi} nmi)",
+      "status": "draft"
+    },
+    "pages.624590df41303701": {
+      "source": "by air: {distance}",
+      "text": "à vol d’oiseau : {distance}",
+      "status": "draft"
+    },
+    "pages.f334059dec34ecdd": {
+      "source": "by sea: {distance}",
+      "text": "par mer : {distance}",
+      "status": "draft"
+    },
+    "pages.428eecd36e94b0fd": {
+      "source": "depth: {metres} m",
+      "text": "profondeur : {metres} m",
+      "status": "draft"
+    },
+    "pages.c99e156c2475bb09": {
+      "source": "elevation: {metres} m",
+      "text": "altitude : {metres} m",
+      "status": "draft"
+    },
+    "pages.891bbe0519fc7608": {
+      "source": "name this waypoint",
+      "text": "nommer ce repère",
+      "status": "draft"
+    },
+    "pages.1fcfa9e7d2fe37da": {
+      "source": "Save",
+      "text": "Enregistrer",
+      "status": "draft"
+    },
+    "pages.712b48f32ecbdb73": {
+      "source": "keep this waypoint on everyone's Stations tab",
+      "text": "conserver ce repère dans l’onglet Stations de tout le monde",
+      "status": "draft"
+    },
+    "pages.960d0a5aa86a9d6d": {
+      "source": "saved · the Stations tab can remove it",
+      "text": "enregistré · l’onglet Stations permet de le retirer",
+      "status": "draft"
+    },
+    "pages.31f2cd60c65a153d": {
+      "source": "saving…",
+      "text": "enregistrement…",
+      "status": "draft"
+    },
+    "pages.0b3c57fe9dd876bc": {
+      "source": "the waypoint could not be saved",
+      "text": "le repère n’a pas pu être enregistré",
+      "status": "draft"
+    },
+    "pages.88de1d0c64d7275c": {
+      "source": "The waypoint could not be saved ({why})",
+      "text": "Le repère n’a pas pu être enregistré ({why})",
+      "status": "draft"
+    },
+    "pages.de8f62bf94b51a6d": {
+      "source": "The waypoint could not be deleted: the server did not answer",
+      "text": "Le repère n’a pas pu être supprimé : le serveur n’a pas répondu",
+      "status": "draft"
+    },
+    "pages.4cfbc780ecbad3e8": {
+      "source": "waypoint",
+      "text": "repère",
+      "status": "draft"
+    },
+    "pages.18df78caad706cb7": {
+      "source": "Export KMZ",
+      "text": "Exporter en KMZ",
+      "status": "draft"
+    },
+    "underway.waypointRemove": {
+      "source": "remove this waypoint for everyone",
+      "text": "retirer ce repère pour tout le monde",
+      "status": "draft"
+    },
+    "underway.waypointRemoveAsk": {
+      "source": "Remove the waypoint “{name}” for everyone?",
+      "text": "Retirer le repère « {name} » pour tout le monde ?",
+      "status": "draft"
+    },
+    "pages.a84e6ee24d708b39": {
+      "source": "the point is on land",
+      "text": "le point est sur la terre ferme",
+      "status": "draft"
+    },
+    "pages.5d8dbdbc15cdab20": {
+      "source": "no sea route within the charted area",
+      "text": "aucune route maritime dans la zone cartographiée",
+      "status": "draft"
+    },
+    "pages.565fb3d628a49ea4": {
+      "source": "outside the charted area",
+      "text": "hors de la zone cartographiée",
+      "status": "draft"
+    },
+    "pages.ca6ce4b1b305caf0": {
+      "source": "no sea mask on this server",
+      "text": "aucune grille marine sur ce serveur",
+      "status": "draft"
+    },
+    "pages.d088705308d76bf1": {
+      "source": "the ship's position is not on charted water",
+      "text": "la position du navire n’est pas sur une eau cartographiée",
+      "status": "draft"
+    },
+    "pages.8c3614627ec45c9d": {
+      "source": "not available",
+      "text": "non disponible",
+      "status": "draft"
+    }
+  }
+}

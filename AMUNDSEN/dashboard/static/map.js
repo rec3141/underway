@@ -28,6 +28,8 @@
   const DEFAULT_COLOUR = "#1f77b4";                   // Plotly's first colour, for a trace that names none
   const NULL_COLOUR = "#7d8895";                      // a point whose value is missing on a coloured track
   const PICK_PX = 7;                                  // how near the pointer a point must be to be hovered or clicked
+  const PRESS_MS = 550;                               // how long a press is held to stand for a double click
+  const PRESS_PX = 10;                                // how far it may drift and still count as held still
   const FIT_PAD = 28;                                 // pixels kept clear round a box the view is fitted to
   const FIT_MAX = 14;                                 // a fit never zooms closer than this
 
@@ -243,11 +245,44 @@
       this.map.on("movestart", () => { if (!this.pinned) this.tip.hidden = true; });
       this.map.on("move", () => { if (this.pinned) this.placeTip(this.pinned.html, this.map.project([this.pinned.lon, this.pinned.lat])); });
       this.map.on("click", (e) => {
+        if (this._eatClick) { this._eatClick = false; return; }   // the click that ends a long press
         const hit = this.pick(e.point, true);
         if (hit) this.on.onClick?.(this.pointOf(hit)); else this.on.onEmptyClick?.(e);
       });
+      // a waypoint is asked for by a double click or by a press held still,
+      // so an ordinary click stays free for reading a point and for panning
+      this.map.doubleClickZoom.disable();
+      this.map.on("dblclick", (e) => this.waypointAt(e));
+      const canvas = this.map.getCanvas();
+      const press = { timer: 0, at: null };
+      const drop = () => { clearTimeout(press.timer); press.timer = 0; press.at = null; };
+      canvas.addEventListener("pointerdown", (e) => {
+        drop();
+        if (e.button > 0) return;
+        press.at = { x: e.clientX, y: e.clientY };
+        press.timer = setTimeout(() => {
+          const box = canvas.getBoundingClientRect(), point = { x: press.at.x - box.left, y: press.at.y - box.top };
+          drop();
+          this._eatClick = true;
+          this.waypointAt({ point, lngLat: this.map.unproject([point.x, point.y]) });
+        }, PRESS_MS);
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (press.at && Math.hypot(e.clientX - press.at.x, e.clientY - press.at.y) > PRESS_PX) drop();
+      });
+      for (const kind of ["pointerup", "pointercancel", "pointerleave", "wheel"]) canvas.addEventListener(kind, drop);
+      // on a phone a held press raises the browser's own menu: not over the gesture
+      canvas.addEventListener("contextmenu", (e) => { if (press.timer || this._eatClick) e.preventDefault(); });
       this.map.on("moveend", () => this.on.onMove?.(this.getView()));
       this.map.on("zoomend", () => this.on.onZoom?.(this.map.getZoom()));
+    }
+
+    // where a waypoint was asked for: open map only, since a point under the
+    // pointer is already the mark a click would set
+    waypointAt(e) {
+      if (!e?.lngLat || this.pick(e.point, true)) return;
+      const at = e.lngLat.wrap ? e.lngLat.wrap() : e.lngLat;
+      this.on.onWaypoint?.(at.lat, at.lng);
     }
 
     // a new basemap: MapLibre diffs it against the old one, and our layers
@@ -373,11 +408,11 @@
     // a box pinned at a point of the map: it stays (following the map as it
     // pans) and its text can be selected and copied, until it is unpinned;
     // `key` names what is shown, for a caller to refresh it while it is up
-    pin(lat, lon, html, key = null) {
+    pin(lat, lon, content, key = null) {
       if (!this.map || lat == null || lon == null) return;
-      this.pinned = { lat: +lat, lon: +lon, html, key };
+      this.pinned = { lat: +lat, lon: +lon, html: content, key };
       this.tip.classList.add("pinned");
-      this.placeTip(html, this.map.project([+lon, +lat]));
+      this.placeTip(content, this.map.project([+lon, +lat]));
     }
     unpin() {
       if (!this.pinned) return;
@@ -386,9 +421,11 @@
       this.tip.hidden = true;
     }
     pinnedIs(key) { return !!this.pinned && this.pinned.key === key; }
+    pinnedBox() { return this.pinned && this.tip.firstElementChild; }
 
-    placeTip(html, pt) {
-      this.tip.innerHTML = html;
+    placeTip(content, pt) {
+      if (content instanceof Node) { if (this.tip.firstChild !== content) this.tip.replaceChildren(content); }
+      else this.tip.innerHTML = content;
       this.tip.hidden = false;
       // beside the point: to its right, else its left, else below or above
       // it, so the box never covers the point (a pinned box takes the clicks)

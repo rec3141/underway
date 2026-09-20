@@ -65,6 +65,7 @@
       .filter((p) => !picked.size || picked.has(p.index));
   };
 
+  UW.onWaypointsChanged = () => { if (!$("#pane-stations").hidden) renderStations(); };
   UW.selectedCastKeys = () => new Set(selectionIds().map(parentId));
   // a station click on the map toggles its cast and opens the Casts tab; a
   // quiet call (the stations table) only makes sure it is selected
@@ -1644,6 +1645,9 @@
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
     let all = (UW.M.stations || []).filter((s) => f.legs.has(s.leg)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    // the waypoints people have kept: a position and a name, no leg, so never filtered out
+    all = all.concat((UW.waypoints?.() || []).map((w) => ({ station: w.name, kind: "waypoint", waypoint: w.id, legLabel: "",
+      lat: w.lat, lon: w.lon, time: null, leg: null, comments: [w.by, w.note].filter(Boolean).join(" · ") })));
     // the planned stations (the cruise plan KMZ): no time or leg, so never filtered out
     for (const pl of UW.plansShown?.() || []) all = all.concat(pl.stations.map((st) => ({ station: st.name, kind: `kmz ${pl.imported}`, legLabel: st.group, type: st.type || "", bottom_m: st.depth_m ?? null, activities: st.ops || "", label: st.region || "", comments: st.desc || "", lat: st.lat, lon: st.lon, time: null, leg: null })));
     if (q) all = all.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
@@ -1662,7 +1666,9 @@
     const cell = (r, k) => k === "leg" ? esc(r.legLabel) : k === "time" ? esc(fmtTs(UW.tms(r.time))) :
       k === "lat" || k === "lon" ? (r[k] != null ? (+r[k]).toFixed(4) : "") : k === "bottom_m" || k === "depth_m" ? (r[k] != null ? Math.round(+r[k]) : "") : esc(r[k] ?? "");
     const stationKey = (r) => `${r.leg}:CTD_${String(r.cast).padStart(3, "0")}`;
-    const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(stationKey(r)) ? "sel" : ""} ${r.cast ? "" : "evst"}"><td class="sel">${r.cast && casts.sel.has(stationKey(r)) ? "✓" : ""}</td>${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
+    const body = rows.map((r) => `<tr class="${r.cast && casts.sel.has(stationKey(r)) ? "sel" : ""} ${r.cast ? "" : "evst"}"><td class="sel">${r.waypoint
+      ? `<button class="tog" data-delete-waypoint="${esc(r.waypoint)}" title="${esc(t("underway.waypointRemove"))}" aria-label="${esc(t("underway.waypointRemove"))}">×</button>`
+      : r.cast && casts.sel.has(stationKey(r)) ? "✓" : ""}</td>${STATION_COLS.map(([k]) => `<td class="${["time", "lat", "lon", "bottom_m", "depth_m", "cast"].includes(k) ? "mono" : ""}">${cell(r, k)}</td>`).join("")}</tr>`).join("");
     $("#stationtable").innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + stn.hidden, UW.currentFilter(), "tr", STATION_COLS.length + 1)}${body}</tbody>`;
     const selectable = rows.filter((r) => r.cast).map(stationKey);
     const all = $("#stationtable thead input[data-select-all]");
@@ -1674,6 +1680,12 @@
       catch { UW.setLoadError("Casts", true); renderStations(); return; }
       selectCastRows(selectable.filter((id) => castById(id)), checked);
       renderStations();
+    };
+    for (const b of $("#stationtable").querySelectorAll("[data-delete-waypoint]")) b.onclick = async (e) => {
+      e.stopPropagation();
+      const row = rows.find((r) => r.waypoint === b.dataset.deleteWaypoint);
+      if (!confirm(t("underway.waypointRemoveAsk", { name: row?.station || "" }))) return;
+      if (await UW.deleteWaypoint(b.dataset.deleteWaypoint)) renderStations();
     };
     const nsel0 = new Set([...casts.sel].map(parentId)).size;
     $("#stnclear").textContent = nsel0 ? t("underway.clearSelectionCount", {count:nsel0}) : t("underway.clearSelection");

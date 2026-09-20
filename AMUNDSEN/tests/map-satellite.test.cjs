@@ -14,7 +14,7 @@ function setup(limit=4096) {
       decoded.push(image);return image;
     },
     maplibregl:{addProtocol:(name,loader)=>protocols.set(name,loader),Map:class {
-      constructor(options){this.options=options;this.touchZoomRotate={disableRotation(){}};this.keyboard={};}
+      constructor(options){this.options=options;this.touchZoomRotate={disableRotation(){}};this.keyboard={};this.doubleClickZoom={disable(){}};}
       getCanvas(){return canvas;}
       on(){}
       setStyle(style){this.options.style=style;}
