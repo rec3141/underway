@@ -675,7 +675,7 @@
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
     const relief = !!bathyNow();
     const detailStamp = details.map((im) => im.url).join('|');
-    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${detailStamp}|names:${state.names ? 1 : 0}`,
+    const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${bathyNow()?.key || ""}|${sat?.url || ""}|${detailStamp}|names:${state.names ? 1 : 0}`,
                     // a globe, not Web Mercator: at the ship's latitudes Mercator stretches the map four to eight
                     // times, and on the globe distances and areas read true. The tiles are the same Web Mercator
                     // tiles drawn on the sphere, so nothing exists above 85 N, where that tiling ends.
@@ -694,7 +694,8 @@
         const id = i ? `gebco${i}` : "gebco";
         style.sources[id] = { type: "raster", tiles: [base0 + bathyNow().url], tileSize: 256, minzoom: s.minzoom, maxzoom: s.maxzoom,
                               ...(s.bounds ? { bounds: s.bounds } : {}), attribution: bathyNow().attribution };
-        style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
+        style.layers.push({ id, type: "raster", source: id,
+          paint: { "raster-opacity": 1, "raster-resampling": bathyNow().survey ? "nearest" : "linear" } });
       });
     }
     const g = state.geoSources || {};
