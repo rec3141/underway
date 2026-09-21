@@ -1,22 +1,32 @@
 """What lies between the ship and a point on the map: the distance by air (a
-great circle) and by sea (the shortest walk over water on a coarse lon/lat
-grid), and GEBCO's elevation at the point.
+great circle) and by sea, the route drawn on the map, and the seabed at the
+point.
 
-The grid is the file ``tools/make_sea_mask.sh`` builds from GEBCO (per cell:
-whether it holds water, and the elevation there) at ``UNDERWAY_SEA_MASK``
-(default sea-mask.npz beside the tile pyramid). Without the file neither the
-sea distance nor the elevation is available. A grid built before elevations
-were stored still routes; it just has no depth to give.
+The grid is what ``tools/make_sea_grid.sh`` builds from GEBCO: a polar
+stereographic plane (EPSG:3413, the Arctic standard) carrying, per 250 m cell,
+whether it holds water and the elevation there. Both arrays are memory-mapped,
+so a route touches only the window it walks. Without the grid there is no sea
+distance and no depth.
 
-A route is Dijkstra over the cells of a window round the two points, on 16
-moves (the 8 neighbours and the 8 knight's moves, so a route bends in 22.5
-degree steps rather than 45). Long routes walk a pooled grid, so the window
-never holds more than ``MAX_CELLS`` cells: a pooled cell is water when any
-cell in it is, which keeps straits open at the price of skipping an islet.
+The route is the fast-marching solution of the eikonal equation: arrival time
+spreads from the ship through the water at a speed this module sets, and the
+route to any point is the steepest way back down that field. Unlike a walk
+from cell to cell it is not confined to a lattice of headings, so open water
+comes out straight rather than as a staircase of 22.5 degree legs.
+
+Two things set the speed. The projection is conformal, so a metre on the plane
+is a metre on the ground divided by the scale at that point; the speed carries
+that factor, which makes arrival time a true ground distance. Water shallower
+than ``SHALLOW_M`` is then slowed, which holds a route off the coast. That is a
+survey margin, not a keel margin: a ship of this draft clears far less water
+than 100 m, but only a small share of this coast is surveyed to modern
+standards, and the shallows are where the chart is least trustworthy.
+
 The answer is an estimate for planning, not a track to steer.
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import threading
@@ -25,22 +35,66 @@ from pathlib import Path
 
 import numpy as np
 
-MASK_PATH = Path(os.environ.get("UNDERWAY_SEA_MASK",
-                                os.path.join(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles"), "sea-mask.npz")))
+GRID_DIR = Path(os.environ.get("UNDERWAY_SEA_GRID",
+                               os.path.join(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles"), "sea-grid")))
 R_KM = 6371.0088
-MAX_CELLS = 200_000          # a window's cells after pooling: keeps a route under a second
-MARGIN_DEG = 1.5             # the window reaches at least this far beyond the endpoints
-MARGIN_FRAC = 0.4            # and at least this fraction of their span
-SNAP_CELLS = 8               # a point on land moves to the nearest water within this many cells
-# the moves: the 8 neighbours and the 8 knight's moves, each pair once
-# (Dijkstra walks them both ways), with the cells a move passes between: a
-# diagonal needs one of its two flanking cells open (no squeezing between two
-# land corners), a knight's move needs both cells under its line open (no
-# hopping a one-cell shore)
-MOVES = [((0, 1), []), ((1, 0), []),
-         ((1, 1), [(0, 1), (1, 0)]), ((1, -1), [(0, -1), (1, 0)]),
-         ((1, 2), [(0, 1), (1, 1)]), ((1, -2), [(0, -1), (1, -1)]),
-         ((2, 1), [(1, 0), (1, 1)]), ((2, -1), [(1, 0), (1, -1)])]
+SHALLOW_M = 100.0            # water shallower than this is held against a route
+SHALLOW_SPEED = 0.3          # how much of open-water speed is left at the shore
+MARGIN_CELLS = 400           # the window reaches at least this far beyond the two points
+MARGIN_FRAC = 0.45           # and at least this fraction of their separation
+SNAP_CELLS = 40              # a point on land moves to the nearest water within this many cells
+MAX_CELLS = 60_000_000       # a window bigger than this is refused rather than made to wait
+
+# ---------------------------------------------------------------- the plane
+# WGS84 polar stereographic, true scale at 70 N, central meridian 45 W
+# (EPSG:3413; Snyder 21-33 and 21-34), matching the grid the tool builds.
+A, F = 6378137.0, 1 / 298.257223563
+E = math.sqrt(2 * F - F * F)
+LAT_TS, LON0 = math.radians(70.0), math.radians(-45.0)
+
+
+def _t(phi):
+    s = math.sin(phi)
+    return math.tan(math.pi / 4 - phi / 2) / ((1 - E * s) / (1 + E * s)) ** (E / 2)
+
+
+def _m(phi):
+    s = math.sin(phi)
+    return math.cos(phi) / math.sqrt(1 - (E * s) ** 2)
+
+
+SCALE = A * _m(LAT_TS) / _t(LAT_TS)
+
+
+def forward(lat, lon):
+    """Longitude and latitude to metres on the plane."""
+    phi, lam = math.radians(lat), math.radians(lon) - LON0
+    rho = SCALE * _t(phi)
+    return rho * math.sin(lam), -rho * math.cos(lam)
+
+
+def inverse(x, y):
+    """Metres on the plane back to latitude and longitude."""
+    t = math.hypot(x, y) / SCALE
+    phi = math.pi / 2 - 2 * math.atan(t)
+    for _ in range(8):
+        s = math.sin(phi)
+        phi = math.pi / 2 - 2 * math.atan(t * ((1 - E * s) / (1 + E * s)) ** (E / 2))
+    return math.degrees(phi), math.degrees(LON0 + math.atan2(x, -y))
+
+
+# the scale of the plane depends only on how far a point is from the pole, so
+# one table over that distance serves every cell of a window
+_RHO = np.linspace(0.0, 9e6, 4001)
+_K = np.empty_like(_RHO)
+for _i, _r in enumerate(_RHO):
+    _t_r = _r / SCALE
+    _phi = math.pi / 2 - 2 * math.atan(_t_r)
+    for _ in range(8):
+        _s = math.sin(_phi)
+        _phi = math.pi / 2 - 2 * math.atan(_t_r * ((1 - E * _s) / (1 + E * _s)) ** (E / 2))
+    _K[_i] = _r / (A * _m(_phi)) if _r else _m(LAT_TS) / _t(LAT_TS) * 0 + SCALE / A * _t(math.pi / 2 - 1e-9) / 1e-9 * 0 + 1.0
+_K[0] = _K[1]                                    # at the pole itself the ratio is a limit, not a quotient
 
 
 def air_km(lat1, lon1, lat2, lon2):
@@ -51,114 +105,62 @@ def air_km(lat1, lon1, lat2, lon2):
     return 2 * R_KM * math.asin(min(1.0, math.sqrt(a)))
 
 
-class Mask:
-    """A lon/lat grid of water cells: row 0 at ``lat0`` (the south edge), column 0 at ``lon0``."""
+class Grid:
+    """The water and elevation arrays on the plane, memory-mapped."""
 
-    def __init__(self, water, lon0, lat0, dlon, dlat, elev=None):
-        self.water = np.asarray(water, dtype=bool)
-        self.elev = None if elev is None else np.asarray(elev)
-        self.lon0, self.lat0, self.dlon, self.dlat = float(lon0), float(lat0), float(dlon), float(dlat)
-        self.nrow, self.ncol = self.water.shape
-
-    @classmethod
-    def load(cls, path: Path):
-        with np.load(path) as z:
-            nrow, ncol = (int(v) for v in z["shape"])
-            water = np.unpackbits(z["water"], axis=1, count=ncol)[:nrow]
-            return cls(water, z["lon0"], z["lat0"], z["dlon"], z["dlat"], z["elev"] if "elev" in z.files else None)
+    def __init__(self, directory: Path):
+        head = json.loads((directory / "grid.json").read_text())
+        self.x0, self.y0, self.metres = head["x0"], head["y0"], head["metres"]
+        self.rows, self.cols = head["rows"], head["cols"]
+        self.source = head.get("source", "")
+        self.elev = np.load(directory / "elevation.npy", mmap_mode="r")
+        self.packed = np.load(directory / "water.npy", mmap_mode="r")
 
     def cell(self, lat, lon):
-        """The (row, column) holding a point, or None outside the grid."""
-        i = int(math.floor((lat - self.lat0) / self.dlat))
-        j = int(math.floor((lon - self.lon0) / self.dlon))
-        return (i, j) if 0 <= i < self.nrow and 0 <= j < self.ncol else None
+        """The (row, column) holding a point, or None off the grid."""
+        x, y = forward(lat, lon)
+        j = int((x - self.x0) / self.metres)
+        i = int((self.y0 - y) / self.metres)
+        return (i, j) if 0 <= i < self.rows and 0 <= j < self.cols else None
+
+    def lonlat(self, i, j):
+        """The latitude and longitude at the middle of a cell, row and column being floats."""
+        return inverse(self.x0 + (j + 0.5) * self.metres, self.y0 - (i + 0.5) * self.metres)
+
+    def water(self, i0, i1, j0, j1):
+        """The water flags of a window, unpacked."""
+        return np.unpackbits(np.asarray(self.packed[i0:i1]), axis=1, count=self.cols)[:, j0:j1].astype(bool)
 
     def elevation(self, lat, lon):
-        """GEBCO's elevation in metres at a point (negative below sea level), or None."""
-        if self.elev is None:
-            return None
+        """GEBCO's elevation in metres at a point (negative below sea level), or None off the grid."""
         cell = self.cell(lat, lon)
         return None if cell is None else int(self.elev[cell])
 
+    def scale(self, i0, i1, j0, j1):
+        """The plane's scale over a window: a metre here is this many metres on the plane."""
+        x = self.x0 + (np.arange(j0, j1) + 0.5) * self.metres
+        y = self.y0 - (np.arange(i0, i1) + 0.5) * self.metres
+        return np.interp(np.hypot(x[None, :], y[:, None]), _RHO, _K)
 
-_mask: Mask | None = None
-_mask_key = None
+
+_grid: Grid | None = None
+_grid_key = None
 _lock = threading.Lock()
 
 
-def mask() -> Mask | None:
-    """The mask on disk, loaded once and again when the file changes; None without one."""
-    global _mask, _mask_key
+def grid() -> Grid | None:
+    """The grid on disk, loaded once and again when it changes; None without one."""
+    global _grid, _grid_key
     try:
-        key = (MASK_PATH, MASK_PATH.stat().st_mtime_ns)
+        key = (GRID_DIR, (GRID_DIR / "grid.json").stat().st_mtime_ns)
     except OSError:
         return None
     with _lock:
-        if _mask_key != key:
-            _mask = Mask.load(MASK_PATH)
-            _mask_key = key
+        if _grid_key != key:
+            _grid = Grid(GRID_DIR)
+            _grid_key = key
             _route_cached.cache_clear()
-        return _mask
-
-
-def _snap(water, i, j):
-    """(i, j) itself when it is water, else the nearest water cell within SNAP_CELLS; None when none."""
-    if water[i, j]:
-        return i, j
-    best = None
-    for r in range(1, SNAP_CELLS + 1):
-        i0, i1 = max(0, i - r), min(water.shape[0], i + r + 1)
-        j0, j1 = max(0, j - r), min(water.shape[1], j + r + 1)
-        ii, jj = np.nonzero(water[i0:i1, j0:j1])
-        if ii.size:
-            d = (ii + i0 - i) ** 2 + (jj + j0 - j) ** 2
-            n = int(np.argmin(d))
-            best = (int(ii[n] + i0), int(jj[n] + j0))
-            break
-    return best
-
-
-def _pool(water, k):
-    """Any-water pooling by k: the grid shrinks by k in each direction (edges padded with land)."""
-    if k == 1:
-        return water
-    h, w = water.shape
-    H, W = -(-h // k), -(-w // k)
-    padded = np.zeros((H * k, W * k), dtype=bool)
-    padded[:h, :w] = water
-    return padded.reshape(H, k, W, k).any(axis=(1, 3))
-
-
-def _graph(water, lat_of_row, dlat_km, dlon_km_at):
-    """Edges between water cells over MOVES as a sparse matrix of kilometres."""
-    from scipy.sparse import coo_matrix
-    H, W = water.shape
-    rows, cols, wts = [], [], []
-    cos = np.cos(np.radians(lat_of_row))
-    for (di, dj), between in MOVES:
-        i_lo, i_hi = max(0, -di), H - max(0, di)
-        j_lo, j_hi = max(0, -dj), W - max(0, dj)
-        if i_lo >= i_hi or j_lo >= j_hi:
-            continue
-        shifted = lambda a, b: water[i_lo + a:i_hi + a, j_lo + b:j_hi + b]  # noqa: E731
-        here = shifted(0, 0) & shifted(di, dj)
-        if between:
-            passes = [shifted(a, b) for a, b in between]
-            here &= (passes[0] & passes[1]) if abs(di) + abs(dj) == 3 else (passes[0] | passes[1])
-        ii, jj = np.nonzero(here)
-        if not ii.size:
-            continue
-        ii = ii + i_lo
-        jj = jj + j_lo
-        mean_cos = (cos[ii] + cos[ii + di]) / 2
-        w = np.hypot(di * dlat_km, dj * dlon_km_at * mean_cos)
-        rows.append(ii * W + jj)
-        cols.append((ii + di) * W + (jj + dj))
-        wts.append(w)
-    n = H * W
-    if not rows:
-        return coo_matrix((n, n)).tocsr()
-    return coo_matrix((np.concatenate(wts), (np.concatenate(rows), np.concatenate(cols))), shape=(n, n)).tocsr()
+        return _grid
 
 
 def _check(*values):
@@ -170,11 +172,11 @@ def _check(*values):
             raise ValueError("Coordinates out of range")
 
 
-def place(lat2, lon2) -> dict:
+def place(lat, lon) -> dict:
     """What is known about a point on its own: the elevation of the ground there."""
-    _check(lat2, lon2)
-    m = mask()
-    return {"elev_m": None if m is None else m.elevation(lat2, lon2)}
+    _check(lat, lon)
+    g = grid()
+    return {"elev_m": None if g is None else g.elevation(lat, lon)}
 
 
 def route(lat1, lon1, lat2, lon2) -> dict:
@@ -184,11 +186,11 @@ def route(lat1, lon1, lat2, lon2) -> dict:
     """
     _check(lat1, lon1, lat2, lon2)
     out = {"air_km": round(air_km(lat1, lon1, lat2, lon2), 2), "sea_km": None, "path": None, "reason": None, "elev_m": None}
-    m = mask()
-    if m is None:
-        out["reason"] = "no sea mask on this server"
+    g = grid()
+    if g is None:
+        out["reason"] = "no sea grid on this server"
         return out
-    out["elev_m"] = m.elevation(lat2, lon2)
+    out["elev_m"] = g.elevation(lat2, lon2)
     sea = _route_cached(round(lat1, 3), round(lon1, 3), round(lat2, 3), round(lon2, 3))
     if isinstance(sea, str):
         out["reason"] = sea
@@ -197,74 +199,113 @@ def route(lat1, lon1, lat2, lon2) -> dict:
     return out
 
 
-@lru_cache(maxsize=512)
+def _snap(water, i, j):
+    """(i, j) itself when it is water, else the nearest water cell within SNAP_CELLS; None when none."""
+    if water[i, j]:
+        return i, j
+    for r in range(4, SNAP_CELLS + 1, 4):
+        i0, i1 = max(0, i - r), min(water.shape[0], i + r + 1)
+        j0, j1 = max(0, j - r), min(water.shape[1], j + r + 1)
+        ii, jj = np.nonzero(water[i0:i1, j0:j1])
+        if ii.size:
+            d = (ii + i0 - i) ** 2 + (jj + j0 - j) ** 2
+            n = int(np.argmin(d))
+            return int(ii[n] + i0), int(jj[n] + j0)
+    return None
+
+
+def _clear(water, a, b):
+    """Whether the straight segment between two cell centres stays on water."""
+    (y0, x0), (y1, x1) = a, b
+    steps = int(max(abs(y1 - y0), abs(x1 - x0)) * 2) + 1
+    ys = np.linspace(y0, y1, steps)
+    xs = np.linspace(x0, x1, steps)
+    return bool(water[np.clip(ys.astype(int), 0, water.shape[0] - 1), np.clip(xs.astype(int), 0, water.shape[1] - 1)].all())
+
+
+def _pull(water, points):
+    """The polyline with every point a straight run of water can skip taken out."""
+    out = [points[0]]
+    i = 0
+    while i < len(points) - 1:
+        j = len(points) - 1
+        while j > i + 1 and not _clear(water, points[i], points[j]):
+            j -= 1
+        out.append(points[j])
+        i = j
+    return out
+
+
+@lru_cache(maxsize=256)
 def _route_cached(lat1, lon1, lat2, lon2):
-    m = mask()
-    a, b = m.cell(lat1, lon1), m.cell(lat2, lon2)
+    g = grid()
+    a, b = g.cell(lat1, lon1), g.cell(lat2, lon2)
     if a is None or b is None:
         return "outside the charted area"
-    if a == b:
-        return round(air_km(lat1, lon1, lat2, lon2), 2), [[lat1, lon1], [lat2, lon2]]
-    # first a window round the endpoints (a margin of the longer span on
-    # every side, so a route may swing well off the straight line), then,
-    # when that holds no route, the whole grid, pooled coarser
-    span = max(abs(a[0] - b[0]) * m.dlat, abs(a[1] - b[1]) * m.dlon)      # degrees
-    mi = max(MARGIN_DEG, MARGIN_FRAC * span) / m.dlat
-    mj = max(MARGIN_DEG, MARGIN_FRAC * span) / m.dlon
-    window = (max(0, int(min(a[0], b[0]) - mi)), min(m.nrow, int(max(a[0], b[0]) + mi) + 1),
-              max(0, int(min(a[1], b[1]) - mj)), min(m.ncol, int(max(a[1], b[1]) + mj) + 1))
-    found = _walk(m, (lat1, lon1), (lat2, lon2), a, b, window)
-    if found == NO_ROUTE and window != (0, m.nrow, 0, m.ncol):
-        found = _walk(m, (lat1, lon1), (lat2, lon2), a, b, (0, m.nrow, 0, m.ncol))
-    return found
-
-
-NO_ROUTE = "no sea route within the charted area"
-
-
-def _walk(m, p1, p2, a, b, window):
-    """The shortest water walk from cell a (holding p1) to cell b (holding p2) inside a window of the grid."""
-    (lat1, lon1), (lat2, lon2) = p1, p2
-    i0, i1, j0, j1 = window
-    k = max(1, math.ceil(math.sqrt((i1 - i0) * (j1 - j0) / MAX_CELLS)))
-    water = _pool(m.water[i0:i1, j0:j1], k)
-    src = _snap(water, (a[0] - i0) // k, (a[1] - j0) // k)
-    dst = _snap(water, (b[0] - i0) // k, (b[1] - j0) // k)
+    try:
+        import skfmm
+    except ImportError:
+        return "no router on this server"
+    span = max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+    pad = int(max(MARGIN_CELLS, MARGIN_FRAC * span))
+    i0, i1 = max(0, min(a[0], b[0]) - pad), min(g.rows, max(a[0], b[0]) + pad + 1)
+    j0, j1 = max(0, min(a[1], b[1]) - pad), min(g.cols, max(a[1], b[1]) + pad + 1)
+    if (i1 - i0) * (j1 - j0) > MAX_CELLS:
+        return "too far for this server to work out"
+    water = g.water(i0, i1, j0, j1)
+    src = _snap(water, a[0] - i0, a[1] - j0)
+    dst = _snap(water, b[0] - i0, b[1] - j0)
     if src is None:
         return "the ship's position is not on charted water"
     if dst is None:
         return "the point is on land"
-    H, W = water.shape
-    # a pooled cell's middle, in the full grid the window was cut from
-    centre = lambda i, j: (m.lat0 + (i0 + (i + 0.5) * k) * m.dlat, m.lon0 + (j0 + (j + 0.5) * k) * m.dlon)  # noqa: E731
-    lat_of_row = m.lat0 + (i0 + (np.arange(H) + 0.5) * k) * m.dlat
-    dlat_km = m.dlat * k * math.pi / 180 * R_KM
-    dlon_km = m.dlon * k * math.pi / 180 * R_KM
-    graph = _graph(water, lat_of_row, dlat_km, dlon_km)
-    from scipy.sparse.csgraph import dijkstra
-    s, t = src[0] * W + src[1], dst[0] * W + dst[1]
-    dist, pred = dijkstra(graph, directed=False, indices=s, return_predecessors=True,
-                          limit=4 * air_km(lat1, lon1, lat2, lon2) + 400)
-    if not math.isfinite(dist[t]):
-        return NO_ROUTE
-    # the cells walked, back from the goal, kept where the heading changes
-    cells = []
-    n = t
-    while n >= 0 and n != s:
-        cells.append(n)
-        n = pred[n]
-    cells.append(s)
-    cells.reverse()
-    pts = [[lat1, lon1]]
-    prev_step = None
-    for q in range(1, len(cells)):
-        step = (cells[q] // W - cells[q - 1] // W, cells[q] % W - cells[q - 1] % W)
-        if step != prev_step and q > 1:
-            lat, lon = centre(*divmod(cells[q - 1], W))
-            pts.append([round(lat, 4), round(lon, 4)])
-        prev_step = step
-    pts.append([lat2, lon2])
-    # the graph's length, plus the walks from the points to their cells' centres
-    c1, c2 = centre(*src), centre(*dst)
-    total = float(dist[t]) + air_km(lat1, lon1, *c1) + air_km(lat2, lon2, *c2)
-    return round(total, 2), pts
+
+    # the speed: the plane's own scale, slowed where the water is shallow
+    depth = -np.asarray(g.elev[i0:i1, j0:j1], dtype=np.float32)
+    shallow = np.clip(depth / SHALLOW_M, 0.0, 1.0)
+    speed = g.scale(i0, i1, j0, j1).astype(np.float32) * (SHALLOW_SPEED + (1.0 - SHALLOW_SPEED) * shallow)
+    phi = np.ones(water.shape, dtype=np.float64)
+    phi[src] = -1.0
+    time = skfmm.travel_time(np.ma.MaskedArray(phi, ~water), np.ma.MaskedArray(speed, ~water),
+                             dx=g.metres / 1000.0, order=2)
+    field = np.asarray(np.ma.filled(time, np.inf), dtype=np.float64)   # an all-water window comes back unmasked
+    if not math.isfinite(field[dst]):
+        return "no sea route within the charted area"
+
+    cells = _descend(field, water, dst, src)
+    pulled = _pull(water, cells)
+    points = [g.lonlat(i0 + i, j0 + j) for i, j in pulled][::-1]
+    points[0] = (lat1, lon1) if water[src] and _clear(water, (a[0] - i0, a[1] - j0), src) else points[0]
+    points[-1] = (lat2, lon2) if _clear(water, (b[0] - i0, b[1] - j0), dst) else points[-1]
+    km = sum(air_km(*points[k], *points[k + 1]) for k in range(len(points) - 1))
+    return round(km, 2), [[round(la, 4), round(lo, 4)] for la, lo in points]
+
+
+def _descend(field, water, start, goal):
+    """The cells from the goal back down the arrival time to its source."""
+    rows, cols = field.shape
+    path = [start]
+    i, j = start
+    seen = set()
+    for _ in range(4 * (rows + cols)):
+        if (i, j) == goal:
+            break
+        best, value = None, field[i, j]
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                ii, jj = i + di, j + dj
+                if 0 <= ii < rows and 0 <= jj < cols and water[ii, jj] and field[ii, jj] < value and (ii, jj) not in seen:
+                    best, value = (ii, jj), field[ii, jj]
+        if best is None:
+            break
+        seen.add(best)
+        i, j = best
+        path.append(best)
+    if path[-1] != goal:
+        path.append(goal)
+    return path
+
+
+if __name__ == "__main__":
+    import sys
+    print(json.dumps(route(*(float(v) for v in sys.argv[1:5])), indent=1))

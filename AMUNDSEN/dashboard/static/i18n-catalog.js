@@ -415,8 +415,10 @@ window.UW_UI_CATALOG = {
         "pages.3f1a2c73953d1a3a": "New selection",
         "pages.3f54bcf820c1238b": "offline: no model loaded, and the chat never loads one itself. ",
         "pages.3f996df8de74b85b": "{v0}AI crew{v1}, answer when mentioned:",
+        "pages.3fb7cd1ba02a951e": "no router on this server",
         "pages.4043b0d02cbdf281": "Seasave at {v0}: {v1}",
         "pages.40458bfe83b031b7": "Show {count} finished",
+        "pages.40917cbc9170b0d6": "too far for this server to work out",
         "pages.4099a2c228b17acc": "Open access",
         "pages.41426fd2dfbef5bd": "ship time ({v0})",
         "pages.41970d6661b348dd": "map ↗",
@@ -778,6 +780,7 @@ window.UW_UI_CATALOG = {
         "pages.bb1de97207977776": "Photograph",
         "pages.bb7bdd421882faae": "open cast {cast} on the Casts tab",
         "pages.bb7e51c6d02be309": "was here",
+        "pages.bd8bb7e32dbd636b": "no sea grid on this server",
         "pages.bdd51a4f2a7836d9": "{names}: looking it up…",
         "pages.be4bd4d451cbc7c6": "Show {count} formerly scheduled",
         "pages.be7e2f20129365c2": "Images",
@@ -1655,8 +1658,10 @@ window.UW_UI_CATALOG = {
         "pages.3f1a2c73953d1a3a": "Nouvelle sélection",
         "pages.3f54bcf820c1238b": "hors ligne : aucun modèle chargé; le clavardage n’en charge jamais lui-même. ",
         "pages.3f996df8de74b85b": "{v0}Équipage IA{v1}, répond aux mentions :",
+        "pages.3fb7cd1ba02a951e": "aucun calculateur de route sur ce serveur",
         "pages.4043b0d02cbdf281": "Seasave à {v0} : {v1}",
         "pages.40458bfe83b031b7": "Afficher les opérations terminées ({count})",
+        "pages.40917cbc9170b0d6": "trop loin pour être calculé par ce serveur",
         "pages.4099a2c228b17acc": "Accès libre",
         "pages.41426fd2dfbef5bd": "heure du navire ({v0})",
         "pages.41970d6661b348dd": "carte ↗",
@@ -2018,6 +2023,7 @@ window.UW_UI_CATALOG = {
         "pages.bb1de97207977776": "Photographie",
         "pages.bb7bdd421882faae": "ouvrir le profil {cast} dans l’onglet Profils",
         "pages.bb7e51c6d02be309": "était ici",
+        "pages.bd8bb7e32dbd636b": "aucune grille marine sur ce serveur",
         "pages.bdd51a4f2a7836d9": "{names} : recherche en cours…",
         "pages.be4bd4d451cbc7c6": "Afficher les opérations anciennement prévues ({count})",
         "pages.be7e2f20129365c2": "Images",
@@ -4125,6 +4131,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b2eadd680af2f2179b593ae4d18c6f158de52838af7405286ae56154f86627a7"
         },
+        "pages.3fb7cd1ba02a951e": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "cf7fed95db15d76e3fbc7e17d0e5a831f387381f80d57f98d2a77c22b3601930"
+        },
         "pages.4043b0d02cbdf281": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "119afd72b0a34dde3a44c975d2d2152cdd4c87658b829dd6fce228eea1afc04f"
@@ -4132,6 +4142,10 @@ window.UW_UI_CATALOG = {
         "pages.40458bfe83b031b7": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d742b91fbca72e2038baadf3049d91c488164613138cfca30ae8572e7a1763ae"
+        },
+        "pages.40917cbc9170b0d6": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "56eaff0eb57b4bb614c18ce71445d7700740923ccd49cdda37af001a75e8b50a"
         },
         "pages.4099a2c228b17acc": {
           "profile": "editorial-fr-ca-v4",
@@ -5576,6 +5590,10 @@ window.UW_UI_CATALOG = {
         "pages.bb7e51c6d02be309": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cd58f4acd255ea1991985cab6073646b8e62f896ce389b96033d270a44d9d4a0"
+        },
+        "pages.bd8bb7e32dbd636b": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "369245e5e38f755228c76f0e2234aa4b148a9e80b0726ee9ab5a1b36795ccca6"
         },
         "pages.bdd51a4f2a7836d9": {
           "profile": "editorial-fr-ca-v4",

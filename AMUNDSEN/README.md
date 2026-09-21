@@ -445,25 +445,38 @@ A waypoint's name can be typed over. Saving it keeps it for everyone
 (`api/waypoints`, `db/waypoints.sqlite`): it joins the Stations tab beside the
 logged stations and draws on the map with them, and the row there removes it.
 
-The sea distance and the depth come from `dashboard/searoute.py`
+The sea route and the depth come from `dashboard/searoute.py`
 (`GET /api/searoute?to=lat,lon` for the ground alone, with `&from=lat,lon` as
 well for the distances and the route drawn on the map). Both read a grid built
-once from the same GEBCO release as the tiles, carrying per cell whether it
-holds water and what the elevation is:
+once from the GEBCO release the tiles are rendered from:
 
 ```sh
-tools/make_sea_mask.sh gebco_2024_sub_ice_topo_geotiff.zip \
-    "$UNDERWAY_TILES_DIR/sea-mask.npz"          # the western Arctic and Labrador Sea, ~3 min
+tools/make_sea_grid.sh gebco_2024_sub_ice_topo_geotiff.zip \
+    "$UNDERWAY_TILES_DIR/sea-grid"          # the western Arctic and Labrador Sea, ~4 min
 ```
 
-The server reads `UNDERWAY_SEA_MASK` (default `sea-mask.npz` under
-`UNDERWAY_TILES_DIR`) and picks a new file up without a restart; without one
-the box shows the air distance only, and a grid built before elevations were
-stored still routes. The default box is lon −150…−15, lat 45…86 at
-0.04° × 0.02° (about 1 × 2 km at 78° N, 10 MB); pass another box and cell size
-for another region. A route is an estimate for planning, not a track to steer,
-and the depth is GEBCO's at that cell, not a sounding. Needs GDAL (`gdal-bin`)
-and numpy.
+That writes `elevation.npy`, `water.npy` and `grid.json` on a polar
+stereographic plane (EPSG:3413) at 250 m: about 31,000 by 26,000 cells, 1.7 GB,
+memory-mapped so a route touches only the window it walks. A cell is water when
+the lowest GEBCO sample in it is below sea level, so a channel narrower than a
+cell — Bellot Strait is about one — stays open. The server reads
+`UNDERWAY_SEA_GRID` (default `sea-grid` under `UNDERWAY_TILES_DIR`) and picks a
+new build up without a restart; without it the box shows the air distance only.
+
+The route is the fast-marching solution of the eikonal equation, which needs
+`scikit-fmm` (`pip install -e '.[routing]'`; it builds from source). Arrival
+time spreads from the ship through the water and the route is the way back down
+that field, so it is not confined to a lattice of headings: open water comes out
+as a straight line rather than a staircase of 22.5 degree legs, and a distance
+in open water lands within a few tens of metres of the great circle. Two things
+set the speed. The plane is conformal, so its scale varies with latitude and the
+speed carries that factor, which makes arrival time a true ground distance.
+Water shallower than 100 m is then slowed, which holds a route off the coast.
+That is a survey margin rather than a keel margin: this ship clears far less
+than 100 m, but only a small share of this coast is surveyed to modern
+standards, and GEBCO interpolates where no one has sounded. A route is an
+estimate for planning, not a track to steer, and the depth is GEBCO's at that
+cell, not a sounding.
 
 ## A finer coastline (optional)
 

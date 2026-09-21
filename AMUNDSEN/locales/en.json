@@ -4895,6 +4895,18 @@
     "pages.3e2af2a41f645ab1": {
       "text": "marked: {when}",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.bd8bb7e32dbd636b": {
+      "text": "no sea grid on this server",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3fb7cd1ba02a951e": {
+      "text": "no router on this server",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.40917cbc9170b0d6": {
+      "text": "too far for this server to work out",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }
 }
