@@ -29,6 +29,8 @@ gcal = ["requests>=2.31", "PyJWT[crypto]>=2.8"]
 cameras = ["Pillow>=10"]
 ice-charts = ["pyshp>=2.3", "pyproj>=3.6"]
 sampling = ["scikit-learn>=1.5", "umap-learn>=0.5.7,<0.6", "threadpoolctl>=3", "requests>=2.31"]
+# the sea route's eikonal solver; it builds from source, so it needs a compiler
+routing = ["scikit-fmm>=2025.6"]
 
 [project.scripts]
 underway = "dashboard.cli:main"

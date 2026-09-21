@@ -127,6 +127,21 @@
       "source": "marked: {when}",
       "text": "marqué : {when}",
       "status": "draft"
+    },
+    "pages.bd8bb7e32dbd636b": {
+      "source": "no sea grid on this server",
+      "text": "aucune grille marine sur ce serveur",
+      "status": "draft"
+    },
+    "pages.3fb7cd1ba02a951e": {
+      "source": "no router on this server",
+      "text": "aucun calculateur de route sur ce serveur",
+      "status": "draft"
+    },
+    "pages.40917cbc9170b0d6": {
+      "source": "too far for this server to work out",
+      "text": "trop loin pour être calculé par ce serveur",
+      "status": "draft"
     }
   }
 }
