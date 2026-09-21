@@ -471,12 +471,18 @@ as a straight line rather than a staircase of 22.5 degree legs, and a distance
 in open water lands within a few tens of metres of the great circle. Two things
 set the speed. The plane is conformal, so its scale varies with latitude and the
 speed carries that factor, which makes arrival time a true ground distance.
-Water shallower than 100 m is then slowed, which holds a route off the coast.
-That is a survey margin rather than a keel margin: this ship clears far less
-than 100 m, but only a small share of this coast is surveyed to modern
-standards, and GEBCO interpolates where no one has sounded. A route is an
-estimate for planning, not a track to steer, and the depth is GEBCO's at that
-cell, not a sounding.
+Water shallower than 100 m is then slowed, and so is water within 5 km of land,
+which together hold a route off the coast: on a clear run it stands about 5 km
+off a headland for a few tens of metres of extra distance. Both are survey
+margins rather than keel margins. This ship clears far less than 100 m, but
+only a small share of this coast is surveyed to modern standards, and GEBCO
+interpolates where no one has sounded, so the shallows and the shore are where
+the chart is least trustworthy. A route is an estimate for planning, not a
+track to steer, and the depth is GEBCO's at that cell, not a sounding.
+
+The line drawn is the walk back down the arrival time, following its gradient,
+so it curves where the route curves. It is simplified only to within a fraction
+of a cell and never across land.
 
 ## A finer coastline (optional)
 
