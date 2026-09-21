@@ -1163,7 +1163,7 @@
     if (f.waypoint && f.at) line("wpwhen", ui("marked: {when}", { when: `${fmtTs(tms(f.at))} ${tzAbbr()}` }));
     if (ship?.lat != null) {
       line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
-      line("wpsea", seaText(f));
+      line("wpsea", seaText(f)).title = seaTitle(f);
     }
     const ground = line("wpground", groundLine(f.route?.elev_m));
     const dot = kindDot(f.route?.kind);
@@ -1198,9 +1198,15 @@
     };
     return box;
   }
+  // a point far enough off is routed over blocks of cells rather than cells,
+  // so the answer is about right rather than right: the line says which
   const seaText = (f) => !f.route ? ui("by sea: working it out…")
-    : f.route.sea_km != null ? ui("by sea: {distance}", { distance: kmLine(f.route.sea_km) })
-    : ui("by sea: {reason}", { reason: ui(f.route.reason || "no route") });
+    : f.route.sea_km == null ? ui("by sea: {reason}", { reason: ui(f.route.reason || "no route") })
+    : f.route.cell_km > 0.3 ? ui("by sea: about {distance}", { distance: kmLine(f.route.sea_km) })
+    : ui("by sea: {distance}", { distance: kmLine(f.route.sea_km) });
+  const seaTitle = (f) => f.route?.cell_km > 0.3
+    ? ui("a long way, so it was worked out over blocks of {size} km rather than cell by cell",
+         { size: f.route.cell_km }) : "";
 
   // what the box must not sit on: the route drawn to the mark, and the ship at its far end
   const tipClear = (f) => [...(f.route?.path || []), ...(lastShip?.lat != null ? [[lastShip.lat, lastShip.lon]] : [])];
@@ -1212,6 +1218,8 @@
     const put = (cls, text) => { const el = box.querySelector("." + cls); if (el) el.textContent = text; };
     if (ship?.lat != null) put("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
     put("wpsea", seaText(f));
+    const sea = box.querySelector(".wpsea");
+    if (sea) sea.title = seaTitle(f);
     put("wpground", groundLine(f.route?.elev_m));
     const ground = box.querySelector(".wpground"), dot = kindDot(f.route?.kind);
     if (ground && dot && ground.textContent) ground.append(" ", dot);

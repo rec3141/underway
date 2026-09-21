@@ -797,6 +797,7 @@ window.UW_UI_CATALOG = {
         "pages.bb1de97207977776": "Photograph",
         "pages.bb7bdd421882faae": "open cast {cast} on the Casts tab",
         "pages.bb7e51c6d02be309": "was here",
+        "pages.bcbedca084aa0d68": "by sea: about {distance}",
         "pages.bd8bb7e32dbd636b": "no sea grid on this server",
         "pages.bdd51a4f2a7836d9": "{names}: looking it up…",
         "pages.be4bd4d451cbc7c6": "Show {count} formerly scheduled",
@@ -928,6 +929,7 @@ window.UW_UI_CATALOG = {
         "pages.e72014bef788bed9": "Temperature 2 (°C)",
         "pages.e77b141e2388d56c": "holding",
         "pages.e81a63d211338c97": "you follow {v0} — click to stop",
+        "pages.e85d5cf64b40b7f8": "a long way, so it was worked out over blocks of {size} km rather than cell by cell",
         "pages.e93daa00ef5f0748": "Rock units",
         "pages.e9da50bc16479c66": "the topic's page",
         "pages.ea8001efadfe6198": "the Lab: ask Doc about the living things, the ice, the water and the sky",
@@ -2058,6 +2060,7 @@ window.UW_UI_CATALOG = {
         "pages.bb1de97207977776": "Photographie",
         "pages.bb7bdd421882faae": "ouvrir le profil {cast} dans l’onglet Profils",
         "pages.bb7e51c6d02be309": "était ici",
+        "pages.bcbedca084aa0d68": "par mer : environ {distance}",
         "pages.bd8bb7e32dbd636b": "aucune grille marine sur ce serveur",
         "pages.bdd51a4f2a7836d9": "{names} : recherche en cours…",
         "pages.be4bd4d451cbc7c6": "Afficher les opérations anciennement prévues ({count})",
@@ -2189,6 +2192,7 @@ window.UW_UI_CATALOG = {
         "pages.e72014bef788bed9": "Température 2 (°C)",
         "pages.e77b141e2388d56c": "stable",
         "pages.e81a63d211338c97": "vous suivez {v0} — cliquez pour arrêter",
+        "pages.e85d5cf64b40b7f8": "une longue distance : le calcul s'est fait par blocs de {size} km plutôt que cellule par cellule",
         "pages.e93daa00ef5f0748": "Unités géologiques",
         "pages.e9da50bc16479c66": "page du thème",
         "pages.ea8001efadfe6198": "le laboratoire : interrogez Doc sur le vivant, la glace, l’eau et le ciel",
@@ -5695,6 +5699,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cd58f4acd255ea1991985cab6073646b8e62f896ce389b96033d270a44d9d4a0"
         },
+        "pages.bcbedca084aa0d68": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "7622f4a3b536b1b8f9cfe410d1f470a7f9fb6f71bc489575e595df10aa3a3b67"
+        },
         "pages.bd8bb7e32dbd636b": {
           "profile": "editorial-fr-ca-v5",
           "sourceSha256": "369245e5e38f755228c76f0e2234aa4b148a9e80b0726ee9ab5a1b36795ccca6"
@@ -6218,6 +6226,10 @@ window.UW_UI_CATALOG = {
         "pages.e81a63d211338c97": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "f5bea1ace2d166599339cfa8c504432b311837bf957f06bc3a613b865626f49d"
+        },
+        "pages.e85d5cf64b40b7f8": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "cc212980fbd33625d518e91af84b5c4b28cd57f9de2ce3e06b7072259d72b98e"
         },
         "pages.e93daa00ef5f0748": {
           "profile": "editorial-fr-ca-v4",

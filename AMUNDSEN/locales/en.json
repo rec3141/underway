@@ -4979,6 +4979,14 @@
     "mapControls.bathyHint": {
       "text": "the seabed the map draws: the relief in one colour ramp or another, or the chart of where its depths came from",
       "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
+    },
+    "pages.bcbedca084aa0d68": {
+      "text": "by sea: about {distance}",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.e85d5cf64b40b7f8": {
+      "text": "a long way, so it was worked out over blocks of {size} km rather than cell by cell",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }
 }

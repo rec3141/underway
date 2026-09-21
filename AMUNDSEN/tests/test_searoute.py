@@ -169,6 +169,49 @@ class SeaRouteTests(unittest.TestCase):
         self.assertIsNone(far["sea_km"])
         self.assertEqual(far["reason"], "the point is on land")
 
+    def test_a_wide_window_is_solved_in_blocks(self):
+        water = np.ones((200, 200), dtype=bool)
+        water[60:, 96:104] = False                            # the same wall, thicker than a block
+        head = write_grid(self.dir, water, metres=1000.0)
+        a, b = self.at(head, 150, 60), self.at(head, 150, 140)
+        fine = searoute.route(*a, *b)
+        searoute._route_cached.cache_clear()
+        with patch.object(searoute, "MAX_CELLS", 4_000):      # forces blocks of four cells
+            coarse = searoute.route(*a, *b)
+        self.assertIsNone(coarse["reason"])
+        self.assertEqual(fine["cell_km"], 1.0)
+        self.assertEqual(coarse["cell_km"], 4.0)              # and it says how coarse it was
+        self.assertAlmostEqual(coarse["sea_km"], fine["sea_km"], delta=0.1 * fine["sea_km"])
+        self.assertGreater(coarse["sea_km"], 1.3 * coarse["air_km"])   # it still goes round
+
+    def test_a_leg_the_blocks_opened_is_solved_again(self):
+        water = np.ones((200, 200), dtype=bool)
+        water[140:, 100] = False                              # a wall one cell wide: a block dissolves it
+        head = write_grid(self.dir, water, metres=1000.0)
+        a, b = self.at(head, 150, 60), self.at(head, 150, 140)
+        fine = searoute.route(*a, *b)
+        searoute._route_cached.cache_clear()
+        with patch.object(searoute, "MAX_CELLS", 10_000), patch.object(searoute, "MARGIN_CELLS", 20):
+            coarse = searoute.route(*a, *b)
+        self.assertEqual(coarse["cell_km"], 2.0)
+        dry = [p for p in self.walked(head, coarse["path"], per_leg=60)
+               if not water[min(199, max(0, int(p[0]))), min(199, max(0, int(p[1])))]]
+        self.assertEqual(dry, [], "the coarse line crosses the wall the blocks dissolved")
+        self.assertGreater(coarse["sea_km"], coarse["air_km"])         # it goes round after all
+        self.assertAlmostEqual(coarse["sea_km"], fine["sea_km"], delta=0.15 * fine["sea_km"])
+
+    def test_coarsening_keeps_a_narrow_channel_open(self):
+        water = np.zeros((160, 160), dtype=bool)
+        water[:, :78] = water[:, 82:] = True                  # a bar with a channel one cell wide
+        water[80, 78:82] = True
+        head = write_grid(self.dir, water, metres=1000.0)
+        a, b = self.at(head, 80, 40), self.at(head, 80, 120)
+        with patch.object(searoute, "MAX_CELLS", 2_000):
+            r = searoute.route(*a, *b)
+        self.assertIsNone(r["reason"])
+        self.assertEqual(r["cell_km"], 4.0)
+        self.assertLess(r["sea_km"], 1.2 * r["air_km"])       # straight through the channel
+
     def test_no_route_and_off_the_grid(self):
         water = np.ones((120, 120), dtype=bool)
         water[:, 60] = False                                  # a wall right across
@@ -242,3 +285,23 @@ class SeaRouteEndpointTests(unittest.TestCase):
         self.assertIsNotNone(self.get("/api/searoute?to=80.0,-90.0")[1]["elev_m"])
         self.assertEqual(self.get("/api/searoute?from=71&to=72,-97")[0], 400)
         self.assertEqual(self.get("/api/searoute")[0], 400)
+
+
+class CoarseningTests(unittest.TestCase):
+    def test_blocks_reduce_a_window(self):
+        a = np.arange(30, dtype=np.float32).reshape(5, 6)
+        self.assertTrue(np.array_equal(searoute._blocks(a, 1, np.max), a))
+        self.assertTrue(np.array_equal(searoute._blocks(a, 2, np.min),
+                                       np.array([[0, 2, 4], [12, 14, 16], [24, 26, 28]], dtype=np.float32)))
+        # the odd last row is filled out by repeating it, not by inventing a value
+        self.assertTrue(np.array_equal(searoute._blocks(a, 2, np.max),
+                                       np.array([[7, 9, 11], [19, 21, 23], [25, 27, 29]], dtype=np.float32)))
+
+    def test_the_block_is_the_smallest_that_fits(self):
+        cap = searoute.MAX_CELLS
+        self.assertEqual(searoute._step(cap), 1)
+        self.assertEqual(searoute._step(cap + 1), 2)
+        self.assertEqual(searoute._step(4 * cap), 2)
+        self.assertEqual(searoute._step(4 * cap + 1), 3)
+        self.assertEqual(searoute._step(searoute.MAX_STEP ** 2 * cap), searoute.MAX_STEP)
+        self.assertIsNone(searoute._step(searoute.MAX_STEP ** 2 * cap + 1))

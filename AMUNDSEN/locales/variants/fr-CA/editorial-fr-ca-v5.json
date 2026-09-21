@@ -232,6 +232,16 @@
       "source": "the seabed the map draws: the relief in one colour ramp or another, or the chart of where its depths came from",
       "text": "le fond marin dessiné par la carte : le relief dans une palette ou une autre, ou la carte de l’origine des profondeurs",
       "status": "draft"
+    },
+    "pages.bcbedca084aa0d68": {
+      "source": "by sea: about {distance}",
+      "text": "par mer : environ {distance}",
+      "status": "draft"
+    },
+    "pages.e85d5cf64b40b7f8": {
+      "source": "a long way, so it was worked out over blocks of {size} km rather than cell by cell",
+      "text": "une longue distance : le calcul s'est fait par blocs de {size} km plutôt que cellule par cellule",
+      "status": "draft"
     }
   }
 }

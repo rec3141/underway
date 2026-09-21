@@ -23,6 +23,12 @@ of this draft clears far less water than 100 m, but only a small share of this
 coast is surveyed to modern standards, and it is the shallows and the shore
 that the chart knows least about.
 
+A window too wide to solve cell by cell is solved in blocks instead, so a
+route across the whole grid comes back loosely rather than not at all. The
+blocks carry the rule the grid was built by: a block holds water when any
+cell in it does, and takes the lowest elevation in it. That keeps a channel a
+cell wide open, at the price of a line that cuts corners by about a block.
+
 The answer is an estimate for planning, not a track to steer.
 """
 from __future__ import annotations
@@ -50,7 +56,9 @@ SNAP_CELLS = 40              # a point on land moves to the nearest water within
 TRACE_STEP = 1.0             # how far, in cells, the walk back down the arrival time goes at a time
 TRACE_TOLERANCE = 0.15       # how far, in cells, a drawn leg may sit from the walk it stands for
 DRAW_LEG_CELLS = 400         # and how much walking one drawn leg may stand for, in cells
-MAX_CELLS = 60_000_000       # a window bigger than this is refused rather than made to wait
+MAX_CELLS = 60_000_000       # the most one solve works over; a wider window is coarsened to fit
+MAX_STEP = 8                 # and this is as coarse as a solve is allowed to get, in cells a side
+BAND_CELLS = 8_000_000       # how much of a window is read at a time while it is being coarsened
 
 # ---------------------------------------------------------------- the plane
 # WGS84 polar stereographic, true scale at 70 N, central meridian 45 W
@@ -125,6 +133,21 @@ FOLLOW = 1.35                # how much faster a route reckons surveyed water
 FOLLOW_KM = 2.0              # and how far its credit reaches from the swath
 
 
+def _blocks(a, step, reduce):
+    """An array with every ``step`` by ``step`` block reduced to one value.
+
+    A window rarely divides evenly, so the last row and column of blocks are
+    filled out by repeating the edge, which no reduction is disturbed by.
+    """
+    if step == 1:
+        return a
+    down, right = (-a.shape[0]) % step, (-a.shape[1]) % step
+    if down or right:
+        a = np.pad(a, ((0, down), (0, right)), mode="edge")
+    a = a.reshape(a.shape[0] // step, step, a.shape[1] // step, step)
+    return reduce(reduce(a, axis=3), axis=1)
+
+
 class Grid:
     """The water, elevation and provenance arrays on the plane, memory-mapped."""
 
@@ -149,9 +172,42 @@ class Grid:
         """The latitude and longitude at the middle of a cell, row and column being floats."""
         return inverse(self.x0 + (j + 0.5) * self.metres, self.y0 - (i + 0.5) * self.metres)
 
-    def water(self, i0, i1, j0, j1):
-        """The water flags of a window, unpacked."""
-        return np.unpackbits(np.asarray(self.packed[i0:i1]), axis=1, count=self.cols)[:, j0:j1].astype(bool)
+    def window(self, i0, i1, j0, j1, step=1):
+        """A window's water flags and elevation, in blocks of ``step`` cells.
+
+        A block holds water when any cell in it does and takes the lowest
+        elevation in it: the rule the grid itself was built by, one level up.
+        The window is read a band of rows at a time, so coarsening a wide one
+        costs the band rather than the whole of it.
+        """
+        shape = (-(-(i1 - i0) // step), -(-(j1 - j0) // step))
+        water = np.empty(shape, dtype=bool)
+        elev = np.empty(shape, dtype=np.float32)
+        band = max(1, BAND_CELLS // max(1, j1 - j0) // step)      # in blocks of rows
+        for k in range(0, shape[0], band):
+            lo, hi = i0 + k * step, min(i1, i0 + (k + band) * step)
+            rows = -(-(hi - lo) // step)
+            wet = np.unpackbits(np.asarray(self.packed[lo:hi]), axis=1, count=self.cols)[:, j0:j1].astype(bool)
+            water[k:k + rows] = _blocks(wet, step, np.max)
+            elev[k:k + rows] = _blocks(np.asarray(self.elev[lo:hi, j0:j1], dtype=np.float32), step, np.min)
+        return water, elev
+
+    def surveyed(self, i0, i1, j0, j1, step=1):
+        """Which of a window's cells rest on a measured sounding; None without the grid for it."""
+        if self.kinds is None:
+            return None
+        shape = (-(-(i1 - i0) // step), -(-(j1 - j0) // step))
+        out = np.empty(shape, dtype=bool)
+        band = max(1, BAND_CELLS // max(1, j1 - j0) // step)
+        for k in range(0, shape[0], band):
+            lo, hi = i0 + k * step, min(i1, i0 + (k + band) * step)
+            known = np.isin(np.asarray(self.kinds[lo:hi, j0:j1]), list(SURVEYED))
+            out[k:k + -(-(hi - lo) // step)] = _blocks(known, step, np.max)
+        return out
+
+    def wet(self, i, j):
+        """Whether one cell of the full grid holds water, read as the one bit it is."""
+        return bool(self.packed[i, j >> 3] >> (7 - (j & 7)) & 1)
 
     def elevation(self, lat, lon):
         """GEBCO's elevation in metres at a point (negative below sea level), or None off the grid."""
@@ -167,16 +223,19 @@ class Grid:
         name, measured = KINDS.get(code, ("unknown", False))
         return {"code": code, "name": name, "surveyed": measured}
 
-    def scale(self, i0, i1, j0, j1):
+    def scale(self, i0, i1, j0, j1, step=1):
         """The plane's scale over a window: a metre here is this many metres on the plane."""
-        x = self.x0 + (np.arange(j0, j1) + 0.5) * self.metres
-        y = self.y0 - (np.arange(i0, i1) + 0.5) * self.metres
+        x = self.x0 + (np.arange(j0, j1, step) + step / 2) * self.metres
+        y = self.y0 - (np.arange(i0, i1, step) + step / 2) * self.metres
         return np.interp(np.hypot(x[None, :], y[:, None]), _RHO, _K)
 
 
 _grid: Grid | None = None
 _grid_key = None
 _lock = threading.Lock()
+# The widest solve allowed holds several gigabytes while it runs, so only one
+# runs at a time: the server answers every other request while it waits.
+_solving = threading.Lock()
 
 
 def grid() -> Grid | None:
@@ -214,11 +273,14 @@ def place(lat, lon) -> dict:
 def route(lat1, lon1, lat2, lon2) -> dict:
     """Both distances from (lat1, lon1) to (lat2, lon2), the sea route's path, and the point's elevation.
 
-    ``sea_km`` and ``path`` are None when there is no route: ``reason`` says why.
+    ``sea_km`` and ``path`` are None when there is no route: ``reason`` says
+    why. ``cell_km`` is how coarse the solve that found it was, which is the
+    grid's own 250 m unless the two points were far enough apart to need
+    blocks.
     """
     _check(lat1, lon1, lat2, lon2)
     out = {"air_km": round(air_km(lat1, lon1, lat2, lon2), 2), "sea_km": None, "path": None, "reason": None,
-           "elev_m": None, "kind": None}
+           "elev_m": None, "kind": None, "cell_km": None}
     g = grid()
     if g is None:
         out["reason"] = "no sea grid on this server"
@@ -229,15 +291,15 @@ def route(lat1, lon1, lat2, lon2) -> dict:
     if isinstance(sea, str):
         out["reason"] = sea
     else:
-        out["sea_km"], out["path"] = sea
+        out["sea_km"], out["path"], out["cell_km"] = sea
     return out
 
 
-def _snap(water, i, j):
-    """(i, j) itself when it is water, else the nearest water cell within SNAP_CELLS; None when none."""
+def _snap(water, i, j, limit=SNAP_CELLS):
+    """(i, j) itself when it is water, else the nearest water cell within ``limit``; None when none."""
     if water[i, j]:
         return i, j
-    for r in range(4, SNAP_CELLS + 1, 4):
+    for r in range(4, limit + 1, 4):
         i0, i1 = max(0, i - r), min(water.shape[0], i + r + 1)
         j0, j1 = max(0, j - r), min(water.shape[1], j + r + 1)
         ii, jj = np.nonzero(water[i0:i1, j0:j1])
@@ -248,7 +310,7 @@ def _snap(water, i, j):
     return None
 
 
-def _followed(g, i0, i1, j0, j1):
+def _followed(g, i0, i1, j0, j1, step=1):
     """How much faster each cell counts for having been surveyed.
 
     Almost all the surveyed water here is ship tracks, and they join up: the
@@ -256,14 +318,11 @@ def _followed(g, i0, i1, j0, j1):
     Crediting a swath and the couple of kilometres either side of it lets a
     route follow those tracks where they go its way, without hunting for them.
     """
-    if g.kinds is None:
+    surveyed = g.surveyed(i0, i1, j0, j1, step)
+    if surveyed is None or not surveyed.any():
         return np.float32(1.0)
     from scipy import ndimage
-    kinds = np.asarray(g.kinds[i0:i1, j0:j1])
-    surveyed = np.isin(kinds, list(SURVEYED))
-    if not surveyed.any():
-        return np.float32(1.0)
-    reach = FOLLOW_KM * 1000.0 / g.metres
+    reach = FOLLOW_KM * 1000.0 / (g.metres * step)
     near = np.clip(1.0 - ndimage.distance_transform_edt(~surveyed) / reach, 0.0, 1.0)
     return (1.0 + (FOLLOW - 1.0) * near).astype(np.float32)
 
@@ -404,19 +463,19 @@ def _afloat(water, a, b):
     return bool(water[ys, xs].all())
 
 
-def _drawn(points, water, tolerance):
+def _drawn(points, water, tolerance, leg=DRAW_LEG_CELLS):
     """The walked line as legs to draw: close to the walk, and never across land.
 
     The tolerance is a fraction of a cell, so a route keeps the curve the
     field gave it; only the points a straight run genuinely accounts for go.
-    A leg may stand for at most ``DRAW_LEG_CELLS`` of walking, so a stretch
-    the water mask is wrong about cannot turn into one long jump.
+    A leg may stand for at most ``leg`` cells of walking, so a stretch the
+    water mask is wrong about cannot turn into one long jump.
     """
     walk = _spaced(points)
     simple = _simplify(walk, tolerance)
     out = [simple[0]]
     for a, b in zip(simple, simple[1:]):
-        if _afloat(water, a, b) and math.hypot(b[0] - a[0], b[1] - a[1]) <= DRAW_LEG_CELLS:
+        if _afloat(water, a, b) and math.hypot(b[0] - a[0], b[1] - a[1]) <= leg:
             out.append(b)
         else:
             out.extend(_between(walk, a, b))     # the shortcut is not safe: keep the walk
@@ -460,8 +519,66 @@ def _simplify(points, tolerance):
     return _simplify(points[:worst + 1], tolerance)[:-1] + _simplify(points[worst:], tolerance)
 
 
+def _dry(g, a, b):
+    """Whether the leg between two points crosses land the full grid knows about."""
+    (x1, y1), (x2, y2) = forward(*a), forward(*b)
+    steps = max(3, int(2 * math.hypot(x2 - x1, y2 - y1) / g.metres) + 1)
+    for t in np.linspace(0.0, 1.0, steps):
+        j = int((x1 + (x2 - x1) * t - g.x0) / g.metres)
+        i = int((g.y0 - (y1 + (y2 - y1) * t)) / g.metres)
+        if 0 <= i < g.rows and 0 <= j < g.cols and not g.wet(i, j):
+            return True
+    return False
+
+
+def _mend(g, points):
+    """A route with the legs the full grid calls dry solved again at full resolution.
+
+    A block counts as water when any cell in it does, which keeps a channel a
+    cell wide open but also dissolves an isthmus narrower than a block. A leg
+    is short, so solving one again costs a small window, and a route over open
+    water has no such leg to solve.
+    """
+    out = [points[0]]
+    for a, b in zip(points, points[1:]):
+        out.extend(_leg(g, a, b) or [b])
+    return out
+
+
+def _leg(g, a, b):
+    """One leg solved cell by cell, or None when it is afloat already or cannot be."""
+    if not _dry(g, a, b):
+        return None
+    ca, cb = g.cell(*a), g.cell(*b)
+    if ca is None or cb is None:
+        return None
+    pad = MARGIN_CELLS
+    for _ in range(MARGIN_TRIES):
+        i0, i1 = max(0, min(ca[0], cb[0]) - pad), min(g.rows, max(ca[0], cb[0]) + pad + 1)
+        j0, j1 = max(0, min(ca[1], cb[1]) - pad), min(g.cols, max(ca[1], cb[1]) + pad + 1)
+        if (i1 - i0) * (j1 - j0) > MAX_CELLS:
+            return None
+        with _solving:
+            answer = _solve(g, a, b, ca, cb, (i0, i1, j0, j1))
+        if not isinstance(answer, str):
+            return answer[1][1:]
+        if answer != "no sea route within the charted area":
+            return None
+        pad *= 2
+    return None
+
+
+def _step(cells):
+    """The block a window of this many cells has to be solved in; None when even
+    the coarsest allowed is too much."""
+    step = max(1, math.isqrt(max(0, cells - 1) // MAX_CELLS) + 1) if cells > MAX_CELLS else 1
+    while step <= MAX_STEP and cells > MAX_CELLS * step * step:
+        step += 1
+    return step if step <= MAX_STEP else None
+
+
 @lru_cache(maxsize=256)
-def _route_cached(lat1, lon1, lat2, lon2):
+def _route_cached(lat1, lon1, lat2, lon2, mend=True):
     g = grid()
     a, b = g.cell(lat1, lon1), g.cell(lat2, lon2)
     if a is None or b is None:
@@ -480,10 +597,21 @@ def _route_cached(lat1, lon1, lat2, lon2):
     for _ in range(MARGIN_TRIES):
         i0, i1 = max(0, min(a[0], b[0]) - pad), min(g.rows, max(a[0], b[0]) + pad + 1)
         j0, j1 = max(0, min(a[1], b[1]) - pad), min(g.cols, max(a[1], b[1]) + pad + 1)
-        if (i1 - i0) * (j1 - j0) > MAX_CELLS:
+        # a window wider than one solve works over is solved in blocks: a long
+        # route is mostly open water, where a block costs it little
+        step = _step((i1 - i0) * (j1 - j0))
+        if step is None:
             return answer if answer != "no sea route within the charted area" else "too far for this server to work out"
-        answer = _solve(g, (lat1, lon1), (lat2, lon2), a, b, (i0, i1, j0, j1))
-        if not isinstance(answer, str) or answer != "no sea route within the charted area":
+        with _solving:
+            answer = _solve(g, (lat1, lon1), (lat2, lon2), a, b, (i0, i1, j0, j1), step)
+        if isinstance(answer, str):
+            if answer != "no sea route within the charted area":
+                return answer
+        else:
+            if mend and step > 1:
+                points = _mend(g, answer[1])
+                km = sum(air_km(*points[k], *points[k + 1]) for k in range(len(points) - 1))
+                answer = round(km, 2), points, answer[2]
             return answer
         whole = i0 == 0 and j0 == 0 and i1 == g.rows and j1 == g.cols
         if whole:
@@ -492,29 +620,30 @@ def _route_cached(lat1, lon1, lat2, lon2):
     return answer
 
 
-def _solve(g, from_ll, to_ll, a, b, window):
-    """One fast-marching solve over a window of the grid."""
+def _solve(g, from_ll, to_ll, a, b, window, step=1):
+    """One fast-marching solve over a window of the grid, in blocks of ``step`` cells."""
     import skfmm
     (lat1, lon1), (lat2, lon2) = from_ll, to_ll
     i0, i1, j0, j1 = window
-    water = g.water(i0, i1, j0, j1)
-    src = _snap(water, a[0] - i0, a[1] - j0)
-    dst = _snap(water, b[0] - i0, b[1] - j0)
+    metres = g.metres * step
+    snap = max(4, round(SNAP_CELLS / step))
+    water, ground = g.window(i0, i1, j0, j1, step)
+    src = _snap(water, (a[0] - i0) // step, (a[1] - j0) // step, snap)
+    dst = _snap(water, (b[0] - i0) // step, (b[1] - j0) // step, snap)
     if src is None:
         return "the ship's position is not on charted water"
     if dst is None:
         return "the point is on land"
 
     # the speed: the plane's own scale, slowed in shallow water and near land
-    depth = -np.asarray(g.elev[i0:i1, j0:j1], dtype=np.float32)
-    shallow = np.clip(depth / SHALLOW_M, 0.0, 1.0)
-    speed = g.scale(i0, i1, j0, j1).astype(np.float32) * (SHALLOW_SPEED + (1.0 - SHALLOW_SPEED) * shallow)
-    speed *= COAST_SPEED + (1.0 - COAST_SPEED) * _offshore(water, g.metres)
-    speed *= _followed(g, i0, i1, j0, j1)
+    shallow = np.clip(-ground / SHALLOW_M, 0.0, 1.0)
+    speed = g.scale(i0, i1, j0, j1, step).astype(np.float32) * (SHALLOW_SPEED + (1.0 - SHALLOW_SPEED) * shallow)
+    speed *= COAST_SPEED + (1.0 - COAST_SPEED) * _offshore(water, metres)
+    speed *= _followed(g, i0, i1, j0, j1, step)
     phi = np.ones(water.shape, dtype=np.float64)
     phi[src] = -1.0
     time = skfmm.travel_time(np.ma.MaskedArray(phi, ~water), np.ma.MaskedArray(speed, ~water),
-                             dx=g.metres / 1000.0, order=2)
+                             dx=metres / 1000.0, order=2)
     field = np.asarray(np.ma.filled(time, np.inf), dtype=np.float64)   # an all-water window comes back unmasked
     if not math.isfinite(field[dst]):
         return "no sea route within the charted area"
@@ -522,19 +651,22 @@ def _solve(g, from_ll, to_ll, a, b, window):
     steps = _trace(field, water, src, dst) or _crawl(field, water, src, dst)
     if steps is None:
         return "no sea route within the charted area"
-    walked = _drawn(steps, water, TRACE_TOLERANCE)
+    walked = _drawn(steps, water, TRACE_TOLERANCE, max(4, round(DRAW_LEG_CELLS / step)))
     # the line reaches the ship and the mark themselves, but only where the
     # water does: a point snapped across a headland keeps the walk's own end
     # the bridge stands for the snap to water and nothing more: a long one
     # would be a leap across whatever the mask is wrong about
-    ends = [(b[0] - i0 + .5, b[1] - j0 + .5), (a[0] - i0 + .5, a[1] - j0 + .5)]
+    ends = [((b[0] - i0) // step + .5, (b[1] - j0) // step + .5),
+            ((a[0] - i0) // step + .5, (a[1] - j0) // step + .5)]
     for k, end in ((0, ends[0]), (-1, ends[1])):
         reach = math.hypot(end[0] - walked[k][0], end[1] - walked[k][1])
-        if reach <= 2 * SNAP_CELLS and _afloat(water, end, walked[k]):
+        if reach <= 2 * snap and _afloat(water, end, walked[k]):
             walked[k] = end
-    points = [g.lonlat(i0 + y - .5, j0 + x - .5) for y, x in walked][::-1]
+    # back to the plane: a block's middle sits half a block into it
+    points = [g.lonlat(i0 + (y - .5) * step + (step - 1) / 2, j0 + (x - .5) * step + (step - 1) / 2)
+              for y, x in walked][::-1]
     km = sum(air_km(*points[k], *points[k + 1]) for k in range(len(points) - 1))
-    return round(km, 2), [[round(la, 4), round(lo, 4)] for la, lo in points]
+    return round(km, 2), [[round(la, 4), round(lo, 4)] for la, lo in points], round(metres / 1000.0, 3)
 
 
 if __name__ == "__main__":
