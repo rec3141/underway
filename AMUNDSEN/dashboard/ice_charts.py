@@ -34,6 +34,8 @@ SEED_DIR = Path(__file__).with_name("ice_assets")
 ATTRIBUTION = "Canadian Ice Service / ECCC"
 LICENCE = "https://open.canada.ca/en/open-government-licence-canada"
 REGIONS = {"EA": "Eastern Arctic", "WA": "Western Arctic", "HB": "Hudson Bay", "EC": "East Coast", "GL": "Great Lakes"}
+# the regions a refresh keeps current: the waters this ship works in
+REFRESH_REGIONS = ("Eastern Arctic", "Hudson Bay", "Western Arctic")
 MAX_BYTES = 64 * 1024 * 1024
 MAX_EXPANDED = 256 * 1024 * 1024
 DAILY_PRODUCTS = {
@@ -79,6 +81,11 @@ def egg_concentration(code: str) -> str:
 
 def chart_dir() -> Path:
     return DB_DIR / "ice-charts"
+
+
+def _slug(text: str) -> str:
+    """A chart's name in its file name: the region, lowercased and hyphenated."""
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
 def concentration(code: str) -> tuple[float | None, str]:
@@ -242,8 +249,7 @@ def import_daily_chart(product: str = "WIS36C") -> dict:
     advertised = available_daily(product)
     document = _download(advertised["source_url"])
     png, coordinates, image_size = _warp_daily(product, document)
-    slug = re.sub(r"[^a-z0-9]+", "-", advertised["region"].lower()).strip("-")
-    entry = {"id": f"{slug}-{advertised['date']}", "kind": "raster", **advertised,
+    entry = {"id": f"{_slug(advertised['region'])}-{advertised['date']}", "kind": "raster", **advertised,
              "coordinates": coordinates, "image_size": image_size,
              "attribution": ATTRIBUTION, "licence_url": LICENCE, "ship_area": True,
              "imported_at": datetime.now(timezone.utc).isoformat()}
@@ -402,6 +408,50 @@ def import_chart(*, date: str, region: str, url: str | None = None, file: Path |
     data = json.dumps(collection, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()
     _atomic_write(chart_dir() / f"{entry['id']}.geojson", data)
     return entry
+
+
+def refresh(regions: tuple[str, ...] = REFRESH_REGIONS, product: str = "WIS36C") -> dict:
+    """Cache what the Ice Service advertises and this machine does not have.
+
+    The newest weekly chart for each region the ship works in, and the daily
+    raster for its own area. One already cached is left alone, and one that
+    cannot be fetched does not stop the others: charts are published from the
+    cache, so a run that fails leaves the last good chart in place.
+    """
+    added, kept, failed = [], [], []
+    newest: dict[str, dict] = {}
+    try:
+        for row in available():                            # the newest of each first
+            if row["region"] in regions:
+                newest.setdefault(row["region"], row)
+    except Exception as exc:
+        log.warning("the weekly chart directory could not be read: %s", exc)
+        failed.append("weekly directory")
+    for region, row in sorted(newest.items()):
+        name = f"{_slug(region)}-{row['date']}"
+        if (chart_dir() / f"{name}.geojson").exists():
+            kept.append(name)
+            continue
+        try:
+            import_chart(date=row["date"], region=region, url=row["source_url"])
+            added.append(name)
+        except Exception as exc:
+            log.warning("weekly chart %s not cached: %s", name, exc)
+            failed.append(name)
+    try:
+        advertised = available_daily(product)
+        name = f"{_slug(advertised['region'])}-{advertised['date']}"
+        if (chart_dir() / f"{name}.png").exists():
+            kept.append(name)
+        else:
+            import_daily_chart(product)
+            added.append(name)
+    except Exception as exc:
+        log.warning("the %s daily chart was not cached: %s", product, exc)
+        failed.append(product)
+    log.info("ice charts: %s added, %s already cached, %s failed",
+             len(added), len(kept), len(failed))
+    return {"added": added, "kept": kept, "failed": failed}
 
 
 def publish(root: Path) -> dict | None:

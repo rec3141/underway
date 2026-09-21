@@ -1,0 +1,15 @@
+[Unit]
+Description=Look for newer ice charts a few times a day
+
+[Timer]
+# The weekly regional charts are posted on Mondays and the ship-area daily
+# raster in the afternoon, so a few tries a day is enough; a run that finds
+# nothing new costs one directory listing.
+OnBootSec=6min
+OnCalendar=*-*-* 04,10,16,22:23:00
+AccuracySec=5min
+Unit=underway-ice-charts.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

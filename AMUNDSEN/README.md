@@ -284,7 +284,11 @@ To run the dashboard on another account or another machine:
    share password once; see *Mounting*).
 2. Clone the repository as the service account into `UNDERWAY_HOME/app`, and
    install the packages into the interpreter the services will use:
-   `pip install -e 'app/AMUNDSEN[chat,gcal]'`.
+   `pip install -e 'app/AMUNDSEN[chat,gcal,ice-charts]'`. The ice-charts extra
+   is what `underway-ice-charts.timer` needs to read a chart, along with the
+   GDAL commands for the daily raster (`gdal_translate`, `gdalwarp`,
+   `gdalinfo`); without them the timer logs that it cannot convert and the map
+   keeps the bundled chart.
 3. `sudo mkdir /etc/underway && sudo cp app/AMUNDSEN/deploy/site.env.example
    /etc/underway/site.env`, and edit it: the directory, the account, the
    interpreter, the Wi-Fi interface (`ip -br addr`), and the camera settings
