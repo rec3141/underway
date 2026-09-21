@@ -79,36 +79,84 @@ hi = lambda v: math.ceil((v + M) / res - 1e-6) * res - M
 print(f"{lo(mx(xmin)):.6f} {lo(my(ymin)):.6f} {hi(mx(xmax)):.6f} {hi(my(ymax)):.6f} {res:.9f}")
 PY
 )
-echo "reprojecting lon ${BBOX[0]}..${BBOX[2]}, lat ${BBOX[1]}..${BBOX[3]} to web mercator at z$ZMAX (${RES%.*} m/px)"
-gdalwarp -q -t_srs EPSG:3857 -te "$TE_XMIN" "$TE_YMIN" "$TE_XMAX" "$TE_YMAX" -tr "$RES" "$RES" \
-    -r bilinear -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "${CO[@]}" \
-    "$WORK/global.vrt" "$WORK/region_3857.tif"
+# Where the colours and the shading are worked out. On a geographic grid at
+# these latitudes a cell is five times taller than wide, and a hillshade
+# differentiates that into ridges; on a grid whose cells are square on the
+# ground there is nothing to differentiate. GDAL's own notes advise the same.
+WORK_CRS=${WORK_CRS:-EPSG:3857}
+WORK_RES=${WORK_RES:-$RES}
+if [[ $WORK_CRS == EPSG:3857 ]]; then
+  WX0=$TE_XMIN WY0=$TE_YMIN WX1=$TE_XMAX WY1=$TE_YMAX
+  echo "reprojecting lon ${BBOX[0]}..${BBOX[2]}, lat ${BBOX[1]}..${BBOX[3]} to web mercator at z$ZMAX (${RES%.*} m/px)"
+  gdalwarp -q -t_srs EPSG:3857 -te "$WX0" "$WY0" "$WX1" "$WY1" -tr "$WORK_RES" "$WORK_RES" \
+      -r bilinear -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "${CO[@]}" \
+      "$WORK/global.vrt" "$WORK/work.tif"
+else
+  # the box's own corners are not its extent on a polar plane: walk its edge
+  read -r WX0 WY0 WX1 WY1 < <($PY - "$WORK_CRS" "${BBOX[@]}" "$WORK_RES" <<'PYEOF'
+import math, sys
+from osgeo import osr
+osr.UseExceptions()
+crs = sys.argv[1]
+xmin, ymin, xmax, ymax, metres = map(float, sys.argv[2:7])
+src = osr.SpatialReference(); src.ImportFromEPSG(4326); src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+dst = osr.SpatialReference(); dst.SetFromUserInput(crs)
+to = osr.CoordinateTransformation(src, dst)
+step = 0.25
+edge = [(xmin + i * step, y) for y in (ymin, ymax) for i in range(int((xmax - xmin) / step) + 1)]
+edge += [(x, ymin + i * step) for x in (xmin, xmax) for i in range(int((ymax - ymin) / step) + 1)]
+xs, ys = zip(*[to.TransformPoint(lon, lat)[:2] for lon, lat in edge])
+print(" ".join(f"{v:.0f}" for v in (math.floor(min(xs) / metres) * metres, math.floor(min(ys) / metres) * metres,
+                                    math.ceil(max(xs) / metres) * metres, math.ceil(max(ys) / metres) * metres)))
+PYEOF
+)
+  # Averaging onto square cells is the band limit, taken in ground distance:
+  # it drops the east-west detail the geographic grid only appears to have.
+  # The relief is then carried back to the tile grid as elevation, not as a
+  # picture, so the colours, the isobaths and the shading are still worked
+  # out at the resolution the tiles are drawn at and keep their edges.
+  echo "reprojecting lon ${BBOX[0]}..${BBOX[2]}, lat ${BBOX[1]}..${BBOX[3]} to $WORK_CRS at ${WORK_RES} m"
+  gdalwarp -q -t_srs "$WORK_CRS" -te "$WX0" "$WY0" "$WX1" "$WY1" -tr "$WORK_RES" "$WORK_RES" \
+      -r average -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "${CO[@]}" \
+      "$WORK/global.vrt" "$WORK/square.tif"
+  echo "carrying it to the tile grid at z$ZMAX (${RES%.*} m/px)"
+  gdalwarp -q -t_srs EPSG:3857 -te "$TE_XMIN" "$TE_YMIN" "$TE_XMAX" "$TE_YMAX" -tr "$RES" "$RES" \
+      -r cubic -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "${CO[@]}" \
+      "$WORK/square.tif" "$WORK/work.tif"
+  WX0=$TE_XMIN WY0=$TE_YMIN WX1=$TE_XMAX WY1=$TE_YMAX
+  WORK_RES=$RES
+  SQUARED=yes
+fi
 
 # the colour ramp's input: the elevation as warped, or, with land polygons,
 # the elevation nudged to the right side of zero where the polygons disagree
 # with it (a cell the polygons call water is at least 1 m deep; a cell they
 # call land is at least 1 m high) within the polygons' box
-COLOR_SRC="$WORK/region_3857.tif"
+COLOR_SRC="$WORK/work.tif"
 if [[ -n ${LAND:-} ]]; then
   LB=(${LAND_BBOX:-${BBOX[@]}})
   echo "shore from $LAND within lon ${LB[0]}..${LB[2]}, lat ${LB[1]}..${LB[3]}"
-  gdal_rasterize -q -init 255 -burn 1 -l "${LAND_LAYER:-land}" -te "$TE_XMIN" "$TE_YMIN" "$TE_XMAX" "$TE_YMAX" -tr "$RES" "$RES" \
-      -ot Byte "${CO[@]}" "$LAND" "$WORK/mask.tif"
+  gdal_rasterize -q -init 255 -burn 1 -l "${LAND_LAYER:-land}" -te "$WX0" "$WY0" "$WX1" "$WY1" -tr "$WORK_RES" "$WORK_RES" \
+      -a_srs "$WORK_CRS" -ot Byte "${CO[@]}" "$LAND" "$WORK/mask.tif"
   $PY - "$WORK" "${LB[@]}" <<'PYEOF'
 import sys, math, numpy as np
 from osgeo import gdal
 gdal.UseExceptions()
 w = sys.argv[1]; lon0, lat0, lon1, lat1 = map(float, sys.argv[2:6])
+mercator = sys.argv[6] == "EPSG:3857" if len(sys.argv) > 6 else True
 M = 20037508.342789244; R = 6378137.0; LIM = 85.0511287798
 mx = lambda lon: lon / 180 * M
 my = lambda lat: R * math.log(math.tan(math.pi / 4 + math.radians(max(-LIM, min(LIM, lat))) / 2))
-src = gdal.Open(f"{w}/region_3857.tif"); msk = gdal.Open(f"{w}/mask.tif"); gt = src.GetGeoTransform()
+src = gdal.Open(f"{w}/work.tif"); msk = gdal.Open(f"{w}/mask.tif"); gt = src.GetGeoTransform()
 out = gdal.GetDriverByName("GTiff").Create(f"{w}/adj.tif", src.RasterXSize, src.RasterYSize, 1, gdal.GDT_Int16,
                                            ["COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=YES"])
 out.SetGeoTransform(gt); out.SetProjection(src.GetProjection())
 # the polygons' box in cells: outside it the mask says nothing (255) and GEBCO's own zero contour stands
-c0 = max(0, int((mx(lon0) - gt[0]) / gt[1])); c1 = min(src.RasterXSize, int(math.ceil((mx(lon1) - gt[0]) / gt[1])))
-r0 = max(0, int((gt[3] - my(lat1)) / -gt[5])); r1 = min(src.RasterYSize, int(math.ceil((gt[3] - my(lat0)) / -gt[5])))
+if mercator:
+    c0 = max(0, int((mx(lon0) - gt[0]) / gt[1])); c1 = min(src.RasterXSize, int(math.ceil((mx(lon1) - gt[0]) / gt[1])))
+    r0 = max(0, int((gt[3] - my(lat1)) / -gt[5])); r1 = min(src.RasterYSize, int(math.ceil((gt[3] - my(lat0)) / -gt[5])))
+else:
+    c0, c1, r0, r1 = 0, src.RasterXSize, 0, src.RasterYSize     # the polygons were cut to this grid
 step = 1024
 for y0 in range(0, src.RasterYSize, step):
     n = min(step, src.RasterYSize - y0)
@@ -125,6 +173,7 @@ PYEOF
   COLOR_SRC="$WORK/adj.tif"
 fi
 
+if [[ -z ${SQUARED:-} ]]; then
 # Each row is blurred across the height of a GEBCO cell here, so a feature
 # needs the same width either way to survive. The width is worked out in
 # ground distance, from the latitude of the row, and the blur is Gaussian: a
@@ -166,39 +215,62 @@ for y0 in range(0, src.RasterYSize, step):
 out.FlushCache()
 PYEOF
 COLOR_SRC="$WORK/even.tif"
+fi
 
-# depth ramp: Crameri's oslo, which is perceptually uniform and keeps its
-# order in greyscale and to a colour-blind eye, from dark abyss to lit shelf,
-# with a hard step at the 100 m isobath into a desaturated shoal band so that
-# the line a ship keeps off reads at a glance. Land carries a muted
-# hypsometric ramp (olive lowlands to pale high ground) so it sits under the
-# hillshade without competing with the track colours.
+# depth ramp: the tints IBCAO publishes its charts in, read off the legend
+# of the NOAA/IBCAO Arctic sheet: twenty steps from magenta in the deepest
+# basins through blue, cyan and green to red at the shore, each a flat band
+# so the steps read as isobaths in their own right, and land in neutral grey
+# so the water carries the colour. The 100 m line that routes keep off falls
+# on the step from yellow to orange, and is drawn over the top as well.
 cat > "$WORK/ramp.txt" <<'EOF'
--6000  12 26 40
--5000  15 34 55
--4000  18 44 72
--3000  24 60 96
--2500  29 70 112
--2000  34 80 130
--1500  45 95 150
--1000  62 113 172
--750   80 128 188
--500   100 143 196
--300   118 155 202
--200   134 167 208
--100.01 150 180 214
--100   150 174 170
--50    170 192 184
--20    186 205 194
--0.01  198 214 202
-0.01   58 72 62
-150    74 88 70
-400    98 104 80
-800    124 118 94
-1200   148 140 116
-1800   176 170 152
-2500   206 204 198
-3500   232 232 232
+-11000 255 0 254
+-5500 255 0 254
+-5499.99 226 30 252
+-5000 226 30 252
+-4999.99 190 66 250
+-4500 190 66 250
+-4499.99 154 103 244
+-4000 154 103 244
+-3999.99 122 135 240
+-3500 122 135 240
+-3499.99 81 173 238
+-3000 81 173 238
+-2999.99 48 206 235
+-2500 48 206 235
+-2499.99 20 235 230
+-2000 20 235 230
+-1999.99 1 255 229
+-1500 1 255 229
+-1499.99 0 255 161
+-1000 0 255 161
+-999.99 1 255 95
+-500 1 255 95
+-499.99 0 255 25
+-400 0 255 25
+-399.99 40 255 1
+-300 40 255 1
+-299.99 108 255 1
+-250 108 255 1
+-249.99 174 255 0
+-200 174 255 0
+-199.99 242 255 0
+-150 242 255 0
+-149.99 255 200 1
+-100 255 200 1
+-99.99 255 134 1
+-50 255 134 1
+-49.99 255 68 1
+-20 255 68 1
+-19.99 254 10 0
+0 254 10 0
+-0.01 254 10 0
+0.01 150 150 150
+300 163 163 163
+900 186 186 186
+1600 208 208 208
+2400 226 226 226
+3500 242 242 242
 EOF
 echo "colour relief"
 gdaldem color-relief -q -alpha "${CO[@]}" "$COLOR_SRC" "$WORK/ramp.txt" "$WORK/color.tif"
@@ -224,8 +296,6 @@ for y0 in range(0, src.RasterYSize, step):
     out.GetRasterBand(1).WriteArray(h * cosphi[:, None], 0, y0)
 out.FlushCache()
 PY
-# lit from several sides: one azimuth over a grid this anisotropic puts a
-# grain on the water that reads as ridges
 # lit from several sides (USGS OFR 92-422): one azimuth over a lineated grid
 # lights the lineation and hides everything across it. Zevenbergen and Thorne
 # suits a smooth seabed better than Horn's kernel.
@@ -267,7 +337,7 @@ for y0 in range(0, c.RasterYSize, step):
     out.GetRasterBand(4).WriteArray(c.GetRasterBand(4).ReadAsArray(0, y0, c.RasterXSize, n), 0, y0)
 out.FlushCache()
 PY
-rm -f "$WORK/color.tif" "$WORK/shade.tif" "$WORK/ground.tif" "$WORK/region_3857.tif" "$WORK/adj.tif" "$WORK/mask.tif"
+rm -f "$WORK/color.tif" "$WORK/shade.tif" "$WORK/ground.tif" "$WORK/work.tif" "$WORK/adj.tif" "$WORK/mask.tif"
 
 echo "tiling zooms $ZOOMS -> $OUT"
 mkdir -p "$OUT"

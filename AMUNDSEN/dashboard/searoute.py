@@ -40,14 +40,16 @@ GRID_DIR = Path(os.environ.get("UNDERWAY_SEA_GRID",
                                os.path.join(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles"), "sea-grid")))
 R_KM = 6371.0088
 SHALLOW_M = 100.0            # water shallower than this is held against a route
-SHALLOW_SPEED = 0.3          # how much of open-water speed is left in water with no depth under it
+SHALLOW_SPEED = 0.6          # how much of open-water speed is left in water with no depth under it
 COAST_KM = 5.0               # and water closer than this to land is held against it too
-COAST_SPEED = 0.35           # how much of open-water speed is left against the shore
+COAST_SPEED = 0.6            # how much of open-water speed is left against the shore
 MARGIN_CELLS = 400           # the window reaches at least this far beyond the two points
 MARGIN_FRAC = 0.45           # and at least this fraction of their separation
+MARGIN_TRIES = 5             # a window with no route in it is widened this many times before giving up
 SNAP_CELLS = 40              # a point on land moves to the nearest water within this many cells
 TRACE_STEP = 1.0             # how far, in cells, the walk back down the arrival time goes at a time
 TRACE_TOLERANCE = 0.15       # how far, in cells, a drawn leg may sit from the walk it stands for
+DRAW_LEG_CELLS = 400         # and how much walking one drawn leg may stand for, in cells
 MAX_CELLS = 60_000_000       # a window bigger than this is refused rather than made to wait
 
 # ---------------------------------------------------------------- the plane
@@ -288,8 +290,10 @@ def _trace(field, water, start, goal):
     here = np.array([goal[0] + .5, goal[1] + .5])
     home = np.array([start[0] + .5, start[1] + .5])
     path = [tuple(here)]
+    arrived = False
     for _ in range(8 * (rows + cols)):
         if np.hypot(*(here - home)) < 1.5:
+            arrived = True
             break
         moved = False
         for step in (TRACE_STEP, TRACE_STEP / 2, TRACE_STEP / 4):
@@ -312,8 +316,37 @@ def _trace(field, water, start, goal):
                 break
             here = np.array(step)
         path.append(tuple(here))
+    if not arrived:
+        return None                              # the caller falls back to the walk that cannot fail
     path.append(tuple(home))
     return path
+
+
+def _crawl(field, water, start, goal):
+    """The cells from the goal back to the source, one neighbour at a time.
+
+    Fast marching leaves a field that strictly decreases towards its source
+    over the water it reached, so a step down always exists: this arrives
+    wherever following the gradient wanders off, at the price of a staircase
+    that the drawing then smooths.
+    """
+    rows, cols = field.shape
+    path = [(goal[0] + .5, goal[1] + .5)]
+    i, j = goal
+    for _ in range(4 * (rows + cols)):
+        if (i, j) == start:
+            return path + [(start[0] + .5, start[1] + .5)]
+        best, value = None, field[i, j]
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                ii, jj = i + di, j + dj
+                if 0 <= ii < rows and 0 <= jj < cols and water[ii, jj] and field[ii, jj] < value:
+                    best, value = (ii, jj), field[ii, jj]
+        if best is None:
+            return None
+        i, j = best
+        path.append((i + .5, j + .5))
+    return None
 
 
 def _afloat(water, a, b):
@@ -329,13 +362,28 @@ def _drawn(points, water, tolerance):
 
     The tolerance is a fraction of a cell, so a route keeps the curve the
     field gave it; only the points a straight run genuinely accounts for go.
+    A leg may stand for at most ``DRAW_LEG_CELLS`` of walking, so a stretch
+    the water mask is wrong about cannot turn into one long jump.
     """
-    out = [points[0]]
-    for a, b in zip(_simplify(points, tolerance), _simplify(points, tolerance)[1:]):
-        if _afloat(water, a, b):
+    walk = _spaced(points)
+    simple = _simplify(walk, tolerance)
+    out = [simple[0]]
+    for a, b in zip(simple, simple[1:]):
+        if _afloat(water, a, b) and math.hypot(b[0] - a[0], b[1] - a[1]) <= DRAW_LEG_CELLS:
             out.append(b)
         else:
-            out.extend(_between(points, a, b))   # the shortcut would clip a corner: keep the walk
+            out.extend(_between(walk, a, b))     # the shortcut is not safe: keep the walk
+    return out
+
+
+def _spaced(points):
+    """The walk with the points it stood still for taken out."""
+    out = [points[0]]
+    for p in points[1:]:
+        if math.hypot(p[0] - out[-1][0], p[1] - out[-1][1]) >= TRACE_STEP / 2:
+            out.append(p)
+    if out[-1] != points[-1]:
+        out.append(points[-1])
     return out
 
 
@@ -372,15 +420,36 @@ def _route_cached(lat1, lon1, lat2, lon2):
     if a is None or b is None:
         return "outside the charted area"
     try:
-        import skfmm
+        import skfmm                                          # noqa: F401
     except ImportError:
         return "no router on this server"
+    # A route may have to leave the box the two points make by a long way:
+    # Jones Sound to Norwegian Bay is a few hundred kilometres apart and a
+    # thousand around. When the window holds no route, it is widened and tried
+    # again rather than reported as none.
     span = max(abs(a[0] - b[0]), abs(a[1] - b[1]))
     pad = int(max(MARGIN_CELLS, MARGIN_FRAC * span))
-    i0, i1 = max(0, min(a[0], b[0]) - pad), min(g.rows, max(a[0], b[0]) + pad + 1)
-    j0, j1 = max(0, min(a[1], b[1]) - pad), min(g.cols, max(a[1], b[1]) + pad + 1)
-    if (i1 - i0) * (j1 - j0) > MAX_CELLS:
-        return "too far for this server to work out"
+    answer = "no sea route within the charted area"
+    for _ in range(MARGIN_TRIES):
+        i0, i1 = max(0, min(a[0], b[0]) - pad), min(g.rows, max(a[0], b[0]) + pad + 1)
+        j0, j1 = max(0, min(a[1], b[1]) - pad), min(g.cols, max(a[1], b[1]) + pad + 1)
+        if (i1 - i0) * (j1 - j0) > MAX_CELLS:
+            return answer if answer != "no sea route within the charted area" else "too far for this server to work out"
+        answer = _solve(g, (lat1, lon1), (lat2, lon2), a, b, (i0, i1, j0, j1))
+        if not isinstance(answer, str) or answer != "no sea route within the charted area":
+            return answer
+        whole = i0 == 0 and j0 == 0 and i1 == g.rows and j1 == g.cols
+        if whole:
+            return answer
+        pad *= 2
+    return answer
+
+
+def _solve(g, from_ll, to_ll, a, b, window):
+    """One fast-marching solve over a window of the grid."""
+    import skfmm
+    (lat1, lon1), (lat2, lon2) = from_ll, to_ll
+    i0, i1, j0, j1 = window
     water = g.water(i0, i1, j0, j1)
     src = _snap(water, a[0] - i0, a[1] - j0)
     dst = _snap(water, b[0] - i0, b[1] - j0)
@@ -402,12 +471,18 @@ def _route_cached(lat1, lon1, lat2, lon2):
     if not math.isfinite(field[dst]):
         return "no sea route within the charted area"
 
-    walked = _drawn(_trace(field, water, src, dst), water, TRACE_TOLERANCE)
+    steps = _trace(field, water, src, dst) or _crawl(field, water, src, dst)
+    if steps is None:
+        return "no sea route within the charted area"
+    walked = _drawn(steps, water, TRACE_TOLERANCE)
     # the line reaches the ship and the mark themselves, but only where the
     # water does: a point snapped across a headland keeps the walk's own end
+    # the bridge stands for the snap to water and nothing more: a long one
+    # would be a leap across whatever the mask is wrong about
     ends = [(b[0] - i0 + .5, b[1] - j0 + .5), (a[0] - i0 + .5, a[1] - j0 + .5)]
     for k, end in ((0, ends[0]), (-1, ends[1])):
-        if _afloat(water, end, walked[k]):
+        reach = math.hypot(end[0] - walked[k][0], end[1] - walked[k][1])
+        if reach <= 2 * SNAP_CELLS and _afloat(water, end, walked[k]):
             walked[k] = end
     points = [g.lonlat(i0 + y - .5, j0 + x - .5) for y, x in walked][::-1]
     km = sum(air_km(*points[k], *points[k + 1]) for k in range(len(points) - 1))
