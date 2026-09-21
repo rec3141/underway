@@ -12,7 +12,17 @@
 #
 # The pyramid is Web Mercator (EPSG:3857), which is what the dashboard's
 # MapLibre map uses; the warp is snapped to the tile grid so tiles are pixel
-# exact. Depth is rendered as a colour ramp with a hillshade blended in; land
+# exact.
+#
+# North of 64 N GEBCO's ocean is IBCAO resampled from a 200 m polar grid into
+# the 15 arc-second geographic grid, so at these latitudes its cells carry
+# about 460 m of information north to south and rather less than that east to
+# west is real. Each row is therefore blurred across a cell's height before
+# the relief is worked out, in ground distance rather than in pixels, and the
+# hillshade is lit from several sides: a single azimuth over a grid with a
+# grain lights the grain and hides what crosses it (USGS OFR 92-422).
+# Shading on a grid whose cells are square on the ground would be better
+# still, which is what GDAL's own notes advise at high latitude. Depth is rendered as a colour ramp with a hillshade blended in; land
 # carries a hypsometric ramp under the same hillshade. The hillshade is taken
 # on ground metres, not Mercator metres: each row is scaled by cos(latitude)
 # first, so a slope looks the same at the equator as at 80 N and a global
@@ -115,12 +125,10 @@ PYEOF
   COLOR_SRC="$WORK/adj.tif"
 fi
 
-# GEBCO samples 15 arc-seconds in both directions, so on the ground its cells
-# are as many times taller than wide as 1/cos(latitude): 88 m by 461 m at
-# 79 N. Drawn as they are, a single shallow cell becomes a tall thin streak
-# and the eye reads north-south ridges that are not there. Each row is
-# averaged across that many cells first, which shows the seabed at the
-# resolution the grid actually has, and leaves the equator untouched.
+# Each row is blurred across the height of a GEBCO cell here, so a feature
+# needs the same width either way to survive. The width is worked out in
+# ground distance, from the latitude of the row, and the blur is Gaussian: a
+# boxcar has side lobes that put ripples where there were none.
 echo "matching the grid's east-west and north-south detail"
 $PY - "$WORK" "$COLOR_SRC" <<'PYEOF'
 import sys, numpy as np
@@ -139,22 +147,20 @@ for y0 in range(0, src.RasterYSize, step):
     ymerc = gt[3] + (np.arange(y0, y0 + n) + 0.5) * gt[5]
     cosphi = np.cos(np.arctan(np.sinh(ymerc / R)))
     band = src.GetRasterBand(1).ReadAsArray(0, y0, src.RasterXSize, n).astype(np.float32)
-    # a cell stands this many pixels tall here; the row is blurred across that
-    # much, so a feature needs the same width either way to survive
     widths = np.clip(np.rint(CELL / cosphi / gt[1]), 1, 501).astype(int)
     for width in np.unique(widths):
         rows = np.nonzero(widths == width)[0]
         if width < 3:
             continue
-        sigma = width / 2.355                       # the window is the full width at half maximum
+        sigma = width / 2.355                       # the cell's height is the width at half maximum
         reach = int(np.ceil(3 * sigma))
         kernel = np.exp(-0.5 * (np.arange(-reach, reach + 1) / sigma) ** 2)
         kernel /= kernel.sum()
         padded = np.pad(band[rows], ((0, 0), (reach, reach)), mode="edge")
-        blurred = np.empty_like(band[rows])
+        blurred = None
         for k, weight in enumerate(kernel):
             part = padded[:, k:k + band.shape[1]] * weight
-            blurred = part if k == 0 else blurred + part
+            blurred = part if blurred is None else blurred + part
         band[rows] = blurred
     out.GetRasterBand(1).WriteArray(np.rint(band).astype(np.int16), 0, y0)
 out.FlushCache()
@@ -220,7 +226,10 @@ out.FlushCache()
 PY
 # lit from several sides: one azimuth over a grid this anisotropic puts a
 # grain on the water that reads as ridges
-gdaldem hillshade -q -z 1.2 -alt 40 -multidirectional -compute_edges "${CO[@]}" "$WORK/ground.tif" "$WORK/shade.tif"
+# lit from several sides (USGS OFR 92-422): one azimuth over a lineated grid
+# lights the lineation and hides everything across it. Zevenbergen and Thorne
+# suits a smooth seabed better than Horn's kernel.
+gdaldem hillshade -q -z 2 -alt 45 -multidirectional -alg ZevenbergenThorne -compute_edges "${CO[@]}" "$WORK/ground.tif" "$WORK/shade.tif"
 
 # blend: multiply the colour by the hillshade so slopes read
 echo "blending"
