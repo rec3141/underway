@@ -1209,7 +1209,8 @@
          { size: f.route.cell_km }) : "";
 
   // what the box must not sit on: the route drawn to the mark, and the ship at its far end
-  const tipClear = (f) => [...(f.route?.path || []), ...(lastShip?.lat != null ? [[lastShip.lat, lastShip.lon]] : [])];
+  const tipClear = (f) => [...(f.route?.path?.length ? [f.route.path] : []),
+    ...(lastShip?.lat != null ? [[[lastShip.lat, lastShip.lon]]] : [])];
 
   // the box again from the latest answers, without disturbing a name being typed
   function refreshFocusBox(f, ship) {
