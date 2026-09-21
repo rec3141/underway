@@ -35,6 +35,7 @@
 # Needs GDAL >= 3.4 (gdalbuildvrt, gdalwarp, gdaldem, gdal2tiles.py) on the
 # PATH and its Python bindings in /usr/bin/python3 or the interpreter GDAL_PYTHON names.
 set -euo pipefail
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 ZIP=${1:?zip}; OUT=${2:?outdir}
 BBOX=(${3:--150} ${4:-45} ${5:--15} ${6:-86})
@@ -217,61 +218,13 @@ PYEOF
 COLOR_SRC="$WORK/even.tif"
 fi
 
-# depth ramp: the tints IBCAO publishes its charts in, read off the legend
-# of the NOAA/IBCAO Arctic sheet: twenty steps from magenta in the deepest
-# basins through blue, cyan and green to red at the shore, each a flat band
-# so the steps read as isobaths in their own right, and land in neutral grey
-# so the water carries the colour. The 100 m line that routes keep off falls
-# on the step from yellow to orange, and is drawn over the top as well.
-cat > "$WORK/ramp.txt" <<'EOF'
--11000 255 0 254
--5500 255 0 254
--5499.99 226 30 252
--5000 226 30 252
--4999.99 190 66 250
--4500 190 66 250
--4499.99 154 103 244
--4000 154 103 244
--3999.99 122 135 240
--3500 122 135 240
--3499.99 81 173 238
--3000 81 173 238
--2999.99 48 206 235
--2500 48 206 235
--2499.99 20 235 230
--2000 20 235 230
--1999.99 1 255 229
--1500 1 255 229
--1499.99 0 255 161
--1000 0 255 161
--999.99 1 255 95
--500 1 255 95
--499.99 0 255 25
--400 0 255 25
--399.99 40 255 1
--300 40 255 1
--299.99 108 255 1
--250 108 255 1
--249.99 174 255 0
--200 174 255 0
--199.99 242 255 0
--150 242 255 0
--149.99 255 200 1
--100 255 200 1
--99.99 255 134 1
--50 255 134 1
--49.99 255 68 1
--20 255 68 1
--19.99 254 10 0
-0 254 10 0
--0.01 254 10 0
-0.01 150 150 150
-300 163 163 163
-900 186 186 186
-1600 208 208 208
-2400 226 226 226
-3500 242 242 242
-EOF
+# depth ramp: a gdaldem colour file, RAMP or the default under tools/ramps.
+# The map offers several (tools/ramps/*.txt) and the button on the map cycles
+# whichever pyramids have been built. Whatever the ramp, the 100 m line that
+# routes keep off is drawn over the top as well.
+RAMP=${RAMP:-$HERE/ramps/lapaz.txt}
+cp "$RAMP" "$WORK/ramp.txt"
+echo "ramp: $(basename "$RAMP" .txt)"
 echo "colour relief"
 gdaldem color-relief -q -alpha "${CO[@]}" "$COLOR_SRC" "$WORK/ramp.txt" "$WORK/color.tif"
 

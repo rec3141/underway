@@ -19,6 +19,12 @@
 # point and varies only with latitude; the router divides by that scale to get
 # ground distances, which a lon/lat grid cannot do without stretching cells.
 #
+# With TID set to GEBCO's Type Identifier grid, each cell also carries where
+# its depth came from: a survey, an interpolation between surveys, or a guess
+# from satellite gravity. Only about a quarter of this water has been sounded,
+# and the surveyed part is very largely ship tracks, so a route can be asked
+# to follow them.
+#
 # Land comes from the shore polygons the map itself draws (LAND, the OSM
 # coastline; LAND_LAYER names the layer). GEBCO alone will not do: the
 # sub-ice grid puts the bedrock under an ice cap below sea level, so a router
@@ -77,24 +83,32 @@ if [[ -n ${LAND:-} ]]; then
   gdal_rasterize -q -init 255 -burn 1 -l "${LAND_LAYER:-land}" -te "$X0" "$Y0" "$X1" "$Y1" \
       -tr "$METRES" "$METRES" -a_srs EPSG:3413 -ot Byte "${CO[@]}" "$LAND" "$WORK/land.tif"
 fi
+if [[ -n ${TID:-} ]]; then
+  echo "where the depths came from, from $TID"
+  gdalwarp -q -t_srs EPSG:3413 -te "$X0" "$Y0" "$X1" "$Y1" -tr "$METRES" "$METRES" \
+      -r mode -ot Byte -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "${CO[@]}" \
+      "NETCDF:${TID}:tid" "$WORK/tid.tif"
+fi
 for pass in min bilinear; do
   echo "warping to EPSG:3413 at ${METRES} m, $pass"
   gdalwarp -q -t_srs EPSG:3413 -te "$X0" "$Y0" "$X1" "$Y1" -tr "$METRES" "$METRES" \
       -r "$pass" -ot Int16 -dstnodata 32767 -of GTiff -co COMPRESS=DEFLATE -co TILED=YES -co BIGTIFF=YES \
       -multi -wo NUM_THREADS=ALL_CPUS -wm 4096 "$WORK/global.vrt" "$WORK/$pass.tif"
 done
-$PY - "$WORK/min.tif" "$WORK/bilinear.tif" "$OUT" <<'PY'
+$PY - "$WORK/min.tif" "$WORK/bilinear.tif" "$OUT" "${LAND:+$WORK/land.tif}" "${TID:+$WORK/tid.tif}" <<'PY'
 import json, sys
 import numpy as np
 from osgeo import gdal
 gdal.UseExceptions()
 lowest, sampled, out = sys.argv[1], sys.argv[2], sys.argv[3]
 shore = gdal.Open(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else None
+kinds = gdal.Open(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] else None
 src = gdal.Open(sampled)
 gt = src.GetGeoTransform()
 rows, cols = src.RasterYSize, src.RasterXSize
 elev = np.lib.format.open_memmap(f"{out}/elevation.npy", mode="w+", dtype=np.int16, shape=(rows, cols))
 water = np.lib.format.open_memmap(f"{out}/water.npy", mode="w+", dtype=np.uint8, shape=(rows, (cols + 7) // 8))
+source = np.lib.format.open_memmap(f"{out}/source.npy", mode="w+", dtype=np.uint8, shape=(rows, cols)) if kinds else None
 low = gdal.Open(lowest)
 step = 2048
 for y in range(0, rows, step):
@@ -108,9 +122,12 @@ for y in range(0, rows, step):
         polygons = shore.GetRasterBand(1).ReadAsArray(0, y, cols, n)
         wet = np.where(polygons == 255, wet, polygons == 0)   # 255: the polygons say nothing here
     water[y:y + n] = np.packbits(wet, axis=1)
+    if source is not None:
+        source[y:y + n] = kinds.GetRasterBand(1).ReadAsArray(0, y, cols, n)
 elev.flush(); water.flush()
+if source is not None: source.flush()
 json.dump({"crs": "EPSG:3413", "x0": gt[0], "y0": gt[3], "metres": gt[1], "rows": rows, "cols": cols,
-           "source": "GEBCO 2024 sub-ice, 15 arc-second"}, open(f"{out}/grid.json", "w"), indent=1)
+           "source": "GEBCO 2024 sub-ice, 15 arc-second", "kinds": bool(kinds)}, open(f"{out}/grid.json", "w"), indent=1)
 print(f"{out}: {cols} x {rows} cells at {gt[1]:.0f} m, "
       f"{np.unpackbits(np.asarray(water[::37]), axis=1)[:, :cols].mean() * 100:.0f}% water, "
       f"elevation {int(elev[::37].min())}..{int(elev[::37].max())} m")

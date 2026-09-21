@@ -131,6 +131,7 @@ window.UW_UI_CATALOG = {
         "map.mode": "Map: {mode}",
         "map.next": "{current} · click for {next}",
         "map.none": "No map",
+        "mapControls.bathyHint": "the seabed the map draws: the relief in one colour ramp or another, or the chart of where its depths came from",
         "mapControls.chartDate": "Chart date (UTC) ",
         "mapControls.close": "close",
         "mapControls.closeDetails": "Close map details",
@@ -216,6 +217,7 @@ window.UW_UI_CATALOG = {
         "pages.08c7ee7de2124efa": "Open original in new tab ↗",
         "pages.08e58be1256d79bf": "Select a cast from the list or the map.",
         "pages.09821b19441052ad": "No Seasave source set — use ⚙.",
+        "pages.09d33df574872bc6": "not sounded: a steering point",
         "pages.09f05ffbbc0a6b04": " (whatever the destination)",
         "pages.0a040c7f8ef25d76": "Close photo",
         "pages.0a26f41abd00f95e": "Import failed",
@@ -323,6 +325,7 @@ window.UW_UI_CATALOG = {
         "pages.24626cb1dc15eb75": "classified",
         "pages.246c9aa43eb5384e": "{v0} collections, one a topic. Open one for its {v1}.",
         "pages.24b309ef05a800b9": "Drop Camera",
+        "pages.252c5163544a273b": "measured by a multibeam survey",
         "pages.25781429f18f9f88": "in water",
         "pages.25b165146228c719": "{v0} found",
         "pages.26963612170619a8": "saved",
@@ -369,6 +372,7 @@ window.UW_UI_CATALOG = {
         "pages.3194ed03862a55fd": "track readings",
         "pages.31f2cd60c65a153d": "saving…",
         "pages.3223e57d9ea5de4e": "follow {v0}: 15 min heads-up and every change",
+        "pages.3253e5983b7784d5": "measured by a singlebeam survey",
         "pages.325e9f7b656e6135": "That observation is not in this build.",
         "pages.328143c3c16d54dc": "{v0} m up",
         "pages.3297e071e7639648": "Loading the record…",
@@ -490,6 +494,7 @@ window.UW_UI_CATALOG = {
         "pages.56630f4b80ceb0f1": "Also flag",
         "pages.57230d1daa6720c2": "Operations schedule {v0}{v1}",
         "pages.573850785e407d7b": "Private to the ship",
+        "pages.57676e5bbdd87032": "Relief",
         "pages.5830d6da56e44d4f": "{v0} of {v1} bottle firings shown",
         "pages.58339f45df960408": "Wed",
         "pages.59cbdb2816208517": "Open fullscreen slideshow",
@@ -578,6 +583,7 @@ window.UW_UI_CATALOG = {
         "pages.770711b477e8da40": "view data",
         "pages.772c6953848bf5b1": "observation",
         "pages.7743ce348d9284d6": "draft",
+        "pages.777844bd9670d7a6": "measured by seismic survey",
         "pages.789e8de747b02a7b": "nilas",
         "pages.79a9f4f6d201a55d": "Rights reserved",
         "pages.7a6e9e2b5d0ecb83": "by sea: {reason}",
@@ -592,10 +598,12 @@ window.UW_UI_CATALOG = {
         "pages.7c62dde8e91db1cf": "Lander",
         "pages.7c706e7a8b983a5e": "How this history was made",
         "pages.7c723452a98e32c9": "On this day · {v0}",
+        "pages.7c89c2b621970a65": "not sounded: taken from a depth model",
         "pages.7ca0d6c7afeb2c2d": "on the map",
         "pages.7ca7dea906800f87": "Water",
         "pages.7cc9fa7e6f62a347": " · following {v0}",
         "pages.7cf40a646358bdfe": "the crew are still at work on this page",
+        "pages.7d02ec0c9f995909": "of unrecorded origin",
         "pages.7da11212ed340ea7": "Thu",
         "pages.7db20897053bb278": "People",
         "pages.7de82e541d02427d": "a private room with someone here",
@@ -632,15 +640,18 @@ window.UW_UI_CATALOG = {
         "pages.8968c716fb239760": "ice floe",
         "pages.89a97309c8f1dde7": "distance along the stations A–Z (km)",
         "pages.89e0968cb624a276": "Seasave's TCP/IP output carries no pressure or package depth (its \"Depth, NMEA\" is the echosounder's bottom depth). In Seasave: Configure Outputs › TCP/IP Out › Select Variables, add Pressure [db] or Depth [salt water, m].",
+        "pages.8adf8883d68de703": "worked out from imagery",
         "pages.8af13d3a800670e9": "Gravity Core",
         "pages.8b218f6aa2a8fa66": "Patchiness",
         "pages.8b270ed732edc5c6": "{v0} cast{v1}",
         "pages.8b4ac18844ccb594": "{km} km ({nmi} nmi)",
+        "pages.8be3039b71f6b1f7": "measured by several surveys combined",
         "pages.8c0fc3e67ce6edbf": "show:",
         "pages.8c181da097acc01c": "only operations matching",
         "pages.8c3614627ec45c9d": "not available",
         "pages.8c4463e5d14f4ff3": "No matching underway distances in this span",
         "pages.8d14f6e72de8f18a": "Events",
+        "pages.8d934bfe0f8231c3": "not sounded: predicted from satellite gravity",
         "pages.8d9ec6044a90f019": "Keep importing from this /Share folder",
         "pages.8dc37869d63b05bd": "Quotes",
         "pages.8e2c7ac508139a02": "offline",
@@ -682,11 +693,13 @@ window.UW_UI_CATALOG = {
         "pages.9976c76f151ed9cb": "PROBING",
         "pages.99b2318698af4c73": "subscribed {v0}: {v1}, {v2} min ahead",
         "pages.99c40ab405926cb5": "Date",
+        "pages.9b393736ea6c1ecd": "Bathy",
         "pages.9b4ef3e5b7b4d175": "station",
         "pages.9baf01819b22e507": "last raw scans",
         "pages.9bf5a24e4aa77998": "operation",
         "pages.9c585c8ddefd2720": " · today",
         "pages.9cb84ab470f4d318": "Camera · Colorfulness (PC3)",
+        "pages.9ccd8306043c2f57": "measured by isolated soundings",
         "pages.9cd0e357245fb95d": "the {v0}: a private room with {v1} ({v2})",
         "pages.9cd578a09eb38dcb": "{v0} m below the surface",
         "pages.9d131a2c668765f8": "show {station} on the map",
@@ -697,6 +710,7 @@ window.UW_UI_CATALOG = {
         "pages.9ee78ce2f0ecac99": "conservation status",
         "pages.9eeead76de41e46b": "; {v0} questions answered by a person",
         "pages.9f28dfaff8c0e4e6": "Bibliography",
+        "pages.9f6e67deadccd493": "not sounded: interpolated between soundings",
         "pages.a04d3b26e64dc84d": "← Gallery",
         "pages.a077ad4b78f92338": "Delete transect",
         "pages.a0a44ed8cfc32b7e": "everything",
@@ -727,12 +741,14 @@ window.UW_UI_CATALOG = {
         "pages.a6ad6e106668be7b": "a message when future operations are added, taken off or rescheduled; no completion or status-only notices",
         "pages.a6d6ce3d5aba07c2": "Camera track unavailable",
         "pages.a6f85eb7e8dcedb4": "Select casts from the list, or click stations and tow tracks on the map.",
+        "pages.a71aa3e7dc6bfbb4": "Survey",
         "pages.a7bcf53bf6b49f82": "Agassiz Trawl",
         "pages.a84e6ee24d708b39": "the point is on land",
         "pages.a86329cc29043c6f": "{distance} by sea",
         "pages.a9491f4c1bf7b0cf": "subject",
         "pages.a971f5ed9bbf6db8": "; {v0} pages are still drafts",
         "pages.aa63925edf225e26": "warn",
+        "pages.aa95f0700ef156b3": "measured by lidar",
         "pages.aafecb99525ba917": "ask Ada, the librarian · Enter to send",
         "pages.ab03a958ec35ded7": "Select all shown casts",
         "pages.ac20a57bfde0bbc4": "Hide",
@@ -748,6 +764,7 @@ window.UW_UI_CATALOG = {
         "pages.aec02cbd799774af": "No such import.",
         "pages.aed812ff76f64d4e": "{v4} {v5} axis",
         "pages.b04472d9603795ac": "the Deck: ask Ada and Doc together, the history and the nature",
+        "pages.b074cc0dabc3fd5c": "not sounded: from a pre-made grid",
         "pages.b0bf3d89f0028773": "in the water",
         "pages.b1809383ab754a8a": "the ship's own journal",
         "pages.b21fb709e2a23a63": " · {v0} formerly",
@@ -973,6 +990,7 @@ window.UW_UI_CATALOG = {
         "pages.fc10a785607b6a35": "SeaSave TCP/IP out (host:port, more ports with commas)",
         "pages.fc3cd8012131af0e": "Mean RGB (0–255)",
         "pages.fc80b6fe040ec37c": "Hide {count} formerly scheduled",
+        "pages.fc9ec865b3aa66c1": "a sounding taken from a chart",
         "pages.fce182ecc225a516": "The natural half of the record is not in this build yet: the subjects and observations arrive with the next pull once grid publishes them. The ship's journal works now.",
         "pages.fcf7ed654535baea": "ship time ({zone})",
         "pages.fd0dd42cc4b9bac3": "Experimental camera estimates. Filtered seawater = 0%; pending is unknown. Click for ROI.",
@@ -1374,6 +1392,7 @@ window.UW_UI_CATALOG = {
         "map.mode": "Carte : {mode}",
         "map.next": "{current} · cliquez pour passer à {next}",
         "map.none": "Sans carte",
+        "mapControls.bathyHint": "le fond marin dessiné par la carte : le relief dans une palette ou une autre, ou la carte de l’origine des profondeurs",
         "mapControls.chartDate": "Date de la carte (UTC) ",
         "mapControls.close": "fermer",
         "mapControls.closeDetails": "Fermer les détails de la carte",
@@ -1459,6 +1478,7 @@ window.UW_UI_CATALOG = {
         "pages.08c7ee7de2124efa": "Ouvrir l’original dans un nouvel onglet ↗",
         "pages.08e58be1256d79bf": "Sélectionnez un profil dans la liste ou sur la carte.",
         "pages.09821b19441052ad": "Aucune source Seasave configurée — utilisez ⚙.",
+        "pages.09d33df574872bc6": "non sondé : point de guidage",
         "pages.09f05ffbbc0a6b04": " (quelle que soit la destination)",
         "pages.0a040c7f8ef25d76": "Fermer la photo",
         "pages.0a26f41abd00f95e": "Échec de l’importation",
@@ -1566,6 +1586,7 @@ window.UW_UI_CATALOG = {
         "pages.24626cb1dc15eb75": "classé",
         "pages.246c9aa43eb5384e": "Collections : {v0}, une par thème. Ouvrez-en une pour voir ses {v1}.",
         "pages.24b309ef05a800b9": "Caméra descendue",
+        "pages.252c5163544a273b": "mesuré par levé multifaisceaux",
         "pages.25781429f18f9f88": "à l’eau",
         "pages.25b165146228c719": "Résultats : {v0}",
         "pages.26963612170619a8": "enregistré",
@@ -1612,6 +1633,7 @@ window.UW_UI_CATALOG = {
         "pages.3194ed03862a55fd": "mesures du trajet",
         "pages.31f2cd60c65a153d": "enregistrement…",
         "pages.3223e57d9ea5de4e": "suivre {v0} : préavis de 15 min et chaque modification",
+        "pages.3253e5983b7784d5": "mesuré par levé monofaisceau",
         "pages.325e9f7b656e6135": "Cette observation ne figure pas dans cette version.",
         "pages.328143c3c16d54dc": "à {v0} m d’altitude",
         "pages.3297e071e7639648": "Chargement des données…",
@@ -1733,6 +1755,7 @@ window.UW_UI_CATALOG = {
         "pages.56630f4b80ceb0f1": "Signaler aussi",
         "pages.57230d1daa6720c2": "Horaire des opérations {v0}{v1}",
         "pages.573850785e407d7b": "Confidentiel à bord",
+        "pages.57676e5bbdd87032": "Relief",
         "pages.5830d6da56e44d4f": "Fermetures de bouteilles affichées : {v0} sur {v1}",
         "pages.58339f45df960408": "mer.",
         "pages.59cbdb2816208517": "Ouvrir le diaporama en plein écran",
@@ -1821,6 +1844,7 @@ window.UW_UI_CATALOG = {
         "pages.770711b477e8da40": "voir les données",
         "pages.772c6953848bf5b1": "observation",
         "pages.7743ce348d9284d6": "ébauche",
+        "pages.777844bd9670d7a6": "mesuré par levé sismique",
         "pages.789e8de747b02a7b": "nilas",
         "pages.79a9f4f6d201a55d": "Droits réservés",
         "pages.7a6e9e2b5d0ecb83": "par mer : {reason}",
@@ -1835,10 +1859,12 @@ window.UW_UI_CATALOG = {
         "pages.7c62dde8e91db1cf": "Plateforme benthique",
         "pages.7c706e7a8b983a5e": "Comment cette histoire a été constituée",
         "pages.7c723452a98e32c9": "Ce jour-là · {v0}",
+        "pages.7c89c2b621970a65": "non sondé : tiré d’un modèle bathymétrique",
         "pages.7ca0d6c7afeb2c2d": "sur la carte",
         "pages.7ca7dea906800f87": "Eau",
         "pages.7cc9fa7e6f62a347": " · suivi de {v0}",
         "pages.7cf40a646358bdfe": "l’équipage travaille encore sur cette page",
+        "pages.7d02ec0c9f995909": "d’origine non consignée",
         "pages.7da11212ed340ea7": "jeu.",
         "pages.7db20897053bb278": "Personnes",
         "pages.7de82e541d02427d": "une salle privée avec une personne présente",
@@ -1875,15 +1901,18 @@ window.UW_UI_CATALOG = {
         "pages.8968c716fb239760": "floe",
         "pages.89a97309c8f1dde7": "distance selon les stations A–Z (km)",
         "pages.89e0968cb624a276": "La sortie TCP/IP de Seasave ne transmet ni pression ni profondeur de l’instrument (« Depth, NMEA » correspond à la profondeur du fond mesurée par l’échosondeur). Dans Seasave : Configure Outputs › TCP/IP Out › Select Variables, ajoutez Pressure [db] ou Depth [salt water, m].",
+        "pages.8adf8883d68de703": "déduit d’imagerie",
         "pages.8af13d3a800670e9": "Carottier à gravité",
         "pages.8b218f6aa2a8fa66": "Hétérogénéité",
         "pages.8b270ed732edc5c6": "{v0} profil{v1}",
         "pages.8b4ac18844ccb594": "{km} km ({nmi} nmi)",
+        "pages.8be3039b71f6b1f7": "mesuré par plusieurs levés combinés",
         "pages.8c0fc3e67ce6edbf": "afficher :",
         "pages.8c181da097acc01c": "seulement les opérations correspondant à",
         "pages.8c3614627ec45c9d": "non disponible",
         "pages.8c4463e5d14f4ff3": "Aucune distance en route correspondante pour cette période",
         "pages.8d14f6e72de8f18a": "Événements",
+        "pages.8d934bfe0f8231c3": "non sondé : prédit par gravimétrie satellitaire",
         "pages.8d9ec6044a90f019": "Continuer à importer depuis ce dossier /Share",
         "pages.8dc37869d63b05bd": "Citations",
         "pages.8e2c7ac508139a02": "hors ligne",
@@ -1925,11 +1954,13 @@ window.UW_UI_CATALOG = {
         "pages.9976c76f151ed9cb": "RECHERCHE",
         "pages.99b2318698af4c73": "abonnement de {v0} : {v1}, préavis de {v2} min",
         "pages.99c40ab405926cb5": "Date",
+        "pages.9b393736ea6c1ecd": "Fonds",
         "pages.9b4ef3e5b7b4d175": "station",
         "pages.9baf01819b22e507": "dernières acquisitions brutes",
         "pages.9bf5a24e4aa77998": "opération",
         "pages.9c585c8ddefd2720": " · aujourd’hui",
         "pages.9cb84ab470f4d318": "Caméra · intensité des couleurs (PC3)",
+        "pages.9ccd8306043c2f57": "mesuré par sondages isolés",
         "pages.9cd0e357245fb95d": "{v0} : salle privée avec {v1} ({v2})",
         "pages.9cd578a09eb38dcb": "{v0} m sous la surface",
         "pages.9d131a2c668765f8": "afficher {station} sur la carte",
@@ -1940,6 +1971,7 @@ window.UW_UI_CATALOG = {
         "pages.9ee78ce2f0ecac99": "statut de conservation",
         "pages.9eeead76de41e46b": "; questions auxquelles une personne a répondu : {v0}",
         "pages.9f28dfaff8c0e4e6": "Bibliographie",
+        "pages.9f6e67deadccd493": "non sondé : interpolé entre des sondages",
         "pages.a04d3b26e64dc84d": "← Galerie",
         "pages.a077ad4b78f92338": "Supprimer le transect",
         "pages.a0a44ed8cfc32b7e": "tout",
@@ -1970,12 +2002,14 @@ window.UW_UI_CATALOG = {
         "pages.a6ad6e106668be7b": "un message lorsque des opérations à venir sont ajoutées, retirées ou replanifiées; aucun avis de fin ni de simple changement d’état",
         "pages.a6d6ce3d5aba07c2": "Trajet de caméra indisponible",
         "pages.a6f85eb7e8dcedb4": "Sélectionnez des profils dans la liste, ou cliquez sur les stations et les trajets de remorquage sur la carte.",
+        "pages.a71aa3e7dc6bfbb4": "Levés",
         "pages.a7bcf53bf6b49f82": "Chalut Agassiz",
         "pages.a84e6ee24d708b39": "le point est sur la terre ferme",
         "pages.a86329cc29043c6f": "{distance} par mer",
         "pages.a9491f4c1bf7b0cf": "sujet",
         "pages.a971f5ed9bbf6db8": "; pages encore à l’état d’ébauche : {v0}",
         "pages.aa63925edf225e26": "prévenir",
+        "pages.aa95f0700ef156b3": "mesuré par lidar",
         "pages.aafecb99525ba917": "interroger Ada, la bibliothécaire · Entrée pour envoyer",
         "pages.ab03a958ec35ded7": "Sélectionner tous les profils affichés",
         "pages.ac20a57bfde0bbc4": "Masquer",
@@ -1991,6 +2025,7 @@ window.UW_UI_CATALOG = {
         "pages.aec02cbd799774af": "Cette importation n’existe pas.",
         "pages.aed812ff76f64d4e": "{v4} l’axe {v5}",
         "pages.b04472d9603795ac": "le pont : interrogez Ada et Doc ensemble sur l’histoire et la nature",
+        "pages.b074cc0dabc3fd5c": "non sondé : tiré d’une grille préexistante",
         "pages.b0bf3d89f0028773": "à l’eau",
         "pages.b1809383ab754a8a": "le journal du navire",
         "pages.b21fb709e2a23a63": " · anciennement prévues : {v0}",
@@ -2216,6 +2251,7 @@ window.UW_UI_CATALOG = {
         "pages.fc10a785607b6a35": "Sortie TCP/IP de SeaSave (hôte:port, ports supplémentaires séparés par des virgules)",
         "pages.fc3cd8012131af0e": "RVB moyen (0–255)",
         "pages.fc80b6fe040ec37c": "Masquer les opérations anciennement prévues ({count})",
+        "pages.fc9ec865b3aa66c1": "un sondage tiré d’une carte",
         "pages.fce182ecc225a516": "Le volet nature ne figure pas encore dans cette version : les sujets et observations arriveront à la prochaine synchronisation après leur publication sur grid. Le journal du navire est déjà disponible.",
         "pages.fcf7ed654535baea": "heure du navire ({zone})",
         "pages.fd0dd42cc4b9bac3": "Estimations expérimentales par caméra. Eau de mer filtrée = 0 %; les données en attente sont inconnues. Cliquez pour voir la région d’intérêt.",
@@ -2995,6 +3031,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9502d7e99171815e19c5ddb5079acad2c59ff1eea1b396866902261a2d808035"
         },
+        "mapControls.bathyHint": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "6d1352c3635d249257f2369040c6799d44a99336980725380ad81e291f3a8eb5"
+        },
         "mapControls.chartDate": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0070093bc312c5915569a0dfa097bdfc7617afc5bf46aceef9c978e07e0d67f6"
@@ -3334,6 +3374,10 @@ window.UW_UI_CATALOG = {
         "pages.09821b19441052ad": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "569bfe2628e7f42fbddc24be60ad68ac872633f405ccfa8aa525dc0280594bee"
+        },
+        "pages.09d33df574872bc6": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "64503e94222c1612f9c3f0a528f810d8795ca69e3663f5063b61d783078248a7"
         },
         "pages.09f05ffbbc0a6b04": {
           "profile": "editorial-fr-ca-v4",
@@ -3763,6 +3807,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ee1c8e712684b105f12f6c3eeb52ab1867b7d1d8c0fc1520e4ae6f886e92e93f"
         },
+        "pages.252c5163544a273b": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "57d4fb0f8a4f94f2e201147c9495db0a1c60dcbf9c301551f4f22769b0ac24aa"
+        },
         "pages.25781429f18f9f88": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5e46196c97c9b9f4b9c86436fc656e89fbc2a35ada40864383e63000fda1a06b"
@@ -3946,6 +3994,10 @@ window.UW_UI_CATALOG = {
         "pages.3223e57d9ea5de4e": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7d16c7f0a4c57768d42720cbba5da7bd6504108cc860435c0dfa07b19aae1dae"
+        },
+        "pages.3253e5983b7784d5": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "d477b1275b44fc3da99eddb135d1087767a95e696156bbbd5c3e848c61b072d8"
         },
         "pages.325e9f7b656e6135": {
           "profile": "editorial-fr-ca-v4",
@@ -4431,6 +4483,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0d8599c753b95386a660369fdbc93ff5dbff9a2aa599356b03ce92d9137d8337"
         },
+        "pages.57676e5bbdd87032": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "6b9c2ca314bdebc64dd491c3839e483d6357cc7662a7bb3e43600a18c51432cf"
+        },
         "pages.5830d6da56e44d4f": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "33d230c49b9c46003b3bba9bb23a8ea4970657270d277d676773fd49032987f7"
@@ -4783,6 +4839,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6ae048f08fcab44bfbc8463f074bfdb40f94c6bdf56d3aad9a7e1c05e5d5b5c1"
         },
+        "pages.777844bd9670d7a6": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "a0967d1eabd29758b81aaaea563150cfba2be579c3372b3a294e7d4677575008"
+        },
         "pages.789e8de747b02a7b": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d85e92b6cf1a0b17c05b45ee84bfd68fdb4b501fa80ac3468ef7f208f80f3b5e"
@@ -4839,6 +4899,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b75f33453458f08fc80cb6ddf62d758b6906d8635c60b9cea39c3bca4d9f49ee"
         },
+        "pages.7c89c2b621970a65": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "db3092f0dfdc3f5e8dfb1ba9e3936f664b443b3eca8ef8e08ae3e843e6dcc1b7"
+        },
         "pages.7ca0d6c7afeb2c2d": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6aacb1d707328856df1ef335ba264419a9b66dd763d7f58b2122d2d29e3c60eb"
@@ -4854,6 +4918,10 @@ window.UW_UI_CATALOG = {
         "pages.7cf40a646358bdfe": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e4089d48c8239a4d8df4ae5a13dee22a4bcae1edfaeb30e915bcba745a2ea5a4"
+        },
+        "pages.7d02ec0c9f995909": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "3578c32cca8f417922b3d17c63bccd9395aeed8c179ed8bd09c8b2c63060fdde"
         },
         "pages.7da11212ed340ea7": {
           "profile": "editorial-fr-ca-v4",
@@ -4999,6 +5067,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1eb9afea0ebe59d77459af12116f9aa8b6dd38c2afa28a9523230b8a8e0161cc"
         },
+        "pages.8adf8883d68de703": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "c775c0f58ef0fb817336f0188977ef790a7a6f64276df87115439700bbe2db4d"
+        },
         "pages.8af13d3a800670e9": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "cb304dc37ed79388c4456e8689c4db2f5592a3987447688f7f59a6945fcf382d"
@@ -5014,6 +5086,10 @@ window.UW_UI_CATALOG = {
         "pages.8b4ac18844ccb594": {
           "profile": "editorial-fr-ca-v5",
           "sourceSha256": "8cce3e75396c2184bb44fb24d6cd80de6cdc50a34b78fd8668790c7d8681597b"
+        },
+        "pages.8be3039b71f6b1f7": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "d54d2c4a38c0840a30fe11a4e2472525028e84de4790aca55b56a6780f8efc9a"
         },
         "pages.8c0fc3e67ce6edbf": {
           "profile": "editorial-fr-ca-v4",
@@ -5034,6 +5110,10 @@ window.UW_UI_CATALOG = {
         "pages.8d14f6e72de8f18a": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "298dd7c15c671332526dcc22c0d64d73aa377cb75ff0034ec6efd854b7404239"
+        },
+        "pages.8d934bfe0f8231c3": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "4ed413f5f454c1323ef09b014d78588788c6f4a43f6ba16d2f7aa3eda7f7aa84"
         },
         "pages.8d9ec6044a90f019": {
           "profile": "editorial-fr-ca-v4",
@@ -5199,6 +5279,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "98d68066d929abb678894e7c4822d395585b13a0eb8d40156dccb8fcf55a85a8"
         },
+        "pages.9b393736ea6c1ecd": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "531dd13dd42f7d2cd28f1c2d2f5b9c93b18ffd0d6364e42ad6635879cf078389"
+        },
         "pages.9b4ef3e5b7b4d175": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8f828bb048390ff73ad81ad2807d5e6e1b420414c34b2b586bb662ecd2a6bdf9"
@@ -5218,6 +5302,10 @@ window.UW_UI_CATALOG = {
         "pages.9cb84ab470f4d318": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d771964ded578436ad5f431207688c765b6a8c33a65ad77d8337fd7acfa3d913"
+        },
+        "pages.9ccd8306043c2f57": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "b980df165055dbb2ebcb2126780ddb5f115e4970eaa28d705bea25ab588257ba"
         },
         "pages.9cd0e357245fb95d": {
           "profile": "editorial-fr-ca-v4",
@@ -5258,6 +5346,10 @@ window.UW_UI_CATALOG = {
         "pages.9f28dfaff8c0e4e6": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8f8f3a8163b8ec5c08fcd9f5e25f2884c87cb91338fcb476a4554e00f713d6a2"
+        },
+        "pages.9f6e67deadccd493": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "ba0ab504ed9299461b39c8d316fd1ceee4d94dc5d056788e450795234fcb1e16"
         },
         "pages.a04d3b26e64dc84d": {
           "profile": "editorial-fr-ca-v4",
@@ -5379,6 +5471,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "0bad88bb9307f1178492de2c4e980ebf0ab6075a263ae6f97f10358975b07720"
         },
+        "pages.a71aa3e7dc6bfbb4": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "7b31e175e7fbb24f9f3711a27d48e87b7e22d345b07bedae3ef589baaa5d2e97"
+        },
         "pages.a7bcf53bf6b49f82": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "1a05cf7df25d624e3b70a62be92387ede42ad6a6f609b332d002a0bd7bcda873"
@@ -5402,6 +5498,10 @@ window.UW_UI_CATALOG = {
         "pages.aa63925edf225e26": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "044ac6d152a5f0dfe71dc47ff67627c16a1a8b97cac0b441c6c2eec6682246d0"
+        },
+        "pages.aa95f0700ef156b3": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "f50ddcad91d43ce0f577c9a82301849d9c207872fdf9367669d48008aa6fdf4b"
         },
         "pages.aafecb99525ba917": {
           "profile": "editorial-fr-ca-v4",
@@ -5462,6 +5562,10 @@ window.UW_UI_CATALOG = {
         "pages.b04472d9603795ac": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4b2d3175884432db60f4f7c32256e71a3d693725b6904ada481def4cda84d120"
+        },
+        "pages.b074cc0dabc3fd5c": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "d573cbe3d4de2d77099d3704eb1836514feb8ff058214a225671beb5ab7c2079"
         },
         "pages.b0bf3d89f0028773": {
           "profile": "editorial-fr-ca-v4",
@@ -6362,6 +6466,10 @@ window.UW_UI_CATALOG = {
         "pages.fc80b6fe040ec37c": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "4b929efce1f41037132974be298b4af2b5ef8a7c46d0221d00a89e8c2126413d"
+        },
+        "pages.fc9ec865b3aa66c1": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "2b4b5bcddb2753e6d222fd8ae8eb96d4c05f1150ce7bd17f44d200f28e1d957d"
         },
         "pages.fce182ecc225a516": {
           "profile": "editorial-fr-ca-v4",

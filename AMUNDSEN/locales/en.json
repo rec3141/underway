@@ -4907,6 +4907,78 @@
     "pages.40917cbc9170b0d6": {
       "text": "too far for this server to work out",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9b393736ea6c1ecd": {
+      "text": "Bathy",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.57676e5bbdd87032": {
+      "text": "Relief",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.a71aa3e7dc6bfbb4": {
+      "text": "Survey",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.252c5163544a273b": {
+      "text": "measured by a multibeam survey",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.3253e5983b7784d5": {
+      "text": "measured by a singlebeam survey",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.777844bd9670d7a6": {
+      "text": "measured by seismic survey",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9ccd8306043c2f57": {
+      "text": "measured by isolated soundings",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.fc9ec865b3aa66c1": {
+      "text": "a sounding taken from a chart",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.aa95f0700ef156b3": {
+      "text": "measured by lidar",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8adf8883d68de703": {
+      "text": "worked out from imagery",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8be3039b71f6b1f7": {
+      "text": "measured by several surveys combined",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.8d934bfe0f8231c3": {
+      "text": "not sounded: predicted from satellite gravity",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.9f6e67deadccd493": {
+      "text": "not sounded: interpolated between soundings",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7c89c2b621970a65": {
+      "text": "not sounded: taken from a depth model",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.b074cc0dabc3fd5c": {
+      "text": "not sounded: from a pre-made grid",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.09d33df574872bc6": {
+      "text": "not sounded: a steering point",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.7d02ec0c9f995909": {
+      "text": "of unrecorded origin",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "mapControls.bathyHint": {
+      "text": "the seabed the map draws: the relief in one colour ramp or another, or the chart of where its depths came from",
+      "context": "Dashboard table display only; TSV column names, sort keys and source records remain unchanged."
     }
   }
 }

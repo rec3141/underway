@@ -112,8 +112,21 @@ def air_km(lat1, lon1, lat2, lon2):
     return 2 * R_KM * math.asin(min(1.0, math.sqrt(a)))
 
 
+# What GEBCO says a depth rests on, by its Type Identifier. Only the surveyed
+# kinds are ground truth; the rest is filled in between soundings or guessed
+# from satellite gravity, and in this water that is about three quarters of it.
+KINDS = {10: ("singlebeam", True), 11: ("multibeam", True), 12: ("seismic", True), 13: ("soundings", True),
+         14: ("chart sounding", True), 15: ("lidar", True), 16: ("from imagery", True), 17: ("surveys combined", True),
+         40: ("predicted from gravity", False), 41: ("interpolated", False), 42: ("depth model", False),
+         43: ("unknown", False), 44: ("unknown", False), 45: ("from imagery", False),
+         70: ("pre-gridded", False), 71: ("pre-gridded", False), 72: ("pre-gridded", False), 90: ("steering points", False)}
+SURVEYED = {code for code, (_, measured) in KINDS.items() if measured}
+FOLLOW = 1.35                # how much faster a route reckons surveyed water
+FOLLOW_KM = 2.0              # and how far its credit reaches from the swath
+
+
 class Grid:
-    """The water and elevation arrays on the plane, memory-mapped."""
+    """The water, elevation and provenance arrays on the plane, memory-mapped."""
 
     def __init__(self, directory: Path):
         head = json.loads((directory / "grid.json").read_text())
@@ -122,6 +135,8 @@ class Grid:
         self.source = head.get("source", "")
         self.elev = np.load(directory / "elevation.npy", mmap_mode="r")
         self.packed = np.load(directory / "water.npy", mmap_mode="r")
+        kinds = directory / "source.npy"
+        self.kinds = np.load(kinds, mmap_mode="r") if kinds.exists() else None
 
     def cell(self, lat, lon):
         """The (row, column) holding a point, or None off the grid."""
@@ -142,6 +157,15 @@ class Grid:
         """GEBCO's elevation in metres at a point (negative below sea level), or None off the grid."""
         cell = self.cell(lat, lon)
         return None if cell is None else int(self.elev[cell])
+
+    def kind(self, lat, lon):
+        """What the depth at a point rests on: (code, name, whether it was surveyed), or None."""
+        cell = self.cell(lat, lon)
+        if self.kinds is None or cell is None:
+            return None
+        code = int(self.kinds[cell])
+        name, measured = KINDS.get(code, ("unknown", False))
+        return {"code": code, "name": name, "surveyed": measured}
 
     def scale(self, i0, i1, j0, j1):
         """The plane's scale over a window: a metre here is this many metres on the plane."""
@@ -180,10 +204,11 @@ def _check(*values):
 
 
 def place(lat, lon) -> dict:
-    """What is known about a point on its own: the elevation of the ground there."""
+    """What is known about a point on its own: the ground there, and what that rests on."""
     _check(lat, lon)
     g = grid()
-    return {"elev_m": None if g is None else g.elevation(lat, lon)}
+    return {"elev_m": None if g is None else g.elevation(lat, lon),
+            "kind": None if g is None else g.kind(lat, lon)}
 
 
 def route(lat1, lon1, lat2, lon2) -> dict:
@@ -192,12 +217,14 @@ def route(lat1, lon1, lat2, lon2) -> dict:
     ``sea_km`` and ``path`` are None when there is no route: ``reason`` says why.
     """
     _check(lat1, lon1, lat2, lon2)
-    out = {"air_km": round(air_km(lat1, lon1, lat2, lon2), 2), "sea_km": None, "path": None, "reason": None, "elev_m": None}
+    out = {"air_km": round(air_km(lat1, lon1, lat2, lon2), 2), "sea_km": None, "path": None, "reason": None,
+           "elev_m": None, "kind": None}
     g = grid()
     if g is None:
         out["reason"] = "no sea grid on this server"
         return out
     out["elev_m"] = g.elevation(lat2, lon2)
+    out["kind"] = g.kind(lat2, lon2)
     sea = _route_cached(round(lat1, 3), round(lon1, 3), round(lat2, 3), round(lon2, 3))
     if isinstance(sea, str):
         out["reason"] = sea
@@ -219,6 +246,26 @@ def _snap(water, i, j):
             n = int(np.argmin(d))
             return int(ii[n] + i0), int(jj[n] + j0)
     return None
+
+
+def _followed(g, i0, i1, j0, j1):
+    """How much faster each cell counts for having been surveyed.
+
+    Almost all the surveyed water here is ship tracks, and they join up: the
+    largest run of them holds most of the surveyed water in the archipelago.
+    Crediting a swath and the couple of kilometres either side of it lets a
+    route follow those tracks where they go its way, without hunting for them.
+    """
+    if g.kinds is None:
+        return np.float32(1.0)
+    from scipy import ndimage
+    kinds = np.asarray(g.kinds[i0:i1, j0:j1])
+    surveyed = np.isin(kinds, list(SURVEYED))
+    if not surveyed.any():
+        return np.float32(1.0)
+    reach = FOLLOW_KM * 1000.0 / g.metres
+    near = np.clip(1.0 - ndimage.distance_transform_edt(~surveyed) / reach, 0.0, 1.0)
+    return (1.0 + (FOLLOW - 1.0) * near).astype(np.float32)
 
 
 def _offshore(water, metres):
@@ -463,6 +510,7 @@ def _solve(g, from_ll, to_ll, a, b, window):
     shallow = np.clip(depth / SHALLOW_M, 0.0, 1.0)
     speed = g.scale(i0, i1, j0, j1).astype(np.float32) * (SHALLOW_SPEED + (1.0 - SHALLOW_SPEED) * shallow)
     speed *= COAST_SPEED + (1.0 - COAST_SPEED) * _offshore(water, g.metres)
+    speed *= _followed(g, i0, i1, j0, j1)
     phi = np.ones(water.shape, dtype=np.float64)
     phi[src] = -1.0
     time = skfmm.travel_time(np.ma.MaskedArray(phi, ~water), np.ma.MaskedArray(speed, ~water),
