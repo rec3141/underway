@@ -1,0 +1,27 @@
+[Unit]
+Description=Cache the Canadian Ice Service charts the underway dashboard draws
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
+Environment=UNDERWAY_WEBROOT=@UNDERWAY_HOME@/www
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+# The charts go into the cache; the dashboard's own build publishes them from
+# there on its next pass, so this unit writes no web root of its own.
+ExecStart=@UNDERWAY_PYTHON@ -m dashboard ice-charts --refresh
+TimeoutStartSec=20min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadWritePaths=@UNDERWAY_HOME@
+StandardOutput=journal
+StandardError=journal

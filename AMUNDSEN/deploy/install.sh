@@ -19,7 +19,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SITE=${UNDERWAY_SITE:-/etc/underway/site.env}
 UNITDIR=/etc/systemd/system
-CORE=(underway.timer underway-deploy.timer underway-dashboard.service underway-uptime.timer)
+CORE=(underway.timer underway-deploy.timer underway-dashboard.service underway-uptime.timer underway-ice-charts.timer)
 mode=${1:-install}
 
 [[ -r $SITE ]] || { echo "no $SITE: copy $HERE/site.env.example there and edit it" >&2; exit 1; }

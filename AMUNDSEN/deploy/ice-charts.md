@@ -30,9 +30,26 @@ uploading it to MapLibre, the browser fits the decoded image to its WebGL maximu
 texture size while preserving its aspect ratio and geographic corners. This
 keeps the overlay visible on devices limited to 2048-pixel textures.
 
-Fresh deployments include the 14 September 2026 daily chart that covers the
-ship at 78.707° N, 82.747° W. Fetching newer daily charts remains an explicit
-operator action; no download timer is installed.
+Fresh deployments include a bundled daily chart covering the ship's area, so
+the map has something to draw before anything is fetched.
+
+## Keep the charts current
+
+`underway-ice-charts.timer` runs `python -m dashboard ice-charts --refresh`
+four times a day. A refresh reads the Ice Service directory, fetches the
+newest weekly chart for each region the ship works in (Eastern Arctic, Hudson
+Bay, Western Arctic) and the daily raster for the ship's own area, and leaves
+alone anything already cached. The dashboard's own build publishes what is in
+the cache on its next pass, so the timer writes no web root.
+
+A region the Ice Service has not posted, or a download that fails, is logged
+and skipped: the rest of the run continues and the last good chart stays on
+the map. The unit reports failure only when a run cached and confirmed
+nothing at all.
+
+Conversion needs the optional dependencies and the GDAL commands:
+`pip install ".[ice-charts]"`, plus `gdal_translate`, `gdalwarp` and
+`gdalinfo` for the daily raster.
 
 ## Import a chart
 

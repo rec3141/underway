@@ -114,6 +114,85 @@ class IceCodeTests(unittest.TestCase):
             self.assertEqual(json.loads((ic.chart_dir() / f'{entry["id"]}.raster.json').read_text())["product"], "WIS36C")
 
 
+class RefreshTests(unittest.TestCase):
+    """What the timer runs: fetch what is advertised and not already held."""
+
+    WEEKLY = [
+        {"date": "2026-09-14", "region": "Eastern Arctic", "source_url": "https://example.test/ea-14.tar"},
+        {"date": "2026-09-14", "region": "Hudson Bay", "source_url": "https://example.test/hb-14.tar"},
+        {"date": "2026-09-14", "region": "Western Arctic", "source_url": "https://example.test/wa-14.tar"},
+        {"date": "2026-09-07", "region": "Eastern Arctic", "source_url": "https://example.test/ea-07.tar"},
+        {"date": "2026-09-14", "region": "Great Lakes", "source_url": "https://example.test/gl-14.tar"},
+    ]
+    DAILY = {"product": "WIS36C", "date": "2026-09-20", "region": "Eureka (daily raster)",
+             "source_url": "https://example.test/daily.pdf"}
+
+    def run_refresh(self, directory, **patches):
+        calls = []
+        def weekly(**kwargs):
+            calls.append(kwargs["region"] + " " + kwargs["date"])
+            (ic.chart_dir()).mkdir(parents=True, exist_ok=True)
+            (ic.chart_dir() / f'{ic._slug(kwargs["region"])}-{kwargs["date"]}.geojson').write_text("{}")
+            return {"id": "x"}
+        def daily(product="WIS36C"):
+            calls.append("daily " + self.DAILY["date"])
+            return {"id": "y"}
+        defaults = {"available": lambda: list(self.WEEKLY), "import_chart": weekly,
+                    "available_daily": lambda product="WIS36C": dict(self.DAILY),
+                    "import_daily_chart": daily}
+        defaults.update(patches)
+        with patch.object(ic, "DB_DIR", Path(directory)):
+            stack = [patch.object(ic, name, value) for name, value in defaults.items()]
+            for item in stack:
+                item.start()
+            try:
+                return ic.refresh(), calls
+            finally:
+                for item in stack:
+                    item.stop()
+
+    def test_only_the_newest_of_each_region_the_ship_works_in(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, calls = self.run_refresh(directory)
+            self.assertEqual(sorted(calls), ["Eastern Arctic 2026-09-14", "Hudson Bay 2026-09-14",
+                                             "Western Arctic 2026-09-14", "daily 2026-09-20"])
+            self.assertEqual(len(result["added"]), 4)
+            self.assertEqual(result["failed"], [])
+            # not the week before, and not a region this ship never sails
+            self.assertNotIn("Eastern Arctic 2026-09-07", calls)
+            self.assertNotIn("Great Lakes 2026-09-14", calls)
+
+    def test_a_chart_already_held_is_not_fetched_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory) / "ice-charts"
+            cache.mkdir(parents=True)
+            (cache / "hudson-bay-2026-09-14.geojson").write_text("{}")
+            (cache / "eureka-daily-raster-2026-09-20.png").write_bytes(b"\x89PNG")
+            result, calls = self.run_refresh(directory)
+            self.assertEqual(sorted(calls), ["Eastern Arctic 2026-09-14", "Western Arctic 2026-09-14"])
+            self.assertEqual(sorted(result["kept"]), ["eureka-daily-raster-2026-09-20", "hudson-bay-2026-09-14"])
+
+    def test_one_region_failing_does_not_stop_the_others(self):
+        def sometimes(**kwargs):
+            if kwargs["region"] == "Hudson Bay":
+                raise ValueError("not posted")
+            (ic.chart_dir()).mkdir(parents=True, exist_ok=True)
+            return {"id": "x"}
+        with tempfile.TemporaryDirectory() as directory:
+            result, _ = self.run_refresh(directory, import_chart=sometimes)
+            self.assertEqual(result["failed"], ["hudson-bay-2026-09-14"])
+            self.assertEqual(len(result["added"]), 3)
+
+    def test_an_unreadable_directory_still_fetches_the_daily(self):
+        def broken():
+            raise OSError("no route to host")
+        with tempfile.TemporaryDirectory() as directory:
+            result, calls = self.run_refresh(directory, available=broken)
+            self.assertEqual(calls, ["daily 2026-09-20"])
+            self.assertEqual(result["failed"], ["weekly directory"])
+            self.assertEqual(result["added"], ["eureka-daily-raster-2026-09-20"])
+
+
 @unittest.skipUnless(HAVE_GIS, "Install .[ice-charts] for conversion tests")
 class IceChartImportTests(unittest.TestCase):
     def make_chart(self, folder):

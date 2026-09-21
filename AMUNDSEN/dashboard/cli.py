@@ -53,6 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     ic = sub.add_parser("ice-charts", help="cache public CIS vector or daily raster charts")
     source = ic.add_mutually_exclusive_group(required=True)
     source.add_argument("--list", action="store_true", help="list current regional chart download URLs")
+    source.add_argument("--refresh", action="store_true",
+                        help="cache every advertised chart not already held (what the timer runs)")
     source.add_argument("--daily", choices=("WIS36C",), metavar="PRODUCT",
                         help="download and georeference the latest daily chart (WIS36C: ship area)")
     source.add_argument("--url", help="HTTPS URL of one ZIP or TAR chart archive")
@@ -67,17 +69,22 @@ def main(argv: list[str] | None = None) -> int:
 
     if a.cmd == "ice-charts":
         import json
-        from .ice_charts import available, import_chart, import_daily_chart
-        if not a.list and not a.daily and (not a.date or not a.region):
+        from .ice_charts import available, import_chart, import_daily_chart, refresh
+        if not a.list and not a.daily and not a.refresh and (not a.date or not a.region):
             p.error("ice-charts imports require --date and --region")
         try:
-            result = (available() if a.list else import_daily_chart(a.daily) if a.daily else
+            result = (available() if a.list else refresh() if a.refresh else
+                      import_daily_chart(a.daily) if a.daily else
                       import_chart(date=a.date, region=a.region, url=a.url, file=a.file,
                                    source_url=a.source_url))
         except Exception as exc:
             logging.error("Ice chart import failed: %s", exc)
             return 2
         print(json.dumps(result, indent=2, ensure_ascii=False))
+        # a refresh reports trouble only when it got nothing at all: one region
+        # the Ice Service has not posted must not fail every run of the timer
+        if a.refresh and result["failed"] and not (result["added"] or result["kept"]):
+            return 2
         return 0
 
     if a.cmd == "legs":
