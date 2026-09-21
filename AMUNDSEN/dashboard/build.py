@@ -443,12 +443,16 @@ def bathy_choices(tiles_dir: Path) -> list:
     The relief the map opens with is ``gebco``; a pyramid rendered in another
     ramp sits beside it as ``gebco-<ramp>`` (tools/ramps/*.txt), and ``survey``
     is the chart of where the depths came from rather than what they are. Only
-    the ones actually on disk are offered.
+    the ones actually on disk are offered; a renderer stages into ``.new`` and
+    keeps the pyramid it replaced as ``.old``, and neither is a choice.
     """
+    named = {"ibcao": "IBCAO", "gmt-globe": "GMT globe", "etopo": "ETOPO"}
+    ramps = sorted(d for d in tiles_dir.glob("gebco-*") if d.suffix not in (".new", ".old"))
     out = []
-    for tiles in [tiles_dir / "gebco", *sorted(tiles_dir.glob("gebco-*")), tiles_dir / "survey"]:
+    for tiles in [tiles_dir / "gebco", *ramps, tiles_dir / "survey"]:
+        ramp = tiles.name.replace("gebco-", "")
         label = "Relief" if tiles.name == "gebco" else (
-            "Survey" if tiles.name == "survey" else tiles.name.replace("gebco-", "").replace("-", " ").title())
+            "Survey" if tiles.name == "survey" else named.get(ramp, ramp.replace("-", " ").title()))
         found = raster_pyramid(tiles, label)
         if found:
             found["survey"] = tiles.name == "survey"
