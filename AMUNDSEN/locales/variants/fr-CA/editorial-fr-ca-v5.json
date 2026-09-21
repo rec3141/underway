@@ -142,6 +142,96 @@
       "source": "too far for this server to work out",
       "text": "trop loin pour être calculé par ce serveur",
       "status": "draft"
+    },
+    "pages.9b393736ea6c1ecd": {
+      "source": "Bathy",
+      "text": "Fonds",
+      "status": "draft"
+    },
+    "pages.57676e5bbdd87032": {
+      "source": "Relief",
+      "text": "Relief",
+      "status": "draft"
+    },
+    "pages.a71aa3e7dc6bfbb4": {
+      "source": "Survey",
+      "text": "Levés",
+      "status": "draft"
+    },
+    "pages.252c5163544a273b": {
+      "source": "measured by a multibeam survey",
+      "text": "mesuré par levé multifaisceaux",
+      "status": "draft"
+    },
+    "pages.3253e5983b7784d5": {
+      "source": "measured by a singlebeam survey",
+      "text": "mesuré par levé monofaisceau",
+      "status": "draft"
+    },
+    "pages.777844bd9670d7a6": {
+      "source": "measured by seismic survey",
+      "text": "mesuré par levé sismique",
+      "status": "draft"
+    },
+    "pages.9ccd8306043c2f57": {
+      "source": "measured by isolated soundings",
+      "text": "mesuré par sondages isolés",
+      "status": "draft"
+    },
+    "pages.fc9ec865b3aa66c1": {
+      "source": "a sounding taken from a chart",
+      "text": "un sondage tiré d’une carte",
+      "status": "draft"
+    },
+    "pages.aa95f0700ef156b3": {
+      "source": "measured by lidar",
+      "text": "mesuré par lidar",
+      "status": "draft"
+    },
+    "pages.8adf8883d68de703": {
+      "source": "worked out from imagery",
+      "text": "déduit d’imagerie",
+      "status": "draft"
+    },
+    "pages.8be3039b71f6b1f7": {
+      "source": "measured by several surveys combined",
+      "text": "mesuré par plusieurs levés combinés",
+      "status": "draft"
+    },
+    "pages.8d934bfe0f8231c3": {
+      "source": "not sounded: predicted from satellite gravity",
+      "text": "non sondé : prédit par gravimétrie satellitaire",
+      "status": "draft"
+    },
+    "pages.9f6e67deadccd493": {
+      "source": "not sounded: interpolated between soundings",
+      "text": "non sondé : interpolé entre des sondages",
+      "status": "draft"
+    },
+    "pages.7c89c2b621970a65": {
+      "source": "not sounded: taken from a depth model",
+      "text": "non sondé : tiré d’un modèle bathymétrique",
+      "status": "draft"
+    },
+    "pages.b074cc0dabc3fd5c": {
+      "source": "not sounded: from a pre-made grid",
+      "text": "non sondé : tiré d’une grille préexistante",
+      "status": "draft"
+    },
+    "pages.09d33df574872bc6": {
+      "source": "not sounded: a steering point",
+      "text": "non sondé : point de guidage",
+      "status": "draft"
+    },
+    "pages.7d02ec0c9f995909": {
+      "source": "of unrecorded origin",
+      "text": "d’origine non consignée",
+      "status": "draft"
+    },
+    "mapControls.bathyHint": {
+      "source": "the seabed the map draws: the relief in one colour ramp or another, or the chart of where its depths came from",
+      "text": "le fond marin dessiné par la carte : le relief dans une palette ou une autre, ou la carte de l’origine des profondeurs",
+      "status": "draft"
     }
   }
 }

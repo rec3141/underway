@@ -66,6 +66,7 @@
     track: store.get("track", true),                    // the ship's track on the map
     stations: store.get("stations", true),
     waypoints: [],                                      // the positions people have kept (api/waypoints)
+    bathy: store.get("bathy", ""),                      // which seabed picture the map draws (SITE.bathy)
     events: store.get("events", false),                 // event-log entries on the map
     photos: store.get("photos", store.get("cameras", true)),   // the pictures on the map: a camera per daily timelapse, and the ship's own photographs (nature.js)
     communities: true,                                  // the settlements with people in them are always on the map
@@ -626,7 +627,7 @@
       try { return await fetchJSON(`static/geo/${name}`, { cache: "default" }); } catch { return null; }
     };
     // with coastline vector tiles the shore and the land come from them, not from these files
-    const relief = !!SITE.raster, vt = !!SITE.vector;
+    const relief = !!bathyNow(), vt = !!SITE.vector;
     const names = { glac: "glaciated_areas.geojson", comm: "communities.geojson", ...(vt ? {} : { coast: "coastline.geojson" }),
                     ...(relief ? {} : { bathy: "bathymetry.geojson", ...(vt ? {} : { land: "land.geojson", isl: "minor_islands.geojson" }) }) };
     const got = Object.fromEntries(await Promise.all(Object.entries(names).map(async ([k, n]) => [k, await get(n)])));
@@ -648,9 +649,31 @@
   // pictures go in too, under the coastline, so the shore stays legible over
   // them. The style's id names everything in it: the map takes a new style
   // only when the id changes, and MapLibre applies that as a diff.
+  // the chosen seabed picture, or the one the map opens with
+  const bathyChoices = () => (SITE.bathy?.length ? SITE.bathy : (SITE.raster ? [{ ...SITE.raster, key: "gebco", label: "Relief" }] : []));
+  const bathyNow = () => bathyChoices().find((b) => b.key === state.bathy) || bathyChoices()[0] || null;
+  // one button cycles what the seabed is drawn as: each ramp that has been
+  // rendered, then the chart of where the depths came from. It appears only
+  // when there is more than one to choose between.
+  function wireBathy() {
+    const button = $("#bathycycle"), choices = bathyChoices();
+    if (!button) return;
+    button.hidden = choices.length < 2;
+    if (button.hidden) return;
+    const show = () => { const now = bathyNow(); button.textContent = `${ui("Bathy")} · ${ui(now.label)}`; button.classList.toggle("on", !!now.survey); };
+    button.onclick = () => {
+      const at = choices.findIndex((b) => b.key === bathyNow().key);
+      state.bathy = choices[(at + 1) % choices.length].key;
+      store.set("bathy", state.bathy);
+      show();
+      renderMap();
+    };
+    show();
+  }
+
   function mapStyle(sat, details = []) {
     const base0 = location.origin + location.pathname.replace(/[^/]*$/, "");
-    const relief = !!SITE.raster;
+    const relief = !!bathyNow();
     const detailStamp = details.map((im) => im.url).join('|');
     const style = { version: 8, id: `underway|${state.geoStamp || 0}|${themeName()}|${sat?.url || ""}|${detailStamp}|names:${state.names ? 1 : 0}`,
                     // a globe, not Web Mercator: at the ship's latitudes Mercator stretches the map four to eight
@@ -667,10 +690,10 @@
       // the pyramid is the globe up to one zoom and, above that, only a box (the
       // Arctic at z9): a source per run, the boxed one with bounds, so MapLibre
       // never asks for a tile that is not there and overzooms the globe elsewhere
-      SITE.raster.sources.forEach((s, i) => {
+      bathyNow().sources.forEach((s, i) => {
         const id = i ? `gebco${i}` : "gebco";
-        style.sources[id] = { type: "raster", tiles: [base0 + SITE.raster.url], tileSize: 256, minzoom: s.minzoom, maxzoom: s.maxzoom,
-                              ...(s.bounds ? { bounds: s.bounds } : {}), attribution: SITE.raster.attribution };
+        style.sources[id] = { type: "raster", tiles: [base0 + bathyNow().url], tileSize: 256, minzoom: s.minzoom, maxzoom: s.maxzoom,
+                              ...(s.bounds ? { bounds: s.bounds } : {}), attribution: bathyNow().attribution };
         style.layers.push({ id, type: "raster", source: id, paint: { "raster-opacity": 1, "raster-resampling": "linear" } });
       });
     }
@@ -1102,6 +1125,26 @@
   // GEBCO's seabed or ground at the mark, to the metre it is charted to
   const groundLine = (elev) => elev == null ? ""
     : elev < 0 ? ui("depth: {metres} m", { metres: Math.round(-elev) }) : ui("elevation: {metres} m", { metres: Math.round(elev) });
+  // and what that figure rests on: a dot in the colours of the survey chart,
+  // since in this water only about a quarter of the depths were ever sounded
+  const KIND_WORDS = {
+    multibeam: "measured by a multibeam survey", singlebeam: "measured by a singlebeam survey",
+    seismic: "measured by seismic survey", soundings: "measured by isolated soundings",
+    "chart sounding": "a sounding taken from a chart", lidar: "measured by lidar",
+    "from imagery": "worked out from imagery", "surveys combined": "measured by several surveys combined",
+    "predicted from gravity": "not sounded: predicted from satellite gravity",
+    interpolated: "not sounded: interpolated between soundings",
+    "depth model": "not sounded: taken from a depth model", "pre-gridded": "not sounded: from a pre-made grid",
+    "steering points": "not sounded: a steering point", unknown: "of unrecorded origin",
+  };
+  function kindDot(kind) {
+    if (!kind) return null;
+    const dot = document.createElement("span");
+    dot.className = `kinddot kind-${kind.code}${kind.surveyed ? " surveyed" : ""}`;
+    dot.title = ui(KIND_WORDS[kind.name] || "of unrecorded origin");
+    dot.setAttribute("aria-label", dot.title);
+    return dot;
+  }
 
   // The mark's box: what it is, where, how far from the ship by air and by
   // sea, and what the ground does there. A waypoint's name is a field: it
@@ -1121,7 +1164,9 @@
       line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
       line("wpsea", seaText(f));
     }
-    line("wpground", groundLine(f.route?.elev_m));
+    const ground = line("wpground", groundLine(f.route?.elev_m));
+    const dot = kindDot(f.route?.kind);
+    if (dot && ground.textContent) ground.append(" ", dot);
     if (!f.waypoint) return box;
 
     const name = document.createElement("b");
@@ -1167,6 +1212,8 @@
     if (ship?.lat != null) put("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
     put("wpsea", seaText(f));
     put("wpground", groundLine(f.route?.elev_m));
+    const ground = box.querySelector(".wpground"), dot = kindDot(f.route?.kind);
+    if (ground && dot && ground.textContent) ground.append(" ", dot);
     mapView.pin(f.lat, f.lon, box, f, tipClear(f));    // the route has arrived: put the box, at its final size, clear of the line
   }
 
@@ -2171,6 +2218,7 @@
       if (plan) plan.title = t("underway.plan.description");
     } else wirePlanDrop();
     renderPlanPills();
+    wireBathy();
     loadWaypoints();
     document.addEventListener("click", (e) => { for (const m of document.querySelectorAll("details.legmenu[open]")) if (!m.contains(e.target)) m.open = false; });   // a click outside closes the legs menu and the map's kind menus
   })();

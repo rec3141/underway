@@ -455,7 +455,13 @@ tools/make_sea_grid.sh gebco_2024_sub_ice_topo_geotiff.zip \
     "$UNDERWAY_TILES_DIR/sea-grid"          # the western Arctic and Labrador Sea, ~4 min
 ```
 
-That writes `elevation.npy`, `water.npy` and `grid.json` on a polar
+With `LAND` set to the shore polygons (reprojected to the grid's plane: GDAL
+does not reproject while rasterising) the land comes from the coastline the
+map draws rather than from GEBCO's own zero contour. With `TID` set to
+GEBCO's Type Identifier grid, each cell also records where its depth came
+from, which the route uses and the box reports.
+
+That writes `elevation.npy`, `water.npy`, `source.npy` and `grid.json` on a polar
 stereographic plane (EPSG:3413) at 250 m: about 31,000 by 26,000 cells, 1.7 GB,
 memory-mapped so a route touches only the window it walks. A cell is water when
 the lowest GEBCO sample in it is below sea level, so a channel narrower than a
@@ -471,6 +477,13 @@ as a straight line rather than a staircase of 22.5 degree legs, and a distance
 in open water lands within a few tens of metres of the great circle. Two things
 set the speed. The plane is conformal, so its scale varies with latitude and the
 speed carries that factor, which makes arrival time a true ground distance.
+Water that has actually been surveyed is counted as faster, by a third, with
+the credit tapering out over 2 km. Only about a quarter of this water has ever
+been sounded and what has is very largely ship tracks, which join up, so this
+makes a route follow them where they go its way: on the runs measured, routes
+spend about three times as much of their length on surveyed water for one to
+three percent more distance.
+
 Water shallower than 100 m is then slowed, and so is water within 5 km of land,
 which together hold a route off the coast: on a clear run it stands about 5 km
 off a headland for a few tens of metres of extra distance. Both are survey

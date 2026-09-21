@@ -21,7 +21,7 @@ except ImportError:
     HAVE_FMM = False
 
 
-def write_grid(directory, water, elev=None, metres=2000.0, centre=(80.0, -90.0)):
+def write_grid(directory, water, elev=None, metres=2000.0, centre=(80.0, -90.0), kinds=None):
     """A grid file set laid out like tools/make_sea_grid.sh writes one, centred on a point."""
     directory.mkdir(parents=True, exist_ok=True)
     rows, cols = water.shape
@@ -31,6 +31,10 @@ def write_grid(directory, water, elev=None, metres=2000.0, centre=(80.0, -90.0))
     (directory / "grid.json").write_text(json.dumps(head))
     np.save(directory / "water.npy", np.packbits(water, axis=1))
     np.save(directory / "elevation.npy", (np.where(water, -500, 300) if elev is None else elev).astype(np.int16))
+    if kinds is not None:
+        np.save(directory / "source.npy", kinds.astype(np.uint8))
+        head["kinds"] = True
+        (directory / "grid.json").write_text(json.dumps(head))
     return head
 
 
@@ -136,6 +140,24 @@ class SeaRouteTests(unittest.TestCase):
             dry = [p for p in self.walked(head, r["path"], per_leg=60)
                    if not water[min(199, max(0, int(p[0]))), min(199, max(0, int(p[1])))]]
             self.assertEqual(dry, [], f"the line crosses land between {a} and {b}")
+
+    def test_a_route_follows_a_surveyed_track(self):
+        water = np.ones((160, 160), dtype=bool)
+        kinds = np.full((160, 160), 41, dtype=np.uint8)     # interpolated everywhere
+        for k in range(160):                                # a multibeam swath on a gentle arc
+            kinds[max(0, min(159, 80 + int(18 * math.sin(k * math.pi / 159)))), k] = 11
+        head = write_grid(self.dir, water, metres=1000.0, kinds=kinds)
+        a, b = self.at(head, 80, 8), self.at(head, 80, 151)
+        with patch.object(searoute, "FOLLOW", 1.0):
+            searoute._route_cached.cache_clear()
+            plain = searoute.route(*a, *b)
+        searoute._route_cached.cache_clear()
+        follow = searoute.route(*a, *b)
+        on = lambda r: sum(1 for i, j in self.walked(head, r["path"]) if kinds[min(159, max(0, int(i))), min(159, max(0, int(j)))] == 11)
+        self.assertGreater(on(follow), on(plain))            # it moves onto the swath
+        self.assertLess(follow["sea_km"], 1.2 * plain["sea_km"])   # and pays little for it
+        crest = 80 + int(18 * math.sin(80 * math.pi / 159))          # where the swath runs at that column
+        self.assertEqual(searoute.place(*self.at(head, crest, 80))["kind"]["name"], "multibeam")
 
     def test_a_point_on_land_snaps_and_deep_land_does_not(self):
         water = np.ones((200, 200), dtype=bool)

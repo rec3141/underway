@@ -31,6 +31,15 @@
   --pale: #dfe7ef;     --on-pale: #0b1620;       /* the satellite pill when on */
   --media: #0b1620;                /* behind a thumbnail or a sketch */
   --pop: rgba(22,29,37,.96);       /* a box floating over the map */
+  --kind-multibeam: #fff176;
+  --kind-singlebeam: #ffa726;
+  --kind-combined: #8dd64e;
+  --kind-soundings: #f06292;
+  --kind-model: #ba68c8;
+  --kind-predicted: #3f6ea8;
+  --kind-interpolated: #4e9ac4;
+  --kind-pregridded: #7c86a8;
+  --kind-unknown: #9aa0aa;
   --shadow: rgba(0,0,0,.5);
   --map-fg: #e6ecf2; --map-halo: #0b1620;        /* the scale bar over the map, on every theme */
   /* the graphs (Plotly) */
@@ -420,7 +429,19 @@ main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; 
 .focusbox .wpsave { padding: 1px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--accent); color: var(--bg); cursor: pointer; }
 .focusbox .wpsave[disabled] { opacity: .6; cursor: default; }
 .focusbox .wpstate { font-size: var(--t-xs); }
-.focusbox .wpground:empty { display: none; }   /* a clicked mark's box: it stays, for copying from */
+.focusbox .wpground:empty { display: none; }
+/* where a depth came from, in the colours of the survey chart: the surveyed
+   kinds are bright, the guessed ones the blues of the chart's background */
+.kinddot { display: inline-block; width: .62em; height: .62em; border-radius: 50%; vertical-align: baseline;
+  border: 1px solid var(--shadow); background: var(--kind-unknown); cursor: help; }
+.kinddot.kind-11 { background: var(--kind-multibeam); }
+.kinddot.kind-10 { background: var(--kind-singlebeam); }
+.kinddot.kind-12, .kinddot.kind-13, .kinddot.kind-14, .kinddot.kind-15 { background: var(--kind-soundings); }
+.kinddot.kind-16, .kinddot.kind-17 { background: var(--kind-combined); }
+.kinddot.kind-40 { background: var(--kind-predicted); }
+.kinddot.kind-41 { background: var(--kind-interpolated); }
+.kinddot.kind-42, .kinddot.kind-45 { background: var(--kind-model); }
+.kinddot.kind-70, .kinddot.kind-71, .kinddot.kind-72 { background: var(--kind-pregridded); }   /* a clicked mark's box: it stays, for copying from */
 .map-attrib { flex: 0 0 auto; order: 3; color: var(--muted); font-size: var(--t-xs); padding: 3px 8px 0; opacity: .8; }
 .map-legend { position:absolute; top:0; left:0; z-index:3; pointer-events:none; }
 #mapdetails { width:min(600px,calc(100vw - 32px)); max-height:80dvh; overflow:auto; padding:16px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius); }

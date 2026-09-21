@@ -376,8 +376,8 @@ def aggregate(a: Analysis, rule: str) -> dict:
     return {"rule": rule, "variables": names, "columns": ["mean", "min", "max", "n"], "rows": rows}
 
 
-def raster_pyramid(tiles: Path) -> dict | None:
-    """Describe the GEBCO tile pyramid (tools/make_gebco_tiles.sh) for the map.
+def raster_pyramid(tiles: Path, label: str = "") -> dict | None:
+    """Describe a raster tile pyramid (tools/make_gebco_tiles.sh) for the map.
 
     The pyramid lives on local disk, too many files for the share or the
     repository, and the server maps /static/tiles/ onto it. Its zoom levels
@@ -417,7 +417,8 @@ def raster_pyramid(tiles: Path) -> dict | None:
     # tiles are cached for a week; the pyramid's own mtime versions the URL so
     # a re-render is picked up by browsers immediately
     v = int(tiles.stat().st_mtime)
-    return {"url": f"static/tiles/gebco/{{z}}/{{x}}/{{y}}.png?v={v}", "sources": sources,
+    return {"key": tiles.name, "label": label or tiles.name,
+            "url": f"static/tiles/{tiles.name}/{{z}}/{{x}}/{{y}}.png?v={v}", "sources": sources,
             "attribution": "GEBCO Compilation Group (2024) GEBCO 2024 Grid"}
 
 
@@ -430,9 +431,29 @@ def tile_layers(tiles_dir: Path) -> dict:
     coastline and the geographic names (tools/make_names_tiles.py), each None
     when absent. They live on local disk — too many files for the share or the
     repository — and the server maps /static/tiles/ onto the directory."""
-    return {"raster": raster_pyramid(tiles_dir / "gebco"),
+    return {"raster": raster_pyramid(tiles_dir / "gebco", "Relief"),
+            "bathy": bathy_choices(tiles_dir),
             "vector": vector_tiles(tiles_dir / "coast"),
             "names": vector_tiles(tiles_dir / "names", NAMES_ATTRIBUTION)}
+
+
+def bathy_choices(tiles_dir: Path) -> list:
+    """What the map's bathymetry button can cycle through.
+
+    The relief the map opens with is ``gebco``; a pyramid rendered in another
+    ramp sits beside it as ``gebco-<ramp>`` (tools/ramps/*.txt), and ``survey``
+    is the chart of where the depths came from rather than what they are. Only
+    the ones actually on disk are offered.
+    """
+    out = []
+    for tiles in [tiles_dir / "gebco", *sorted(tiles_dir.glob("gebco-*")), tiles_dir / "survey"]:
+        label = "Relief" if tiles.name == "gebco" else (
+            "Survey" if tiles.name == "survey" else tiles.name.replace("gebco-", "").replace("-", " ").title())
+        found = raster_pyramid(tiles, label)
+        if found:
+            found["survey"] = tiles.name == "survey"
+            out.append(found)
+    return out
 
 
 def vector_tiles(tiles: Path, attribution: str = "© OpenStreetMap contributors (ODbL)") -> dict | None:
