@@ -26,8 +26,16 @@ STAGE=$OUT.new
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 echo "== the globe, zooms 0-8 -> $STAGE"
 "$HERE/make_gebco_tiles.sh" "$ZIP" "$STAGE" -180 -90 180 90 0-8
+# The Arctic box is drawn from a grid whose cells are square on the ground
+# (ARCTIC_WORK_CRS at ARCTIC_WORK_RES, the north polar stereographic plane at
+# what GEBCO carries north to south). A geographic grid at these latitudes
+# holds five times more detail east to west than north to south, and it is
+# interpolation: north of 64 N GEBCO's ocean is IBCAO resampled from a 200 m
+# polar grid. The globe run stays on the tile grid, where the same box would
+# not fit.
 echo "== the Arctic box, zoom 9 -> $STAGE"
-"$HERE/make_gebco_tiles.sh" "$ZIP" "$STAGE" "${ARCTIC[@]}" 9-9
+WORK_CRS=${ARCTIC_WORK_CRS:-EPSG:3413} WORK_RES=${ARCTIC_WORK_RES:-460} \
+  "$HERE/make_gebco_tiles.sh" "$ZIP" "$STAGE" "${ARCTIC[@]}" 9-9
 rm -rf "$OUT.old"
 [[ -d $OUT ]] && mv "$OUT" "$OUT.old"
 mv "$STAGE" "$OUT"

@@ -19,9 +19,13 @@
 # point and varies only with latitude; the router divides by that scale to get
 # ground distances, which a lon/lat grid cannot do without stretching cells.
 #
-# A cell is water when the lowest GEBCO sample in it is below sea level, so a
-# channel narrower than a cell stays open; an islet narrower than a cell drops
-# out, which is the right side to err on for a distance estimate. The stored
+# Land comes from the shore polygons the map itself draws (LAND, the OSM
+# coastline; LAND_LAYER names the layer). GEBCO alone will not do: the
+# sub-ice grid puts the bedrock under an ice cap below sea level, so a router
+# reading it will sail under Ellesmere. Where the polygons do not reach, a
+# cell is water when the lowest GEBCO sample in it is below sea level, so a
+# channel narrower than a cell stays open; an islet narrower than a cell
+# drops out, which is the right side to err on for a distance estimate. The stored
 # elevation is a separate bilinear sample, so a depth read off it is the
 # seabed thereabouts rather than the deepest corner. Both arrays are plain
 # .npy, so the server memory-maps them and touches only the window it walks.
@@ -68,6 +72,11 @@ PYEOF
 )
 echo "plane box $X0 $Y0 $X1 $Y1 ($(( (X1 - X0) / 1000 )) x $(( (Y1 - Y0) / 1000 )) km)"
 mkdir -p "$OUT"
+if [[ -n ${LAND:-} ]]; then
+  echo "shore from $LAND"
+  gdal_rasterize -q -init 255 -burn 1 -l "${LAND_LAYER:-land}" -te "$X0" "$Y0" "$X1" "$Y1" \
+      -tr "$METRES" "$METRES" -a_srs EPSG:3413 -ot Byte "${CO[@]}" "$LAND" "$WORK/land.tif"
+fi
 for pass in min bilinear; do
   echo "warping to EPSG:3413 at ${METRES} m, $pass"
   gdalwarp -q -t_srs EPSG:3413 -te "$X0" "$Y0" "$X1" "$Y1" -tr "$METRES" "$METRES" \
@@ -80,6 +89,7 @@ import numpy as np
 from osgeo import gdal
 gdal.UseExceptions()
 lowest, sampled, out = sys.argv[1], sys.argv[2], sys.argv[3]
+shore = gdal.Open(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else None
 src = gdal.Open(sampled)
 gt = src.GetGeoTransform()
 rows, cols = src.RasterYSize, src.RasterXSize
@@ -93,7 +103,11 @@ for y in range(0, rows, step):
     deep = low.GetRasterBand(1).ReadAsArray(0, y, cols, n)
     band[band == 32767] = 0                       # off the edge of GEBCO: flat, and land by the rule below
     elev[y:y + n] = band
-    water[y:y + n] = np.packbits((deep < 0) & (deep != 32767), axis=1)
+    wet = (deep < 0) & (deep != 32767)
+    if shore is not None:
+        polygons = shore.GetRasterBand(1).ReadAsArray(0, y, cols, n)
+        wet = np.where(polygons == 255, wet, polygons == 0)   # 255: the polygons say nothing here
+    water[y:y + n] = np.packbits(wet, axis=1)
 elev.flush(); water.flush()
 json.dump({"crs": "EPSG:3413", "x0": gt[0], "y0": gt[3], "metres": gt[1], "rows": rows, "cols": cols,
            "source": "GEBCO 2024 sub-ice, 15 arc-second"}, open(f"{out}/grid.json", "w"), indent=1)
