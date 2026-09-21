@@ -31,6 +31,58 @@
   const PRESS_MS = 550;                               // how long a press is held to stand for a double click
   const PRESS_PX = 10;                                // how far it may drift and still count as held still
   const FIT_PAD = 28;                                 // pixels kept clear round a box the view is fitted to
+  const CLEAR_POINTS = 240;                           // a line is thinned to about this many before it is tested
+
+  const inBox = (p, b) => !!p && p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1;
+
+  // a long route is tested at a fraction of its points: the box is far bigger
+  // than the gap that leaves, and placing it runs on every frame of a pan
+  const thin = (line) => {
+    if (line.length <= CLEAR_POINTS) return line;
+    const every = Math.ceil(line.length / CLEAR_POINTS);
+    return line.filter((_, i) => i % every === 0 || i === line.length - 1);
+  };
+
+  // where a box of tw by th goes beside a point in a w by h map: to the
+  // point's right, else its left, else below or above. Of those the one that
+  // covers least of what has to stay in view, and any that covers nothing
+  // ends the search. `keep` is lines already in map pixels.
+  function tipSpot(pt, w, h, tw, th, keep = []) {
+    const beside = Math.max(2, Math.min(pt.y - th / 2, h - th - 2));
+    const over = Math.max(2, Math.min(pt.x - tw / 2, w - tw - 2));
+    const spots = [{ x: pt.x + 14, y: beside }, { x: pt.x - 14 - tw, y: beside },
+      { x: over, y: pt.y + 14 }, { x: over, y: pt.y - 14 - th }];
+    let best = null;
+    for (const spot of spots) {
+      const off = spot.x < 2 || spot.x + tw > w - 2 || spot.y < 2 || spot.y + th > h - 2;
+      const box = { x0: spot.x - 6, y0: spot.y - 6, x1: spot.x + tw + 6, y1: spot.y + th + 6 };
+      let hits = 0;
+      for (const line of keep) {
+        if (!line.length) continue;
+        if (line.length < 2) hits += inBox(line[0], box) ? 1 : 0;
+        else for (let i = 1; i < line.length; i++) if (meets(line[i - 1], line[i], box)) hits++;
+      }
+      const score = (off ? 1e4 : 0) + hits;
+      if (!best || score < best.score) best = { ...spot, score };
+      if (!score) break;
+    }
+    return { x: Math.max(2, Math.min(best.x, Math.max(2, w - tw - 2))),
+             y: Math.max(2, Math.min(best.y, Math.max(2, h - th - 2))) };
+  }
+
+  // whether a segment meets an upright box, by Liang and Barsky's clip: the
+  // stretch of the segment still inside the box after each edge cuts it
+  function meets(a, b, box) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    let t0 = 0, t1 = 1;
+    for (const [p, q] of [[-dx, a.x - box.x0], [dx, box.x1 - a.x], [-dy, a.y - box.y0], [dy, box.y1 - a.y]]) {
+      if (p === 0) { if (q < 0) return false; continue; }
+      const t = q / p;
+      if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+      else { if (t < t0) return false; if (t < t1) t1 = t; }
+    }
+    return true;
+  }
   const FIT_MAX = 14;                                 // a fit never zooms closer than this
 
   // ---------------------------------------------------------------- colour maps
@@ -408,8 +460,9 @@
     // a box pinned at a point of the map: it stays (following the map as it
     // pans) and its text can be selected and copied, until it is unpinned;
     // `key` names what is shown, for a caller to refresh it while it is up
-    // `clear` is lat/lon pairs the box should keep off, such as the line drawn
-    // to the point it belongs to
+    // `clear` is lines the box should keep off, each a list of lat/lon pairs,
+    // such as the route drawn to the point it belongs to; a lone point is a
+    // line of one
     pin(lat, lon, content, key = null, clear = []) {
       if (!this.map || lat == null || lon == null) return;
       this.pinned = { lat: +lat, lon: +lon, html: content, key, clear };
@@ -429,28 +482,18 @@
       if (content instanceof Node) { if (this.tip.firstChild !== content) this.tip.replaceChildren(content); }
       else this.tip.innerHTML = content;
       this.tip.hidden = false;
-      // beside the point, never over it: to its right, else its left, else
-      // below or above. Of those, the one that covers least of what has to
-      // stay in view, so a box does not sit on the line drawn to its point.
+      // beside the point, never over it, and clear of the lines drawn to it:
+      // whole lines, not just their corners, since a route crosses a box
+      // between two points far outside it
       const w = this.el.clientWidth, h = this.el.clientHeight, tw = this.tip.offsetWidth, th = this.tip.offsetHeight;
-      const beside = Math.max(2, Math.min(pt.y - th / 2, h - th - 2));
-      const over = Math.max(2, Math.min(pt.x - tw / 2, w - tw - 2));
-      const spots = [{ x: pt.x + 14, y: beside }, { x: pt.x - 14 - tw, y: beside },
-        { x: over, y: pt.y + 14 }, { x: over, y: pt.y - 14 - th }];
-      const keep = clear.map((p) => this.map.project([+p[1], +p[0]]));
-      let best = null;
-      for (const spot of spots) {
-        const off = spot.x < 2 || spot.x + tw > w - 2 || spot.y < 2 || spot.y + th > h - 2;
-        const hits = keep.filter((q) => q.x > spot.x - 6 && q.x < spot.x + tw + 6 && q.y > spot.y - 6 && q.y < spot.y + th + 6).length;
-        const score = (off ? 1e4 : 0) + hits;
-        if (!best || score < best.score) best = { ...spot, score };
-        if (!score) break;
-      }
-      this.tip.style.left = `${Math.max(2, Math.min(best.x, Math.max(2, w - tw - 2)))}px`;
-      this.tip.style.top = `${Math.max(2, Math.min(best.y, Math.max(2, h - th - 2)))}px`;
+      const keep = clear.map((line) => thin(line).map((p) => this.map.project([+p[1], +p[0]])));
+      const spot = tipSpot(pt, w, h, tw, th, keep);
+      this.tip.style.left = `${spot.x}px`;
+      this.tip.style.top = `${spot.y}px`;
     }
   }
 
   UW.MapView = MapView;
   UW.mapFeaturesOf = featuresOf;                      // for tests: what the map would draw from a list of traces
+  UW.mapTipSpot = tipSpot;                            // for tests: where a pinned box goes beside its point
 })();
