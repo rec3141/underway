@@ -253,6 +253,15 @@ publish_tiles() {
   printf '%s\n' "$now" > "$stamp"
 }
 
+# Every grid-side job writes the mirror or the web server, so they take one
+# lock: a hand-run `tiles` beside a scheduled deploy otherwise has two rsyncs
+# with --delete on one directory, each deleting what the other is putting there.
+hold() {
+  mkdir -p "$GRID_HOME"
+  exec 7>"$GRID_HOME/.publish.lock"
+  flock 7
+}
+
 case "${1:-}" in
   push)
     [[ -f $WEBROOT/index.html ]] || { echo "no web root at $WEBROOT" >&2; exit 1; }
@@ -272,14 +281,12 @@ case "${1:-}" in
       "${REMOTE#*:}/../.publish.lock" "${REMOTE_APP%/*}" "${REMOTE#*:}" "$REMOTE_APP/tools/publish-web.sh"
     ssh "${REMOTE%%:*}" "$command"
     ;;
-  history) history_layer ;;
-  static) static_assets ;;
-  tiles) mkdir -p "$GRID_HOME"; publish_tiles force ;;
-  rebuild) rebuild_tracks ;;
+  history) hold; history_layer ;;
+  static) hold; static_assets ;;
+  tiles) hold; publish_tiles force ;;
+  rebuild) hold; rebuild_tracks ;;
   deploy|rebuild-deploy)
-    mkdir -p "$GRID_HOME"
-    exec 7>"$GRID_HOME/.publish.lock"
-    flock 7
+    hold
     if [[ $1 == rebuild-deploy ]]; then rebuild_tracks; fi
     echo "== the history layer, from $HIST"
     history_layer
