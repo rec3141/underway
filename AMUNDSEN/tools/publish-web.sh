@@ -10,8 +10,11 @@
 # alerts) do not run on the web server: every api/ call answers 503 with a
 # JSON body, and the page, seeing the manifest's public mark, hides what
 # they serve. The map's tiles are grid's own (UNDERWAY_TILES_DIR: the GEBCO
-# relief, the coastline, the geographic names): `tiles` copies them to the
-# web server once, and deploy keeps them current after that.
+# relief and any other colour ramp rendered beside it, the survey chart, the
+# coastline, the geographic names): `tiles` copies them to the web server
+# once, and deploy keeps them current after that. The page the web server
+# gets is rebuilt from that same directory, so it offers the seabed only in
+# the ramps that are there.
 #
 #   tools/publish-web.sh push      on the ship: www -> grid, then grid deploys
 #   tools/publish-web.sh deploy    on grid: the history layer, the assets, then mirror -> web server
@@ -220,8 +223,21 @@ if index.is_file():
 PYEOF
 }
 
-TILE_SETS="gebco coast names"
-tiles_stamp() { for d in $TILE_SETS; do [[ -d $TILES/$d ]] && printf '%s %s\n' "$d" "$(stat -L -c %Y "$TILES/$d")"; done; true; }
+# The tile sets the page can reference, found the way the page finds them:
+# the relief, any other colour ramp rendered beside it, the survey chart and
+# the vector tiles (bathy_choices in build.py globs `gebco-*` the same way).
+# A renderer stages into `.new` and keeps what it replaced as `.old`; neither
+# is a set, and copying one would publish a choice whose tiles are not there.
+tile_sets() {
+  local d name
+  for d in "$TILES"/gebco "$TILES"/gebco-* "$TILES"/survey "$TILES"/coast "$TILES"/names; do
+    [[ -d $d ]] || continue
+    name=${d##*/}
+    case $name in *.new | *.old) continue ;; esac
+    printf '%s\n' "$name"
+  done
+}
+tiles_stamp() { local d; for d in $(tile_sets); do printf '%s %s\n' "$d" "$(stat -L -c %Y "$TILES/$d")"; done; true; }
 publish_tiles() {
   # the map's tiles, as the page references them: a few hundred thousand
   # small files, so only when a set has changed since the last copy
@@ -230,8 +246,7 @@ publish_tiles() {
   if [[ -z $now ]]; then echo "no map tiles under $TILES" >&2; return 0; fi
   if [[ ${1:-} != force && -f $stamp && $(cat "$stamp") == "$now" ]]; then return 0; fi
   ssh "${TARGET%%:*}" "mkdir -p ${TARGET#*:}/static/tiles"
-  for d in $TILE_SETS; do
-    [[ -d $TILES/$d ]] || continue
+  for d in $(tile_sets); do
     echo "== tiles: $TILES/$d -> $TARGET/static/tiles/$d"
     $RSYNC --delete --exclude '*.tmp' "$TILES/$d/" "$TARGET/static/tiles/$d/" | stats
   done
