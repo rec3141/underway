@@ -14,13 +14,14 @@ route to any point is the steepest way back down that field. Unlike a walk
 from cell to cell it is not confined to a lattice of headings, so open water
 comes out straight rather than as a staircase of 22.5 degree legs.
 
-Two things set the speed. The projection is conformal, so a metre on the plane
-is a metre on the ground divided by the scale at that point; the speed carries
-that factor, which makes arrival time a true ground distance. Water shallower
-than ``SHALLOW_M`` is then slowed, which holds a route off the coast. That is a
-survey margin, not a keel margin: a ship of this draft clears far less water
-than 100 m, but only a small share of this coast is surveyed to modern
-standards, and the shallows are where the chart is least trustworthy.
+Three things set the speed. The projection is conformal, so a metre on the
+plane is a metre on the ground divided by the scale at that point; the speed
+carries that factor, which makes arrival time a true ground distance. Water
+shallower than ``SHALLOW_M`` is then slowed, and so is water within
+``COAST_KM`` of land. Both are survey margins rather than keel margins: a ship
+of this draft clears far less water than 100 m, but only a small share of this
+coast is surveyed to modern standards, and it is the shallows and the shore
+that the chart knows least about.
 
 The answer is an estimate for planning, not a track to steer.
 """
@@ -39,10 +40,14 @@ GRID_DIR = Path(os.environ.get("UNDERWAY_SEA_GRID",
                                os.path.join(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles"), "sea-grid")))
 R_KM = 6371.0088
 SHALLOW_M = 100.0            # water shallower than this is held against a route
-SHALLOW_SPEED = 0.3          # how much of open-water speed is left at the shore
+SHALLOW_SPEED = 0.3          # how much of open-water speed is left in water with no depth under it
+COAST_KM = 5.0               # and water closer than this to land is held against it too
+COAST_SPEED = 0.35           # how much of open-water speed is left against the shore
 MARGIN_CELLS = 400           # the window reaches at least this far beyond the two points
 MARGIN_FRAC = 0.45           # and at least this fraction of their separation
 SNAP_CELLS = 40              # a point on land moves to the nearest water within this many cells
+TRACE_STEP = 1.0             # how far, in cells, the walk back down the arrival time goes at a time
+TRACE_TOLERANCE = 0.15       # how far, in cells, a drawn leg may sit from the walk it stands for
 MAX_CELLS = 60_000_000       # a window bigger than this is refused rather than made to wait
 
 # ---------------------------------------------------------------- the plane
@@ -214,26 +219,150 @@ def _snap(water, i, j):
     return None
 
 
-def _clear(water, a, b):
-    """Whether the straight segment between two cell centres stays on water."""
-    (y0, x0), (y1, x1) = a, b
-    steps = int(max(abs(y1 - y0), abs(x1 - x0)) * 2) + 1
-    ys = np.linspace(y0, y1, steps)
-    xs = np.linspace(x0, x1, steps)
-    return bool(water[np.clip(ys.astype(int), 0, water.shape[0] - 1), np.clip(xs.astype(int), 0, water.shape[1] - 1)].all())
+def _offshore(water, metres):
+    """How far each water cell is from land, as a share of COAST_KM, capped at 1.
+
+    The distance is measured inside the window; land beyond its edge is not
+    seen, which the padding round the two points makes harmless.
+    """
+    from scipy import ndimage
+    reach = COAST_KM * 1000.0 / metres
+    if not (~water).any():
+        return np.ones(water.shape, dtype=np.float32)
+    return np.clip(ndimage.distance_transform_edt(water) / reach, 0.0, 1.0).astype(np.float32)
 
 
-def _pull(water, points):
-    """The polyline with every point a straight run of water can skip taken out."""
+def _slopes(field):
+    """The arrival time's gradient, one-sided where the other side is land."""
+    known = np.where(np.isfinite(field), field, np.nan)
+    def along(axis):
+        back = known - np.roll(known, 1, axis=axis)
+        fwd = np.roll(known, -1, axis=axis) - known
+        edge = [slice(None)] * 2
+        edge[axis] = 0
+        back[tuple(edge)] = np.nan
+        edge[axis] = -1
+        fwd[tuple(edge)] = np.nan
+        middle = (back + fwd) / 2                       # a central difference where both sides are water
+        one = np.where(np.isnan(fwd), back, fwd)
+        return np.nan_to_num(np.where(np.isnan(middle), one, middle))
+    return along(0), along(1)
+
+
+def _trace(field, water, start, goal):
+    """The way down the arrival time from a point back to its source.
+
+    Fast marching leaves a field whose gradient points back along the route,
+    so the line is walked by following that gradient rather than by stepping
+    from cell to cell: it bends where the route bends and runs straight where
+    the route is straight. Where the gradient dies — in a channel a cell or
+    two wide, or against a shore — it takes the best neighbouring cell, which
+    exists while the field decreases.
+    """
+    rows, cols = field.shape
+    gy, gx = _slopes(field)
+
+    def sample(grid, y, x):
+        i, j = int(y), int(x)
+        if not (0 <= i < rows - 1 and 0 <= j < cols - 1):
+            return 0.0
+        fy, fx = y - i, x - j
+        block = grid[i:i + 2, j:j + 2]
+        return float(block[0, 0] * (1 - fy) * (1 - fx) + block[1, 0] * fy * (1 - fx)
+                     + block[0, 1] * (1 - fy) * fx + block[1, 1] * fy * fx)
+
+    def afloat(y, x):
+        i, j = int(y), int(x)
+        return 0 <= i < rows and 0 <= j < cols and water[i, j]
+
+    def neighbour(y, x):
+        i, j = int(y), int(x)
+        best, value = None, field[i, j] if afloat(y, x) else math.inf
+        for di in (-1, 0, 1):
+            for dj in (-1, 0, 1):
+                ii, jj = i + di, j + dj
+                if 0 <= ii < rows and 0 <= jj < cols and water[ii, jj] and field[ii, jj] < value:
+                    best, value = (ii + .5, jj + .5), field[ii, jj]
+        return best
+
+    here = np.array([goal[0] + .5, goal[1] + .5])
+    home = np.array([start[0] + .5, start[1] + .5])
+    path = [tuple(here)]
+    for _ in range(8 * (rows + cols)):
+        if np.hypot(*(here - home)) < 1.5:
+            break
+        moved = False
+        for step in (TRACE_STEP, TRACE_STEP / 2, TRACE_STEP / 4):
+            g = np.array([sample(gy, *here), sample(gx, *here)])
+            size = math.hypot(*g)
+            if size < 1e-12:
+                break
+            middle = here - step / 2 * g / size                      # the midpoint's heading, not this one's
+            if afloat(*middle):
+                g = np.array([sample(gy, *middle), sample(gx, *middle)])
+                size = math.hypot(*g) or size
+            ahead = here - step * g / size
+            if afloat(*ahead) and _afloat(water, tuple(here), tuple(ahead)):
+                here = ahead
+                moved = True
+                break
+        if not moved:
+            step = neighbour(*here)
+            if step is None:
+                break
+            here = np.array(step)
+        path.append(tuple(here))
+    path.append(tuple(home))
+    return path
+
+
+def _afloat(water, a, b):
+    """Whether the straight leg between two points stays on water."""
+    steps = int(max(abs(b[0] - a[0]), abs(b[1] - a[1])) * 2) + 2
+    ys = np.clip(np.linspace(a[0], b[0], steps).astype(int), 0, water.shape[0] - 1)
+    xs = np.clip(np.linspace(a[1], b[1], steps).astype(int), 0, water.shape[1] - 1)
+    return bool(water[ys, xs].all())
+
+
+def _drawn(points, water, tolerance):
+    """The walked line as legs to draw: close to the walk, and never across land.
+
+    The tolerance is a fraction of a cell, so a route keeps the curve the
+    field gave it; only the points a straight run genuinely accounts for go.
+    """
     out = [points[0]]
-    i = 0
-    while i < len(points) - 1:
-        j = len(points) - 1
-        while j > i + 1 and not _clear(water, points[i], points[j]):
-            j -= 1
-        out.append(points[j])
-        i = j
+    for a, b in zip(_simplify(points, tolerance), _simplify(points, tolerance)[1:]):
+        if _afloat(water, a, b):
+            out.append(b)
+        else:
+            out.extend(_between(points, a, b))   # the shortcut would clip a corner: keep the walk
     return out
+
+
+def _between(points, a, b):
+    """The walked points from a to b, b included, as they were walked."""
+    try:
+        i = points.index(a)
+        j = points.index(b, i)
+    except ValueError:
+        return [b]
+    return points[i + 1:j + 1]
+
+
+def _simplify(points, tolerance):
+    """The polyline with the points a straight line already accounts for left out."""
+    if len(points) < 3:
+        return list(points)
+    a, b = np.asarray(points[0]), np.asarray(points[-1])
+    line = b - a
+    span = math.hypot(*line)
+    offsets = np.asarray(points) - a
+    away = (np.abs(offsets[:, 0] * line[1] - offsets[:, 1] * line[0]) / span if span
+            else np.hypot(offsets[:, 0], offsets[:, 1]))
+    worst = int(np.argmax(away))
+    if away[worst] <= tolerance:
+        return [points[0], points[-1]]
+    return _simplify(points[:worst + 1], tolerance)[:-1] + _simplify(points[worst:], tolerance)
 
 
 @lru_cache(maxsize=256)
@@ -260,10 +389,11 @@ def _route_cached(lat1, lon1, lat2, lon2):
     if dst is None:
         return "the point is on land"
 
-    # the speed: the plane's own scale, slowed where the water is shallow
+    # the speed: the plane's own scale, slowed in shallow water and near land
     depth = -np.asarray(g.elev[i0:i1, j0:j1], dtype=np.float32)
     shallow = np.clip(depth / SHALLOW_M, 0.0, 1.0)
     speed = g.scale(i0, i1, j0, j1).astype(np.float32) * (SHALLOW_SPEED + (1.0 - SHALLOW_SPEED) * shallow)
+    speed *= COAST_SPEED + (1.0 - COAST_SPEED) * _offshore(water, g.metres)
     phi = np.ones(water.shape, dtype=np.float64)
     phi[src] = -1.0
     time = skfmm.travel_time(np.ma.MaskedArray(phi, ~water), np.ma.MaskedArray(speed, ~water),
@@ -272,38 +402,10 @@ def _route_cached(lat1, lon1, lat2, lon2):
     if not math.isfinite(field[dst]):
         return "no sea route within the charted area"
 
-    cells = _descend(field, water, dst, src)
-    pulled = _pull(water, cells)
-    points = [g.lonlat(i0 + i, j0 + j) for i, j in pulled][::-1]
-    points[0] = (lat1, lon1) if water[src] and _clear(water, (a[0] - i0, a[1] - j0), src) else points[0]
-    points[-1] = (lat2, lon2) if _clear(water, (b[0] - i0, b[1] - j0), dst) else points[-1]
+    walked = _drawn(_trace(field, water, src, dst), water, TRACE_TOLERANCE)
+    points = [g.lonlat(i0 + y - .5, j0 + x - .5) for y, x in walked][::-1]
     km = sum(air_km(*points[k], *points[k + 1]) for k in range(len(points) - 1))
     return round(km, 2), [[round(la, 4), round(lo, 4)] for la, lo in points]
-
-
-def _descend(field, water, start, goal):
-    """The cells from the goal back down the arrival time to its source."""
-    rows, cols = field.shape
-    path = [start]
-    i, j = start
-    seen = set()
-    for _ in range(4 * (rows + cols)):
-        if (i, j) == goal:
-            break
-        best, value = None, field[i, j]
-        for di in (-1, 0, 1):
-            for dj in (-1, 0, 1):
-                ii, jj = i + di, j + dj
-                if 0 <= ii < rows and 0 <= jj < cols and water[ii, jj] and field[ii, jj] < value and (ii, jj) not in seen:
-                    best, value = (ii, jj), field[ii, jj]
-        if best is None:
-            break
-        seen.add(best)
-        i, j = best
-        path.append(best)
-    if path[-1] != goal:
-        path.append(goal)
-    return path
 
 
 if __name__ == "__main__":

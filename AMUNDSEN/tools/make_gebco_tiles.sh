@@ -115,25 +115,76 @@ PYEOF
   COLOR_SRC="$WORK/adj.tif"
 fi
 
-# depth ramp: pale shelf to dark abyss; land a muted hypsometric ramp (olive
-# lowlands to pale high ground) so it reads under the hillshade without
-# competing with the track colours
+# GEBCO samples 15 arc-seconds in both directions, so on the ground its cells
+# are as many times taller than wide as 1/cos(latitude): 88 m by 461 m at
+# 79 N. Drawn as they are, a single shallow cell becomes a tall thin streak
+# and the eye reads north-south ridges that are not there. Each row is
+# averaged across that many cells first, which shows the seabed at the
+# resolution the grid actually has, and leaves the equator untouched.
+echo "matching the grid's east-west and north-south detail"
+$PY - "$WORK" "$COLOR_SRC" <<'PYEOF'
+import sys, numpy as np
+from osgeo import gdal
+gdal.UseExceptions()
+w, source = sys.argv[1], sys.argv[2]
+src = gdal.Open(source); gt = src.GetGeoTransform()
+out = gdal.GetDriverByName("GTiff").Create(f"{w}/even.tif", src.RasterXSize, src.RasterYSize, 1, gdal.GDT_Int16,
+                                           ["COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=YES"])
+out.SetGeoTransform(gt); out.SetProjection(src.GetProjection())
+R = 6378137.0
+CELL = 15 / 3600 * 110574.0          # a GEBCO cell north to south, in ground metres
+step = 1024
+for y0 in range(0, src.RasterYSize, step):
+    n = min(step, src.RasterYSize - y0)
+    ymerc = gt[3] + (np.arange(y0, y0 + n) + 0.5) * gt[5]
+    cosphi = np.cos(np.arctan(np.sinh(ymerc / R)))
+    band = src.GetRasterBand(1).ReadAsArray(0, y0, src.RasterXSize, n).astype(np.float32)
+    # a cell stands this many pixels tall here; the row is blurred across that
+    # much, so a feature needs the same width either way to survive
+    widths = np.clip(np.rint(CELL / cosphi / gt[1]), 1, 501).astype(int)
+    for width in np.unique(widths):
+        rows = np.nonzero(widths == width)[0]
+        if width < 3:
+            continue
+        sigma = width / 2.355                       # the window is the full width at half maximum
+        reach = int(np.ceil(3 * sigma))
+        kernel = np.exp(-0.5 * (np.arange(-reach, reach + 1) / sigma) ** 2)
+        kernel /= kernel.sum()
+        padded = np.pad(band[rows], ((0, 0), (reach, reach)), mode="edge")
+        blurred = np.empty_like(band[rows])
+        for k, weight in enumerate(kernel):
+            part = padded[:, k:k + band.shape[1]] * weight
+            blurred = part if k == 0 else blurred + part
+        band[rows] = blurred
+    out.GetRasterBand(1).WriteArray(np.rint(band).astype(np.int16), 0, y0)
+out.FlushCache()
+PYEOF
+COLOR_SRC="$WORK/even.tif"
+
+# depth ramp: Crameri's oslo, which is perceptually uniform and keeps its
+# order in greyscale and to a colour-blind eye, from dark abyss to lit shelf,
+# with a hard step at the 100 m isobath into a desaturated shoal band so that
+# the line a ship keeps off reads at a glance. Land carries a muted
+# hypsometric ramp (olive lowlands to pale high ground) so it sits under the
+# hillshade without competing with the track colours.
 cat > "$WORK/ramp.txt" <<'EOF'
--6000  6 14 34
--4000  10 26 58
--3000  16 40 82
--2500  22 52 100
--2000  28 66 118
--1500  36 82 136
--1000  46 100 154
--750   58 116 168
--500   72 132 180
--300   90 150 192
--200   108 166 202
--100   130 182 212
--50    152 198 222
--20    176 212 230
-0      196 224 236
+-6000  12 26 40
+-5000  15 34 55
+-4000  18 44 72
+-3000  24 60 96
+-2500  29 70 112
+-2000  34 80 130
+-1500  45 95 150
+-1000  62 113 172
+-750   80 128 188
+-500   100 143 196
+-300   118 155 202
+-200   134 167 208
+-100.01 150 180 214
+-100   150 174 170
+-50    170 192 184
+-20    186 205 194
+-0.01  198 214 202
 0.01   58 72 62
 150    74 88 70
 400    98 104 80
@@ -149,12 +200,12 @@ gdaldem color-relief -q -alpha "${CO[@]}" "$COLOR_SRC" "$WORK/ramp.txt" "$WORK/c
 # Rasters here run to billions of pixels, so the Python steps work in strips
 # of rows and never hold a whole band.
 echo "ground-scaled elevation + hillshade"
-$PY - "$WORK" <<'PY'
+$PY - "$WORK" "$COLOR_SRC" <<'PY'
 import sys, math, numpy as np
 from osgeo import gdal
 gdal.UseExceptions()
 w = sys.argv[1]
-src = gdal.Open(f"{w}/region_3857.tif"); gt = src.GetGeoTransform()
+src = gdal.Open(sys.argv[2]); gt = src.GetGeoTransform()
 out = gdal.GetDriverByName("GTiff").Create(f"{w}/ground.tif", src.RasterXSize, src.RasterYSize, 1, gdal.GDT_Float32,
                                            ["COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=YES"])
 out.SetGeoTransform(gt); out.SetProjection(src.GetProjection())
@@ -167,16 +218,23 @@ for y0 in range(0, src.RasterYSize, step):
     out.GetRasterBand(1).WriteArray(h * cosphi[:, None], 0, y0)
 out.FlushCache()
 PY
-gdaldem hillshade -q -z 1.2 -az 315 -alt 40 -compute_edges "${CO[@]}" "$WORK/ground.tif" "$WORK/shade.tif"
+# lit from several sides: one azimuth over a grid this anisotropic puts a
+# grain on the water that reads as ridges
+gdaldem hillshade -q -z 1.2 -alt 40 -multidirectional -compute_edges "${CO[@]}" "$WORK/ground.tif" "$WORK/shade.tif"
 
 # blend: multiply the colour by the hillshade so slopes read
 echo "blending"
-$PY - "$WORK" <<'PY'
+$PY - "$WORK" "$COLOR_SRC" <<'PY'
 import sys, numpy as np
 from osgeo import gdal
 gdal.UseExceptions()
 w = sys.argv[1]
 c = gdal.Open(f"{w}/color.tif"); s = gdal.Open(f"{w}/shade.tif")
+# the isobaths a reader takes their bearings from: the 100 m line the routes
+# keep off, then the shelf break and the basins, each drawn where neighbouring
+# cells fall on either side of the depth
+elev = gdal.Open(sys.argv[2])
+LEVELS = {100: .55, 200: .78, 500: .82, 1000: .85, 2000: .88}
 out = gdal.GetDriverByName("GTiff").Create(f"{w}/shaded.tif", c.RasterXSize, c.RasterYSize, 4, gdal.GDT_Byte,
                                            ["COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=YES", "PHOTOMETRIC=RGB", "ALPHA=YES"])
 out.SetGeoTransform(c.GetGeoTransform()); out.SetProjection(c.GetProjection())
@@ -185,6 +243,15 @@ for y0 in range(0, c.RasterYSize, step):
     n = min(step, c.RasterYSize - y0)
     sh = s.GetRasterBand(1).ReadAsArray(0, y0, c.RasterXSize, n).astype(np.float32) / 255.0
     k = 0.45 + 0.65 * sh          # 0.45..1.1: shadows darken, lit slopes brighten a little
+    rows = min(n + 1, c.RasterYSize - y0)
+    depth = -elev.GetRasterBand(1).ReadAsArray(0, y0, c.RasterXSize, rows).astype(np.float32)
+    for level, shade in LEVELS.items():
+        side = depth > level
+        line = np.zeros(side.shape, bool)
+        line[:, :-1] |= side[:, :-1] != side[:, 1:]
+        if rows > 1:
+            line[:-1] |= side[:-1] != side[1:]
+        k = np.where(line[:n] & (depth[:n] > 0), k * shade, k)
     for b in range(1, 4):
         v = c.GetRasterBand(b).ReadAsArray(0, y0, c.RasterXSize, n)
         out.GetRasterBand(b).WriteArray(np.clip(v * k, 0, 255).astype(np.uint8), 0, y0)

@@ -97,6 +97,32 @@ class SeaRouteTests(unittest.TestCase):
         self.assertGreater(r["sea_km"], r["air_km"])
         self.assertLess(r["sea_km"], 2.0 * r["air_km"])
 
+    def walked(self, grid, path, per_leg=20):
+        """The path in cells of the test grid, filled in along each leg."""
+        def cell(lat, lon):
+            x, y = searoute.forward(lat, lon)
+            return (y - grid["y0"]) / -grid["metres"], (x - grid["x0"]) / grid["metres"]
+        ends = [cell(*p) for p in path]
+        return [(a[0] + (b[0] - a[0]) * t / per_leg, a[1] + (b[1] - a[1]) * t / per_leg)
+                for a, b in zip(ends, ends[1:]) for t in range(per_leg + 1)]
+
+    def test_the_coast_is_given_room(self):
+        water = np.ones((200, 200), dtype=bool)
+        water[90:110, :68] = False                            # a headland reaching in from the west
+        head = write_grid(self.dir, water, metres=1000.0)
+        a, b = self.at(head, 170, 70), self.at(head, 30, 70)   # north and south of its tip, close by
+        with patch.object(searoute, "COAST_SPEED", 1.0):
+            searoute._route_cached.cache_clear()
+            hugging = searoute.route(*a, *b)
+        searoute._route_cached.cache_clear()
+        keeping = searoute.route(*a, *b)
+        tip = (100.0, 67.0)
+        near = lambda r: min(math.hypot(i - tip[0], j - tip[1]) for i, j in self.walked(head, r["path"]))
+        self.assertLess(near(hugging), 4.0)                    # the straight line shaves the headland
+        self.assertGreater(near(keeping), near(hugging) + 1.0)  # with the margin it stands off, in km
+        self.assertGreater(keeping["sea_km"], hugging["sea_km"])
+        self.assertLess(keeping["sea_km"], 1.1 * hugging["sea_km"])
+
     def test_a_point_on_land_snaps_and_deep_land_does_not(self):
         water = np.ones((200, 200), dtype=bool)
         water[:, 120:] = False
