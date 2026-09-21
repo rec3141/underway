@@ -123,6 +123,20 @@ class SeaRouteTests(unittest.TestCase):
         self.assertGreater(keeping["sea_km"], hugging["sea_km"])
         self.assertLess(keeping["sea_km"], 1.1 * hugging["sea_km"])
 
+    def test_the_drawn_line_never_crosses_land(self):
+        water = np.ones((200, 200), dtype=bool)
+        water[60:140, 80:120] = False                         # an island square in the way
+        water[95:105, 80:120] = True                          # with a strait through it
+        head = write_grid(self.dir, water, metres=1000.0)
+        for a, b in [(self.at(head, 100, 40), self.at(head, 100, 160)),   # the strait is the short way
+                     (self.at(head, 30, 40), self.at(head, 170, 160)),    # round a corner
+                     (self.at(head, 70, 60), self.at(head, 130, 140))]:
+            r = searoute.route(*a, *b)
+            self.assertIsNone(r["reason"])
+            dry = [p for p in self.walked(head, r["path"], per_leg=60)
+                   if not water[min(199, max(0, int(p[0]))), min(199, max(0, int(p[1])))]]
+            self.assertEqual(dry, [], f"the line crosses land between {a} and {b}")
+
     def test_a_point_on_land_snaps_and_deep_land_does_not(self):
         water = np.ones((200, 200), dtype=bool)
         water[:, 120:] = False

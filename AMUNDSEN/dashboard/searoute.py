@@ -403,6 +403,12 @@ def _route_cached(lat1, lon1, lat2, lon2):
         return "no sea route within the charted area"
 
     walked = _drawn(_trace(field, water, src, dst), water, TRACE_TOLERANCE)
+    # the line reaches the ship and the mark themselves, but only where the
+    # water does: a point snapped across a headland keeps the walk's own end
+    ends = [(b[0] - i0 + .5, b[1] - j0 + .5), (a[0] - i0 + .5, a[1] - j0 + .5)]
+    for k, end in ((0, ends[0]), (-1, ends[1])):
+        if _afloat(water, end, walked[k]):
+            walked[k] = end
     points = [g.lonlat(i0 + y - .5, j0 + x - .5) for y, x in walked][::-1]
     km = sum(air_km(*points[k], *points[k + 1]) for k in range(len(points) - 1))
     return round(km, 2), [[round(la, 4), round(lo, 4)] for la, lo in points]
