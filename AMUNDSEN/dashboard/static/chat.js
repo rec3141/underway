@@ -44,6 +44,12 @@
     unread: 0, error: "", roomBots: [], modelOn: false,
     myName: store.get("chat.name", ""), myEmoji: store.get("chat.emoji", "🙂"), crew: [], online: [], noai: store.get("chat.noai", false) };
   nameIn.value = st.myName; emojiBtn.textContent = st.myEmoji;
+  const pageLocale = () => {
+    let selected = "";
+    try { selected = JSON.parse(localStorage.getItem("uw:locale")) || ""; } catch {}
+    selected = new URLSearchParams(location.search).get("lang") || selected || document.documentElement.lang || "en";
+    return String(selected).toLowerCase().startsWith("fr") ? "fr-CA" : "en";
+  };
   const phone = matchMedia("(max-width: 640px)");
   phone.addEventListener?.("change", () => layout());
 
@@ -291,7 +297,7 @@
     if (st.error) { showFormError(st.error, true); nameIn.focus(); return; }
     textIn.disabled = true;
     try {
-      const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room };
+      const body = { name: st.myName, token, emoji: st.myEmoji, text, channel: st.room, locale: pageLocale() };
       if (st.room === "ada" || st.roomBots.length) body.slug = window.UW?.wikiContext?.() || "";   // the wiki page being read, as context for whoever answers
       const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (r.ok) { textIn.value = ""; await poll(); } else { const j = await r.json().catch(() => ({})); showFormError(j.error || ui("not sent"), /name/i.test(j.error || "")); }

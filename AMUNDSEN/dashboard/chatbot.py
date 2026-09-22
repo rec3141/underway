@@ -877,7 +877,7 @@ class Crew:
                         channel, banter=False, hop=1)
 
     # ------------------------------------------------------------ triggers
-    def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "") -> None:
+    def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "", locale: str = "") -> None:
         """Called after a human message is stored. Who answers depends on the
         room: in the public room only a member @mentioned; in the crew's room
         whoever is mentioned, else one of them; in Ada's room, Ada, at length,
@@ -891,7 +891,10 @@ class Crew:
             handles = list(PERSONAS)
         handles = list(dict.fromkeys(h for h in handles if h in PERSONAS))
         room_bots = chat.bots_in(channel)
-        task = f"{name} just wrote: \"{text}\". Reply to them as yourself."
+        default_language = "Canadian French" if str(locale).lower().startswith("fr") else "English"
+        language = (f"Reply in the language of the most recent human message that clearly establishes one. "
+                    f"If no recent human message establishes a language, use {default_language}, the language selected on their page. ")
+        task = f"{name} just wrote: \"{text}\". {language}Reply to them as yourself."
         long = False
         if channel == "ship":
             speakers = handles
@@ -906,7 +909,7 @@ class Crew:
                 h = "ada" if channel == "ada" else "doc"
                 speakers = [h] if h in room_bots else []
             where = "on the Deck, where Ada and Doc both are" if channel == "deck" else f"in the {PERSONAS[speakers[0]]['room']}" if speakers else ""
-            task = (f"{name} asks {where}: \"{text}\". Answer fully from the record and the "
+            task = (f"{name} asks {where}: \"{text}\". {language}Answer fully from the record and the "
                     f"pages you have, citing each you draw on by its number in square brackets after the sentence it supports, never "
                     f"by title; speak of the sources by name, never of 'the wiki' or 'the excerpts'; and where you have nothing, say "
                     f"so as yourself. Where a picture or a quotation on the shelf shows what a paragraph of yours says, end that "

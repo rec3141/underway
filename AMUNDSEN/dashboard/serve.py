@@ -614,7 +614,7 @@ class Handler(SimpleHTTPRequestHandler):
                         c.close()
                 else:
                     r = CHAT.post(self._client(), name, str(payload.get("text", "")), str(payload.get("emoji", "")),
-                                  channel, token, str(payload.get("slug", ""))[:200])
+                                  channel, token, str(payload.get("slug", ""))[:200], str(payload.get("locale", ""))[:16])
             except Exception as e:                           # noqa: BLE001
                 log.warning("chat post failed: %s", e)
                 r = {"error": "bad request"}
