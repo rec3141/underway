@@ -276,7 +276,7 @@ def context(channel: str, limit: int = CONTEXT_BYTES) -> list[dict]:
 
 # ---------------------------------------------------------------- writing
 def post(addr: str, name: str, text: str, emoji: str = "", channel: str = "ship", token: str = "",
-         slug: str = "", bot: bool = False, meta: dict | None = None) -> dict:
+         slug: str = "", locale: str = "", bot: bool = False, meta: dict | None = None) -> dict:
     name = clean_name(name) or "anon"
     text = text.strip()[:TEXT_MAX if not bot else 2600]
     emoji = clean_emoji(emoji)
@@ -312,7 +312,7 @@ def post(addr: str, name: str, text: str, emoji: str = "", channel: str = "ship"
         finally:
             c.close()
     if not bot and CREW:
-        CREW.on_message(name, text, channel, slug)
+        CREW.on_message(name, text, channel, slug, locale)
     return {"ok": True, "id": mid, "t": now}
 
 
