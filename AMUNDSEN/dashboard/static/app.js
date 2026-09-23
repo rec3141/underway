@@ -1593,7 +1593,10 @@
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
     el.querySelector('.depthscale')?.addEventListener('click', () => { state.depthScale[name] = !state.depthScale[name]; store.set('depthScale', state.depthScale); renderPanel(name); });
-    el.querySelector(".reset").onclick = async () => { const r = state.data && spanRange(state.data), plot=el.querySelector('.plot'); await Plotly.relayout(plot, { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), "yaxis.autorange": true }); if(isDepth(name)){plot._uwSig=null;renderPanel(name);} };
+    el.querySelector(".reset").onclick = async () => {
+      const r = state.data && spanRange(state.data), plot = el.querySelector('.plot');
+      await Plotly.relayout(plot, { ...(r ? { "xaxis.range": r, "xaxis.autorange": false } : { "xaxis.autorange": true }), ...visibleYUpdate(plot, r) });
+    };
     el.querySelector(".wide").onclick = () => setPanelState(name, state.panel[name] === "wide" ? null : "wide");
     el.querySelector(".min").onclick = () => setPanelState(name, "min");
     wireCardDrag(el, name);
@@ -1754,25 +1757,50 @@
       sharedXFilter = xFilterKey();
       sharedX = (upd["xaxis.range"] || plot._fullLayout?.xaxis?.range)?.slice() || null;
       if (sharedX) { upd["xaxis.range"] = [...sharedX]; upd["xaxis.autorange"] = false; }
-      const others = [...document.querySelectorAll("#panels .plot")].filter((p) => p !== plot && p.data && p._fullLayout?.xaxis);
+      const plots = [...document.querySelectorAll("#panels .plot")].filter((p) => p.data && p._fullLayout?.xaxis);
       xSyncing = true;
-      Promise.all(others.map((p) => Plotly.relayout(p, upd).catch(() => {}))).finally(() => { xSyncing = false; });
+      Promise.all(plots.map((p) => Plotly.relayout(p, { ...(p === plot ? {} : upd), ...visibleYUpdate(p, sharedX) }).catch(() => {})))
+        .finally(() => { xSyncing = false; });
     };
     plot.on("plotly_relayout", plot._xLinked);
   }
-  // The y-range of a TSG variable comes from the bins with the intake pump
-  // running: a stopped pump reads the stagnant line (fresh, warm, near 0 V
-  // of flow) and would set the scale for everything else. The pump-off
-  // points still plot, off the bottom or top of the axis. Null when nothing
-  // is gated, so the axis autoranges as usual.
-  function pumpedRange(name, y, d) {
-    const low = VAR[name]?.tsg ? pumpLow(d) : null;
-    if (!low) return null;
-    const on = [], all = [];
-    y.forEach((q, i) => { if (q == null) return; all.push(q); if (!low[i]) on.push(q); });
-    if (on.length < 2 || on.length === all.length) return null;
-    const [lo, hi] = minmax(on), pad = Math.max((hi - lo) * 0.08, 0.01);
+  const axisNumber = (q) => typeof q === "number" ? q : Date.parse(q);
+  function visiblePanelValues(spec, xr) {
+    if (!spec) return [];
+    const ends = xr?.map(axisNumber), bounded = ends?.every(Number.isFinite);
+    const lo = bounded ? Math.min(...ends) : -Infinity, hi = bounded ? Math.max(...ends) : Infinity;
+    const all = [], pumped = [], low = VAR[spec.name]?.tsg ? pumpLow(spec.d) : null;
+    spec.y.forEach((q, i) => {
+      const at = axisNumber(spec.x[i]);
+      if (q == null || !Number.isFinite(q) || !Number.isFinite(at) || at < lo || at > hi) return;
+      all.push(q);
+      if (!low?.[i]) pumped.push(q);
+    });
+    // A stopped intake measures the water held in the line. Keep those
+    // points visible, but let valid underway water set a TSG panel's scale.
+    return low && pumped.length >= 2 && pumped.length < all.length ? pumped : all;
+  }
+  function visibleYRange(spec, xr) {
+    if (!spec || spec.circular) return null;
+    const values = visiblePanelValues(spec, xr);
+    if (!values.length) return null;
+    if (spec.depth) {
+      const maxD = Math.max(1, minmax(values)[1] * 1.03);
+      return [spec.depthY(maxD), 0];
+    }
+    if (spec.name.startsWith("Surprise")) return [0, Math.max(3.5, minmax(values)[1] * 1.08)];
+    if (spec.useLog) {
+      const positive = values.filter((q) => q > 0).map(Math.log10);
+      if (!positive.length) return null;
+      let [lo, hi] = minmax(positive), pad = Math.max((hi - lo) * 0.08, 0.02);
+      return [lo - pad, hi + pad];
+    }
+    let [lo, hi] = minmax(values), pad = Math.max((hi - lo) * 0.08, Math.abs(lo || hi) * 0.01, 0.01);
     return [lo - pad, hi + pad];
+  }
+  function visibleYUpdate(plot, xr) {
+    const range = visibleYRange(plot?._uwY, xr);
+    return range ? { "yaxis.range": range, "yaxis.autorange": false } : {};
   }
 
   function renderPanel(name) {
@@ -1846,6 +1874,7 @@
     // a zoom survives the minute refresh, and resets with the span, legs or x-mode
     const uirev = `${state.win}|${state.xmode}|${[...state.hidden].sort().join(",")}`;
     const xr = sharedXAxis().range;                                  // new and restored panels inherit the shared view
+    plot._uwY = { name, x, y, d, circular: v.circular, depth, depthY, useLog };
     const layout = {
       ...THEME, margin: chartMargin(), showlegend: false, hovermode: "closest", hoverdistance: 14,
       dragmode: on ? "pan" : false,                                       // only the selected panel moves its axes
@@ -1859,13 +1888,11 @@
       yaxis: { ...THEME.yaxis, title: { text: v.unit, font: { size: fz(12) }, standoff: 2 }, tickfont: { size: fz(12) },
                automargin: false, type: useLog ? "log" : "linear", ...(v.circular ? { range: [0, 360], dtick: 90 } : {}) },
     };
-    if (!useLog && !v.circular) {
-      const r = pumpedRange(name, y, d);
-      if (r) layout.yaxis.range = r;
-    }
+    const yr = visibleYRange(plot._uwY, xr);
+    if (yr) { layout.yaxis.range = yr; layout.yaxis.autorange = false; }
     if (depth) {
-      const maxD = Math.max(1, minmax(y)[1] * 1.03);
-      layout.yaxis = { ...layout.yaxis, autorange:false, range:[depthY(maxD),0],
+      const visible = visiblePanelValues(plot._uwY, xr), maxD = Math.max(1, (visible.length ? minmax(visible)[1] : minmax(y)[1]) * 1.03);
+      layout.yaxis = { ...layout.yaxis,
         title:{...layout.yaxis.title,text:compressed?t("underway.axis.depthRoot"):t("underway.axis.depth")} };
       if (compressed) {
         const ticks = [0,5,10,20,30,50,75,100,150,200,300,400,500,750,1000,1500,2000,3000,4000,5000,6000,8000,10000,12000].filter(n=>n<=maxD);
@@ -1873,7 +1900,7 @@
       }
     }
     if (name.startsWith("Surprise")) {
-      const top = Math.max(3.5, minmax(y)[1] * 1.08);
+      const top = layout.yaxis.range?.[1] ?? 3.5;
       layout.yaxis.range = [0, top];
       layout.shapes = [{ type: "rect", xref: "paper", x0: 0, x1: 1, yref: "y", y0: 3, y1: top,
                          fillcolor: "rgba(255,180,84,.10)", line: { width: 0 } }];
