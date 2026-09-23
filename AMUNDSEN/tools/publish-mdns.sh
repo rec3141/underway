@@ -14,8 +14,11 @@ cur=""; pids=()
 trap 'kill "${pids[@]}" 2>/dev/null; exit 0' TERM INT
 while :; do
   ips=$(for i in "${IFACES[@]}"; do ip -4 -o addr show "$i" 2>/dev/null | awk '{print $4}' | cut -d/ -f1; done | sort -u | tr '\n' ' ')
-  if [[ $ips != "$cur" ]]; then
+  dead=false
+  for pid in "${pids[@]}"; do kill -0 "$pid" 2>/dev/null || dead=true; done
+  if [[ $ips != "$cur" || $dead == true ]]; then
     kill "${pids[@]}" 2>/dev/null; pids=()
+    wait 2>/dev/null
     for ip in $ips; do avahi-publish -a -R "$NAME" "$ip" & pids+=($!); echo "$NAME -> $ip"; done
     cur=$ips
   fi

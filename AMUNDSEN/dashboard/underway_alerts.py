@@ -106,7 +106,7 @@ def _geometry(ax, path: Path, bounds: tuple[float, float, float, float]) -> None
             ax.fill(xs, ys, facecolor="#d7d2c5", edgecolor="#938f85", linewidth=.45, zorder=0)
 
 
-def render(data: dict, colour_parameter: str | None = None) -> bytes:
+def render(data: dict, colour_parameter: str | None = None, alert_times: tuple[int, ...] = ()) -> bytes:
     """One PNG containing a track map and all aligned Lab time series."""
     import matplotlib
     matplotlib.use("Agg")
@@ -120,6 +120,8 @@ def render(data: dict, colour_parameter: str | None = None) -> bytes:
     lats = np.array([np.nan if q is None else float(q) for q in data.get("lat", [])]); lons = np.array([np.nan if q is None else float(q) for q in data.get("lon", [])])
     colours = np.array([np.nan if q is None else float(q) for q in data.get("vars", {}).get(colour_parameter, [])])
     low = np.array(data.get("pump_low") or [False] * len(times), dtype=bool)
+    alert_dates = [datetime.fromtimestamp(stamp / 1000, timezone.utc).astimezone(ZoneInfo(LOCAL_TZ)) for stamp in alert_times]
+    alert_numbers = [mdates.date2num(stamp) for stamp in alert_dates]
     fig = plt.figure(figsize=(14, 10), dpi=120, facecolor="#f7f8fa")
     grid = fig.add_gridspec(len(LAB_PARAMETERS), 2, width_ratios=(.92, 1.55), hspace=.12, wspace=.18)
     map_ax = fig.add_subplot(grid[:, 0])
@@ -143,6 +145,13 @@ def render(data: dict, colour_parameter: str | None = None) -> bytes:
             map_ax.scatter(lons[valid_pos & low], lats[valid_pos & low], c="#7d8895", s=11, linewidths=0, zorder=2)
         last = np.flatnonzero(valid_pos)[-1]
         map_ax.scatter([lons[last]], [lats[last]], marker="^", s=90, c="#e43d30", edgecolors="white", linewidths=.8, zorder=4)
+        source_times = np.array([np.nan if stamp is None else float(stamp) for stamp in data.get("t", [])])
+        for stamp in alert_times:
+            candidates = np.flatnonzero(valid_pos & np.isfinite(source_times))
+            if candidates.size:
+                prior = candidates[np.argmin(np.abs(source_times[candidates] - stamp))]
+                map_ax.scatter([lons[prior]], [lats[prior]], marker="o", s=70, facecolors="none", edgecolors="#d12f2f",
+                               linewidths=2.2, zorder=4)
         if good_colour.any():
             cb = fig.colorbar(dots, ax=map_ax, orientation="horizontal", fraction=.035, pad=.035)
             cb.set_label(colour_parameter, fontsize=8); cb.ax.tick_params(labelsize=7)
@@ -166,6 +175,8 @@ def render(data: dict, colour_parameter: str | None = None) -> bytes:
         label = parameter.rsplit(" (", 1)[0]
         ax.set_ylabel(f"{label}\n{unit}", fontsize=7, rotation=0, ha="right", va="center", labelpad=7)
         ax.grid(color="#d9dee5", linewidth=.5); ax.tick_params(labelsize=7, length=2)
+        for stamp in alert_numbers:
+            ax.axvline(stamp, color="#d12f2f", linewidth=2.2, alpha=.92, zorder=5)
         for side in ("top", "right"): ax.spines[side].set_visible(False)
         if row < len(LAB_PARAMETERS) - 1: ax.tick_params(labelbottom=False)
     if axes:
@@ -175,6 +186,8 @@ def render(data: dict, colour_parameter: str | None = None) -> bytes:
     title = "CCGS Amundsen · aligned Lab observations"
     if start and end:
         title += f" · {start:%Y-%m-%d %H:%M}–{end:%H:%M} {end.tzname()}"
+    if alert_times:
+        title += " · red = this alert's earlier deliveries"
     fig.suptitle(title, x=.02, ha="left", fontsize=13, weight="bold")
     fig.subplots_adjust(top=.94, bottom=.07, left=.07, right=.98)
     out = io.BytesIO(); fig.savefig(out, format="png", facecolor=fig.get_facecolor()); plt.close(fig)
@@ -205,6 +218,7 @@ def ai_recommendation(image: bytes, data: dict) -> dict:
     if not status.get("online"):
         raise ModelOffline(status.get("why") or "no model loaded")
     prompt = ("The image is one aligned six-hour panel of every flow-through Lab parameter and its matching ship track. "
+              "Red vertical lines and red map rings, when present, mark earlier successful deliveries of this subscriber's alert; use them to judge what changed since those notices. "
               "Decide whether the water at the latest point is scientifically interesting enough to take a discrete water sample now. "
               "Look for coherent gradients, fronts, peaks, unusual combinations and whether flow is valid. Do not call fluorescence alone a bloom. "
               "Check that every direction of change named in the reason agrees with the plotted direction, the headline, and the authoritative numerical checks below. "

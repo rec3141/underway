@@ -908,6 +908,39 @@ def _minutes_since(stamp: str | None, now: datetime) -> float:
         return float("inf")
 
 
+def _underway_delivery_times(seen: dict, data: dict) -> tuple[int, ...]:
+    """Successful deliveries for one rule that fall inside the plotted frame."""
+    times = data.get("t", [])
+    start = min((int(stamp) for stamp in times if stamp is not None), default=0)
+    end = max((int(stamp) for stamp in times if stamp is not None), default=0)
+    stamps = list(seen.get("sent_at") or [])
+    if seen.get("last_sent") and seen["last_sent"] not in stamps:
+        stamps.append(seen["last_sent"])
+    result = []
+    for stamp in stamps:
+        try:
+            value = int(datetime.fromisoformat(stamp).timestamp() * 1000)
+        except (TypeError, ValueError):
+            continue
+        if start <= value <= end:
+            result.append(value)
+    return tuple(sorted(set(result)))
+
+
+def _record_underway_delivery(seen: dict, now: datetime) -> None:
+    stamp = now.isoformat(timespec="seconds")
+    seen["last_sent"] = stamp
+    cutoff = now - timedelta(hours=6)
+    history = []
+    for old in [*(seen.get("sent_at") or []), stamp]:
+        try:
+            if datetime.fromisoformat(old) >= cutoff:
+                history.append(old)
+        except (TypeError, ValueError):
+            continue
+    seen["sent_at"] = list(dict.fromkeys(history))
+
+
 def underway_notices(subs: list[dict], state: dict, now: datetime) -> list[dict]:
     """Evaluate every current-water rule against one aligned published frame."""
     from .underway_alerts import AI_PARAMETER, ai_recommendation, frame, fresh, latest_sample, render
@@ -944,35 +977,46 @@ def underway_notices(subs: list[dict], state: dict, now: datetime) -> list[dict]
         if not due:
             continue
         parameter = rule["parameter"]
-        if parameter not in images:
-            images[parameter] = render(data, parameter)
+        delivery_times = _underway_delivery_times(seen, data)
+        image_key = (parameter, delivery_times)
+        if image_key not in images:
+            images[image_key] = render(data, parameter, delivery_times)
         when = datetime.fromtimestamp(sample["time"] / 1000, timezone.utc).astimezone(TZ)
         relation = "above" if direction == "over" else "below"
         unit = (" " + sample["unit"]) if sample["unit"] else ""
         location = f" · {sample['lat']:.4f}, {sample['lon']:.4f}" if sample.get("lat") is not None and sample.get("lon") is not None else ""
         headline = f"{parameter}: {sample['value']:.4g}{unit} {relation} {threshold:g}{unit}"
         text = (f"🔔 Amundsen underway\n{headline}\nObserved {when:%Y-%m-%d %H:%M} {when.tzname()}{location}.\n"
-                f"The attached six-hour map is coloured by {parameter}; the aligned figure shows every Lab parameter.")
+                f"The attached six-hour map is coloured by {parameter}; the aligned figure shows every Lab parameter. "
+                "Red lines and map rings mark earlier deliveries of this alert.")
         notices.append({"sub": sub, "rule": rule, "state_key": key, "subject": "Amundsen underway: " + headline,
-                        "text": text, "image": images[parameter]})
+                        "text": text, "image": images[image_key]})
     current_index = max((i for i, stamp in enumerate(data.get("t", [])) if stamp is not None), default=-1)
     intake_low = current_index >= 0 and current_index < len(data.get("pump_low") or []) and bool(data["pump_low"][current_index])
     if ai_due and not intake_low:
-        image = images.setdefault(AI_PARAMETER, render(data, "Fluorescence (µg/L)"))
-        try:
-            answer = ai_recommendation(image, data)
-        except Exception as e:                         # noqa: BLE001
-            log.warning("underway alerts: AI recommendation failed: %s", e)
-            answer = None
+        answers = {}
         for sub, rule, key, seen in ai_due:
             seen["last_checked"] = now.isoformat(timespec="seconds")
+            delivery_times = _underway_delivery_times(seen, data)
+            image_key = (AI_PARAMETER, delivery_times)
+            if image_key not in images:
+                images[image_key] = render(data, "Fluorescence (µg/L)", delivery_times)
+            image = images[image_key]
+            if image_key not in answers:
+                try:
+                    answers[image_key] = ai_recommendation(image, data)
+                except Exception as e:                         # noqa: BLE001
+                    log.warning("underway alerts: AI recommendation failed: %s", e)
+                    answers[image_key] = None
+            answer = answers[image_key]
             if answer:
                 seen["interesting"] = answer["interesting"]
             if not answer or not answer["interesting"]:
                 continue
             text = (f"🧪 Amundsen underway · AI sampling recommendation\n{answer['headline']}\n{answer['reason']}"
                     + (f"\nSampling objective: {answer['objective']}" if answer["objective"] else "")
-                    + "\nThe attached six-hour map and aligned Lab panel are the observations Gemma assessed.")
+                    + "\nThe attached six-hour map and aligned Lab panel are the observations Gemma assessed. "
+                      "Red lines and map rings mark earlier deliveries of this alert.")
             notices.append({"sub": sub, "rule": rule, "state_key": key, "subject": "Amundsen underway: " + answer["headline"],
                             "text": text, "image": image})
     return notices
@@ -1235,7 +1279,7 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
                       + f"\n\nUnsubscribe: http://underway.local:8042/api/alerts/unsubscribe?token={sub['id']}", notice["image"])
             else:
                 continue
-            state.setdefault("underway", {}).setdefault(notice["state_key"], {})["last_sent"] = now.isoformat(timespec="seconds")
+            _record_underway_delivery(state.setdefault("underway", {}).setdefault(notice["state_key"], {}), now)
             sent += 1
         except Exception as e:                  # noqa: BLE001
             failed += 1
