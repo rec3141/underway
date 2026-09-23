@@ -28,6 +28,7 @@ import threading
 import time
 from collections import deque
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from .config import CONFIG_DIR
@@ -124,6 +125,22 @@ PERSONAS = {
                         "your own beyond the recent chat; when asked a real question, squawk it on to @capn, @doc or @ada.")},
 }
 HANDLE_RX = re.compile(r"@(\w+)")
+
+
+def reply_similarity(left: str, right: str) -> float:
+    """Measure repeated prose while ignoring citation links and punctuation."""
+    def normalized(text: str) -> str:
+        text = re.sub(r"\[([^]]+)\]\([^)]*\)", r"\1", text.lower())
+        text = re.sub(r"\[\d+(?:\s*[,;]\s*\d+)*\]", " ", text)
+        return re.sub(r"[^a-z0-9\u00c0-\u024f]+", " ", text).strip()
+
+    a, b = normalized(left), normalized(right)
+    if not a or not b:
+        return 0.0
+    sequence = SequenceMatcher(None, a, b, autojunk=False).ratio()
+    a_words, b_words = set(a.split()), set(b.split())
+    containment = len(a_words & b_words) / min(len(a_words), len(b_words))
+    return max(sequence, containment)
 
 
 class ModelOffline(RuntimeError):
@@ -763,7 +780,8 @@ class Crew:
         return handle == "doc" and channel.startswith("dm:") and chat.bots_in(channel) == ["doc"]
 
     # ------------------------------------------------------------ generation
-    def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False, slug: str = "") -> tuple[str | None, list[dict]]:
+    def _generate(self, handle: str, task: str, channel: str = "ship", query: str = "", long: bool = False,
+                  slug: str = "", temperature: float | None = None) -> tuple[str | None, list[dict]]:
         """One remark in a room. The crew member sees its beat's slice of the
         dashboard and the last few kilobytes of that room, nothing else."""
         p = PERSONAS[handle]
@@ -794,7 +812,8 @@ class Crew:
                   f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task, slug)}\n\nRECENT CHAT (oldest first)\n{recent}")
         pages = list(self._pages)
         # a member's own room: the answer runs long (thinking costs minutes and adds little)
-        text = complete(system, task, ROOM_TOKENS if own else MAX_TOKENS * (2 if long else 1), 0.5 if own else 1.0)
+        text = complete(system, task, ROOM_TOKENS if own else MAX_TOKENS * (2 if long else 1),
+                        temperature if temperature is not None else (0.7 if own else 1.0))
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return (text[:ROOM_CHARS if own else 2500] or None), pages
 
@@ -820,7 +839,8 @@ class Crew:
             return text, []
         return chat.chosen_chips(chat.apply_picks(text, reply), shelf)
 
-    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True, long: bool = False, slug: str = "", hop: int = 0) -> None:
+    def _speak(self, handle: str, task: str, channel: str = "ship", query: str = "", banter: bool = True,
+               long: bool = False, slug: str = "", hop: int = 0, avoid: list[str] | None = None) -> str | None:
         """Generate and post one remark in a room. A member the remark
         @mentions answers it, and in the crew's room another member
         sometimes riffs on it, usually Polly; either is one hop only
@@ -834,6 +854,16 @@ class Crew:
             chat.typing(channel, handle, True)
             try:
                 text, pages = self._generate(handle, task, channel, query, long, slug)
+                if text and avoid and any(reply_similarity(text, earlier) >= 0.72 for earlier in avoid):
+                    retry = (task + " Your draft repeated an earlier answer to this question. Write a substantially different "
+                             "answer from your own beat. Add only facts, interpretation, or a correction the earlier answer did "
+                             "not contain; do not reuse its opening or sentence structure. If you have no distinct contribution, "
+                             "answer with exactly NO DISTINCT CONTRIBUTION.")
+                    text, pages = self._generate(handle, retry, channel, query, long, slug, temperature=1.2)
+                    if not text or text.strip().upper() == "NO DISTINCT CONTRIBUTION" or any(
+                            reply_similarity(text, earlier) >= 0.72 for earlier in avoid):
+                        log.info("crew %s suppressed a repeated answer in %s", handle, channel)
+                        text = None
                 if text:
                     meta = None
                     chips = []
@@ -875,6 +905,7 @@ class Crew:
             self._speak(other, f"{p['name']} just said in the chat: \"{text}\". Riff on it in your own voice — agree, needle them, "
                                f"correct them, or add a detail — in one or two sentences. Do not repeat their numbers back unless you dispute them.",
                         channel, banter=False, hop=1)
+        return text
 
     # ------------------------------------------------------------ triggers
     def on_message(self, name: str, text: str, channel: str = "ship", slug: str = "", locale: str = "") -> None:
@@ -939,6 +970,7 @@ class Crew:
                     return
                 speakers, task, channel, query, long, slug = self._turns.popleft()
             with self.lock:
+                answers = []
                 for i, handle in enumerate(speakers):
                     instruction = task
                     if i:
@@ -946,8 +978,11 @@ class Crew:
                                         "Build on what they said from your own expertise, adding useful details or corrections. "
                                         "Do not repeat their explanation or restart the answer.")
                     try:
-                        self._speak(handle, instruction, channel, query, long=long, slug=slug,
-                                    banter=len(speakers) == 1, hop=1 if len(speakers) > 1 else 0)
+                        answer = self._speak(handle, instruction, channel, query, long=long, slug=slug,
+                                             banter=len(speakers) == 1, hop=1 if len(speakers) > 1 else 0,
+                                             avoid=answers)
+                        if answer:
+                            answers.append(answer)
                     except Exception:
                         # Posting/integration failures must not strand queued turns.
                         log.exception("crew turn failed for %s in %s", handle, channel)
