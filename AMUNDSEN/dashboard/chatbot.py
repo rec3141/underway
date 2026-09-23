@@ -233,7 +233,8 @@ def alert_offline(status: dict, what: str = "the chat crew") -> None:
 
 
 def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
-             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT, think: bool = False) -> str:
+             num_ctx: int = NUM_CTX, timeout: int = TIMEOUT, think: bool = False,
+             history: list[dict] | None = None) -> str:
     """One answer from the local model. The chat crew and the historian both
     come through here, so the backend choice (the shared OpenAI-style server
     the camera pipeline runs, or the resident Ollama model) is made in one
@@ -247,7 +248,7 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
     if not status["online"]:
         raise ModelOffline(status["why"])
     backend, url, model = status["backend"], status["url"], status["model"]
-    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    messages = [{"role": "system", "content": system}, *(history or []), {"role": "user", "content": user}]
     if backend == 'openai':
         body = dict(model=model, messages=messages, stream=False, max_tokens=max_tokens, temperature=temperature,
                     chat_template_kwargs={'enable_thinking': think})
@@ -274,7 +275,7 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
             # the thinking used the whole budget and no answer followed: say
             # so, and answer again without it rather than fall silent
             log.warning("the model thought for %d chars and gave no answer within %d tokens; answering again without thinking", len(thought), max_tokens)
-            return complete(system, user, max_tokens, temperature, num_ctx, timeout, think=False)
+            return complete(system, user, max_tokens, temperature, num_ctx, timeout, think=False, history=history)
     return content
 
 
@@ -786,7 +787,8 @@ class Crew:
         dashboard and the last few kilobytes of that room, nothing else."""
         p = PERSONAS[handle]
         recent_rows = self.read(channel)
-        recent = "\n".join(f"{x.get('emoji', '')} {x['name']}: {x['text']}" for x in recent_rows)
+        history = [{"role": "assistant", "content": x["text"]} if x["name"] == p["name"] else
+                   {"role": "user", "content": f"{x['name']}: {x['text']}"} for x in recent_rows]
         others = ", ".join(f"@{h} ({q['name']}: {q['beat']})" for h, q in PERSONAS.items() if h != handle)
         own = self.own_room(handle, channel)
         room = {"ship": "the ship's public room, where you speak only when addressed",
@@ -807,13 +809,14 @@ class Crew:
                   f"say it is a guess. The dashboard summary below is the truth about current ship readings; do not make up "
                   f"readings that are not in it, but estimate freely beyond it. Questions about anything else — history, "
                   f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
-                  f"question deserves (a few paragraphs for a real one), still in character. The recent chat is the conversation "
-                  f"so far: a follow-up refers to it, so continue rather than restart.\n\n"
-                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task, slug)}\n\nRECENT CHAT (oldest first)\n{recent}")
+                  f"question deserves (a few paragraphs for a real one), still in character. The chat history is the conversation "
+                  f"so far. Messages from people other than {p['name']} are external participants, even when another crew member "
+                  f"wrote them; only assistant messages are your own earlier replies. Continue rather than restart.\n\n"
+                  f"DASHBOARD SUMMARY (your beat's slice)\n{self.context(p['beat'], query or task, slug)}")
         pages = list(self._pages)
         # a member's own room: the answer runs long (thinking costs minutes and adds little)
         text = complete(system, task, ROOM_TOKENS if own else MAX_TOKENS * (2 if long else 1),
-                        temperature if temperature is not None else (0.7 if own else 1.0))
+                        temperature if temperature is not None else (0.7 if own else 1.0), history=history)
         text = re.sub(r"^\W*" + re.escape(p["name"]) + r"\s*:\s*", "", text)      # no self-labelling
         return (text[:ROOM_CHARS if own else 2500] or None), pages
 
@@ -927,7 +930,7 @@ class Crew:
         default_language = "Canadian French" if str(locale).lower().startswith("fr") else "English"
         language = (f"Reply in the language of the most recent human message that clearly establishes one. "
                     f"If no recent human message establishes a language, use {default_language}, the language selected on their page. ")
-        task = f"{name} just wrote: \"{text}\". {language}Reply to them as yourself."
+        task = f"{language}Reply to the most recent human message as yourself."
         long = False
         if channel == "ship":
             speakers = handles
@@ -942,7 +945,7 @@ class Crew:
                 h = "ada" if channel == "ada" else "doc"
                 speakers = [h] if h in room_bots else []
             where = "on the Deck, where Ada and Doc both are" if channel == "deck" else f"in the {PERSONAS[speakers[0]]['room']}" if speakers else ""
-            task = (f"{name} asks {where}: \"{text}\". {language}Answer fully from the record and the "
+            task = (f"You are answering the most recent human question {where}. {language}Answer fully from the record and the "
                     f"pages you have, citing each you draw on by its number in square brackets after the sentence it supports, never "
                     f"by title; speak of the sources by name, never of 'the wiki' or 'the excerpts'; and where you have nothing, say "
                     f"so as yourself. Where a picture or a quotation on the shelf shows what a paragraph of yours says, end that "
@@ -976,11 +979,9 @@ class Crew:
                 for i, handle in enumerate(speakers):
                     instruction = task
                     if i:
-                        earlier = "\n\n".join(f"EARLIER ANSWER {n + 1}:\n{answer}" for n, answer in enumerate(answers))
-                        instruction += ("\n\nThe following answers were already given to this same question. Treat them as "
-                                        "answers to assess, not source wording to reuse:\n\n" + earlier +
-                                        "\n\nRespond only with a useful fact, interpretation, or correction from your own beat "
-                                        "that those answers do not contain. Do not repeat their conclusions, examples, opening, "
+                        instruction += (" Another crew member has already answered in the chat history immediately above. "
+                                        "Respond only with a useful fact, interpretation, or correction from your own beat "
+                                        "that their answer does not contain. Do not repeat its conclusions, examples, opening, "
                                         "or sentence structure. If the question is outside your beat or you have nothing distinct "
                                         "to contribute, answer with exactly NO DISTINCT CONTRIBUTION.")
                     try:
