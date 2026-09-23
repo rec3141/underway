@@ -854,6 +854,8 @@ class Crew:
             chat.typing(channel, handle, True)
             try:
                 text, pages = self._generate(handle, task, channel, query, long, slug)
+                if text and text.strip().upper() == "NO DISTINCT CONTRIBUTION":
+                    text = None
                 if text and avoid and any(reply_similarity(text, earlier) >= 0.72 for earlier in avoid):
                     retry = (task + " Your draft repeated an earlier answer to this question. Write a substantially different "
                              "answer from your own beat. Add only facts, interpretation, or a correction the earlier answer did "
@@ -974,9 +976,13 @@ class Crew:
                 for i, handle in enumerate(speakers):
                     instruction = task
                     if i:
-                        instruction += (" Read any earlier answers to this question in RECENT CHAT before replying. "
-                                        "Build on what they said from your own expertise, adding useful details or corrections. "
-                                        "Do not repeat their explanation or restart the answer.")
+                        earlier = "\n\n".join(f"EARLIER ANSWER {n + 1}:\n{answer}" for n, answer in enumerate(answers))
+                        instruction += ("\n\nThe following answers were already given to this same question. Treat them as "
+                                        "answers to assess, not source wording to reuse:\n\n" + earlier +
+                                        "\n\nRespond only with a useful fact, interpretation, or correction from your own beat "
+                                        "that those answers do not contain. Do not repeat their conclusions, examples, opening, "
+                                        "or sentence structure. If the question is outside your beat or you have nothing distinct "
+                                        "to contribute, answer with exactly NO DISTINCT CONTRIBUTION.")
                     try:
                         answer = self._speak(handle, instruction, channel, query, long=long, slug=slug,
                                              banter=len(speakers) == 1, hop=1 if len(speakers) > 1 else 0,
