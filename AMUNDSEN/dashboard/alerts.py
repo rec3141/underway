@@ -78,7 +78,7 @@ ROW_EVENTS = EVENTS             # … and every change to it
 MOVED_MIN = 15                  # a start that shifts by less is not worth a message
 STATUS_STARTED = ("in progress",)
 STATUS_FINISHED = ("completed", "canceled", "cancelled")
-CHANGE_NOTICE = "the schedule has changed http://10.0.0.2/Schedule.html"
+CHANGE_URL = "http://10.0.0.2/Schedule.html"
 CHANGES_KEY = "changes"         # the schedule-changes follow, as a bell's key and a /start payload
 CHANGE_EVENTS = ("added", "removed", "moved", "plan_changed")
 MAX_LINES = 25                  # lines in one message; a rewritten schedule says how many more
@@ -611,7 +611,7 @@ def set_whiteboard(channel: str, to: str, on: bool, name: str = "") -> dict | No
 
 def set_changes(channel: str, to: str, on: bool, name: str = "") -> dict | None:
     """Follow (or stop following) changes to the schedule: operations added,
-    taken off, moved or canceled, and nothing else."""
+    taken off or edited while still in the future, and nothing else."""
     return _set_follow("changes", channel, to, on, name)
 
 
@@ -727,6 +727,12 @@ def _is_change(ev: str, r: dict, now: datetime) -> bool:
             and (r.get('status') or '').strip().lower() not in STATUS_STARTED + STATUS_FINISHED)
 
 
+def _change_notice(counts: dict[str, int]) -> str:
+    """One compact summary of the future schedule edits in this timer pass."""
+    return (f"Schedule changes: {counts['added']} added, {counts['removed']} removed, "
+            f"{counts['edited']} edited — {CHANGE_URL}")
+
+
 def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: dict, now: datetime) -> list[tuple[dict, list[str]]]:
     """Per subscription, the lines it should get now (each row × event once;
     an upcoming alert only inside the subscription's lead time)."""
@@ -734,6 +740,7 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
     sent = state["sent"]
     for sub in subs:
         lines = []
+        changes = {"added": 0, "removed": 0, "edited": 0}
         mine = sent.setdefault(sub["id"], {})
         for ev, r, text in events:
             rows_ = sub.get("rows") or {}
@@ -760,10 +767,11 @@ def messages_for(subs: list[dict], events: list[tuple[str, dict, str]], state: d
                 continue
             mine[key] = now.isoformat(timespec="seconds")
             if change and ev not in wanted:
-                if CHANGE_NOTICE not in lines:
-                    lines.append(CHANGE_NOTICE)
+                changes[ev if ev in ("added", "removed") else "edited"] += 1
             else:
                 lines.append(text)
+        if any(changes.values()):
+            lines.insert(0, _change_notice(changes))
         # forget rows that are long gone so the record stays small
         for k in [k for k, t in mine.items() if (now - datetime.fromisoformat(t)).days > 14]:
             del mine[k]
@@ -1250,7 +1258,7 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
             elif sub["channel"] == "telegram":
                 if tg is None:
                     raise RuntimeError("telegram not configured")
-                tg.send(sub["to"], CHANGE_NOTICE if lines == [CHANGE_NOTICE] else "🔔 Amundsen schedule\n" + body)
+                tg.send(sub["to"], lines[0] if len(lines) == 1 and lines[0].startswith("Schedule changes:") else "🔔 Amundsen schedule\n" + body)
             else:
                 if cfg is None:
                     raise RuntimeError("email not configured")

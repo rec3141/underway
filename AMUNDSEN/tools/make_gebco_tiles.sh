@@ -262,11 +262,15 @@ from osgeo import gdal
 gdal.UseExceptions()
 w = sys.argv[1]
 c = gdal.Open(f"{w}/color.tif"); s = gdal.Open(f"{w}/shade.tif")
-# the isobaths a reader takes their bearings from: the 100 m line the routes
-# keep off, then the shelf break and the basins, each drawn where neighbouring
-# cells fall on either side of the depth
+# The isobaths a reader takes their bearings from: close spacing across the
+# shelf and upper slope, then 500 m spacing through the deep basins. Each is
+# drawn where neighbouring cells fall on either side of the depth.
 elev = gdal.Open(sys.argv[2])
-LEVELS = {100: .55, 200: .78, 500: .82, 1000: .85, 2000: .88}
+LEVELS = {
+    100: .55, 200: .78, 500: .82, 750: .84, 1000: .85,
+    1500: .87, 2000: .88, 2500: .89,
+    **{level: .90 for level in range(3000, 11001, 500)},
+}
 out = gdal.GetDriverByName("GTiff").Create(f"{w}/shaded.tif", c.RasterXSize, c.RasterYSize, 4, gdal.GDT_Byte,
                                            ["COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=YES", "PHOTOMETRIC=RGB", "ALPHA=YES"])
 out.SetGeoTransform(c.GetGeoTransform()); out.SetProjection(c.GetProjection())
