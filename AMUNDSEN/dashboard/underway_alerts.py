@@ -21,7 +21,7 @@ LAB_PARAMETERS = (
     "SST (°C)",
     "Salinity (PSU)",
     "Excess heat (°C)",
-    "TSG line warming (°C)",
+    "Surprise · 3 h",
     "TSG flow (V)",
     "Fluorescence (µg/L)",
     "Oxygen (mL/L)",

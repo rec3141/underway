@@ -36,6 +36,7 @@
     }
     for (const option of $('#theme').options) option.textContent = t('underway.theme.' + option.value);
     for (const option of $('#textsize').options) option.textContent = t('underway.size.' + option.value);
+    if (!PUBLIC && usageTab) try { navigator.sendBeacon?.("api/usage", `${usageTab}|${window.UWI18n.locale}`); } catch {}
     setLoadError('', false);
   });
   const { fetchJSON } = window.UWData;
@@ -2265,7 +2266,7 @@
     store.set("tab", name);
     if (usageTab !== name) {
       usageTab = name;
-      if (!PUBLIC) try { navigator.sendBeacon?.("api/usage", name); } catch {}
+      if (!PUBLIC) try { navigator.sendBeacon?.("api/usage", `${name}|${window.UWI18n.locale}`); } catch {}
     }
     window.UW?.onTab?.(name);
     if (name === "underway") setTimeout(() => { for (const el of $("#panels").children) { const p = el.querySelector(".plot"); if (p?.data) Plotly.Plots.resize(p); } }, 0);

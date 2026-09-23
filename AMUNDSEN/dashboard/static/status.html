@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Underway status</title>
 <style>
-:root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;background:light-dark(#f4f5f7,#16191d);color:light-dark(#20252d,#e5e9ef)}body{max-width:1000px;margin:auto;padding:24px}h1{margin-bottom:4px}h2{font-size:1.15rem}p{margin:8px 0;color:light-dark(#536070,#a9b6c6)}section{background:light-dark(white,#20252c);border:1px solid light-dark(#d7dde5,#3b4551);border-radius:12px;padding:18px;margin:20px 0}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid light-dark(#e0e5ec,#3b4551);vertical-align:top}th{font-weight:600}td:first-child{overflow-wrap:anywhere}button{font:inherit;padding:8px 16px;cursor:pointer}#health{font-weight:650}.good{color:light-dark(#146437,#7de0a2)}.bad{color:light-dark(#a3261c,#ffb2a8)}.muted{color:light-dark(#64615a,#c4baa6)}.stats{display:flex;gap:24px;flex-wrap:wrap}.stats b{display:block;font-size:1.8rem}#error{color:light-dark(#a3261c,#ffb2a8)}@media(max-width:600px){body{padding:14px}section{padding:12px}th,td{padding:8px}#checks td:first-child{min-width:165px}table{font-size:14px}}
+:root{color-scheme:light dark;font:16px/1.5 system-ui,sans-serif;background:light-dark(#f4f5f7,#16191d);color:light-dark(#20252d,#e5e9ef)}body{max-width:1000px;margin:auto;padding:24px}h1{margin-bottom:4px}h2{font-size:1.15rem}p{margin:8px 0;color:light-dark(#536070,#a9b6c6)}section{background:light-dark(white,#20252c);border:1px solid light-dark(#d7dde5,#3b4551);border-radius:12px;padding:18px;margin:20px 0}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:10px 12px;border-bottom:1px solid light-dark(#e0e5ec,#3b4551);vertical-align:top}th{font-weight:600}td:first-child{overflow-wrap:anywhere}button{font:inherit;padding:8px 16px;cursor:pointer}#health{font-weight:650}.good{color:light-dark(#146437,#7de0a2)}.bad{color:light-dark(#a3261c,#ffb2a8)}.muted{color:light-dark(#64615a,#c4baa6)}.stats{display:flex;gap:24px;flex-wrap:wrap}.stats b{display:block;font-size:1.8rem}#error{color:light-dark(#a3261c,#ffb2a8)}.view-chart{margin-top:14px;border:1px solid light-dark(#e0e5ec,#3b4551);border-radius:8px;overflow-x:auto}.view-chart svg{display:block;height:360px}.view-chart text{fill:currentColor;font:12px system-ui,sans-serif}.view-chart .grid{stroke:light-dark(#dfe4ea,#39424d);stroke-width:1}.view-chart .axis{stroke:currentColor;stroke-width:1}.view-chart .lang{font-weight:650}.view-legend{display:flex;gap:8px 16px;flex-wrap:wrap;margin:10px 0}.view-legend span{display:inline-flex;align-items:center;gap:6px}.view-legend i{width:11px;height:11px;border-radius:2px}.view-note{font-size:.9rem}@media(max-width:600px){body{padding:14px}section{padding:12px}th,td{padding:8px}#checks td:first-child{min-width:165px}table{font-size:14px}.view-chart svg{height:320px}}
 </style>
 </head>
 <body>
@@ -18,6 +18,8 @@
 <section><h2>Page views</h2><div class="stats"><div><b id="today">—</b>Today (UTC)</div><div><b id="week">—</b>Last 7 days</div><div><b id="total">—</b>Retained total</div></div>
 <p>Page opens and main-tab changes, not unique visitors. Automatic data refreshes do not count. Up to 90 days retained.</p>
 <label for="days">Show </label><select id="days"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+<div id="view-chart" class="view-chart" role="img" aria-label="Daily page views, with adjacent English and French bars stacked by page"></div>
+<div id="view-legend" class="view-legend"></div><p id="view-language-since" class="view-note"></p>
 <div class="scroll"><table><thead><tr><th>Day (UTC)</th><th>Page</th><th>Views</th></tr></thead><tbody id="views"></tbody></table></div></section>
 <section><h2>Recent outage and recovery notices</h2><p>Up to 100 events recorded since this status page was enabled.</p><div class="scroll"><table><thead><tr><th>Time</th><th>Endpoint</th><th>Event</th></tr></thead><tbody id="events"></tbody></table></div></section>
 <script>
@@ -25,7 +27,36 @@
 const $=id=>document.getElementById(id),fmt=t=>t?new Date(t).toLocaleString():'Not checked';let data=null,busy=false;
 function rows(id,values){const body=$(id);body.replaceChildren();for(const values0 of values){const row=body.insertRow();for(const value of values0)row.insertCell().textContent=value;}if(!values.length){const cell=body.insertRow().insertCell();cell.colSpan=4;cell.textContent='No records yet.';}}
 const since=days=>new Date(Date.now()-(days-1)*86400000).toISOString().slice(0,10);
-function views(){if(!data)return;const v=data.views,cut=since(+$('days').value),sum=days=>v.filter(r=>r.day>=since(days)).reduce((n,r)=>n+r.views,0);$('today').textContent=sum(1);$('week').textContent=sum(7);$('total').textContent=v.reduce((n,r)=>n+r.views,0);rows('views',v.filter(r=>r.day>=cut).map(r=>[r.day,r.page,r.views]));}
+const pageColours={underway:'#2878b8',casts:'#8f63b8',stations:'#df8b25',calendar:'#41a66b',wiki:'#d34d62',photos:'#19a6a8',sources:'#8a8175'};
+const svgNode=(name,attrs={})=>{const node=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,value);return node;};
+function viewChart(days){
+  const source=data.views_by_language||{},rows0=(source.rows||[]).filter(r=>r.day>=since(days));
+  const end=new Date(),dates=[];for(let i=days-1;i>=0;i--){const d=new Date(Date.UTC(end.getUTCFullYear(),end.getUTCMonth(),end.getUTCDate()-i));dates.push(d.toISOString().slice(0,10));}
+  const pages=Object.keys(pageColours),languages=['en','fr-CA'],counts=new Map();
+  for(const row of rows0)counts.set(`${row.day}|${row.language}|${row.page}`,row.views);
+  const totals=dates.flatMap(day=>languages.map(language=>pages.reduce((n,page)=>n+(counts.get(`${day}|${language}|${page}`)||0),0)));
+  const ymax=Math.max(1,...totals),step=Math.max(1,Math.ceil(ymax/4)),top=Math.ceil(ymax/step)*step;
+  const margin={left:52,right:18,top:20,bottom:62},group=days<=7?92:days<=30?58:42,width=Math.max(760,margin.left+margin.right+dates.length*group),height=360,plotH=height-margin.top-margin.bottom;
+  const svg=svgNode('svg',{viewBox:`0 0 ${width} ${height}`,width,role:'presentation'}),y=value=>margin.top+plotH-value/top*plotH;
+  for(let value=0;value<=top;value+=step){const py=y(value);svg.append(svgNode('line',{x1:margin.left,y1:py,x2:width-margin.right,y2:py,class:'grid'}));const label=svgNode('text',{x:margin.left-8,y:py+4,'text-anchor':'end'});label.textContent=value;svg.append(label);}
+  const axisTitle=svgNode('text',{x:14,y:margin.top+plotH/2,transform:`rotate(-90 14 ${margin.top+plotH/2})`,'text-anchor':'middle'});axisTitle.textContent='Page views';svg.append(axisTitle);
+  const barWidth=Math.max(7,Math.min(20,group*.3)),gap=Math.max(3,group*.06),labelEvery=Math.max(1,Math.ceil(days/12));
+  dates.forEach((day,index)=>{
+    const centre=margin.left+group*(index+.5);
+    languages.forEach((language,languageIndex)=>{
+      const x=centre+(languageIndex?gap/2:-gap/2-barWidth),total=pages.reduce((n,page)=>n+(counts.get(`${day}|${language}|${page}`)||0),0);let base=0;
+      for(const page of pages){const value=counts.get(`${day}|${language}|${page}`)||0;if(!value)continue;const rect=svgNode('rect',{x,y:y(base+value),width:barWidth,height:Math.max(1,value/top*plotH),fill:pageColours[page]});const title=svgNode('title');title.textContent=`${day} · ${language==='en'?'English':'French'} · ${page}: ${value}`;rect.append(title);svg.append(rect);base+=value;}
+      const lang=svgNode('text',{x:x+barWidth/2,y:height-margin.bottom+15,'text-anchor':'middle',class:'lang'});lang.textContent=language==='en'?'EN':'FR';svg.append(lang);
+      if(total){const totalLabel=svgNode('text',{x:x+barWidth/2,y:y(total)-4,'text-anchor':'middle'});totalLabel.textContent=total;svg.append(totalLabel);}
+    });
+    if(index%labelEvery===0||index===dates.length-1){const label=svgNode('text',{x:centre,y:height-12,'text-anchor':'middle'});label.textContent=day.slice(5);svg.append(label);}
+  });
+  svg.append(svgNode('line',{x1:margin.left,y1:y(0),x2:width-margin.right,y2:y(0),class:'axis'}));
+  $('view-chart').replaceChildren(svg);
+  $('view-language-since').textContent=source.since?`Language split recorded since ${fmt(source.since)}. Earlier page views remain in the totals and table below.`:'Language split begins with the next page view.';
+  const legend=$('view-legend');legend.replaceChildren();for(const page of pages){const item=document.createElement('span'),swatch=document.createElement('i');swatch.style.background=pageColours[page];item.append(swatch,document.createTextNode(page));legend.append(item);}
+}
+function views(){if(!data)return;const v=data.views,days=+$('days').value,cut=since(days),sum=days0=>v.filter(r=>r.day>=since(days0)).reduce((n,r)=>n+r.views,0);$('today').textContent=sum(1);$('week').textContent=sum(7);$('total').textContent=v.reduce((n,r)=>n+r.views,0);viewChart(days);rows('views',v.filter(r=>r.day>=cut).map(r=>[r.day,r.page,r.views]));}
 function ips(){const v=data.ips||{};for(const key of ['today','week','total'])$('ips-'+key).textContent=v[key]??'—';$('ips-since').textContent=v.since?'Counting since '+fmt(v.since)+'. Earlier IP data was not recorded.':'No IP records yet. Counting starts with the next page view.';}
 function draw(){ips();const stale=data.stale||!data.checks.length,down=data.checks.some(c=>c.down),failed=data.checks.some(c=>!c.ok);$('health').textContent=stale?'Monitoring is stale or has not started':down?'Outage detected':failed?'A check failed — awaiting confirmation':'All checks passing';$('health').className=stale?'muted':failed?'bad':'good';$('checked').textContent='Last monitor run: '+fmt(data.checked_at);rows('checks',data.checks.map(c=>[c.url,stale?'Unknown (stale)':c.ok?'Passing':c.down?'Down':'First failure',c.ms==null?'—':c.ms+' ms',fmt(c.last_check)]));$('alerts').textContent='Alerts: server logs and email · '+data.pending_email+' email notice(s) awaiting delivery';rows('events',[...data.events].reverse().map(e=>[fmt(e.at),e.url,e.status]));views();}
 async function refresh(){if(busy)return;busy=true;$('refresh').disabled=true;try{const response=await fetch('status.html?format=json',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('Status request failed ('+response.status+')');data=await response.json();draw();$('error').hidden=true;}catch(e){$('error').textContent='Unable to refresh status. Displayed data may be older. '+e.message;$('error').hidden=false;$('health').textContent='Current status unavailable';$('health').className='muted';}finally{busy=false;$('refresh').disabled=false;}}

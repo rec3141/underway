@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from .config import DB_DIR
 
 PAGES = {'underway', 'casts', 'stations', 'calendar', 'sources', 'wiki', 'photos'}
+LANGUAGES = {'en': 'English', 'fr-CA': 'French'}
 
 
 def client_ip(peer, forwarded=''):
@@ -20,7 +21,7 @@ def client_ip(peer, forwarded=''):
     return str(getattr(address, 'ipv4_mapped', None) or address)
 
 
-def record(page, ip=None):
+def record(page, ip=None, language=None):
     if page not in PAGES:
         raise ValueError('Unknown page')
     DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,6 +30,15 @@ def record(page, ip=None):
         db.execute('CREATE TABLE IF NOT EXISTS views (day TEXT, page TEXT, n INTEGER, PRIMARY KEY(day,page))')
         db.execute('INSERT INTO views VALUES (?,?,1) ON CONFLICT(day,page) DO UPDATE SET n=n+1', (now.date().isoformat(), page))
         db.execute('DELETE FROM views WHERE day < ?', ((now - timedelta(days=90)).date().isoformat(),))
+        db.execute('CREATE TABLE IF NOT EXISTS language_views '
+                   '(day TEXT, page TEXT, language TEXT, n INTEGER, PRIMARY KEY(day,page,language))')
+        if language in LANGUAGES:
+            db.execute('INSERT INTO language_views VALUES (?,?,?,1) '
+                       'ON CONFLICT(day,page,language) DO UPDATE SET n=n+1',
+                       (now.date().isoformat(), page, language))
+            db.execute('CREATE TABLE IF NOT EXISTS usage_meta (key TEXT PRIMARY KEY, value TEXT)')
+            db.execute("INSERT OR IGNORE INTO usage_meta VALUES ('languages_since',?)", (now.isoformat(),))
+        db.execute('DELETE FROM language_views WHERE day < ?', ((now - timedelta(days=90)).date().isoformat(),))
         db.execute('CREATE TABLE IF NOT EXISTS client_ips (day TEXT, ip TEXT, PRIMARY KEY(day,ip))')
         db.execute('CREATE TABLE IF NOT EXISTS usage_meta (key TEXT PRIMARY KEY, value TEXT)')
         if ip:
@@ -43,6 +53,21 @@ def report():
         return []
     with sqlite3.connect(DB_DIR / 'usage.sqlite') as db:
         return [dict(zip(('day', 'page', 'views'), row)) for row in db.execute('SELECT day,page,n FROM views ORDER BY day DESC,page')]
+
+
+def report_languages():
+    result = {'since': None, 'rows': []}
+    if not (DB_DIR / 'usage.sqlite').exists():
+        return result
+    with sqlite3.connect(DB_DIR / 'usage.sqlite') as db:
+        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if 'language_views' in tables:
+            result['rows'] = [dict(zip(('day', 'page', 'language', 'views'), row)) for row in
+                              db.execute('SELECT day,page,language,n FROM language_views ORDER BY day,page,language')]
+        if 'usage_meta' in tables:
+            row = db.execute("SELECT value FROM usage_meta WHERE key='languages_since'").fetchone()
+            result['since'] = row[0] if row else None
+    return result
 
 
 def report_ips():

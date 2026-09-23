@@ -353,10 +353,12 @@ class Handler(SimpleHTTPRequestHandler):
                 if origin and urlsplit(origin).netloc != self.headers.get('Host'):
                     raise ValueError('Invalid origin')
                 n = int(self.headers.get('Content-Length', '0'))
-                if not 0 < n <= 32:
+                if not 0 < n <= 48:
                     raise ValueError('Invalid page')
                 self.connection.settimeout(5)
-                usage.record(self.rfile.read(n).decode('ascii'), usage.client_ip(self.client_address[0], self.headers.get('X-Forwarded-For', '')))
+                page, separator, language = self.rfile.read(n).decode('ascii').partition('|')
+                usage.record(page, usage.client_ip(self.client_address[0], self.headers.get('X-Forwarded-For', '')),
+                             language if separator else None)
                 return self._json(200, {'ok': True})
             except (ValueError, UnicodeError):
                 return self._json(400, {'error': 'Invalid page view'})
