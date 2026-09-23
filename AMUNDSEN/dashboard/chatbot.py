@@ -24,11 +24,14 @@ import logging
 import os
 import random
 import re
+import shutil
+import subprocess
 import threading
 import time
 from collections import deque
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
+from functools import lru_cache
 from pathlib import Path
 
 from .config import CONFIG_DIR
@@ -425,6 +428,14 @@ def wiki_excerpts(root: Path, question: str, slug: str = "", limit: int = 8, bud
     avg = _wiki_cache.get("avglen") or 1.0
     question = expand_acronyms(question)[0]
     q = list(dict.fromkeys(w for w in _WORD_RX.findall(question.lower()) if w not in _STOP))
+    vocabulary = idf.keys()
+    for i, word in enumerate(q):
+        if word in idf or len(word) < 5:
+            continue
+        candidates = [known for known in vocabulary if known[0] == word[0] and abs(len(known) - len(word)) <= 1]
+        match = max(candidates, key=lambda known: SequenceMatcher(None, word, known).ratio(), default="")
+        if match and SequenceMatcher(None, word, match).ratio() >= 0.92:
+            q[i] = match
     weight = {w: idf.get(w, math.log(n + 1)) for w in q}       # a word the wiki has never seen is rare by definition
     by_slug = {p["slug"]: p for p in pages}
     current = by_slug.get(slug)
@@ -488,6 +499,64 @@ def places_named(root: Path, text: str) -> list[dict]:
         if any(x.lower() in low for x in names):
             out.append(p)
     return out[:8]
+
+
+@lru_cache(maxsize=128)
+def _names_tile(path: str, stamp: int) -> tuple[tuple[str, str, float, float], ...]:
+    """Read one local Names-layer vector tile into name, kind and lon/lat rows."""
+    ogrinfo = shutil.which("ogrinfo")
+    if not ogrinfo:
+        return ()
+    try:
+        result = subprocess.run([ogrinfo, "-ro", "-al", "-json", "-features", path], capture_output=True,
+                                text=True, timeout=4, check=True)
+        data = json.loads(result.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return ()
+    import math
+    rows = []
+    for layer in data.get("layers", []):
+        for feature in layer.get("features", []):
+            props = feature.get("properties", {})
+            coordinates = (feature.get("geometry", {}).get("coordinates") or [[None, None]])[0]
+            if len(coordinates) < 2 or coordinates[0] is None:
+                continue
+            x, y = coordinates[:2]
+            lon = math.degrees(x / 6378137)
+            lat = math.degrees(2 * math.atan(math.exp(y / 6378137)) - math.pi / 2)
+            rows.append((str(props.get("n", "")).replace("\n", " / "), str(props.get("k", "feature")), lat, lon))
+    return tuple(rows)
+
+
+def nearby_map_names(lat, lon, radius_km: float = 150, limit: int = 16) -> list[dict]:
+    """Names-layer labels nearest the ship, from the same local tiles the map draws."""
+    if lat is None or lon is None:
+        return []
+    import math
+    lat, lon = float(lat), float(lon)
+    zoom = 8
+    n = 2 ** zoom
+    tile_x = int((lon + 180) / 360 * n)
+    tile_y = int((1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n)
+    root = Path(os.environ.get("UNDERWAY_TILES_DIR", "/data/gis/tiles")) / "names" / str(zoom)
+
+    def distance(other_lat, other_lon):
+        a, b = math.radians(lat), math.radians(other_lat)
+        dy, dx = math.radians(other_lat - lat), math.radians(other_lon - lon)
+        h = math.sin(dy / 2) ** 2 + math.cos(a) * math.cos(b) * math.sin(dx / 2) ** 2
+        return 12742 * math.asin(math.sqrt(h))
+
+    found = {}
+    for x in range(tile_x - 1, tile_x + 2):
+        for y in range(tile_y - 1, tile_y + 2):
+            path = root / str(x) / f"{y}.pbf"
+            if not path.is_file():
+                continue
+            for name, kind, other_lat, other_lon in _names_tile(str(path), path.stat().st_mtime_ns):
+                km = distance(other_lat, other_lon)
+                if name and km <= radius_km and (name not in found or km < found[name]["km"]):
+                    found[name] = {"name": name, "kind": kind, "lat": other_lat, "lon": other_lon, "km": km}
+    return sorted(found.values(), key=lambda item: item["km"])[:limit]
 
 
 def nature_lines(root: Path, lat, lon, slug: str = "", now: datetime | None = None, near_km: float = 300, limit: int = 8) -> list[str]:
@@ -688,6 +757,14 @@ class Crew:
                      + (f", position {navigation_position(lat, lon)}" if lat is not None and lon is not None else "") + (f", leg {live}" if live else "") + ". Use this timestamped position rather than coordinates in earlier messages.")
         if beat == "meta":
             return "\n".join(lines)
+        try:
+            names = nearby_map_names(lat, lon)
+            if names:
+                lines.append("Names map layer near the ship: " + "; ".join(
+                    f"{place['name']} ({place['kind']}), {place['km']:.0f} km away at "
+                    f"{navigation_position(place['lat'], place['lon'])}" for place in names) + ".")
+        except Exception:                       # noqa: BLE001
+            pass
         want = {"schedule": [("Air temperature (°C)", 1), ("Relative wind speed (kn)", 0), ("Ship speed (kn)", 1), ("Bottom depth (m)", 0),
                              ("Sea state · 4σ heave (m)", 2), ("Roll & pitch RMS (°)", 2)],
                 "environment": [("SST (°C)", 2), ("Salinity (PSU)", 2), ("Fluorescence (µg/L)", 2), ("Oxygen (mL/L)", 2), ("Air temperature (°C)", 1),
@@ -805,8 +882,12 @@ class Crew:
                   f"Speak as your character in plain text, no markdown, no "
                   f"lists. Be entertaining first and useful second. Use everything you know: general oceanography, rules of thumb, "
                   f"astronomy, arithmetic from the numbers at hand (a saturation from temperature and salinity, sunset from the "
-                  f"position and date, an ETA from speed and distance). Always give a best guess rather than a refusal, and just "
-                  f"say it is a guess. The dashboard summary below is the truth about current ship readings; do not make up "
+                  f"position and date, an ETA from speed and distance). Resolve minor misspellings and near-matches silently: for "
+                  f"example, read 'Grinnel' as 'Grinnell', answer that interpretation, and let the writer correct you if needed. "
+                  f"Never list alternative guesses or ask for clarification over a small typo. Never tell someone they are probably "
+                  f"thinking of something else, conflating things, confused or mistaken. When a real ambiguity changes the answer, "
+                  f"briefly say which single interpretation you are using and answer it. "
+                  f"Always give a best guess rather than a refusal, and just say it is a guess. The dashboard summary below is the truth about current ship readings; do not make up "
                   f"readings that are not in it, but estimate freely beyond it. Questions about anything else — history, "
                   f"science, the Arctic, life aboard, the world — you answer fully from your own knowledge, at the length the "
                   f"question deserves (a few paragraphs for a real one), still in character. The chat history is the conversation "
