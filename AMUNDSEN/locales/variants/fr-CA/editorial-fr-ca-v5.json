@@ -242,6 +242,86 @@
       "source": "a long way, so it was worked out over blocks of {size} km rather than cell by cell",
       "text": "une longue distance : le calcul s'est fait par blocs de {size} km plutôt que cellule par cellule",
       "status": "draft"
+    },
+    "pages.c56a8c0b1ffafcfc": {
+      "source": "AI recommendation",
+      "text": "recommandation de l’IA",
+      "status": "draft"
+    },
+    "pages.8f420c4f89a48b1b": {
+      "source": "Alert saved. The first matching observation can notify you on the next two-minute check.",
+      "text": "Alerte enregistrée. La première observation correspondante peut vous être signalée lors de la prochaine vérification, dans au plus deux minutes.",
+      "status": "draft"
+    },
+    "pages.caa55e52ef45e716": {
+      "source": "Email alerts saved for this address",
+      "text": "Alertes courriel enregistrées pour cette adresse",
+      "status": "draft"
+    },
+    "pages.5737e42e0fdaf08b": {
+      "source": "Gemma receives one aligned six-hour panel of every Lab parameter and alerts only when it recommends sampling.",
+      "text": "Gemma reçoit un panneau aligné sur six heures de tous les paramètres du labo et n’envoie une alerte que si elle recommande un échantillonnage.",
+      "status": "draft"
+    },
+    "pages.6b18eb6f1afff1e1": {
+      "source": "Open Telegram to subscribe",
+      "text": "Ouvrir Telegram pour s’abonner",
+      "status": "draft"
+    },
+    "pages.a00f1e82186bd428": {
+      "source": "Save alert",
+      "text": "Enregistrer l’alerte",
+      "status": "draft"
+    },
+    "pages.532ba2c4d48b6417": {
+      "source": "The alert includes a six-hour map coloured by this parameter and an aligned figure of every Lab parameter.",
+      "text": "L’alerte comprend une carte des six dernières heures colorée selon ce paramètre et une figure alignée de tous les paramètres du labo.",
+      "status": "draft"
+    },
+    "pages.31b1acfd933eef4a": {
+      "source": "Underway alert",
+      "text": "Alerte des mesures en route",
+      "status": "draft"
+    },
+    "pages.4d92f6ae4f6bc1cb": {
+      "source": "alert me when this parameter crosses a threshold",
+      "text": "m’avertir lorsque ce paramètre franchit un seuil",
+      "status": "draft"
+    },
+    "pages.dc179dc3126b3697": {
+      "source": "ask Gemma whether the current water is scientifically interesting",
+      "text": "demander à Gemma si les eaux actuelles présentent un intérêt scientifique",
+      "status": "draft"
+    },
+    "pages.cae4684e0c7d8590": {
+      "source": "at most once every",
+      "text": "au plus une fois toutes les",
+      "status": "draft"
+    },
+    "pages.5fb6a47e368e12e5": {
+      "source": "over",
+      "text": "au-dessus de",
+      "status": "draft"
+    },
+    "pages.6390361dfdff141a": {
+      "source": "parameter",
+      "text": "paramètre",
+      "status": "draft"
+    },
+    "pages.7e5608ab610017af": {
+      "source": "remove",
+      "text": "retirer",
+      "status": "draft"
+    },
+    "pages.d767748a603799c8": {
+      "source": "under",
+      "text": "au-dessous de",
+      "status": "draft"
+    },
+    "pages.4983bbf5bbbef105": {
+      "source": "when the value is",
+      "text": "lorsque la valeur est",
+      "status": "draft"
     }
   }
 }

@@ -185,6 +185,10 @@ class Handler(SimpleHTTPRequestHandler):
             from .alerts import following
             q = parse_qs(u.query)
             return self._json(200, following(q.get("channel", ["email"])[0], q.get("to", [""])[0]))
+        if u.path == "/api/alerts/underway":
+            from .alerts import underway_following
+            q = parse_qs(u.query)
+            return self._json(200, {"rules": underway_following(q.get("channel", ["email"])[0], q.get("to", [""])[0])})
         if u.path == "/api/alerts/inbox":
             # the page's own alerts: what the timer has queued for this browser since an instant
             from .alerts import inbox
@@ -197,7 +201,7 @@ class Handler(SimpleHTTPRequestHandler):
         if u.path == "/api/alerts/unsubscribe":
             from .alerts import unsubscribe
             gone = unsubscribe(parse_qs(u.query).get("token", [""])[0])
-            body = ("<p>Unsubscribed: no more schedule alerts to " + html.escape(gone["to"]) + ".</p>") if gone else "<p>That subscription is already gone.</p>"
+            body = ("<p>Unsubscribed: no more Amundsen alerts to " + html.escape(gone["to"]) + ".</p>") if gone else "<p>That subscription is already gone.</p>"
             data = ("<!doctype html><meta charset=utf-8><title>Amundsen alerts</title><body style='font:16px system-ui;padding:2em'>" + body).encode()
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(data))); self.end_headers()
             self.wfile.write(data)
@@ -485,6 +489,27 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e:                       # noqa: BLE001
                 log.warning("alert row subscription failed: %s", e)
                 return self._json(500, {"error": "could not save the subscription"})
+        if u.path == "/api/alerts/underway":
+            from .alerts import follow_underway, remove_underway, underway_following
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 4096:
+                    raise ValueError("Request too large")
+                payload = json.loads(self.rfile.read(n))
+                if not isinstance(payload, dict):
+                    raise ValueError("Bad request")
+                channel, to = str(payload.get("channel", "email")), str(payload.get("to", ""))
+                if payload.get("remove"):
+                    remove_underway(channel, to, str(payload.get("id", "")))
+                else:
+                    follow_underway(channel, to, str(payload.get("parameter", "")), str(payload.get("direction", "over")),
+                                    payload.get("value"), payload.get("period_min", 60), str(payload.get("name", "")))
+                return self._json(200, {"ok": True, "rules": underway_following(channel, to)})
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            except Exception as e:                       # noqa: BLE001
+                log.warning("underway alert subscription failed: %s", e)
+                return self._json(500, {"error": "could not save the underway alert"})
         if u.path == "/api/alerts":
             # subscribe from the page: {"channel": "email", "to": ..., "match": "CardS-3, CTD", "lead_min": 30, "events": [...]}
             from .alerts import subscribe

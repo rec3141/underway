@@ -4987,6 +4987,70 @@
     "pages.e85d5cf64b40b7f8": {
       "text": "a long way, so it was worked out over blocks of {size} km rather than cell by cell",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "pages.c56a8c0b1ffafcfc": {
+      "text": "AI recommendation",
+      "context": "Underway observation alert interface."
+    },
+    "pages.8f420c4f89a48b1b": {
+      "text": "Alert saved. The first matching observation can notify you on the next two-minute check.",
+      "context": "Underway observation alert interface."
+    },
+    "pages.caa55e52ef45e716": {
+      "text": "Email alerts saved for this address",
+      "context": "Underway observation alert interface."
+    },
+    "pages.5737e42e0fdaf08b": {
+      "text": "Gemma receives one aligned six-hour panel of every Lab parameter and alerts only when it recommends sampling.",
+      "context": "Underway observation alert interface."
+    },
+    "pages.6b18eb6f1afff1e1": {
+      "text": "Open Telegram to subscribe",
+      "context": "Underway observation alert interface."
+    },
+    "pages.a00f1e82186bd428": {
+      "text": "Save alert",
+      "context": "Underway observation alert interface."
+    },
+    "pages.532ba2c4d48b6417": {
+      "text": "The alert includes a six-hour map coloured by this parameter and an aligned figure of every Lab parameter.",
+      "context": "Underway observation alert interface."
+    },
+    "pages.31b1acfd933eef4a": {
+      "text": "Underway alert",
+      "context": "Underway observation alert interface."
+    },
+    "pages.4d92f6ae4f6bc1cb": {
+      "text": "alert me when this parameter crosses a threshold",
+      "context": "Underway observation alert interface."
+    },
+    "pages.dc179dc3126b3697": {
+      "text": "ask Gemma whether the current water is scientifically interesting",
+      "context": "Underway observation alert interface."
+    },
+    "pages.cae4684e0c7d8590": {
+      "text": "at most once every",
+      "context": "Underway observation alert interface."
+    },
+    "pages.5fb6a47e368e12e5": {
+      "text": "over",
+      "context": "Underway observation alert interface."
+    },
+    "pages.6390361dfdff141a": {
+      "text": "parameter",
+      "context": "Underway observation alert interface."
+    },
+    "pages.7e5608ab610017af": {
+      "text": "remove",
+      "context": "Underway observation alert interface."
+    },
+    "pages.d767748a603799c8": {
+      "text": "under",
+      "context": "Underway observation alert interface."
+    },
+    "pages.4983bbf5bbbef105": {
+      "text": "when the value is",
+      "context": "Underway observation alert interface."
     }
   }
 }

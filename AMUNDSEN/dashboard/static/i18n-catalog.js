@@ -370,6 +370,7 @@ window.UW_UI_CATALOG = {
         "pages.314ae71b8c8dc9c9": "Artifacts",
         "pages.318d4e44fa3151e6": "only an admin can withdraw it now",
         "pages.3194ed03862a55fd": "track readings",
+        "pages.31b1acfd933eef4a": "Underway alert",
         "pages.31f2cd60c65a153d": "saving…",
         "pages.3223e57d9ea5de4e": "follow {v0}: 15 min heads-up and every change",
         "pages.3253e5983b7784d5": "measured by a singlebeam survey",
@@ -456,6 +457,7 @@ window.UW_UI_CATALOG = {
         "pages.4960990121f22e16": "Below it",
         "pages.4975878cc8a1f73b": " ({v0} already in the journal)",
         "pages.497f6e6d2e54b567": "by sea: working it out…",
+        "pages.4983bbf5bbbef105": "when the value is",
         "pages.49febf4604a554f8": "the sky: aurora, the polar night and the midnight sun, eclipses and comets",
         "pages.4a04d6e7bb315a27": "the Lounge: the AI crew's room, where they talk among themselves",
         "pages.4a754148b88a68e1": "soon",
@@ -471,6 +473,7 @@ window.UW_UI_CATALOG = {
         "pages.4d327af41f96c23c": "via",
         "pages.4d5ccfb86e516115": "Saved {v0} photo{v1} to /Share/{v2}.",
         "pages.4d65c72b83973371": "message ",
+        "pages.4d92f6ae4f6bc1cb": "alert me when this parameter crosses a threshold",
         "pages.4da69789232ebb31": " · {v0} already in the journal, passed over",
         "pages.4df96d3a4505b128": "Add your credit and licence below.",
         "pages.4e1f28fc70610f11": "No bottle firings match.",
@@ -482,6 +485,7 @@ window.UW_UI_CATALOG = {
         "pages.525f2f103bb29c7e": "Ice Station",
         "pages.52abdcd0fb406ecd": "follow {v0}: an operation added, taken off, moved or canceled; no reminders",
         "pages.52e48c371494add8": "the picture's own page",
+        "pages.532ba2c4d48b6417": "The alert includes a six-hour map coloured by this parameter and an aligned figure of every Lab parameter.",
         "pages.5418cb6eb6746abe": "Connected to Seasave; the plot begins when acquisition starts and the package goes in.",
         "pages.546940feb432bb66": "on the web ↗",
         "pages.547801ae4e93ff14": "Meteorology",
@@ -493,6 +497,7 @@ window.UW_UI_CATALOG = {
         "pages.565fb3d628a49ea4": "outside the charted area",
         "pages.56630f4b80ceb0f1": "Also flag",
         "pages.57230d1daa6720c2": "Operations schedule {v0}{v1}",
+        "pages.5737e42e0fdaf08b": "Gemma receives one aligned six-hour panel of every Lab parameter and alerts only when it recommends sampling.",
         "pages.573850785e407d7b": "Private to the ship",
         "pages.57676e5bbdd87032": "Relief",
         "pages.5830d6da56e44d4f": "{v0} of {v1} bottle firings shown",
@@ -512,6 +517,7 @@ window.UW_UI_CATALOG = {
         "pages.5edd3b1f5d3b8966": "Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.",
         "pages.5ef5ef0364b6939c": "all",
         "pages.5f369686bd9e7606": "hide the AI crew's messages and names",
+        "pages.5fb6a47e368e12e5": "over",
         "pages.5ff56800f7898c03": "A section needs at least two profiles with {v0} — {v1} selected.",
         "pages.606606668b367101": "Close this conversation with {v0}? Its temporary history will be cleared for both participants.",
         "pages.607e651096291705": "dip:",
@@ -527,6 +533,7 @@ window.UW_UI_CATALOG = {
         "pages.6267eb92dbfb52e8": "· {v0} · {v1} scans kept{v2}{v3}",
         "pages.62a2fed3d6e08c44": "pending",
         "pages.6362b3d21b11ef29": "{v0} works cited by the history, {v1} by the natural record{v2}.",
+        "pages.6390361dfdff141a": "parameter",
         "pages.63d39b201b616eeb": "the original · {v1}",
         "pages.640c2380690e2137": "Reading the share…",
         "pages.649f0e5314000410": "Configuration failed ({v0})",
@@ -550,6 +557,7 @@ window.UW_UI_CATALOG = {
         "pages.69e4a02609393ab9": " · under {v0}",
         "pages.6aef76c6cb359f6f": "scheduled",
         "pages.6afd7d06ff48ae82": "with /start, then /only CardS-3 or /lead 60 to tune it, or /changes to hear only when the schedule changes.",
+        "pages.6b18eb6f1afff1e1": "Open Telegram to subscribe",
         "pages.6b2923e0d3ac1560": "what the archipelago is and does: the rock, the ice, the water, the sky, the weather, the field and the living things, as the record has them, with the ship's own journal",
         "pages.6b4ca2530b1a7e95": "{v0} dates · {v1} spans · from {v2}; scroll to zoom, drag to pan, click a point for its row",
         "pages.6babc9a17d120bf7": "No narrative pages yet; the artifacts below are what the crew has entered so far.",
@@ -608,6 +616,7 @@ window.UW_UI_CATALOG = {
         "pages.7db20897053bb278": "People",
         "pages.7de82e541d02427d": "a private room with someone here",
         "pages.7de8c035259e0769": "a sensitive site: the position is published coarsened and the place left blank",
+        "pages.7e5608ab610017af": "remove",
         "pages.7e61847d61d65d9e": "Topic",
         "pages.7e8af09bf79ba0de": "Choose a /Share folder to import.",
         "pages.7f0dfafd2c31b54d": "Ship photograph",
@@ -658,6 +667,7 @@ window.UW_UI_CATALOG = {
         "pages.8e2f078d59f675b4": " · bottom {v0} m",
         "pages.8ed17198774cfa83": "thick ice floe",
         "pages.8f301fe89e95c0c6": "time changed",
+        "pages.8f420c4f89a48b1b": "Alert saved. The first matching observation can notify you on the next two-minute check.",
         "pages.8fde4d9f78c0ecce": "this operation",
         "pages.8ff81d3b055eeb94": "Ship (Eastern)",
         "pages.9040f9be99523563": "Everything in this tab was researched and written by AI agents from the sources named on each item, then checked; the project's own account travels with the data and is not in this build yet.",
@@ -711,6 +721,7 @@ window.UW_UI_CATALOG = {
         "pages.9eeead76de41e46b": "; {v0} questions answered by a person",
         "pages.9f28dfaff8c0e4e6": "Bibliography",
         "pages.9f6e67deadccd493": "not sounded: interpolated between soundings",
+        "pages.a00f1e82186bd428": "Save alert",
         "pages.a04d3b26e64dc84d": "← Gallery",
         "pages.a077ad4b78f92338": "Delete transect",
         "pages.a0a44ed8cfc32b7e": "everything",
@@ -812,6 +823,7 @@ window.UW_UI_CATALOG = {
         "pages.c48bdea7d72e8b87": "was scheduled",
         "pages.c4aa4acda87aa4a5": "every transit",
         "pages.c4c14eab715fcabd": "ask Ada and Doc · Enter to send",
+        "pages.c56a8c0b1ffafcfc": "AI recommendation",
         "pages.c5f3df2e12190da5": "in {v0}",
         "pages.c60d3aa541eb71eb": "Transmission (%)",
         "pages.c648253f20e04217": "Camera unavailable; keeping previous results",
@@ -833,7 +845,9 @@ window.UW_UI_CATALOG = {
         "pages.ca6ce4b1b305caf0": "no sea mask on this server",
         "pages.ca7981b46ecf2c17": "Off",
         "pages.ca8b598502b154d6": "this browser's header bar",
+        "pages.caa55e52ef45e716": "Email alerts saved for this address",
         "pages.cab62652ad5f9647": "{v0} events · {v1} scheduled{v2}{v3}",
+        "pages.cae4684e0c7d8590": "at most once every",
         "pages.cae7d57bc067a514": "Stop",
         "pages.caf85b0888d78f1f": "Sources",
         "pages.cb8448ba3d502c89": "the backbone this subject resolves in",
@@ -879,6 +893,7 @@ window.UW_UI_CATALOG = {
         "pages.d6d3697ef52964df": "no casts match",
         "pages.d714a2c2d7f78d0d": "The shared transect could not be deleted: the server did not answer",
         "pages.d74ba0b0e6d85b62": "Observations found",
+        "pages.d767748a603799c8": "under",
         "pages.d78de925a8786731": "expand",
         "pages.d7cfab3c32d024a0": "Waypoint",
         "pages.d7dbbada1efae15b": "{names}: typing…",
@@ -889,6 +904,7 @@ window.UW_UI_CATALOG = {
         "pages.dafa26c784788bf2": "Seasave's field list (SBE_ConvertedDataSettings){v0}",
         "pages.db01be4b3343ff62": "Piston Core",
         "pages.db18f17fe5320076": "Sun",
+        "pages.dc179dc3126b3697": "ask Gemma whether the current water is scientifically interesting",
         "pages.dc20b3d5d2cddf82": "Library",
         "pages.dc5414e0bf56f5c6": "Camera · ROI",
         "pages.dc79a80410c9d9c9": "Cast {v0}",
@@ -1633,6 +1649,7 @@ window.UW_UI_CATALOG = {
         "pages.314ae71b8c8dc9c9": "Documents et objets",
         "pages.318d4e44fa3151e6": "seul un administrateur peut maintenant le retirer",
         "pages.3194ed03862a55fd": "mesures du trajet",
+        "pages.31b1acfd933eef4a": "Alerte des mesures en route",
         "pages.31f2cd60c65a153d": "enregistrement…",
         "pages.3223e57d9ea5de4e": "suivre {v0} : préavis de 15 min et chaque modification",
         "pages.3253e5983b7784d5": "mesuré par levé monofaisceau",
@@ -1719,6 +1736,7 @@ window.UW_UI_CATALOG = {
         "pages.4960990121f22e16": "Sous-catégories",
         "pages.4975878cc8a1f73b": " (déjà dans le journal : {v0})",
         "pages.497f6e6d2e54b567": "par mer : calcul en cours…",
+        "pages.4983bbf5bbbef105": "lorsque la valeur est",
         "pages.49febf4604a554f8": "le ciel : aurores, nuit polaire et soleil de minuit, éclipses et comètes",
         "pages.4a04d6e7bb315a27": "le salon : la salle de l’équipage IA, où ses membres discutent entre eux",
         "pages.4a754148b88a68e1": "bientôt",
@@ -1734,6 +1752,7 @@ window.UW_UI_CATALOG = {
         "pages.4d327af41f96c23c": "par",
         "pages.4d5ccfb86e516115": "Enregistrement terminé : {v0} photo{v1}, dans /Share/{v2}.",
         "pages.4d65c72b83973371": "écrire à ",
+        "pages.4d92f6ae4f6bc1cb": "m’avertir lorsque ce paramètre franchit un seuil",
         "pages.4da69789232ebb31": " · déjà dans le journal et ignorées : {v0}",
         "pages.4df96d3a4505b128": "Ajoutez l’attribution et la licence ci-dessous.",
         "pages.4e1f28fc70610f11": "Aucune fermeture de bouteille ne correspond.",
@@ -1745,6 +1764,7 @@ window.UW_UI_CATALOG = {
         "pages.525f2f103bb29c7e": "Station sur glace",
         "pages.52abdcd0fb406ecd": "suivre {v0} : opération ajoutée, retirée, déplacée ou annulée; aucun rappel",
         "pages.52e48c371494add8": "page de l’image",
+        "pages.532ba2c4d48b6417": "L’alerte comprend une carte des six dernières heures colorée selon ce paramètre et une figure alignée de tous les paramètres du labo.",
         "pages.5418cb6eb6746abe": "Connexion à Seasave établie; le graphique commence au démarrage de l’acquisition, une fois l’instrument à l’eau.",
         "pages.546940feb432bb66": "sur le Web ↗",
         "pages.547801ae4e93ff14": "Météorologie",
@@ -1756,6 +1776,7 @@ window.UW_UI_CATALOG = {
         "pages.565fb3d628a49ea4": "hors de la zone cartographiée",
         "pages.56630f4b80ceb0f1": "Signaler aussi",
         "pages.57230d1daa6720c2": "Horaire des opérations {v0}{v1}",
+        "pages.5737e42e0fdaf08b": "Gemma reçoit un panneau aligné sur six heures de tous les paramètres du labo et n’envoie une alerte que si elle recommande un échantillonnage.",
         "pages.573850785e407d7b": "Confidentiel à bord",
         "pages.57676e5bbdd87032": "Relief",
         "pages.5830d6da56e44d4f": "Fermetures de bouteilles affichées : {v0} sur {v1}",
@@ -1775,6 +1796,7 @@ window.UW_UI_CATALOG = {
         "pages.5edd3b1f5d3b8966": "Messages directs temporaires — conservés en mémoire seulement, pas dans la base de données du clavardage. Effacés au redémarrage du serveur, à la fermeture de la conversation ou après 30 minutes sans message. Sans chiffrement de bout en bout.",
         "pages.5ef5ef0364b6939c": "tout",
         "pages.5f369686bd9e7606": "masquer les messages et les noms de l’équipage IA",
+        "pages.5fb6a47e368e12e5": "au-dessus de",
         "pages.5ff56800f7898c03": "Une coupe nécessite au moins deux profils avec {v0} — profils sélectionnés : {v1}.",
         "pages.606606668b367101": "Fermer cette conversation avec {v0}? Son historique temporaire sera effacé pour les deux participants.",
         "pages.607e651096291705": "plongée :",
@@ -1790,6 +1812,7 @@ window.UW_UI_CATALOG = {
         "pages.6267eb92dbfb52e8": "· {v0} · acquisitions conservées : {v1}{v2}{v3}",
         "pages.62a2fed3d6e08c44": "en attente",
         "pages.6362b3d21b11ef29": "Ouvrages cités par l’histoire : {v0}; par les données sur la nature : {v1}{v2}.",
+        "pages.6390361dfdff141a": "paramètre",
         "pages.63d39b201b616eeb": "l’original · {v1}",
         "pages.640c2380690e2137": "Lecture du dossier partagé…",
         "pages.649f0e5314000410": "Échec de la configuration ({v0})",
@@ -1813,6 +1836,7 @@ window.UW_UI_CATALOG = {
         "pages.69e4a02609393ab9": " · sous {v0}",
         "pages.6aef76c6cb359f6f": "prévue",
         "pages.6afd7d06ff48ae82": "avec /start, puis /only CardS-3 ou /lead 60 pour personnaliser les avis, ou /changes pour recevoir seulement les modifications à l’horaire.",
+        "pages.6b18eb6f1afff1e1": "Ouvrir Telegram pour s’abonner",
         "pages.6b2923e0d3ac1560": "l’archipel et ses phénomènes : roches, glace, eau, ciel, météo, champ magnétique et êtres vivants, d’après les sources, avec le journal du navire",
         "pages.6b4ca2530b1a7e95": "Dates : {v0} · périodes : {v1} · depuis {v2}; molette pour zoomer, glisser pour déplacer la vue, cliquer sur un point pour voir sa ligne",
         "pages.6babc9a17d120bf7": "Aucun récit pour le moment; les documents et objets ci-dessous sont ceux saisis par l’équipage jusqu’ici.",
@@ -1871,6 +1895,7 @@ window.UW_UI_CATALOG = {
         "pages.7db20897053bb278": "Personnes",
         "pages.7de82e541d02427d": "une salle privée avec une personne présente",
         "pages.7de8c035259e0769": "site sensible : la position publiée est approximative et le lieu n’est pas indiqué",
+        "pages.7e5608ab610017af": "retirer",
         "pages.7e61847d61d65d9e": "Thème",
         "pages.7e8af09bf79ba0de": "Choisissez un dossier de /Share à importer.",
         "pages.7f0dfafd2c31b54d": "Photographie du navire",
@@ -1921,6 +1946,7 @@ window.UW_UI_CATALOG = {
         "pages.8e2f078d59f675b4": " · fond à {v0} m",
         "pages.8ed17198774cfa83": "floe épais",
         "pages.8f301fe89e95c0c6": "heure modifiée",
+        "pages.8f420c4f89a48b1b": "Alerte enregistrée. La première observation correspondante peut vous être signalée lors de la prochaine vérification, dans au plus deux minutes.",
         "pages.8fde4d9f78c0ecce": "cette opération",
         "pages.8ff81d3b055eeb94": "Navire (heure de l’Est)",
         "pages.9040f9be99523563": "Tout le contenu de cet onglet a été recherché et rédigé par des agents IA à partir des sources indiquées pour chaque élément, puis vérifié; le compte rendu du projet accompagne les données, mais ne figure pas encore dans cette version.",
@@ -1974,6 +2000,7 @@ window.UW_UI_CATALOG = {
         "pages.9eeead76de41e46b": "; questions auxquelles une personne a répondu : {v0}",
         "pages.9f28dfaff8c0e4e6": "Bibliographie",
         "pages.9f6e67deadccd493": "non sondé : interpolé entre des sondages",
+        "pages.a00f1e82186bd428": "Enregistrer l’alerte",
         "pages.a04d3b26e64dc84d": "← Galerie",
         "pages.a077ad4b78f92338": "Supprimer le transect",
         "pages.a0a44ed8cfc32b7e": "tout",
@@ -2075,6 +2102,7 @@ window.UW_UI_CATALOG = {
         "pages.c48bdea7d72e8b87": "anciennement prévue",
         "pages.c4aa4acda87aa4a5": "chaque transit",
         "pages.c4c14eab715fcabd": "interroger Ada et Doc · Entrée pour envoyer",
+        "pages.c56a8c0b1ffafcfc": "recommandation de l’IA",
         "pages.c5f3df2e12190da5": "en {v0}",
         "pages.c60d3aa541eb71eb": "Transmission (%)",
         "pages.c648253f20e04217": "Caméra indisponible; conservation des résultats précédents",
@@ -2096,7 +2124,9 @@ window.UW_UI_CATALOG = {
         "pages.ca6ce4b1b305caf0": "aucune grille marine sur ce serveur",
         "pages.ca7981b46ecf2c17": "Désactivé",
         "pages.ca8b598502b154d6": "la barre d’en-tête de ce navigateur",
+        "pages.caa55e52ef45e716": "Alertes courriel enregistrées pour cette adresse",
         "pages.cab62652ad5f9647": "Événements : {v0} · opérations prévues : {v1}{v2}{v3}",
+        "pages.cae4684e0c7d8590": "au plus une fois toutes les",
         "pages.cae7d57bc067a514": "Arrêter",
         "pages.caf85b0888d78f1f": "Sources",
         "pages.cb8448ba3d502c89": "référentiel dans lequel ce sujet est identifié",
@@ -2142,6 +2172,7 @@ window.UW_UI_CATALOG = {
         "pages.d6d3697ef52964df": "aucun profil ne correspond",
         "pages.d714a2c2d7f78d0d": "Impossible de supprimer le transect partagé : le serveur n’a pas répondu",
         "pages.d74ba0b0e6d85b62": "Observations trouvées",
+        "pages.d767748a603799c8": "au-dessous de",
         "pages.d78de925a8786731": "agrandir",
         "pages.d7cfab3c32d024a0": "Repère",
         "pages.d7dbbada1efae15b": "{names} : rédaction en cours…",
@@ -2152,6 +2183,7 @@ window.UW_UI_CATALOG = {
         "pages.dafa26c784788bf2": "Liste des champs de Seasave (SBE_ConvertedDataSettings){v0}",
         "pages.db01be4b3343ff62": "Carottier à piston",
         "pages.db18f17fe5320076": "dim.",
+        "pages.dc179dc3126b3697": "demander à Gemma si les eaux actuelles présentent un intérêt scientifique",
         "pages.dc20b3d5d2cddf82": "Bibliothèque",
         "pages.dc5414e0bf56f5c6": "Caméra · région d’intérêt",
         "pages.dc79a80410c9d9c9": "Profil {v0}",
@@ -3991,6 +4023,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8df0d052705342909e4861bbe60ee25f6acff9036b3d32b2a0c39f7391a309f9"
         },
+        "pages.31b1acfd933eef4a": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "14a4aeb6631180651691cfe509f734a6b6ae37f435a3562c551caf5aa252fcfb"
+        },
         "pages.31f2cd60c65a153d": {
           "profile": "editorial-fr-ca-v5",
           "sourceSha256": "f4b325fcd4c4de339775c4fa2f6b2b5d2e68091309dd250e3e26645cd6cdedc9"
@@ -4335,6 +4371,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dbceb3055ad98dbfe06c100d32825935d7e841c994b05e43103f7d603c4c57df"
         },
+        "pages.4983bbf5bbbef105": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "2d13f7b7ad28659b0fb3b9aaf36f110421d729e10fb520f08b5c27afab75e2f0"
+        },
         "pages.49febf4604a554f8": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "bc7c63ef4305c4c5d3e7ebaaa2ca550b57fe202a666b5759ee8dda40a3969943"
@@ -4395,6 +4435,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fb7ed72ae1271c8d5baad4695f8deb09d5ab58d76844985a10e6dc814fa9286d"
         },
+        "pages.4d92f6ae4f6bc1cb": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "4996d5948a15ab944c94d00691d06f5054944ecee3c107c48c7606739ddc52dd"
+        },
         "pages.4da69789232ebb31": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d60e48518c5c2fe06476b9b55d0a0b2b3d8bb9853793521fa68255e954f3634b"
@@ -4439,6 +4483,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e19d3835a3d2a520d5b5cd3446a7d8d7beb1fbdc112487edc572c5787a88b220"
         },
+        "pages.532ba2c4d48b6417": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "973b619bb2dbce26270aca752fdf996e7f3c9ef65eb12265f9f598791fd866ee"
+        },
         "pages.5418cb6eb6746abe": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "04537f0d36449fc43c71db7c475938a5f32848ab1354be59226f8b9d89cc9f78"
@@ -4482,6 +4530,10 @@ window.UW_UI_CATALOG = {
         "pages.57230d1daa6720c2": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "a837c646ec3dcaac2ce3f0440d67b53760a81e75a39093698693a4ea3de04bc3"
+        },
+        "pages.5737e42e0fdaf08b": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "8300412558ab8aff05e5d91e260bdf4cd6064a3c6a652e915dba5d956576b09f"
         },
         "pages.573850785e407d7b": {
           "profile": "editorial-fr-ca-v4",
@@ -4559,6 +4611,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "9f3c9233ae46e5da3d0ee0d6ccc8e955e83fd3d476493b827ea63154a1e31bb7"
         },
+        "pages.5fb6a47e368e12e5": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "779985b96c91d377dbd9578a53f4440425338d073fb39285540f2ab962bfc554"
+        },
         "pages.5ff56800f7898c03": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "26359e73c8584b8cb0d48c4033da9632db91b6b8a15e53aacb493e1778cf4221"
@@ -4618,6 +4674,10 @@ window.UW_UI_CATALOG = {
         "pages.6362b3d21b11ef29": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e616d73a03a98e8633cef05f6f0fd2833aac94dd61a317911d1736dfc04237d5"
+        },
+        "pages.6390361dfdff141a": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "5b6b0dd71b4cb71ce278d7afd1df55a1e61a30f8b73002eda02db74be5974764"
         },
         "pages.63d39b201b616eeb": {
           "profile": "editorial-fr-ca-v4",
@@ -4710,6 +4770,10 @@ window.UW_UI_CATALOG = {
         "pages.6afd7d06ff48ae82": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "386e8581e3a40f0c5b9696d40eb29edc9a6da953e9ff7d6594208a67dae6c8c9"
+        },
+        "pages.6b18eb6f1afff1e1": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "ced4f983e031b1681388e83c6fbcf987df66d4e446c0d65d235f807b9baef002"
         },
         "pages.6b2923e0d3ac1560": {
           "profile": "editorial-fr-ca-v4",
@@ -4943,6 +5007,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "8f35df38f7afecfd7b654a886a6c99b5fcd471c644fdb7ce1c2ab88f1913cba7"
         },
+        "pages.7e5608ab610017af": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "66f3d68b7627c9f6965029d01923daefa869b3f33123c145ddb25464b41a529a"
+        },
         "pages.7e61847d61d65d9e": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "12036bc68048b2cac1e366bee88e86b953c87c5be82c5fcff5bf81bb55a6bc51"
@@ -5142,6 +5210,10 @@ window.UW_UI_CATALOG = {
         "pages.8f301fe89e95c0c6": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c3bd1426bcdfbbda3d72ffc1fb1b6c70a45622c3d522456a1c4f430e378fdb4c"
+        },
+        "pages.8f420c4f89a48b1b": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "7210159660af4cdc8157082862a7774df46aa3f01759bd451c8f79869107b0e9"
         },
         "pages.8fde4d9f78c0ecce": {
           "profile": "editorial-fr-ca-v4",
@@ -5354,6 +5426,10 @@ window.UW_UI_CATALOG = {
         "pages.9f6e67deadccd493": {
           "profile": "editorial-fr-ca-v5",
           "sourceSha256": "ba0ab504ed9299461b39c8d316fd1ceee4d94dc5d056788e450795234fcb1e16"
+        },
+        "pages.a00f1e82186bd428": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "41adfd54e4dfc56e2323c10fa25e40dc5ef0a824e6d433f0259d0a8b1f02e5b9"
         },
         "pages.a04d3b26e64dc84d": {
           "profile": "editorial-fr-ca-v4",
@@ -5759,6 +5835,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "d0013fb35f24ad0641bb4210b30a32d5d32f5a0d7e44163bbb11e3a0c832746d"
         },
+        "pages.c56a8c0b1ffafcfc": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "d595e51ee34a5635d8ee32f8bec235b67c4291d39ce984447f0442e7c4b73c65"
+        },
         "pages.c5f3df2e12190da5": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "48102c1145e70726c8b952557764670a2d3d8191c6efee836b5cad9eae71e8a0"
@@ -5843,9 +5923,17 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "37a0e6a66fa872be695d47e66678463fae532fd5b13ef6e34109be7e6780631b"
         },
+        "pages.caa55e52ef45e716": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "8a41c1d11fb72f3161d7c5f1ebf37e2822153c90be2eeb18d77c284abb5554ee"
+        },
         "pages.cab62652ad5f9647": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "004ead9e39cea8ded2216623031e854262743d5a58e3e360a39b2a298f6d980c"
+        },
+        "pages.cae4684e0c7d8590": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "f1e24f55d8a2ffdb2f304919816ebeaeb409d52243e37219f13c518126e70524"
         },
         "pages.cae7d57bc067a514": {
           "profile": "editorial-fr-ca-v4",
@@ -6027,6 +6115,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "dff3f473eee894120529fd8219b0172a6d62c0a5c6aa70bee04cb02aab61a955"
         },
+        "pages.d767748a603799c8": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "03b977b2702dc6c77dd68f5b8bf2df45bfaa08d19d8ae66d004cb0b1497c10c6"
+        },
         "pages.d78de925a8786731": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "c540e753e0ced66679ed87e011030c15c2ca342d741d076a0c4bdfd10b7ae8d3"
@@ -6066,6 +6158,10 @@ window.UW_UI_CATALOG = {
         "pages.db18f17fe5320076": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "724823b55e6b5e8a547ad7e17ede06037471f9d38268e20ca6001adf523489b4"
+        },
+        "pages.dc179dc3126b3697": {
+          "profile": "editorial-fr-ca-v5",
+          "sourceSha256": "b6efd4725bb009711daf63029687b9205e9d973ffdf83eaee779403feac02cc6"
         },
         "pages.dc20b3d5d2cddf82": {
           "profile": "editorial-fr-ca-v4",

@@ -23,6 +23,7 @@
   const {t} = window.UWI18n;
   const variableLabel = name => window.UWI18n.text(window.UWI18n.variable(name));
   window.addEventListener('uw:localechange', () => {
+    document.getElementById("underway-alert-dialog")?.remove();
     window.UW?.refreshMapLabels?.();
     renderLegMenu(); renderControls(); renderStatus(); renderPanels(); renderProvenance(); renderAlert();
     // Relabel the current view. Do not reload windows, reset the track, or
@@ -1546,6 +1547,100 @@
   }
 
   // ------------------------------------------------------------ panels
+  const underwayAlertsOn = () => !PUBLIC && !!(M.alerts?.email || M.alerts?.telegram_bot);
+  let underwayRules = [];
+  const alertParameterIndex = (name) => M.variables.findIndex((v) => v.name === name);
+  const encodeTelegramAlert = (parameter, direction, value, period) => {
+    const index = parameter === "__ai" ? "ai" : alertParameterIndex(parameter);
+    const raw = `uw|${index}|${direction === "under" ? "u" : "o"}|${parameter === "__ai" ? "" : value}|${period}`;
+    return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  function refreshUnderwayBellState() {
+    for (const bell of document.querySelectorAll(".uwbell")) {
+      const parameter = bell.dataset.parameter;
+      bell.classList.toggle("on", underwayRules.some((r) => r.parameter === parameter));
+    }
+  }
+  async function loadUnderwayRules() {
+    const email = store.get("alerts.email", "");
+    if (!email) { underwayRules = []; refreshUnderwayBellState(); return; }
+    try {
+      const j = await fetchJSON(`api/alerts/underway?channel=email&to=${encodeURIComponent(email)}&t=${Date.now()}`);
+      underwayRules = j.rules || [];
+    } catch { underwayRules = []; }
+    refreshUnderwayBellState();
+  }
+  function underwayAlertDialog() {
+    let dialog = document.getElementById("underway-alert-dialog");
+    if (dialog) return dialog;
+    dialog = document.createElement("dialog"); dialog.id = "underway-alert-dialog"; dialog.className = "uwalertdialog";
+    const options = M.variables.filter((v) => v.resolved && !NOT_PANELS.has(v.name)).map((v) => `<option value="${esc(v.name)}">${esc(variableLabel(v.name))}</option>`).join("");
+    const channelOptions = `${M.alerts?.email ? `<option value="email">${ui("email")}</option>` : ""}${M.alerts?.telegram_bot ? `<option value="telegram">Telegram</option>` : ""}`;
+    dialog.innerHTML = `<form method="dialog"><div class="uwalert-head"><h3>${ui("Underway alert")}</h3><button value="cancel" class="uwalert-close" aria-label="${ui("close")}">×</button></div>
+      <label>${ui("parameter")} <select name="parameter"><option value="__ai">${ui("AI recommendation")}</option>${options}</select></label>
+      <div class="uwalert-threshold"><label>${ui("when the value is")} <select name="direction"><option value="over">${ui("over")}</option><option value="under">${ui("under")}</option></select></label><label><input name="value" type="number" step="any" required></label></div>
+      <label>${ui("at most once every")} <input name="period" type="number" min="15" max="10080" step="1" value="60"> min</label>
+      <label>${ui("via")} <select name="channel">${channelOptions}</select></label>
+      <label class="uwalert-email">${ui("email")} <input name="email" type="email" value="${esc(store.get("alerts.email", ""))}" placeholder="you@example.org"></label>
+      <p class="muted uwalert-note"></p><div class="uwalert-actions"><button type="button" class="uwalert-save">${ui("Save alert")}</button><a class="uwalert-telegram" target="_blank" rel="noopener">${ui("Open Telegram to subscribe")}</a></div>
+      <div class="uwalert-rules"></div></form>`;
+    document.body.append(dialog);
+    const form = dialog.querySelector("form"), parameter = form.elements.parameter, channel = form.elements.channel;
+    const sync = () => {
+      const ai = parameter.value === "__ai", telegram = channel.value === "telegram";
+      dialog.querySelector(".uwalert-threshold").hidden = ai;
+      form.elements.value.required = !ai;
+      dialog.querySelector(".uwalert-email").hidden = telegram;
+      dialog.querySelector(".uwalert-save").hidden = telegram;
+      const link = dialog.querySelector(".uwalert-telegram"); link.hidden = !telegram;
+      if (telegram && M.alerts?.telegram_bot) link.href = `https://t.me/${M.alerts.telegram_bot}?start=${encodeTelegramAlert(parameter.value, form.elements.direction.value, form.elements.value.value, form.elements.period.value)}`;
+      dialog.querySelector(".uwalert-note").textContent = ai
+        ? ui("Gemma receives one aligned six-hour panel of every Lab parameter and alerts only when it recommends sampling.")
+        : ui("The alert includes a six-hour map coloured by this parameter and an aligned figure of every Lab parameter.");
+    };
+    const renderRules = () => {
+      const box = dialog.querySelector(".uwalert-rules"); box.replaceChildren();
+      if (!underwayRules.length) return;
+      const title = document.createElement("b"); title.textContent = ui("Email alerts saved for this address"); box.append(title);
+      for (const rule of underwayRules) {
+        const row = document.createElement("div"); row.className = "uwalert-rule";
+        row.append(document.createTextNode(rule.kind === "ai" ? `${ui("AI recommendation")} · ${rule.period_min} min` : `${variableLabel(rule.parameter)} ${ui(rule.direction)} ${rule.value} · ${rule.period_min} min`));
+        const remove = document.createElement("button"); remove.type = "button"; remove.textContent = ui("remove");
+        remove.onclick = async () => {
+          const email = form.elements.email.value.trim(); remove.disabled = true;
+          const r = await fetch("api/alerts/underway", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({channel:"email",to:email,remove:true,id:rule.id})});
+          const j = await r.json(); if (!r.ok) { remove.disabled=false; dialog.querySelector(".uwalert-note").textContent=j.error||r.status; return; }
+          underwayRules = j.rules || []; renderRules(); refreshUnderwayBellState();
+        };
+        row.append(remove); box.append(row);
+      }
+    };
+    parameter.onchange = sync; channel.onchange = sync; form.elements.direction.onchange = sync; form.elements.value.oninput = sync; form.elements.period.onchange = sync;
+    dialog.querySelector(".uwalert-save").onclick = async () => {
+      const email = form.elements.email.value.trim();
+      if (!email || (!form.reportValidity())) return;
+      const body = {channel:"email",to:email,parameter:parameter.value === "__ai" ? "AI recommendation" : parameter.value,
+                    direction:form.elements.direction.value,value:form.elements.value.value,period_min:form.elements.period.value};
+      const r = await fetch("api/alerts/underway", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const j = await r.json();
+      if (!r.ok) { dialog.querySelector(".uwalert-note").textContent = ui("not saved: {v0}", {v0:j.error||r.status}); return; }
+      store.set("alerts.email", email); underwayRules = j.rules || []; renderRules(); refreshUnderwayBellState();
+      dialog.querySelector(".uwalert-note").textContent = ui("Alert saved. The first matching observation can notify you on the next two-minute check.");
+    };
+    dialog.querySelector(".uwalert-telegram").onclick = () => setTimeout(() => dialog.close(), 100);
+    dialog._uwSync = sync; dialog._uwRenderRules = renderRules;
+    return dialog;
+  }
+  async function openUnderwayAlert(parameter) {
+    if (!underwayAlertsOn()) return;
+    const dialog = underwayAlertDialog(), form = dialog.querySelector("form");
+    form.elements.parameter.value = parameter === "AI recommendation" ? "__ai" : parameter;
+    form.elements.email.value = store.get("alerts.email", "");
+    await loadUnderwayRules(); dialog._uwRenderRules(); dialog._uwSync(); dialog.showModal();
+  }
+  const underwayBell = (name) => underwayAlertsOn() && VAR[name]
+    ? `<button type="button" class="bell uwbell" data-parameter="${esc(name)}" title="${esc(ui("alert me when this parameter crosses a threshold"))}">🔔</button>` : "";
+
   function panelNames() {
     const all = [...M.variables.map((v) => v.name), ...extraPanels.keys()].filter((n) => !NOT_PANELS.has(n));
     const ordered = state.order.filter((n) => all.includes(n));
@@ -1581,6 +1676,7 @@
         <span class="handle" data-i18n-title="underway.chart.reorder">⋮⋮</span>
         <h3 data-i18n-title="underway.chart.colour">${name}</h3>
         <div class="tools"><span class="now"></span>
+          ${underwayBell(name)}
           ${!isDepth(name) && v?.log_ok ? '<button class="log" data-i18n-title="underway.chart.log">log</button>' : ""}
           <button class="reset" data-i18n-title="underway.chart.reset">⟲</button>
           ${isDepth(name) ? '<button class="dscale depthscale" data-i18n-title="underway.chart.depthRoot" data-i18n-aria-label="underway.chart.toggleDepth">⇅</button>' : ''}
@@ -1591,6 +1687,7 @@
     el.querySelector("h3").onclick = () => selectPanel(name);
     if (extraPanels.has(name)) { el.querySelector("h3").onclick = extraPanels.get(name).onTitle || null; el.querySelector("h3").title = window.UWI18n.text(extraPanels.get(name).description || name); }
     el.querySelector(".plot").addEventListener("click", () => { if (!el.classList.contains("on")) selectPanel(name); }, true);
+    el.querySelector(".uwbell")?.addEventListener("click", (ev) => { ev.stopPropagation(); openUnderwayAlert(name); });
     el.querySelector(".log")?.addEventListener("click", () => { state.log[name] = !state.log[name]; store.set("log", state.log); renderPanel(name); });
     el.querySelector('.depthscale')?.addEventListener('click', () => { state.depthScale[name] = !state.depthScale[name]; store.set('depthScale', state.depthScale); renderPanel(name); });
     el.querySelector(".reset").onclick = async () => {
@@ -1679,6 +1776,12 @@
         box.innerHTML = `<div class="head"><span class="handle" data-i18n-title="underway.chart.reorder">⋮⋮</span><button type="button" class="ghead"><span class="gname"></span><span class="gn"></span><span class="gtog"></span></button></div><div class="chips" role="region" aria-label="${esc(t('underway.chart.groupSummary', {group:groupLabel(g)}))}"></div>`;
         wireCardDrag(box, "group:" + g);
       }
+      if (g === "Lab" && underwayAlertsOn() && !box.querySelector(".uwbell")) {
+        const bell = document.createElement("button"); bell.type = "button"; bell.className = "bell uwbell"; bell.dataset.parameter = "AI recommendation"; bell.textContent = "🔔";
+        bell.title = ui("ask Gemma whether the current water is scientifically interesting");
+        bell.onclick = (ev) => { ev.stopPropagation(); openUnderwayAlert("AI recommendation"); };
+        box.querySelector(".head").append(bell);
+      }
       window.UWI18n.apply(box);
       box.querySelector(".chips").setAttribute("aria-label", t("underway.chart.groupSummary", {group:groupLabel(g)}));
       cards.push(box);
@@ -1725,6 +1828,7 @@
         if (name === 'Excess heat (°C)') chip.title += t("underway.chart.excessHeatHint");
       }
     }
+    refreshUnderwayBellState();
     const saved = store.get("cards.order", []);
     const rank = new Map(saved.map((key, i) => [key, i]));
     cards.sort((a, b) => (rank.get(a.dataset.card) ?? saved.length) - (rank.get(b.dataset.card) ?? saved.length));
@@ -2239,6 +2343,7 @@
     window.addEventListener("online", checkForUpdate);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
     checkForUpdate();
+    loadUnderwayRules();
     // the map box changes with the window and as the bars round it fill
     const resizeMap = () => {mapView?.resize();renderMapLegend();};
     window.addEventListener("resize", resizeMap);

@@ -1,4 +1,4 @@
-"""Alerts for scheduled operations, by Telegram and by email.
+"""Schedule and underway-observation alerts, by Telegram and by email.
 
 People subscribe from the Schedule tab (email) or by messaging the Telegram
 bot; each subscription names what to hear about (keywords matched against
@@ -25,6 +25,11 @@ is the only reader of the bot's updates while its heartbeat
 when that service is down, so an update is never consumed twice. Writers
 of the subscription file take ``db/alerts.lock``.
 
+The bells in underway graph headers add over/under rules for current values;
+the Lab heading also offers a periodic Gemma sampling recommendation. Each
+rule has its own quiet period. Notifications carry one PNG made from the same
+six-hour observations: a track map and aligned Lab panels.
+
 An operations alert goes to the dashboard's keeper (``UNDERWAY_OPS_EMAIL``,
 else the SMTP account's own address; and the Telegram chat ``TELEGRAM_ID``) when the ACSD
 FULL_CSV record has not grown for ``STALE_MIN`` minutes, once per episode,
@@ -49,6 +54,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -76,6 +82,8 @@ CHANGE_NOTICE = "the schedule has changed http://10.0.0.2/Schedule.html"
 CHANGES_KEY = "changes"         # the schedule-changes follow, as a bell's key and a /start payload
 CHANGE_EVENTS = ("added", "removed", "moved", "plan_changed")
 MAX_LINES = 25                  # lines in one message; a rewritten schedule says how many more
+UNDERWAY_MIN_PERIOD = 15        # model checks and repeated threshold notices must not crowd the channels
+UNDERWAY_MAX_PERIOD = 7 * 24 * 60
 TZ = ZoneInfo(LOCAL_TZ)
 TIMEOUT = 15
 STALE_MIN = 30                  # the FULL_CSV normally grows every ten minutes
@@ -399,7 +407,7 @@ def _find(subs: list[dict], channel: str, to: str) -> dict | None:
 
 def _new(channel: str, to: str) -> dict:
     return {"id": secrets.token_hex(12), "channel": channel, "to": to, "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "all": False, "match": "", "lead_min": DEFAULT_LEAD_MIN, "events": list(DEFAULT_EVENTS), "name": "", "rows": {}}
+            "all": False, "match": "", "lead_min": DEFAULT_LEAD_MIN, "events": list(DEFAULT_EVENTS), "name": "", "rows": {}, "underway": []}
 
 
 def subscribe(channel: str, to: str, match: str = "", lead_min=DEFAULT_LEAD_MIN, events=None, name: str = "") -> dict:
@@ -464,9 +472,77 @@ def following(channel: str, to: str) -> dict:
     return {"rows": rows, "all": bool(sub.get("all")), "match": sub.get("match", "")}
 
 
+def _period(period_min) -> int:
+    try:
+        return max(UNDERWAY_MIN_PERIOD, min(UNDERWAY_MAX_PERIOD, int(period_min)))
+    except (TypeError, ValueError):
+        raise ValueError("alert period must be minutes") from None
+
+
+def follow_underway(channel: str, to: str, parameter: str, direction: str = "over", value=None,
+                    period_min=60, name: str = "") -> dict:
+    """Add or update one current-water rule for an address."""
+    if channel not in ("email", "telegram"):
+        raise ValueError("underway alerts use email or Telegram")
+    to = _check_address(channel, to)
+    from .underway_alerts import AI_PARAMETER, variable
+    kind = "ai" if parameter == AI_PARAMETER else "threshold"
+    if kind == "threshold":
+        variable(parameter)
+        direction = str(direction or "").lower()
+        if direction not in ("over", "under"):
+            raise ValueError("direction must be over or under")
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("threshold must be a number") from None
+        if not math.isfinite(value):
+            raise ValueError("threshold must be finite")
+    else:
+        direction, value = "", None
+    period = _period(period_min)
+    with locked():
+        subs = load_subs(); sub = _find(subs, channel, to)
+        if sub is None:
+            sub = _new(channel, to); subs.append(sub)
+        if name and not sub.get("name"):
+            sub["name"] = str(name).strip()[:40]
+        rules = sub.setdefault("underway", [])
+        old = next((r for r in rules if r.get("kind") == kind and r.get("parameter") == parameter and
+                    (kind == "ai" or r.get("direction") == direction)), None)
+        rule = old or {}
+        rule["id"] = secrets.token_hex(6)       # a changed rule is evaluated afresh on the next timer pass
+        rule.update(kind=kind, parameter=parameter, direction=direction, value=value, period_min=period)
+        if old is None:
+            rules.append(rule)
+        save_subs(subs)
+    return rule
+
+
+def remove_underway(channel: str, to: str, rule_id: str) -> None:
+    to = _check_address(channel, to)
+    with locked():
+        subs = load_subs(); sub = _find(subs, channel, to)
+        if sub is None:
+            return
+        sub["underway"] = [r for r in sub.get("underway", []) if r.get("id") != rule_id and not str(r.get("id", "")).startswith(rule_id)]
+        if _empty(sub):
+            subs.remove(sub)
+        save_subs(subs)
+
+
+def underway_following(channel: str, to: str) -> list[dict]:
+    try:
+        to = _check_address(channel, to)
+    except ValueError:
+        return []
+    sub = _find(load_subs(), channel, to)
+    return list(sub.get("underway", [])) if sub else []
+
+
 def _empty(sub: dict) -> bool:
     """Whether a subscription asks for nothing any more."""
-    return not (sub.get("all") or sub.get("match") or sub.get("rows") or sub.get("whiteboard") or sub.get("changes"))
+    return not (sub.get("all") or sub.get("match") or sub.get("rows") or sub.get("whiteboard") or sub.get("changes") or sub.get("underway"))
 
 
 def unsubscribe(token: str) -> dict | None:
@@ -796,8 +872,15 @@ class Telegram:
     def send(self, chat_id: str, text: str) -> None:
         self.call("sendMessage", chat_id=chat_id, text=text, disable_web_page_preview=True)
 
+    def send_photo(self, chat_id: str, image: bytes, caption: str) -> None:
+        r = self.rq.post(f"{self.base}/sendPhoto", data={"chat_id": chat_id, "caption": caption[:1024]},
+                         files={"photo": ("amundsen-underway.png", image, "image/png")}, timeout=TIMEOUT + 30)
+        j = r.json()
+        if not j.get("ok"):
+            raise RuntimeError(j.get("description") or r.text[:200])
 
-def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
+
+def send_email(cfg: dict, to: str, subject: str, body: str, image: bytes | None = None) -> None:
     m = EmailMessage()
     m["From"] = cfg.get("from") or cfg["user"]
     m["To"] = to
@@ -805,6 +888,8 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
         m["Reply-To"] = cfg["reply_to"]
     m["Subject"] = subject
     m.set_content(body)
+    if image:
+        m.add_attachment(image, maintype="image", subtype="png", filename="amundsen-underway.png")
     port = int(cfg.get("port") or (465 if cfg.get("ssl", True) else 587))
     if cfg.get("ssl", True) and port != 587:
         with smtplib.SMTP_SSL(cfg["host"], port, timeout=TIMEOUT) as s:
@@ -812,6 +897,85 @@ def send_email(cfg: dict, to: str, subject: str, body: str) -> None:
     else:
         with smtplib.SMTP(cfg["host"], port, timeout=TIMEOUT) as s:
             s.starttls(); s.login(cfg["user"], cfg["password"]); s.send_message(m)
+
+
+def _minutes_since(stamp: str | None, now: datetime) -> float:
+    if not stamp:
+        return float("inf")
+    try:
+        return (now - datetime.fromisoformat(stamp)).total_seconds() / 60
+    except (TypeError, ValueError):
+        return float("inf")
+
+
+def underway_notices(subs: list[dict], state: dict, now: datetime) -> list[dict]:
+    """Evaluate every current-water rule against one aligned published frame."""
+    from .underway_alerts import AI_PARAMETER, ai_recommendation, frame, fresh, latest_sample, render
+
+    rules = [(sub, rule) for sub in subs for rule in sub.get("underway", [])]
+    if not rules:
+        return []
+    data = frame()
+    if not fresh(data, now):
+        log.warning("underway alerts: six-hour data are stale; alerts paused")
+        return []
+    states = state.setdefault("underway", {})
+    valid_keys = {f"{sub['id']}:{rule['id']}" for sub, rule in rules}
+    for key in list(states):
+        if key not in valid_keys:
+            states.pop(key, None)
+    notices, images = [], {}
+    ai_due = []
+    for sub, rule in rules:
+        key = f"{sub['id']}:{rule['id']}"; seen = states.setdefault(key, {})
+        period = _period(rule.get("period_min", 60))
+        if rule.get("kind") == "ai":
+            if _minutes_since(seen.get("last_checked"), now) >= period:
+                ai_due.append((sub, rule, key, seen))
+            continue
+        sample = latest_sample(data, rule.get("parameter", ""))
+        if sample is None or now.timestamp() * 1000 - sample["time"] > 10 * 60_000:
+            seen["active"] = False
+            continue
+        threshold = float(rule["value"]); direction = rule.get("direction")
+        active = sample["value"] > threshold if direction == "over" else sample["value"] < threshold
+        due = active and _minutes_since(seen.get("last_sent"), now) >= period
+        seen.update(active=active, value=sample["value"], observed_utc=datetime.fromtimestamp(sample["time"] / 1000, timezone.utc).isoformat())
+        if not due:
+            continue
+        parameter = rule["parameter"]
+        if parameter not in images:
+            images[parameter] = render(data, parameter)
+        when = datetime.fromtimestamp(sample["time"] / 1000, timezone.utc).astimezone(TZ)
+        relation = "above" if direction == "over" else "below"
+        unit = (" " + sample["unit"]) if sample["unit"] else ""
+        location = f" · {sample['lat']:.4f}, {sample['lon']:.4f}" if sample.get("lat") is not None and sample.get("lon") is not None else ""
+        headline = f"{parameter}: {sample['value']:.4g}{unit} {relation} {threshold:g}{unit}"
+        text = (f"🔔 Amundsen underway\n{headline}\nObserved {when:%Y-%m-%d %H:%M} {when.tzname()}{location}.\n"
+                f"The attached six-hour map is coloured by {parameter}; the aligned figure shows every Lab parameter.")
+        notices.append({"sub": sub, "rule": rule, "state_key": key, "subject": "Amundsen underway: " + headline,
+                        "text": text, "image": images[parameter]})
+    current_index = max((i for i, stamp in enumerate(data.get("t", [])) if stamp is not None), default=-1)
+    intake_low = current_index >= 0 and current_index < len(data.get("pump_low") or []) and bool(data["pump_low"][current_index])
+    if ai_due and not intake_low:
+        image = images.setdefault(AI_PARAMETER, render(data, "Fluorescence (µg/L)"))
+        try:
+            answer = ai_recommendation(image, data)
+        except Exception as e:                         # noqa: BLE001
+            log.warning("underway alerts: AI recommendation failed: %s", e)
+            answer = None
+        for sub, rule, key, seen in ai_due:
+            seen["last_checked"] = now.isoformat(timespec="seconds")
+            if answer:
+                seen["interesting"] = answer["interesting"]
+            if not answer or not answer["interesting"]:
+                continue
+            text = (f"🧪 Amundsen underway · AI sampling recommendation\n{answer['headline']}\n{answer['reason']}"
+                    + (f"\nSampling objective: {answer['objective']}" if answer["objective"] else "")
+                    + "\nThe attached six-hour map and aligned Lab panel are the observations Gemma assessed.")
+            notices.append({"sub": sub, "rule": rule, "state_key": key, "subject": "Amundsen underway: " + answer["headline"],
+                            "text": text, "image": image})
+    return notices
 
 
 HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
@@ -822,6 +986,8 @@ HELP = ("Alerts for the operations on the Amundsen's schedule.\n\n"
         "/events upcoming, started, finished, moved\nWhich changes you hear about.\n\n"
         "/whiteboard\nThe whiteboard on the schedule page, now and whenever it changes. /whiteboard off stops that.\n\n"
         "/changes\nOnly when future operations are added, taken off or rescheduled. No completion or status-only notices. /changes off stops that.\n\n"
+        "/interesting 60\nAsk Gemma every 60 minutes whether the current water merits sampling; notify only when it does.\n\n"
+        "/underway off ID\nStop one underway threshold or AI alert listed by /status.\n\n"
         "/status\nWhat you are subscribed to.\n\n"
         "/stop\nNo more alerts of any kind.")
 
@@ -848,11 +1014,23 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
         subs = load_subs()
         mine = next((s for s in subs if s["channel"] == "telegram" and s["to"] == chat), None)
         try:
-            if cmd == "/start" and decode_row(arg.strip()) == CHANGES_KEY:   # the bell in the schedule's heading
+            start_key = decode_row(arg.strip()) if cmd == "/start" and arg.strip() else ""
+            if cmd == "/start" and start_key.startswith("uw|"):
+                parts = (start_key.split("|") + ["", "", "", ""])[:5]
+                from .underway_alerts import AI_PARAMETER, parameter_at
+                if parts[1] == "ai":
+                    rule = follow_underway("telegram", chat, AI_PARAMETER, period_min=parts[4] or 60, name=who)
+                    reply = f"AI water recommendation enabled, checked every {rule['period_min']} min. Alerts include the map and aligned Lab panel."
+                else:
+                    parameter = parameter_at(int(parts[1])); direction = "over" if parts[2] == "o" else "under"
+                    rule = follow_underway("telegram", chat, parameter, direction, parts[3], parts[4] or 60, who)
+                    reply = (f"Underway alert enabled: {parameter} {direction} {rule['value']:g}, at most every {rule['period_min']} min. "
+                             "Alerts include the map and aligned Lab panel.")
+            elif cmd == "/start" and start_key == CHANGES_KEY:   # the bell in the schedule's heading
                 set_changes("telegram", chat, True, who)
                 reply = CHANGES_ON
             elif cmd == "/start" and arg.strip():          # the dashboard's bell: t.me/<bot>?start=<row key>
-                key = decode_row(arg.strip())
+                key = start_key
                 follow_row("telegram", chat, key, name=who)
                 key = "op:" + kind_of(key[3:]) if key.startswith("op:") else key
                 what = ("every transit" if key == "op:Transit" else f"every {key[3:]}") if key.startswith("op:") else key.replace("|", " — ")
@@ -876,7 +1054,10 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                         if _empty(m2):
                             subs2.remove(m2)
                         save_subs(subs2)
-                reply = "No general subscription now" + (", followed operations stay." if mine and mine.get("rows") else ". /all or a bell on the dashboard to hear about something.")
+                stays = []
+                if mine and mine.get("rows"): stays.append("followed operations")
+                if mine and mine.get("underway"): stays.append("underway alerts")
+                reply = "No general schedule subscription now" + (("; " + " and ".join(stays) + " stay.") if stays else ". /all or a bell on the dashboard to hear about something.")
             elif cmd == "/whiteboard":
                 if arg.strip().lower() in ("off", "stop", "no"):
                     set_whiteboard("telegram", chat, False)
@@ -891,6 +1072,17 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                 else:
                     set_changes("telegram", chat, True, who)
                     reply = CHANGES_ON
+            elif cmd == "/interesting":
+                from .underway_alerts import AI_PARAMETER
+                rule = follow_underway("telegram", chat, AI_PARAMETER, period_min=arg or 60, name=who)
+                reply = f"AI water recommendation enabled, checked every {rule['period_min']} min. Alerts include the map and aligned Lab panel."
+            elif cmd == "/underway":
+                words = arg.split()
+                if len(words) == 2 and words[0].lower() in ("off", "stop"):
+                    remove_underway("telegram", chat, words[1])
+                    reply = "That underway alert is off. /status shows what remains."
+                else:
+                    reply = "Use a graph's 🔔 on the dashboard to set a threshold, /interesting 60 for AI recommendations, or /underway off ID to remove one."
             elif cmd == "/lead":
                 subscribe("telegram", chat, (mine or {}).get("match", ""), arg or DEFAULT_LEAD_MIN, (mine or {}).get("events"), who)
                 reply = f"Warning {max(5, min(24 * 60, int(arg or DEFAULT_LEAD_MIN)))} min ahead."
@@ -908,7 +1100,8 @@ def handle_telegram(tg: Telegram, wait: int = 0) -> int:
                     general = (f"{mine.get('match') or 'everything'} · {mine.get('lead_min')} min ahead · {', '.join(mine.get('events', []))}"
                                if mine.get("all") or mine.get("match") else "no general subscription")
                     rows = "\n".join(f"• {('every transit' if k == 'op:Transit' else 'every ' + k[3:]) if k.startswith('op:') else k.replace('|', ' — ')} ({v.get('lead_min')} min ahead)" for k, v in (mine.get("rows") or {}).items())
-                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "") + ("\nWhiteboard changes: yes" if mine.get("whiteboard") else "") + ("\nSchedule changes: yes" if mine.get("changes") else "")
+                    water = "\n".join(f"• {r['id'][:6]} · " + (f"AI recommendation every {r.get('period_min')} min" if r.get('kind') == 'ai' else f"{r.get('parameter')} {r.get('direction')} {r.get('value'):g} every {r.get('period_min')} min") for r in mine.get("underway", []))
+                    reply = f"Subscribed: {general}" + (f"\nFollowing:\n{rows}" if rows else "") + (f"\nUnderway:\n{water}" if water else "") + ("\nWhiteboard changes: yes" if mine.get("whiteboard") else "") + ("\nSchedule changes: yes" if mine.get("changes") else "")
             else:
                 reply = HELP
         except ValueError as e:
@@ -1023,6 +1216,30 @@ def run(now: datetime | None = None, tg: Telegram | None = None, email=send_emai
         except Exception as e:                  # noqa: BLE001
             failed += 1
             log.warning("alerts: %s to %s failed: %s", sub["channel"], sub["to"], e)
+    try:
+        water = underway_notices(subs, state, now)
+    except Exception as e:                      # noqa: BLE001
+        water = []
+        log.warning("underway alerts: evaluation failed: %s", e)
+    for notice in water:
+        sub = notice["sub"]
+        try:
+            if sub["channel"] == "telegram":
+                if tg is None:
+                    raise RuntimeError("telegram not configured")
+                tg.send_photo(sub["to"], notice["image"], notice["text"])
+            elif sub["channel"] == "email":
+                if cfg is None:
+                    raise RuntimeError("email not configured")
+                email(cfg, sub["to"], notice["subject"], notice["text"]
+                      + f"\n\nUnsubscribe: http://underway.local:8042/api/alerts/unsubscribe?token={sub['id']}", notice["image"])
+            else:
+                continue
+            state.setdefault("underway", {}).setdefault(notice["state_key"], {})["last_sent"] = now.isoformat(timespec="seconds")
+            sent += 1
+        except Exception as e:                  # noqa: BLE001
+            failed += 1
+            log.warning("underway alerts: %s to %s failed: %s", sub["channel"], sub["to"], e)
     state["last_run"] = now.isoformat(timespec="seconds")
     save_state(state)
     log.info("alerts: %d subscriptions, %d events, %d messages sent, %d failed, %d telegram commands", len(subs), len(events), sent, failed, handled)

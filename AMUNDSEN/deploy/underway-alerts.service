@@ -1,5 +1,5 @@
 [Unit]
-Description=Send the underway dashboard's schedule alerts (Telegram, email)
+Description=Send the underway dashboard's schedule and water alerts (Telegram, email)
 Wants=network-online.target
 After=network-online.target
 

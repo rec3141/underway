@@ -1,5 +1,5 @@
 [Unit]
-Description=Schedule alerts every 2 minutes
+Description=Schedule and water alerts every 2 minutes
 
 [Timer]
 OnBootSec=2min
