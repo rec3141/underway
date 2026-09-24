@@ -13,7 +13,7 @@
 # per call, which is what made per-file reads and stats so slow.
 #
 # Only what is needed is copied: ACSD day files, TSG day files, CTD logbooks
-# and plots, the SeaBird .cnv files, MVP .m1 profiles, and the event logs. Nothing is deleted
+# and plots, the SeaBird .cnv files, MVP .m1 profiles and AML .raw scans, and the event logs. Nothing is deleted
 # from the mirror when it vanishes from the share; a file that disappears
 # upstream is usually a mount hiccup, not a retraction.
 set -euo pipefail
@@ -61,7 +61,7 @@ run "Rosette"   "$SRC_DATA/Rosette"              "$DEST/Data/Rosette" \
 run "CTD cnv"   "$SRC_DATA/external_proprietary/CTD" "$DEST/Data/external_proprietary/CTD" \
     --include='*.cnv' --include='*.CNV' --exclude='*'
 run "MVP"       "$SRC_DATA/MVP"                  "$DEST/Data/MVP" \
-    --include='*/' --include='*.m1' --exclude='*'
+    --include='*/' --include='*.[mM]1' --include='*.[rR][aA][wW]' --include='*.[lL][oO][gG]' --exclude='*'
 
 # --- archived seasons on the Share drive: Share/<year>/<leg>/ACSD_*.csv --------
 if [[ -d $SRC_SHARE ]]; then

@@ -1,0 +1,86 @@
+"""Raw AML profiles supplement converted MVP dips without duplicating them."""
+from unittest.mock import patch
+
+import pytest
+
+from dashboard import casts
+from dashboard.legs import Leg
+
+
+HEADER = """SER1 Type: 30, AML_CTD_SV
+SER1 FID: M
+SER1 Num5Vin: 3
+LAT ( ddmm.mmmmmmm,N): 7552.9387300,N
+LON (dddmm.mmmmmmm,E): 08315.3587800,W
+Time (hh|mm|ss.s): 23:53:59.0
+Date (dd/mm/yyyy): 23/09/2026
+Bottom Depth (m): 442.6
+<END_OF_HEADER>
+"""
+
+
+@pytest.fixture
+def source(tmp_path):
+    leg = Leg('2026_LEG_03', 2026, 3)
+    tow = tmp_path / 'data' / 'MVP' / leg.id / '2026_03_002'
+    tow.mkdir(parents=True)
+    with patch.object(casts, 'DATA_ROOT', tmp_path / 'data'), patch.object(casts, 'DB_DIR', tmp_path / 'db'), patch.object(casts, 'LOCAL_MIRROR', True):
+        yield leg, tow
+
+
+def raw_file(tow, stem='MVP_2026-09-23_235353', header=HEADER):
+    path = tow / (stem + '.raw')
+    rows = [f'M {p} 1445.755 26.619 .256 3575 1361 166' for p in range(1, 13)]
+    path.write_text(header + '\n'.join(rows) + '\nZ1 11.40 12.41 123.1 116.2\nM 5 1499 99 99 9999 9999 9999\n')
+    path.with_suffix('.log').write_text('EVENT: DWNBO,23:53:59\nEVENT: DWNB1,23:55:45\n')
+    return path
+
+
+def test_raw_channels_positions_and_downcast(source):
+    leg, tow = source
+    raw_file(tow)
+    result = casts.mvp_casts(leg)
+    assert len(result) == 1
+    cast = result[0]
+    assert cast.station == '2026_03_002'
+    assert cast.time == '2026-09-23T23:53:59'
+    assert cast.lat == pytest.approx(75 + 52.93873 / 60)
+    assert cast.lon == pytest.approx(-(83 + 15.35878 / 60))
+    assert cast.bottom_m == 442.6
+    profile = cast.profiles[0]
+    assert len(profile['p']) == 12
+    assert profile['vars']['Temperature'] == [.256] * 12
+    assert profile['vars']['Sound velocity'] == [1445.755] * 12
+    assert profile['vars']['Conductivity'] == [26.619] * 12
+    assert profile['vars']['Dissolved oxygen'] == [round(1361 * 5 / 4095, 4)] * 12
+    assert 'Salinity' not in profile['vars']
+    assert 'Sigma-t' not in profile['vars']
+    assert casts.mvp_casts(leg)[0].profiles == cast.profiles
+
+
+def test_converted_profile_supersedes_raw_without_duplicate(source):
+    leg, tow = source
+    raw_file(tow)
+    assert len(casts.mvp_casts(leg)[0].profiles) == 1
+    converted = tow / 'mvp_2026-09-23_235353.m1'
+    converted.write_text(HEADER + 'Press,Temp,Sal\n' + '\n'.join(f'{p},2,33' for p in range(1, 13)))
+    profiles = casts.mvp_casts(leg)[0].profiles
+    assert len(profiles) == 1
+    assert profiles[0]['vars']['Temperature'] == [2] * 12
+    assert profiles[0]['vars']['Salinity'] == [33] * 12
+
+
+def test_unrecognized_raw_instrument_is_not_guessed(source):
+    leg, tow = source
+    raw_file(tow, header=HEADER.replace('30, AML_CTD_SV', '99, OTHER'))
+    assert casts.mvp_casts(leg) == []
+
+
+def test_recovery_only_and_incomplete_downcasts_are_not_profiles(source):
+    leg, tow = source
+    path = raw_file(tow)
+    for events in ('EVENT: UP_BO,02:56:53\nEVENT: UP_B1,03:02:44\n', 'EVENT: DWNBO,23:53:59\n'):
+        path.with_suffix('.log').write_text(events)
+        assert casts.mvp_casts(leg) == []
+    path.with_suffix('.log').write_text('EVENT: DWNBO,23:53:59\nEVENT: DWNB1,23:55:45\n')
+    assert len(casts.mvp_casts(leg)[0].profiles) == 1

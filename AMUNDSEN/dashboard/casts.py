@@ -9,9 +9,9 @@ Two sources:
   float arrays; those supply the variables the ``.cnv`` lacks and are the only
   source for legs without ``.cnv`` files. The filename names the rosette
   (Classic or TM). Station, label and time come from the leg's CTD logbook.
-* MVP (Moving Vessel Profiler) tows: ``Data/MVP/<leg>/<tow>/*.m1``, an AML
-  CTD text format with the fix in the header and one row per sample. A tow
-  directory becomes one dataset holding every dip.
+* MVP (Moving Vessel Profiler) tows: ``Data/MVP/<leg>/<tow>/*.m1`` converted profiles,
+  or AML CTD-SV ``.raw`` scans when a converted profile is unavailable.
+  A tow directory becomes one dataset holding every dip.
 
 Parsed casts are cached as JSON under ``DB_DIR/casts`` so a rebuild only
 touches new ones. Every file on the share is read in a single call: CIFS
@@ -541,8 +541,15 @@ def mvp_casts(leg: Leg) -> list[Cast]:
         return []
     dips: list[Cast] = []
     todo: list[Path] = []
-    for p in sorted(root.glob("*/*.m1")):
-        cached = _cached(leg.id, "MVP_" + p.stem, [p])
+    sources = {}
+    for p in sorted(root.glob("*/*")):
+        if p.suffix.lower() not in {".m1", ".raw"}:
+            continue
+        identity = (p.parent.name, p.stem.lower())
+        if identity not in sources or p.suffix.lower() == ".m1":
+            sources[identity] = p
+    for p in sources.values():
+        cached = _cached(leg.id, _mvp_key(p), _mvp_sources(p))
         if cached:
             dips.append(Cast(**cached))
         else:
@@ -574,8 +581,19 @@ def mvp_casts(leg: Leg) -> list[Cast]:
     return out
 
 
+def _mvp_sources(p: Path) -> list[Path]:
+    if p.suffix.lower() == ".raw":
+        logs = sorted(q for q in p.parent.glob(p.stem + ".*") if q.suffix.lower() == ".log")
+        return [p, *logs]
+    return [p]
+
+
+def _mvp_key(p: Path) -> str:
+    return "MVP_RAW_" + p.parent.name + "_" + p.stem if p.suffix.lower() == ".raw" else "MVP_" + p.stem
+
+
 def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
-    key = "MVP_" + p.stem
+    key = _mvp_key(p)
     try:
         lines = p.read_bytes().decode("latin-1", errors="replace").splitlines()   # one CIFS read, see parse_cnv
     except OSError:
@@ -589,12 +607,34 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
         if ":" in line:
             k, _, v = line.partition(":")
             hdr[k.strip()] = v.strip()
-    if data_at is None:
-        return None
-    cols = [c.strip() for c in lines[data_at].split(",")]
+    raw = p.suffix.lower() == ".raw"
+    if raw:
+        # AML CTD-SV type 30 supplies pressure, sound speed, conductivity,
+        # temperature and three analogue counts; other records are winch telemetry.
+        if hdr.get("SER1 Type") != "30, AML_CTD_SV" or hdr.get("SER1 Num5Vin") != "3":
+            return None
+        sources = _mvp_sources(p)
+        if len(sources) != 2:
+            return None
+        try:
+            events = sources[1].read_text(encoding="latin-1")
+        except OSError:
+            return None
+        # Recovery-only recordings can have pressure wobbles, but no downcast.
+        if not all(re.search(r"EVENT:\s*" + event + ",", events) for event in ("DWNBO", "DWNB1")):
+            return None
+        tag = hdr.get("SER1 FID")
+        if not tag:
+            return None
+        cols = ["Press", "SV", "Cond", "Temp", "ANLG1", "ANLG2", "ANLG3"]
+        data_lines = [line.split()[1:] for line in lines if line.split()[:1] == [tag]]
+    else:
+        if data_at is None:
+            return None
+        cols = [c.strip() for c in lines[data_at].split(",")]
+        data_lines = [line.split(",") for line in lines[data_at + 1:]]
     rows = []
-    for line in lines[data_at + 1:]:
-        parts = line.split(",")
+    for parts in data_lines:
         if len(parts) != len(cols):
             continue
         try:
@@ -605,6 +645,9 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
         return None
     arr = np.array(rows)
     ci = {c: i for i, c in enumerate(cols)}
+    arr = arr[np.isfinite(arr[:, ci["Press"]])]
+    if len(arr) < 10:
+        return None
     pres = arr[:, ci["Press"]]
     # downcast only: samples up to the deepest point
     down = arr[: int(np.argmax(pres)) + 1]
@@ -612,11 +655,15 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
     bins = np.floor(pres / BIN_DBAR).astype(int)
     levels = sorted(set(bins[pres > 0.5]))
     vars_, units = {}, {}
-    for col, (disp, unit) in MVP_VARS.items():
+    variables = {**MVP_VARS, "Cond": ("Conductivity", "mS/cm")} if raw else MVP_VARS
+    for col, (disp, unit) in variables.items():
         if col not in ci:
             continue
         v = down[:, ci[col]]
         if col in MVP_SCALE:
+            # Raw AML inputs are 12-bit ADC counts; converted .m1 inputs are mV.
+            if raw:
+                v = v * (5000.0 / 4095.0)
             v = MVP_SCALE[col](v.astype(float))
         vals = []
         for b in levels:
@@ -642,7 +689,7 @@ def _parse_mvp(leg: Leg, p: Path) -> Cast | None:
     c = Cast(id=f"{leg.id}:{key}", leg=leg.id, kind="MVP", cast=p.parent.name + "/" + p.stem, time=time,
              lat=lat, lon=lon, station=p.parent.name, label="", bottom_m=bottom,
              p=[round((b + 0.5) * BIN_DBAR, 1) for b in levels], vars=vars_, units=units)
-    _store(leg.id, key, [p], c.__dict__)
+    _store(leg.id, key, _mvp_sources(p), c.__dict__)
     return c
 
 
