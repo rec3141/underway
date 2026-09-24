@@ -94,6 +94,11 @@ function dataset(p) {
       cast.profiles=cast.track.map(([lat,lon],i)=>({p:cast.p,vars:cast.vars,lat,lon,time:new Date(t+(process.env.SECTION_DENSE_UI?(i===13?20*3600000:i*15*60000):i*60000)).toISOString()}));
     }
   }
+  if(process.env.SECTION_TOW_UI) {
+    const tows=[cast,{...cast,id:`${leg}:MVP_002`,cast:'002',profiles:cast.profiles.map(d=>({...d,lat:d.lat+1,lon:d.lon+1,time:new Date(Date.parse(d.time)+3600000).toISOString()}))}];
+    if(p==='/data/casts/index.json') return {variables:Object.keys(cast.vars),casts:tows.map((c,i)=>({...c,vars:Object.keys(c.vars),file:`data/casts/tow-${i}.json`}))};
+    const match=p.match(/^\/data\/casts\/tow-(\d+)\.json$/); if(match) return tows[+match[1]];
+  }
   if(process.env.TRANSECT_UI) {
     const casts=Array.from({length:30},(_,i)=>({...cast,id:`${leg}:CTD_${String(i+1).padStart(3,'0')}`,cast:String(i+1),station:`Station ${i+1}`,lat:76+i/100,lon:-78-i/100,file:`data/casts/cast-${i}.json`}));
     if(p==='/data/casts/index.json') return {variables:['Temperature'],casts:casts.map(c=>({...c,vars:['Temperature']}))};
@@ -783,6 +788,31 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       console.log('PASS depth axes, sidebar/exact-size graph export and isolated PNG/SVG map export');
       return;
     }
+    if(process.env.SECTION_TOW_UI) {
+      await evaluate('UW.showTab("casts")');
+      await until('document.querySelectorAll("#casttable tr[data-id]").length===2');
+      await evaluate('document.querySelectorAll("#casttable tr[data-id]").forEach(e=>e.click());document.querySelector("#castmode [data-m=section]").click()');
+      await until('document.querySelector("#cs-plot")?.data?.[1]?.x.length===4');
+      for (let mode=0;mode<2;mode++) {
+        const result=await evaluate(`(()=>{
+          const gd=document.querySelector('#cs-plot'),heat=gd.data[0],points=gd.data[1].x;
+          const num=x=>typeof x==='number'?x:Date.parse(x);
+          const xs=heat.x.map(num),ps=points.map(num);
+          const between=xs.map((x,i)=>x>ps[1]&&x<ps[2]?i:-1).filter(i=>i>=0);
+          const within=xs.map((x,i)=>x>ps[0]&&x<ps[1]?i:-1).filter(i=>i>=0);
+          return {gap:between.length>0&&between.every(i=>heat.z.every(row=>row[i]==null)),
+            inside:within.length>0&&within.some(i=>heat.z.some(row=>row[i]!=null)),
+            bottoms:gd.data.filter(t=>t.name==='bottom').map(t=>t.x.length)};
+        })()`);
+        assert.equal(result.gap,true,'separate tows must have a blank interval');
+        assert.equal(result.inside,true,'dips within a tow must still interpolate');
+        assert.deepEqual(result.bottoms,[2,2]);
+        if(mode===0){await evaluate('document.querySelector("#castxmode .xcycle").click()');await until('document.querySelector("#cs-plot")?.layout.xaxis.type==="linear"');}
+      }
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS separate MVP tows leave heatmap and seabed gaps in time and distance modes');
+      return;
+    }
     if(process.env.SINGLE_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelector("#casttable tr[data-id]")');
@@ -800,6 +830,16 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       if (process.env.MVP_UI) {
         assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="selected tows")'),true);
         assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="MVP tows")'),false);
+        const outsideSpan = await evaluate(`(()=>{
+          const original=UW.spanFilter;
+          UW.spanFilter=()=>({...original(),start:Date.parse('2026-09-05T12:00:00Z'),end:Date.parse('2026-09-06T12:00:00Z')});
+          try {
+            const traces=UW.extraMapTraces();
+            return {selected:traces.some(t=>t.name==='selected tows'),start:traces.some(t=>t.name==='MVP tow starts'),overview:traces.some(t=>t.name==='MVP tows')};
+          } finally { UW.spanFilter=original; }
+        })()`);
+        assert.deepEqual(outsideSpan,{selected:true,start:true,overview:false});
+        console.log('PASS selected MVP tow remains highlighted outside the map time span');
       }
       assert.equal(await evaluate('document.querySelectorAll(".singlevar[aria-pressed=false]").length'),4);
       assert.equal(await evaluate('document.querySelector(".livebar a").getAttribute("href")'),'data/casts/RosetteSheet_001.xlsx');

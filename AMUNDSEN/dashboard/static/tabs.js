@@ -100,7 +100,8 @@
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
     const f = UW.spanFilter();
-    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.state.events || isSelected(c)) && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
+    // Explicit tow or dip selections stay visible when their dates leave the map span.
+    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (isSelected(c) || (UW.state.events && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)))));
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
       for (const [la, lo] of c.track) { lat.push(la); lon.push(lo); cd.push(c.id); txt.push(`<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)}`); }
@@ -942,12 +943,16 @@
     const x0 = Math.min(...xs), x1 = Math.max(...xs), span = x1 - x0 || 1;
     const xg = Array.from({ length: NX }, (_, i) => x0 + span * i / (NX - 1));
     const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
+    const separateTows = (a, b) => withVar[a].parent?.id !== withVar[b].parent?.id &&
+      (withVar[a].parent?.kind === "MVP" || withVar[b].parent?.kind === "MVP");
     const z = grid.map((_, gi) => xg.map((xv) => {
       let k = 0; while (k < order.length - 1 && xs[order[k + 1]] < xv) k++;
       const a = order[k], b = order[Math.min(k + 1, order.length - 1)];
       const za = cols[a][gi], zb = cols[b][gi];
       if (a === b || xs[b] === xs[a]) return za;
       const t = (xv - xs[a]) / (xs[b] - xs[a]);
+      // Dips within one tow form a section; the transit between tows is unsampled.
+      if (separateTows(a, b)) return t === 0 ? za : t === 1 ? zb : null;
       if (za == null || zb == null) return t < 0.5 ? za : zb;      // no bridging into a gap
       return za + (zb - za) * t;
     }));
@@ -996,11 +1001,19 @@
     // profiles, clipped to the frame
     const sounded = withVar.map((d) => d.bottom_m > 0);
     const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
-    traces.push({ type: "scatter", mode: "lines", x: xPts, y: bottoms.map(() => yT(maxD + step)), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
-    traces.push({ type: "scatter", mode: "lines+markers", x: xPts, y: bottoms.map(yT), name: "bottom",
-      line: { color: C.floorLine, width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: C.floor,
-      marker: { size: sounded.map((b) => b ? 5 : 0), color: C.muted, symbol: "diamond" },
-      hovertext: withVar.map((d, i) => sounded[i] ? `${d.label}<br>bottom ${Math.round(d.bottom_m)} m` : `${d.label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
+    const bottomRuns = [[]];
+    for (const i of order) {
+      const run = bottomRuns.at(-1);
+      if (run.length && separateTows(run.at(-1), i)) bottomRuns.push([]);
+      bottomRuns.at(-1).push(i);
+    }
+    for (const run of bottomRuns) {
+      traces.push({ type: "scatter", mode: "lines", x: run.map(i => xPts[i]), y: run.map(() => yT(maxD + step)), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ type: "scatter", mode: "lines+markers", x: run.map(i => xPts[i]), y: run.map(i => yT(bottoms[i])), name: "bottom",
+        line: { color: C.floorLine, width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: C.floor,
+        marker: { size: run.map(i => sounded[i] ? 5 : 0), color: C.muted, symbol: "diamond" },
+        hovertext: run.map(i => sounded[i] ? `${withVar[i].label}<br>bottom ${Math.round(withVar[i].bottom_m)} m` : `${withVar[i].label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
+    }
     // the bottle firings, after the bottom: its fill runs to the trace before it
     if (casts.bottles) {
       const bx = [], by = [], bt = [];
