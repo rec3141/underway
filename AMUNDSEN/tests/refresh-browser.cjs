@@ -786,8 +786,21 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(process.env.SINGLE_UI) {
       await evaluate('UW.showTab("casts")');
       await until('document.querySelector("#casttable tr[data-id]")');
+      if (process.env.MVP_UI) {
+        assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="MVP tows"||t.name==="MVP tow starts")'),false);
+        await evaluate('document.querySelector("#maplayers [data-layer=events]").click()');
+        await until('UW.mapView?.traces.base.some(t=>t.name==="MVP tows")');
+        assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="MVP tow starts")'),true);
+        await evaluate('document.querySelector("#maplayers [data-layer=events]").click()');
+        await until('!UW.mapView?.traces.base.some(t=>t.name==="MVP tows"||t.name==="MVP tow starts")');
+        console.log('PASS Events toggle controls MVP overview tracks and start markers');
+      }
       await evaluate('document.querySelector("#casttable tr[data-id]").click();document.querySelector("#castmode [data-m=single]").click()');
       await until('document.querySelector("#single-plot")?.data');
+      if (process.env.MVP_UI) {
+        assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="selected tows")'),true);
+        assert.equal(await evaluate('UW.extraMapTraces().some(t=>t.name==="MVP tows")'),false);
+      }
       assert.equal(await evaluate('document.querySelectorAll(".singlevar[aria-pressed=false]").length'),4);
       assert.equal(await evaluate('document.querySelector(".livebar a").getAttribute("href")'),'data/casts/RosetteSheet_001.xlsx');
       assert.equal(await evaluate('document.querySelector("#casttable a").getAttribute("href")'),'data/casts/RosetteSheet_001.xlsx');

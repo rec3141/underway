@@ -100,14 +100,14 @@
     // each MVP tow is one dataset: its track as a line, with a clickable
     // marker at the start (the whole line also selects it)
     const f = UW.spanFilter();
-    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
+    const tows = casts.idx.casts.filter((c) => c.kind === "MVP" && c.track?.length && (UW.state.events || isSelected(c)) && (UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f)));
     const lat = [], lon = [], cd = [], txt = [];
     for (const c of tows) {
       for (const [la, lo] of c.track) { lat.push(la); lon.push(lo); cd.push(c.id); txt.push(`<b>${castLabel(c)}</b><br>${castDate(c)}<br>to ${maxDepth(c)}`); }
       lat.push(null); lon.push(null); cd.push(null); txt.push("");
     }
     if (tows.length) {
-      out.push({ type: "scattermap", mode: "lines", name: ui("MVP tows"), showlegend: false, hoverinfo: "skip", connectgaps: false,
+      if (UW.state.events) out.push({ type: "scattermap", mode: "lines", name: ui("MVP tows"), showlegend: false, hoverinfo: "skip", connectgaps: false,
                  lat, lon, line: { width: 3, color: "rgba(126,231,135,.55)" } });
       // selected tows drawn brighter on top; individually picked dips as dots
       const sel = tows.filter((c) => casts.sel.has(c.id));
