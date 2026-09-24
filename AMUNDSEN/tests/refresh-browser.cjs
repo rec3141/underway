@@ -111,6 +111,12 @@ const rendered=spawnSync(process.env.PYTHON||'python3',['-c',
 if(rendered.status!==0) throw Error(rendered.stderr);
 const server=http.createServer((req,res)=>{
   const p=new URL(req.url,'http://localhost').pathname.replace(/^\/underway\//,'/'); requests.push(req.url);
+  if(process.env.ROUTE_DEPTH_UI && p==='/api/searoute') {
+    const query=new URL(req.url,'http://localhost').searchParams;
+    const value=query.has('from')?{sea_km:7.6,cell_km:.1,elev_m:-123,kind:null,path:[]}:{elev_m:-123,kind:null};
+    if(query.has('from') && hold.has(p)){held.push({res,value});return;}
+    res.setHeader('Content-Type','application/json');res.end(JSON.stringify(value));return;
+  }
   if(process.env.PHOTO_UI && p.startsWith('/journal/')) {res.setHeader('Content-Type','image/svg+xml');res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="${p.endsWith('a.svg')?1600:600}" height="${p.endsWith('a.svg')?600:1600}"><rect width="100%" height="100%" fill="teal"/></svg>`);return;}
 
   if((process.env.WIKI_FEEDBACK_UI||process.env.WIKI_GALLERY_UI) && p==='/wiki-test.png'){res.setHeader('Content-Type','image/svg+xml');res.end('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="teal"/></svg>');return;}
@@ -225,6 +231,22 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if(process.env.ROUTE_DEPTH_UI) {
+      await until('!!UW.mapView?.map?.loaded()');
+      hold.add('/api/searoute');
+      await evaluate('UWI18n.setLocale("en"); UW.focusMap(76.1,-78.1,"Depth test")');
+      await until('document.querySelector(".wpground")?.textContent === "depth: 123 m"');
+      assert.equal(held.length,1,'the sea route is still waiting');
+      assert.match(await evaluate('document.querySelector(".wpsea").textContent'),/working it out/);
+      assert.ok(requests.some(url=>url.startsWith('/api/searoute?to=')),'depth-only request is sent');
+      hold.clear();
+      for(const {res,value} of held.splice(0)){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(value));}
+      await until('document.querySelector(".wpsea")?.textContent === "by sea: 7.6 km (4.1 nmi)"');
+      assert.equal(await evaluate('document.querySelector(".wpground").textContent'),'depth: 123 m');
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS point depth displays while the sea route waits and persists when routing finishes');
+      return;
+    }
     if (process.env.MAP_MODE_UI) {
       await until('!!UW.mapView?.map?.loaded()');
       await evaluate('UW.mapView.map.jumpTo({center:[-82,74],zoom:7})');
