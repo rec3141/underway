@@ -4,21 +4,23 @@
 
 Read the live `feedback.sqlite` without changing submissions: 14 records,
 13 distinct messages (the ECO/CDOM report was submitted twice).
-The implementation below is on `fix/feedback-sept24`, based on deployed
-`0aab620`; it is tested locally and not yet deployed.
+The first implementation batch is merged to `master` for deployment.
+The user deferred laptop map height, skipped the bathymetry legend, TRS
+follow-up and right-click tooltip toggle, and reserved the two history
+requests for another session.
 
 | Submitted | Request | Status |
 | --- | --- | --- |
 | Sep 11 | Feedback lists an inactive wiki page | Already fixed: wiki context is included only on the Wiki tab. |
-| Sep 16 | Share TRS transects | New transects are shared automatically. Browser-local transects require their owner's ↑ share button; the live shared database has no records. |
+| Sep 16 | Share TRS transects | New transects are shared automatically. Browser-local transects require their owner's ↑ share button. Further work skipped by user. |
 | Sep 18 | Station coordinates after station; map coordinates | Already implemented in the table and station hover/pinned boxes. |
 | Sep 18 | Bottle coordinates; clear search; waypoint position/distances | Already implemented. Waypoints use double click or held press. |
 | Sep 19 | Sea before air; km (nmi); remove removal hint | Format/hint already addressed; this branch puts sea before air. |
-| Sep 19 | Waypoint depth/altitude | Already implemented with GEBCO depth/elevation. |
-| Sep 19 | Right-click tooltip toggle | Pending. |
-| Sep 22 | Expand Devon Island Expedition history | Pending in the separate arctic-history repository. |
-| Sep 22 | Devon/Axel Heiberg Mars analog history | Pending in the separate arctic-history repository. |
-| Sep 22 | Bathymetry colour legend; taller expanded laptop map | Pending. Existing legend describes track values; laptop height needs browser reproduction. |
+| Sep 19 | Waypoint depth/altitude | GEBCO depth/elevation lookup runs independently so depth can appear before the sea route finishes. |
+| Sep 19 | Right-click tooltip toggle | Skipped by user. |
+| Sep 22 | Expand Devon Island Expedition history | Deferred to another session in the separate arctic-history repository. |
+| Sep 22 | Devon/Axel Heiberg Mars analog history | Deferred to another session in the separate arctic-history repository. |
+| Sep 22 | Bathymetry colour legend; taller expanded laptop map | Legend skipped by user; laptop height deferred. |
 | Sep 23 | Preserve map zoom on expansion/collapse | Fixed on this branch; browser check covers full, half, hidden and restored modes, plus explicit Reset. |
 | Sep 23 | MVP/Multi `gd is null` crash | Fixed on this branch: cached Multi panels are reused only while their DOM children remain present. Browser regression covers return from Single and Section, using a two-dip MVP fixture. |
 | Sep 23 (twice) | Missing ECO/CDOM on Lab | Fixed on this branch: expose existing TSG EcoCdom data as CDOM (mg/m³), including Lab alert figures. Data exists in 2026 legs 02/03 and the provisional TSG feed. |

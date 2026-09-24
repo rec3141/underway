@@ -1166,8 +1166,8 @@
       line("wpsea", seaText(f)).title = seaTitle(f);
       line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
     }
-    const ground = line("wpground", groundLine(f.route?.elev_m));
-    const dot = kindDot(f.route?.kind);
+    const ground = line("wpground", groundLine((f.ground ?? f.route)?.elev_m));
+    const dot = kindDot((f.ground ?? f.route)?.kind);
     if (dot && ground.textContent) ground.append(" ", dot);
     if (!f.waypoint) return box;
 
@@ -1222,10 +1222,10 @@
     put("wpsea", seaText(f));
     const sea = box.querySelector(".wpsea");
     if (sea) sea.title = seaTitle(f);
-    put("wpground", groundLine(f.route?.elev_m));
-    const ground = box.querySelector(".wpground"), dot = kindDot(f.route?.kind);
+    put("wpground", groundLine((f.ground ?? f.route)?.elev_m));
+    const ground = box.querySelector(".wpground"), dot = kindDot((f.ground ?? f.route)?.kind);
     if (ground && dot && ground.textContent) ground.append(" ", dot);
-    mapView.pin(f.lat, f.lon, box, f, tipClear(f));    // the route has arrived: put the box, at its final size, clear of the line
+    mapView.pin(f.lat, f.lon, box, f, tipClear(f));    // keep the updated box clear of the route
   }
 
   function setFocus(lat, lon, label, extra = {}) {
@@ -1240,6 +1240,14 @@
     f.routeAsked = true;
     const seq = ++routeSeq;
     const from = ship?.lat != null ? `from=${ship.lat},${ship.lon}&` : "";
+    // The point lookup can display depth while the sea route is still calculating.
+    if (from) fetch(`api/searoute?to=${f.lat},${f.lon}`)
+      .then((r) => { if (!r.ok) throw new Error("Point lookup failed"); return r.json(); })
+      .then((ground) => {
+        if (ground.error || ground.elev_m == null) return;
+        f.ground = ground;
+        if (seq === routeSeq && state.focus === f && mapView) refreshFocusBox(f, lastShip);
+      }).catch(() => {});  // The route response also carries elevation if this lookup fails.
     fetch(`api/searoute?${from}to=${f.lat},${f.lon}`).then((r) => r.json())
       .then((route) => { f.route = route.error ? { sea_km: null, reason: route.error } : route; })
       .catch(() => { f.route = { sea_km: null, reason: "not available" }; })
