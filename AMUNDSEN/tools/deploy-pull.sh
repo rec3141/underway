@@ -27,7 +27,8 @@ g merge -q --ff-only origin/master
 changed=$(g diff --name-only "$old" "$new")
 echo "deploy: ${old:0:7} -> ${new:0:7}"
 echo "$changed" | sed 's/^/  /'
-if grep -q '^AMUNDSEN/dashboard/.*\.py$' <<<"$changed"; then
+# Cast profiles are imported by the separate build process, not the live server.
+if grep '^AMUNDSEN/dashboard/.*\.py$' <<<"$changed" | grep -qv '^AMUNDSEN/dashboard/casts\.py$'; then
   echo "deploy: restarting the serving processes"
   systemctl restart underway-dashboard underway-telegram
   if systemctl is-enabled --quiet underway-codex.service; then
