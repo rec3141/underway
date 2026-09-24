@@ -548,8 +548,13 @@ def mvp_casts(leg: Leg) -> list[Cast]:
         identity = (p.parent.name, p.stem.lower())
         if identity not in sources or p.suffix.lower() == ".m1":
             sources[identity] = p
-    for p in sources.values():
+    for p in _distinct_mvp_sources(list(sources.values())):
         cached = _cached(leg.id, _mvp_key(p), _mvp_sources(p))
+        if not cached and p.suffix.lower() == ".m1":
+            legacy = _cached(leg.id, "MVP_" + p.stem, _mvp_sources(p))
+            # Unscoped cache entries are usable only for their recorded tow.
+            if legacy and legacy.get("station") == p.parent.name:
+                cached = {**legacy, "id": f"{leg.id}:{_mvp_key(p)}"}
         if cached:
             dips.append(Cast(**cached))
         else:
@@ -589,7 +594,50 @@ def _mvp_sources(p: Path) -> list[Path]:
 
 
 def _mvp_key(p: Path) -> str:
-    return "MVP_RAW_" + p.parent.name + "_" + p.stem if p.suffix.lower() == ".raw" else "MVP_" + p.stem
+    prefix = "MVP_RAW_" if p.suffix.lower() == ".raw" else "MVP_"
+    return prefix + p.parent.name + "_" + p.stem
+
+
+def _distinct_mvp_sources(paths: list[Path]) -> list[Path]:
+    """Resolve cross-folder copies using matching downcast events, not filenames alone."""
+    by_stem: dict[str, list[Path]] = {}
+    for p in paths:
+        by_stem.setdefault(p.stem.lower(), []).append(p)
+    selected = []
+    for candidates in by_stem.values():
+        if len(candidates) == 1:
+            selected.extend(candidates)
+            continue
+        copies = {}
+        for p in candidates:
+            try:
+                logs = [q for q in p.parent.iterdir()
+                        if q.stem.lower() == p.stem.lower() and q.suffix.lower() == ".log"]
+                if len(logs) != 1:
+                    selected.append(p)
+                    continue
+                events = logs[0].read_text(encoding="latin-1")
+                downcast = tuple(re.findall(r"EVENT:\s*(DWNBO,[^\r\n]*|DWNB1,[^\r\n]*)", events))
+                lines = p.read_text(encoding="latin-1").splitlines()
+                date = next((line.partition(":")[2].strip() for line in lines
+                             if line.startswith("Date (dd/mm/yyyy):")), "")
+                if not date or len(downcast) != 2 or not downcast[0].startswith("DWNBO,") or not downcast[1].startswith("DWNB1,"):
+                    selected.append(p)
+                    continue
+                # A tow rollover can leave a partial copy with the same event log.
+                # Prefer calibrated profiles, then the record with more sensor samples.
+                converted = p.suffix.lower() == ".m1"
+                tag = next((line.partition(":")[2].strip() for line in lines
+                            if line.startswith("SER1 FID:")), "")
+                samples = sum(line.split()[:1] == [tag] for line in lines) if not converted else len(lines)
+                rank = (converted, samples, p.parent.name)
+                identity = (date, downcast)
+                if identity not in copies or rank > copies[identity][0]:
+                    copies[identity] = (rank, p)
+            except OSError:
+                selected.append(p)
+        selected.extend(p for _, p in copies.values())
+    return selected
 
 
 def _parse_mvp(leg: Leg, p: Path) -> Cast | None:

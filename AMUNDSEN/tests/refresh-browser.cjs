@@ -89,9 +89,9 @@ function dataset(p) {
     cast.units={Temperature:'°C',Salinity:'PSU','Sigma-t':'kg/m³',Fluorescence:'mg/m³',CDOM:'ppb',Oxygen:'µmol/kg'};
     cast.log_url='data/casts/RosetteSheet_001.xlsx';
     if (process.env.MVP_UI) {
-      cast.kind='MVP'; cast.n_profiles=2;
-      cast.track=[[76,-78],[76.01,-78.01]];
-      cast.profiles=[0,1].map(i=>({p:cast.p,vars:cast.vars,lat:cast.track[i][0],lon:cast.track[i][1],time:new Date(t+i*60000).toISOString()}));
+      cast.kind='MVP'; cast.n_profiles=process.env.SECTION_DENSE_UI?14:2;
+      cast.track=Array.from({length:cast.n_profiles},(_,i)=>[76+i/100,-78-i/100]);
+      cast.profiles=cast.track.map(([lat,lon],i)=>({p:cast.p,vars:cast.vars,lat,lon,time:new Date(t+(process.env.SECTION_DENSE_UI?(i===13?20*3600000:i*15*60000):i*60000)).toISOString()}));
     }
   }
   if(process.env.TRANSECT_UI) {
@@ -852,6 +852,25 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
         await evaluate(`document.querySelector('#castmode [data-m=${mode}]').click()`);
         if (mode === 'section' && !process.env.MVP_UI) await until('!!document.querySelector("#castplots .empty")');
         else await until(`!!document.querySelector('#${mode === 'single' ? 'single' : 'cs'}-plot')?._fullLayout`);
+        if (mode === 'section' && process.env.MVP_UI) {
+          await wait(300);
+          const labels = await evaluate(`(()=>{
+            const plot=document.querySelector('#cs-plot');
+            const ticks=[...plot.querySelectorAll('.xtick text')].map(e=>e.getBoundingClientRect());
+            const title=plot.querySelector('.xtitle').getBoundingClientRect();
+            const numbers=[...plot.querySelectorAll('.scatterlayer .textpoint text')].filter(e=>e.textContent).map(e=>e.getBoundingClientRect());
+            return {ticksClear:ticks.every((r,i)=>!i||r.left>=ticks[i-1].right),
+              titleClear:ticks.every(r=>r.bottom<=title.top),
+              numbersClear:numbers.every((r,i)=>!i||r.left>=numbers[i-1].right),
+              hover:plot.data[1].hovertext};
+          })()`);
+          assert.equal(labels.ticksClear,true,'section time ticks overlap');
+          assert.equal(labels.titleClear,true,'section time ticks overlap axis title');
+          assert.equal(labels.numbersClear,true,'section profile numbers overlap');
+          assert(labels.hover.every((text,i)=>text.startsWith(`${i+1} · `)));
+          if(process.env.SECTION_SCREENSHOT) {const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync(process.env.SECTION_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
+          console.log('PASS section tick, axis-title and profile-label spacing');
+        }
         await evaluate('document.querySelector("#castmode [data-m=profiles]").click()');
         await until('!!document.querySelector("#cp-Temperature")?._fullLayout');
         assert.equal(await evaluate('document.querySelectorAll("#castplots .plot.js-plotly-plot").length'),6);
@@ -923,7 +942,7 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       await until('document.querySelector("#cs-plot")?.data && !document.querySelector("#savetransect").disabled');
       assert.equal(await evaluate('document.querySelector("#cs-plot")._fullData[0].colorbar.tickangle'),0);
       assert.equal(await evaluate('document.querySelector("#cs-plot")._fullData[0].colorbar.title.side'), 'top');
-      assert.deepEqual(await evaluate('document.querySelector("#cs-plot").data[1].text'), ['1 · 1', '2 · 2']);
+      assert.deepEqual(await evaluate('document.querySelector("#cs-plot").data[1].text'), ['1', '']);
       assert.equal(await evaluate('document.querySelector("#cs-plot").layout.yaxis.title.text'),'depth (m)');
       await evaluate('document.querySelector(".sectionwrap .dscale").click()');
       await until('document.querySelector("#cs-plot")?.layout.yaxis.ticktext');

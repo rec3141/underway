@@ -84,3 +84,77 @@ def test_recovery_only_and_incomplete_downcasts_are_not_profiles(source):
         assert casts.mvp_casts(leg) == []
     path.with_suffix('.log').write_text('EVENT: DWNBO,23:53:59\nEVENT: DWNB1,23:55:45\n')
     assert len(casts.mvp_casts(leg)[0].profiles) == 1
+
+
+def test_cross_folder_duplicate_uses_fuller_record_and_rechecks_ownership(source):
+    leg, tow = source
+    partial = raw_file(tow)
+    assert casts.mvp_casts(leg)[0].station == tow.name
+    next_tow = tow.parent / '2026_03_003'
+    next_tow.mkdir()
+    complete = raw_file(next_tow, header=HEADER.replace('23:53:59.0', '23:54:00.0'))
+    complete.write_text(complete.read_text() + 'M 20 1445.755 26.619 .256 3575 1361 166\n')
+    result = casts.mvp_casts(leg)
+    assert len(result) == 1
+    assert result[0].station == next_tow.name
+    assert result[0].time == '2026-09-23T23:54:00'
+    assert casts.mvp_casts(leg)[0].station == next_tow.name
+    partial.write_text(partial.read_text() + ''.join(f'M {p} 1445.755 26.619 .256 3575 1361 166\n' for p in range(21, 24)))
+    assert casts.mvp_casts(leg)[0].station == tow.name
+
+
+@pytest.mark.parametrize('different_events', [True, False])
+def test_same_name_without_matching_downcast_evidence_remains_distinct(source, different_events):
+    leg, tow = source
+    raw_file(tow)
+    next_tow = tow.parent / '2026_03_003'
+    next_tow.mkdir()
+    path = raw_file(next_tow, header=HEADER if different_events else HEADER.replace('23/09/2026', '24/09/2026'))
+    if different_events:
+        path.with_suffix('.log').write_text('EVENT: DWNBO,23:54:00\nEVENT: DWNB1,23:56:00\n')
+    for _ in range(2):
+        result = casts.mvp_casts(leg)
+        assert [c.station for c in result] == [tow.name, next_tow.name]
+
+
+def test_cross_folder_converted_profile_preferred(source):
+    leg, tow = source
+    raw_file(tow)
+    next_tow = tow.parent / '2026_03_003'
+    next_tow.mkdir()
+    path = raw_file(next_tow)
+    path.with_suffix('.m1').write_text(HEADER + 'Press,Temp,Sal\n' + '\n'.join(f'{p},2,33' for p in range(1, 13)))
+    for _ in range(2):
+        result = casts.mvp_casts(leg)
+        assert len(result) == 1
+        assert result[0].station == next_tow.name
+        assert result[0].profiles[0]['vars']['Temperature'] == [2] * 12
+
+
+def test_same_named_converted_profiles_have_separate_caches(source):
+    leg, tow = source
+    next_tow = tow.parent / '2026_03_003'
+    next_tow.mkdir()
+    for folder, temperature in ((tow, 2), (next_tow, 3)):
+        (folder / 'same.m1').write_text(HEADER + 'Press,Temp,Sal\n' + '\n'.join(f'{p},{temperature},33' for p in range(1, 13)))
+    for _ in range(2):
+        result = casts.mvp_casts(leg)
+        assert [c.station for c in result] == [tow.name, next_tow.name]
+        assert [c.profiles[0]['vars']['Temperature'] for c in result] == [[2] * 12, [3] * 12]
+
+
+def test_converted_legacy_cache_is_reused_only_for_its_tow(source):
+    leg, tow = source
+    path = tow / 'same.m1'
+    path.write_text(HEADER + 'Press,Temp,Sal\n' + '\n'.join(f'{p},2,33' for p in range(1, 13)))
+    parsed = casts._parse_mvp(leg, path)
+    casts._store(leg.id, 'MVP_same', [path], parsed.__dict__)
+    casts._cache_path(leg.id, casts._mvp_key(path)).unlink()
+    with patch.object(casts, '_parse_mvp', side_effect=AssertionError('cache should be reused')):
+        assert casts.mvp_casts(leg)[0].station == tow.name
+    next_tow = tow.parent / '2026_03_003'
+    next_tow.mkdir()
+    (next_tow / path.name).write_text(path.read_text().replace(',2,33', ',3,33'))
+    result = casts.mvp_casts(leg)
+    assert [c.station for c in result] == [tow.name, next_tow.name]
+    assert result[1].profiles[0]['vars']['Temperature'] == [3] * 12

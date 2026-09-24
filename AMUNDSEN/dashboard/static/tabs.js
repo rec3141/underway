@@ -974,13 +974,20 @@
     }
     const to = host.querySelector(".castlegend .timeorder");
     if (to) to.onclick = (ev) => { ev.preventDefault(); saveOrder([]); casts.xmode = "time"; store.set("casts.xmode", "time"); $("#castxmode .xcycle").textContent = ui("Time"); renderCastPlots(); };
+    const plotWidth = Math.max(120, host.querySelector("#cs-plot").clientWidth - fz(110));
+    const profileLabels = withVar.map(() => "");
+    let lastLabel = -Infinity;
+    for (const i of order) {
+      const pixel = (xs[i] - x0) / span * plotWidth;
+      if (pixel - lastLabel >= fz(28)) { profileLabels[i] = String(i + 1); lastLabel = pixel; }
+    }
     const traces = [
       { type: "heatmap", x: xPlot, y: grid.map(yT), z, customdata: grid.map((g) => xg.map(() => g)), colorscale: "Viridis", connectgaps: false, zsmooth: "best",
         colorbar: { title: { text: unit, side: "top" }, thickness: 12, len: .8, tickangle: 0, tickfont: { size: fz(12) }, outlinewidth: 0 },
         hovertemplate: (byTime ? "%{x|%m-%d %H:%M}" : "%{x:.1f} km") + ` · %{customdata:.0f} m<br><b>%{z:.3~f} ${esc(unit)}</b><extra></extra>` },
-      { type: "scatter", mode: dense ? "markers" : "markers+text", x: xPts, y: withVar.map(() => 0), text: withVar.map((d, i) => `${i + 1} · ${d.parent?.cast ?? d.cast ?? d.label}`), textposition: "top center",
+      { type: "scatter", mode: "markers+text", x: xPts, y: withVar.map(() => 0), text: profileLabels, textposition: "top center",
         textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
-        hovertext: withVar.map((d, i) => `${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
+        hovertext: withVar.map((d, i) => `${i + 1} · ${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
     // echo-sounder bottom where there is one, else the deepest sample; the
     // fill is clipped to the frame so a bottom far below the casts stays out of it
@@ -1000,9 +1007,11 @@
       withVar.forEach((d, i) => { for (const b of d.bottles || []) { const dep = bottleDepth(b, d.lat ?? d.parent?.lat); if (dep == null) continue; bx.push(xPts[i]); by.push(yT(dep)); bt.push(`${d.label}<br>${bottleText(b)} · ${Math.round(dep)} m`); } });
       if (bx.length) traces.push({ type: "scatter", mode: "markers", name: "bottles", x: bx, y: by, text: bt, hoverinfo: "text", marker: { size: 6, color: C.marker, line: { color: C.markerLine, width: 1 } } });
     }
-    const layout = { ...castLayout(), margin: { l: fz(54), r: 8, t: fz(18), b: fz(40) },
-      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: fz(12) }, standoff: 4 }, tickfont: { size: fz(12) }, type: byTime ? "date" : "linear" },
-      yaxis: depthAxis(maxD + step) };
+    const layout = { ...castLayout(), margin: { l: fz(62), r: 8, t: fz(30), b: fz(76) },
+      xaxis: { ...THEME.xaxis, title: { text: xTitle, font: { size: fz(12) }, standoff: fz(14) },
+        tickfont: { size: fz(12) }, tickangle: 0, automargin: true, nticks: Math.max(2, Math.min(8, Math.floor(plotWidth / fz(90)))),
+        ...(byTime ? { tickformat: "%H:%M<br>%b %d" } : {}), type: byTime ? "date" : "linear" },
+      yaxis: { ...depthAxis(maxD + step), automargin: true } };
     UW.reactPlot($("#cs-plot"), traces, layout, CFG, [[...casts.sel].sort(),casts.dscale,casts.xmode,casts.variable]).then((gd) => UW.axisZoom(gd));
     wireCastPanels(host, () => renderSection(host, data));
   }
