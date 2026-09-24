@@ -18,7 +18,7 @@
 <section><h2>Page views</h2><div class="stats"><div><b id="today">—</b>Today (UTC)</div><div><b id="week">—</b>Last 7 days</div><div><b id="total">—</b>Retained total</div></div>
 <p>Page opens and main-tab changes, not unique visitors. Automatic data refreshes do not count. Up to 90 days retained.</p>
 <label for="days">Show </label><select id="days"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
-<div id="view-chart" class="view-chart" role="img" aria-label="Daily page views, with adjacent English and French bars stacked by page"></div>
+<div id="view-chart" class="view-chart" role="img" aria-label="Daily page views stacked by page, grouped by English, French and unrecorded language"></div>
 <div id="view-legend" class="view-legend"></div><p id="view-language-since" class="view-note"></p>
 <div class="scroll"><table><thead><tr><th>Day (UTC)</th><th>Page</th><th>Views</th></tr></thead><tbody id="views"></tbody></table></div></section>
 <section><h2>Recent outage and recovery notices</h2><p>Up to 100 events recorded since this status page was enabled.</p><div class="scroll"><table><thead><tr><th>Time</th><th>Endpoint</th><th>Event</th></tr></thead><tbody id="events"></tbody></table></div></section>
@@ -32,28 +32,40 @@ const svgNode=(name,attrs={})=>{const node=document.createElementNS('http://www.
 function viewChart(days){
   const source=data.views_by_language||{},rows0=(source.rows||[]).filter(r=>r.day>=since(days));
   const end=new Date(),dates=[];for(let i=days-1;i>=0;i--){const d=new Date(Date.UTC(end.getUTCFullYear(),end.getUTCMonth(),end.getUTCDate()-i));dates.push(d.toISOString().slice(0,10));}
-  const pages=Object.keys(pageColours),languages=['en','fr-CA'],counts=new Map();
+  const pages=Object.keys(pageColours),languages=['en','fr-CA','unknown'],counts=new Map();
+  const languageNames={'en':'English','fr-CA':'French',unknown:'Language unrecorded'},languageLabels={'en':'EN','fr-CA':'FR',unknown:'?'};
   for(const row of rows0)counts.set(`${row.day}|${row.language}|${row.page}`,row.views);
+  // Total page counts include visits whose beacon did not record a language.
+  for(const row of data.views||[]){
+    if(row.day<since(days))continue;
+    const recorded=['en','fr-CA'].reduce((n,language)=>n+(counts.get(`${row.day}|${language}|${row.page}`)||0),0);
+    const remainder=Math.max(0,row.views-recorded);
+    if(remainder)counts.set(`${row.day}|unknown|${row.page}`,remainder);
+  }
   const totals=dates.flatMap(day=>languages.map(language=>pages.reduce((n,page)=>n+(counts.get(`${day}|${language}|${page}`)||0),0)));
   const ymax=Math.max(1,...totals),step=Math.max(1,Math.ceil(ymax/4)),top=Math.ceil(ymax/step)*step;
   const margin={left:52,right:18,top:20,bottom:62},group=days<=7?92:days<=30?58:42,width=Math.max(760,margin.left+margin.right+dates.length*group),height=360,plotH=height-margin.top-margin.bottom;
   const svg=svgNode('svg',{viewBox:`0 0 ${width} ${height}`,width,role:'presentation'}),y=value=>margin.top+plotH-value/top*plotH;
   for(let value=0;value<=top;value+=step){const py=y(value);svg.append(svgNode('line',{x1:margin.left,y1:py,x2:width-margin.right,y2:py,class:'grid'}));const label=svgNode('text',{x:margin.left-8,y:py+4,'text-anchor':'end'});label.textContent=value;svg.append(label);}
   const axisTitle=svgNode('text',{x:14,y:margin.top+plotH/2,transform:`rotate(-90 14 ${margin.top+plotH/2})`,'text-anchor':'middle'});axisTitle.textContent='Page views';svg.append(axisTitle);
-  const barWidth=Math.max(7,Math.min(20,group*.3)),gap=Math.max(3,group*.06),labelEvery=Math.max(1,Math.ceil(days/12));
+  const gap=Math.max(3,group*.06),labelEvery=Math.max(1,Math.ceil(days/12));
   dates.forEach((day,index)=>{
     const centre=margin.left+group*(index+.5);
-    languages.forEach((language,languageIndex)=>{
-      const x=centre+(languageIndex?gap/2:-gap/2-barWidth),total=pages.reduce((n,page)=>n+(counts.get(`${day}|${language}|${page}`)||0),0);let base=0;
-      for(const page of pages){const value=counts.get(`${day}|${language}|${page}`)||0;if(!value)continue;const rect=svgNode('rect',{x,y:y(base+value),width:barWidth,height:Math.max(1,value/top*plotH),fill:pageColours[page]});const title=svgNode('title');title.textContent=`${day} · ${language==='en'?'English':'French'} · ${page}: ${value}`;rect.append(title);svg.append(rect);base+=value;}
-      const lang=svgNode('text',{x:x+barWidth/2,y:height-margin.bottom+15,'text-anchor':'middle',class:'lang'});lang.textContent=language==='en'?'EN':'FR';svg.append(lang);
+    const dayLanguages=languages.filter(language=>language!=='unknown'||pages.some(page=>counts.get(`${day}|unknown|${page}`)));
+    const barWidth=Math.max(6,Math.min(20,(group-12-gap*(dayLanguages.length-1))/dayLanguages.length));
+    const groupWidth=dayLanguages.length*barWidth+(dayLanguages.length-1)*gap;
+    dayLanguages.forEach((language,languageIndex)=>{
+      const x=centre-groupWidth/2+languageIndex*(barWidth+gap),total=pages.reduce((n,page)=>n+(counts.get(`${day}|${language}|${page}`)||0),0);let base=0;
+      for(const page of pages){const value=counts.get(`${day}|${language}|${page}`)||0;if(!value)continue;const rect=svgNode('rect',{x,y:y(base+value),width:barWidth,height:Math.max(1,value/top*plotH),fill:pageColours[page]});const title=svgNode('title');title.textContent=`${day} · ${languageNames[language]} · ${page}: ${value}`;rect.append(title);svg.append(rect);base+=value;}
+      const lang=svgNode('text',{x:x+barWidth/2,y:height-margin.bottom+15,'text-anchor':'middle',class:'lang'});lang.textContent=languageLabels[language];svg.append(lang);
       if(total){const totalLabel=svgNode('text',{x:x+barWidth/2,y:y(total)-4,'text-anchor':'middle'});totalLabel.textContent=total;svg.append(totalLabel);}
     });
     if(index%labelEvery===0||index===dates.length-1){const label=svgNode('text',{x:centre,y:height-12,'text-anchor':'middle'});label.textContent=day.slice(5);svg.append(label);}
   });
   svg.append(svgNode('line',{x1:margin.left,y1:y(0),x2:width-margin.right,y2:y(0),class:'axis'}));
   $('view-chart').replaceChildren(svg);
-  $('view-language-since').textContent=source.since?`Language split recorded since ${fmt(source.since)}. Earlier page views remain in the totals and table below.`:'Language split begins with the next page view.';
+  const unrecorded=dates.reduce((n,day)=>n+pages.reduce((sum,page)=>sum+(counts.get(`${day}|unknown|${page}`)||0),0),0);
+  $('view-language-since').textContent=(source.since?`Language split recorded since ${fmt(source.since)}.`:'Language split has not been recorded yet.')+` EN = English; FR = French; ? = language unrecorded. ${unrecorded.toLocaleString()} views in this period have no recorded language; they are included in the chart.`;
   const legend=$('view-legend');legend.replaceChildren();for(const page of pages){const item=document.createElement('span'),swatch=document.createElement('i');swatch.style.background=pageColours[page];item.append(swatch,document.createTextNode(page));legend.append(item);}
 }
 function views(){if(!data)return;const v=data.views,days=+$('days').value,cut=since(days),sum=days0=>v.filter(r=>r.day>=since(days0)).reduce((n,r)=>n+r.views,0);$('today').textContent=sum(1);$('week').textContent=sum(7);$('total').textContent=v.reduce((n,r)=>n+r.views,0);viewChart(days);rows('views',v.filter(r=>r.day>=cut).map(r=>[r.day,r.page,r.views]));}
