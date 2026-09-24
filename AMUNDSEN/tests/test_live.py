@@ -267,5 +267,70 @@ class LiveTests(unittest.TestCase):
                 thread.join(timeout=3)
 
 
+class LiveRestoreTests(unittest.TestCase):
+    """Startup restoration uses only temporary files and no network thread."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        patcher = patch.object(live_mod, "DB_DIR", self.root)
+        patcher.start(); self.addCleanup(patcher.stop)
+        patcher = patch.object(LiveCTD, "_tcp_loop", lambda self: None)
+        patcher.start(); self.addCleanup(patcher.stop)
+        self.source = "127.0.0.1:12345"
+
+    def seed(self, source=True):
+        listener = LiveCTD(self.source)
+        listener._xml_feed(SEASAVE_HEADER, 100)
+        listener._xml_feed(SCAN.format(d=830, t=3, t2=3), 101)
+        listener._xml_feed(SCAN.format(d=156, t=3, t2=3), 102)
+        listener.close()
+        if not source:
+            path = self.root / "live_casts.json"
+            data = json.loads(path.read_text()); data.pop("tcp")
+            path.write_text(json.dumps(data))
+
+    def test_restart_preserves_cast_through_matching_header_and_next_scan(self):
+        for source in (True, False):
+            with self.subTest(source_metadata=source):
+                self.seed(source)
+                listener = LiveCTD(self.source)
+                try:
+                    listener._xml_feed(SEASAVE_HEADER, 103)
+                    listener._xml_feed(SCAN.format(d=75, t=3, t2=3), 104)
+                    current = listener.status()["current"]
+                    self.assertEqual(current["cols"]["depth_m"], [830, 156, 75])
+                    self.assertEqual(current["started"], 101)
+                    self.assertEqual(current["max_p"], 830)
+                    self.assertIsNone(listener.last)
+                finally:
+                    listener.close()
+                (self.root / "live_casts.json").unlink()
+
+    def test_changed_startup_source_ends_restored_cast(self):
+        for target in ("127.0.0.1:12346",):
+            with self.subTest(target=target):
+                self.seed()
+                listener = LiveCTD(target)
+                try:
+                    self.assertIsNone(listener.current)
+                    self.assertEqual(listener.last["end_reason"], "configuration changed")
+                finally:
+                    listener.close()
+                (self.root / "live_casts.json").unlink()
+
+    def test_changed_header_ends_restored_cast(self):
+        self.seed()
+        listener = LiveCTD(self.source)
+        try:
+            listener._xml_feed(SEASAVE_HEADER.replace("Fluorescence, Seapoint", "Salinity"), 103)
+            self.assertIsNone(listener.current)
+            self.assertEqual(listener.last["end_reason"], "Seasave field list changed")
+            self.assertEqual(listener.last["cols"]["depth_m"], [830, 156])
+        finally:
+            listener.close()
+
+
 if __name__ == "__main__":
     unittest.main()

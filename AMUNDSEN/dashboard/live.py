@@ -134,8 +134,8 @@ class LiveCTD:
         self._last_kept = 0.0
         self._saved = 0.0
         self._stop = threading.Event()
-        self._restore()
         self.configure(tcp)
+        self._restore()
         self._thread = threading.Thread(target=self._tcp_loop, daemon=True)
         self._thread.start()
 
@@ -177,8 +177,14 @@ class LiveCTD:
                 return
             d = json.loads(p.read_text())
             self.current, self.last = d.get("current"), d.get("last")
-            if self.current is not None:            # a cast under way when the server stopped: it goes on if scans resume
-                self.surface_since = None
+            if self.current is not None:
+                # Snapshots without a source rely on the first header matching the saved columns.
+                if self.tcp and d.get("tcp", self.tcp) != self.tcp:
+                    self._end_cast(time.time(), "configuration changed")
+                else:
+                    self.columns = list(self.current.get("columns", self.current.get("cols", {})))
+                    self._last_kept = self.current.get("t", [])[-1] if self.current.get("t") else 0.0
+                    self.surface_since = None
             log.info("live CTD: casts restored (%s)", ", ".join(k for k in ("current", "last") if d.get(k)) or "none")
         except Exception as e:                      # noqa: BLE001
             log.warning("live CTD: casts not restored: %s", e)
@@ -192,7 +198,7 @@ class LiveCTD:
         try:
             DB_DIR.mkdir(parents=True, exist_ok=True)
             tmp = self._casts_path().with_suffix(".tmp")
-            tmp.write_text(json.dumps({"current": self.current, "last": self.last}))
+            tmp.write_text(json.dumps({"current": self.current, "last": self.last, "tcp": self.tcp}))
             tmp.replace(self._casts_path())
         except Exception as e:                      # noqa: BLE001
             log.warning("live CTD: casts not saved: %s", e)
