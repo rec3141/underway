@@ -71,6 +71,8 @@ VARIABLES: tuple[Variable, ...] = (
     Variable("TSG flow (V)", "V", (), derived=True, tsg=True),
     Variable("Fluorescence (µg/L)", "µg/L",
              (r"^tsg — fluorescence", r"fluorescence"), log_ok=True, tsg=True),
+    Variable("CDOM (mg/m³)", "mg/m³",
+             (r"^tsg — ecocdom",), log_ok=True, tsg=True),
     Variable("Oxygen (mL/L)", "mL/L",
              (r"^tsg — oxygen", r"oxygene?"), tsg=True),
     Variable("Short-wave radiation (W/m²)", "W/m²",

@@ -526,9 +526,8 @@
     const MAP_MODES = ["half", "full", "none"];
     const MAP_ICON = { half: "◧", full: "■", none: "□" };          // the cycler in the tab row shows the state it is in
     const mapMode = () => { const m = store.get("mapmode", null); return MAP_MODES.includes(m) ? m : "half"; };
-    // the classes and labels follow the stored mode; the plots resize and
-    // the map refits only when the mode has actually changed (this runs on
-    // every controls render, once a minute, and must not touch the view then)
+    // The classes and labels follow the stored mode. Resizing keeps the
+    // map's centre and zoom; only explicit fit requests change its view.
     const applyMapMode = () => {
       const m = mapMode(), main = $("main");
       main.classList.toggle("mapmin", m === "none"); main.classList.toggle("mapfull", m === "full");
@@ -543,7 +542,7 @@
       if (first) return;                                              // the first draw fits on its own
       setTimeout(() => {
         for (const p of document.querySelectorAll(".plot")) if (p.data) Plotly.Plots.resize(p);
-        if (m !== "none" && mapView) { mapView.resize(); requestFit(); renderMap(); }
+        if (m !== "none" && mapView) { mapView.resize(); renderMap(); }
       }, 0);
     };
     const setMapMode = (m) => { store.set("mapmode", m); applyMapMode(); };
@@ -1164,8 +1163,8 @@
     if (!f.html || !f.html.includes(dms(f.lat, f.lon))) line("wpwhere", dms(f.lat, f.lon));
     if (f.waypoint && f.at) line("wpwhen", ui("marked: {when}", { when: `${fmtTs(tms(f.at))} ${tzAbbr()}` }));
     if (ship?.lat != null) {
-      line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
       line("wpsea", seaText(f)).title = seaTitle(f);
+      line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
     }
     const ground = line("wpground", groundLine(f.route?.elev_m));
     const dot = kindDot(f.route?.kind);

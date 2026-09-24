@@ -760,8 +760,10 @@
       .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
     const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="${uh("restore")}">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
       vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("");
-    const rebuilt = host._profileMarkup !== markup || !host.querySelector('.castplot,.castdock');
-    if (rebuilt) { host.innerHTML = markup; host._profileMarkup = markup; }
+    // Single and Section replace these children, even when the Multi markup is unchanged.
+    const rebuilt = host._profileMarkup !== markup || host._profileNodes?.length !== host.children.length ||
+      host._profileNodes.some((node, i) => node !== host.children[i]);
+    if (rebuilt) { host.innerHTML = markup; host._profileMarkup = markup; host._profileNodes = [...host.children]; }
     host._profileData = data;
     for (const v of vars) {
       if (v === LEGEND) continue;

@@ -88,6 +88,11 @@ function dataset(p) {
     cast.vars={Temperature:[2,3],Salinity:[30,31],'Sigma-t':[23,24],Fluorescence:[0.1,0.2],CDOM:[1,2],Oxygen:[280,290]};
     cast.units={Temperature:'°C',Salinity:'PSU','Sigma-t':'kg/m³',Fluorescence:'mg/m³',CDOM:'ppb',Oxygen:'µmol/kg'};
     cast.log_url='data/casts/RosetteSheet_001.xlsx';
+    if (process.env.MVP_UI) {
+      cast.kind='MVP'; cast.n_profiles=2;
+      cast.track=[[76,-78],[76.01,-78.01]];
+      cast.profiles=[0,1].map(i=>({p:cast.p,vars:cast.vars,lat:cast.track[i][0],lon:cast.track[i][1],time:new Date(t+i*60000).toISOString()}));
+    }
   }
   if(process.env.TRANSECT_UI) {
     const casts=Array.from({length:30},(_,i)=>({...cast,id:`${leg}:CTD_${String(i+1).padStart(3,'0')}`,cast:String(i+1),station:`Station ${i+1}`,lat:76+i/100,lon:-78-i/100,file:`data/casts/cast-${i}.json`}));
@@ -220,6 +225,22 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     await until('window.UW.state.raw?.vars["SST (°C)"][0]===1');
     await evaluate('window.__mapErrors=[]; window.UW.mapView?.map?.on("error",e=>window.__mapErrors.push(String(e.error)))');
     console.log('PASS initial load retries without reload');
+    if (process.env.MAP_MODE_UI) {
+      await until('!!UW.mapView?.map?.loaded()');
+      await evaluate('UW.mapView.map.jumpTo({center:[-82,74],zoom:7})');
+      const view = await evaluate('UW.mapView.getView()');
+      for (const mode of ['full', 'half', 'none', 'half']) {
+        await evaluate(`UW.setMapMode('${mode}')`);
+        await wait(250);
+        assert.deepEqual(await evaluate('UW.mapView.getView()'),view);
+      }
+      await evaluate('document.querySelector("#mapreset").click()');
+      await wait(250);
+      assert.notDeepEqual(await evaluate('UW.mapView.getView()'),view);
+      assert.deepEqual(await evaluate('window.__errors'),[]);
+      console.log('PASS expand, collapse and hide preserve map view; explicit reset fits the track');
+      return;
+    }
     if(process.env.WIKI_LOCALE_UI) {
       await evaluate('UWI18n.setLocale("en"); UW.M.history={stamp:"english",locales:{"fr-CA":{base:"data/history/locales/fr-CA/r1/",stamp:"r1"}}}; UW.showTab("wiki")');
       await until('!!UW.histShared.data().index');
@@ -804,6 +825,17 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
       assert.equal(await evaluate('JSON.stringify(document.querySelector("#cp-Temperature").data)===window.__exportSource'),true);
       await evaluate('document.querySelector(".export-close").click()');
       console.log('PASS Multi SVG export includes cast legend without changing the original plot');
+      // Each view replaces the plot container; returning to Multi must restore its panels.
+      for (const mode of ['single', 'section']) {
+        await evaluate(`document.querySelector('#castmode [data-m=${mode}]').click()`);
+        if (mode === 'section' && !process.env.MVP_UI) await until('!!document.querySelector("#castplots .empty")');
+        else await until(`!!document.querySelector('#${mode === 'single' ? 'single' : 'cs'}-plot')?._fullLayout`);
+        await evaluate('document.querySelector("#castmode [data-m=profiles]").click()');
+        await until('!!document.querySelector("#cp-Temperature")?._fullLayout');
+        assert.equal(await evaluate('document.querySelectorAll("#castplots .plot.js-plotly-plot").length'),6);
+        assert.deepEqual(await evaluate('window.__errors'),[]);
+      }
+      console.log('PASS Multi panels return after Single and Section view transitions');
       await evaluate('document.querySelector("#castmode [data-m=single]").click();document.querySelector("#castkind [data-k=live]").click()');
       await until('!!document.querySelector("#live-plot")?._fullLayout');
       assert.equal(await evaluate('!!document.querySelector("#livebody .single-parameters .chart-divider")'),true);

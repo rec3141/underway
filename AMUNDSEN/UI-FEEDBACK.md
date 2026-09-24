@@ -1,5 +1,32 @@
 # UI feedback backlog
 
+## Feedback review — 2026-09-24
+
+Read the live `feedback.sqlite` without changing submissions: 14 records,
+13 distinct messages (the ECO/CDOM report was submitted twice).
+The implementation below is on `fix/feedback-sept24`, based on deployed
+`0aab620`; it is tested locally and not yet deployed.
+
+| Submitted | Request | Status |
+| --- | --- | --- |
+| Sep 11 | Feedback lists an inactive wiki page | Already fixed: wiki context is included only on the Wiki tab. |
+| Sep 16 | Share TRS transects | New transects are shared automatically. Browser-local transects require their owner's ↑ share button; the live shared database has no records. |
+| Sep 18 | Station coordinates after station; map coordinates | Already implemented in the table and station hover/pinned boxes. |
+| Sep 18 | Bottle coordinates; clear search; waypoint position/distances | Already implemented. Waypoints use double click or held press. |
+| Sep 19 | Sea before air; km (nmi); remove removal hint | Format/hint already addressed; this branch puts sea before air. |
+| Sep 19 | Waypoint depth/altitude | Already implemented with GEBCO depth/elevation. |
+| Sep 19 | Right-click tooltip toggle | Pending. |
+| Sep 22 | Expand Devon Island Expedition history | Pending in the separate arctic-history repository. |
+| Sep 22 | Devon/Axel Heiberg Mars analog history | Pending in the separate arctic-history repository. |
+| Sep 22 | Bathymetry colour legend; taller expanded laptop map | Pending. Existing legend describes track values; laptop height needs browser reproduction. |
+| Sep 23 | Preserve map zoom on expansion/collapse | Fixed on this branch; browser check covers full, half, hidden and restored modes, plus explicit Reset. |
+| Sep 23 | MVP/Multi `gd is null` crash | Fixed on this branch: cached Multi panels are reused only while their DOM children remain present. Browser regression covers return from Single and Section, using a two-dip MVP fixture. |
+| Sep 23 (twice) | Missing ECO/CDOM on Lab | Fixed on this branch: expose existing TSG EcoCdom data as CDOM (mg/m³), including Lab alert figures. Data exists in 2026 legs 02/03 and the provisional TSG feed. |
+
+Validation: the MVP/Single/Multi/Section browser suite and desktop map-mode
+check pass. Live CDOM data passed resolution, analysis, minute-window and
+provisional-feed checks; 26 existing track-build and alert tests pass.
+
 ## Reported in this session
 
 - Nature map clicks should open the sidebar without filtering or recentering the map. Fixed in this change.
@@ -23,7 +50,7 @@ Read with `python -m dashboard.feedback` on 2026-09-18; all done in that change.
 
 - A waypoint is made by a double click or a held press, not by a single click,
   which was catching ordinary navigation; the map's own double-click zoom is off.
-- The mark's box reads: name, position, `by air:`, `by sea:`, then `depth:` or
+- The mark's box reads: name, position, `by sea:`, `by air:`, then `depth:` or
   `elevation:` from GEBCO, and no longer explains how to remove the mark.
 - A waypoint's name is editable; it arrives numbered ("Waypoint 3"), sits in a
   field with a pencil beside it, and Save on the same line keeps it for everyone

@@ -24,6 +24,7 @@ LAB_PARAMETERS = (
     "Surprise · 3 h",
     "TSG flow (V)",
     "Fluorescence (µg/L)",
+    "CDOM (mg/m³)",
     "Oxygen (mL/L)",
 )
 AI_PARAMETER = "AI recommendation"
