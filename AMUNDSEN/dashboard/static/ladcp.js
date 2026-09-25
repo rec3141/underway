@@ -38,19 +38,36 @@
   let profiles = [], loaded = null, loading = null, failedAt = 0, failed = false;
   host.innerHTML = `<button id="ladcp-toggle" type="button" aria-pressed="false" title="Current vectors at sampled CTD stations, for the selected legs and time span">LADCP currents</button>
     <label id="ladcp-depth-label" hidden>Depth <input id="ladcp-depth" type="number" min="0" max="12000" step="1" aria-label="Current depth in metres"> m</label>
+    <input id="ladcp-depth-slider" type="range" min="0" max="1000" step="1" aria-label="Current depth in metres" hidden>
     <span id="ladcp-status" class="hint" role="status" hidden></span>
-    <span id="ladcp-key" class="hint" hidden>Flow toward arrowhead · 0.5 m/s = 36 px · <span style="color:#38bdf8">&lt;0.1</span> / <span style="color:#fbbf24">0.1–0.3</span> / <span style="color:#f472b6">≥0.3 m/s</span></span>`;
+    <span id="ladcp-key" class="hint" hidden>Arrows point in the direction of flow · 0.5 m/s = 36 px · <span style="color:#38bdf8">&lt;0.1</span> / <span style="color:#fbbf24">0.1–0.3</span> / <span style="color:#f472b6">≥0.3 m/s</span></span>`;
   const button = host.querySelector("#ladcp-toggle"), input = host.querySelector("#ladcp-depth"), status = host.querySelector("#ladcp-status");
   input.value = depth;
+  const slider = host.querySelector("#ladcp-depth-slider");
+  let redraw = null;
+  function syncDepth(visible = profiles) {
+    const deepest = visible.reduce((max, p) => Math.max(max, p.depth?.at(-1) || 0), 0);
+    slider.max = Math.max(50, Math.ceil(deepest / 50) * 50, depth);
+    slider.value = depth;
+    slider.setAttribute("aria-valuetext", `${depth} metres`);
+    input.value = depth;
+  }
+  syncDepth();
   function controls() {
     button.classList.toggle("on", enabled); button.setAttribute("aria-pressed", String(enabled));
-    for (const id of ["#ladcp-depth-label", "#ladcp-status", "#ladcp-key"]) host.querySelector(id).hidden = !enabled;
+    for (const id of ["#ladcp-depth-label", "#ladcp-depth-slider", "#ladcp-status", "#ladcp-key"]) host.querySelector(id).hidden = !enabled;
   }
   button.onclick = () => { enabled = !enabled; UW.store.set("ladcp.enabled", enabled); controls(); if (!enabled) UW.setLoadError("LADCP", false); UW.renderMap(); };
   input.onchange = () => {
     const next = input.valueAsNumber;
     if (!finite(next) || next < 0 || next > 12000) { input.value = depth; return; }
-    depth = next; UW.store.set("ladcp.depth", depth); UW.renderMap();
+    depth = next; syncDepth(); UW.store.set("ladcp.depth", depth); UW.renderMap();
+  };
+  slider.oninput = () => {
+    depth = slider.valueAsNumber; input.value = depth;
+    slider.setAttribute("aria-valuetext", `${depth} metres`);
+    UW.store.set("ladcp.depth", depth);
+    if (redraw == null) redraw = requestAnimationFrame(() => { redraw = null; UW.renderMap(); });
   };
   controls();
   async function load() {
@@ -69,6 +86,7 @@
     if (!enabled) return [];
     void load();
     const f = UW.spanFilter(), visible = profiles.filter((p) => finite(p.lat) && finite(p.lon) && UW.inFilter(p.leg, p.time, f));
+    syncDepth(visible);
     const samples = visible.map((p) => ({ p, s: sampleAt(p, depth) })).filter(({ s }) => s);
     status.textContent = `${samples.length}/${visible.length} casts at ${depth} m (nearest measured bin)${failed ? " · update unavailable" : loading ? " · updating…" : ""}`;
     if (!visible.length && !loading && !failed) status.textContent = profiles.length ? "No LADCP casts in this time span; expand the span or legs." : "No LADCP profiles available.";
