@@ -5055,6 +5055,41 @@
     "pages.4ca3018930fb3560": {
       "text": "Bathymetry",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
+    },
+    "export.copy": {
+      "text": "Copy to clipboard",
+      "context": "Figure export clipboard action and status."
+    },
+    "export.copyHint": {
+      "text": "Copy a PNG at the selected size and resolution",
+      "context": "Figure export clipboard action and status."
+    },
+    "export.copying": {
+      "text": "Copying image…",
+      "context": "Figure export clipboard action and status."
+    },
+    "export.copied": {
+      "text": "Copied PNG to clipboard.",
+      "context": "Figure export clipboard action and status."
+    },
+    "export.copyUnsupported": {
+      "text": "Image copying is not supported by this browser. Use Export PNG instead.",
+      "context": "Figure export clipboard action and status."
+    },
+    "export.copyInsecure": {
+      "text": "Copying requires HTTPS or localhost. Use Export PNG on this connection.",
+      "context": "Figure export clipboard action and status."
+    },
+    "export.copyFailed": {
+      "text": "Could not copy the image. Check clipboard permissions, or use Export PNG.",
+      "context": "Figure export clipboard action and status."
+    },
+    "photos.unread": {
+      "text": {
+        "one": "{count} new photo",
+        "other": "{count} new photos"
+      },
+      "context": "Accessible label and tooltip for the unread Photos tab count badge."
     }
   }
 }

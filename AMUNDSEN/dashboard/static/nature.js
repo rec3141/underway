@@ -121,7 +121,9 @@
       const r = await fetch("api/nature/journal", { cache: "no-store" });
       if (!r.ok) return;
       const j = await r.json();
-      nat.journal = (j.entries || []).map((e) => { const o = { ...e, _journal: true, origin: e.origin || "ship" }; prep(o); return o; });
+      if (!Array.isArray(j.entries)) return;
+      nat.journal = j.entries.map((e) => { const o = { ...e, _journal: true, origin: e.origin || "ship" }; prep(o); return o; });
+      window.UWPhotoNotifications?.update(nat.journal);
     } catch { /* the journal is the ship's convenience; the record stands without it */ }
   }
   function allObs() {
@@ -623,7 +625,7 @@
   function galleryHTML() {
     const pics = nat.journal.filter((o) => o.artifact_file), rest = nat.journal.filter((o) => !o.artifact_file);
     const cap = (o) => (o.detail || "").split(/(?<=\.)\s+/)[0] || o.subject || "";
-    const cards = pics.map((o) => `<a class="gcard" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" title="${esc(o.subject || "")}"><img src="${esc(journalPic(o))}" alt="" loading="lazy"><div class="cap">${esc(cap(o))}</div><div class="who">${esc(o.observer || "")}${o.date ? " · " + esc(o.date.slice(0, 10)) : ""}</div></a>`).join("");
+    const cards = pics.map((o) => `<a class="gcard" href="#wiki/observation/${esc(o.id)}" data-slug="observation/${esc(o.id)}" data-photo-id="${esc(o.id)}" title="${esc(o.subject || "")}"><img src="${esc(journalPic(o))}" alt="" loading="lazy"><div class="cap">${esc(cap(o))}</div><div class="who">${esc(o.observer || "")}${o.date ? " · " + esc(o.date.slice(0, 10)) : ""}</div></a>`).join("");
     return (pics.length ? `<div class="gallery">${cards}</div>` : `<p class="muted small">${uh("No photos yet. Choose Submit to add some.")}</p>`) +
       (rest.length ? `<h4>${uh("Observations without a picture")}</h4>` + rest.map(jentry).join("") : "");
   }
@@ -777,6 +779,7 @@
   }
   const hlinkJournal = () => `<a href="#wiki/journal" data-slug="journal">/Share Photos</a>`;
   function wireJournal(el) {
+    window.UWPhotoNotifications?.markVisible();
     const imp = el.querySelector("#natimport"); if (imp) imp.onclick = () => { share.tab = "submit"; store.set("nat.jtab", "submit"); H.open("journal"); };
     for (const b of el.querySelectorAll("#jtabs button")) b.onclick = () => { share.tab = b.dataset.t; store.set("nat.jtab", share.tab); H.rerender(); };
     wireImport(el);
@@ -828,6 +831,17 @@
     }
     return out;
   };
+
+  // Poll only while the page is visible; opening the gallery also reloads the journal.
+  let pollingJournal = false;
+  async function pollJournal() {
+    if (UW.public || document.hidden || pollingJournal) return;
+    pollingJournal = true;
+    try { await loadJournal(); } finally { pollingJournal = false; }
+  }
+  pollJournal();
+  setInterval(pollJournal, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollJournal(); });
 
   // ---------------------------------------------------------------- wiring
   // what history.js asks of this half: its data, its views, its parts of the shared pages

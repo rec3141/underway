@@ -31,7 +31,7 @@
     <button data-tab="stations" role="tab" data-i18n="nav.stations">Stations</button>
     <button data-tab="underway" class="on" role="tab" data-i18n="nav.underway">Underway</button>
     <button data-tab="casts" role="tab" data-i18n="nav.casts">Casts</button>
-    <button data-tab="photos" role="tab" data-i18n="nav.photos" data-i18n-title="nav.photosHint" title="Photo gallery and imports">Photos</button>
+    <button data-tab="photos" role="tab" data-i18n-title="nav.photosHint" title="Photo gallery and imports"><span data-i18n="nav.photos">Photos</span><span id="photos-unread" class="notification-count" role="img" hidden></span></button>
     <button data-tab="wiki" role="tab" data-i18n="nav.wiki" data-i18n-title="nav.wikiHint" title="the region's past and its nature: voyages, people, places and artifacts, the rock, the ice, the water, the sky and the living things, on the map and in a wiki, with the crew to ask">Wiki</button>
     <button data-tab="chat" role="tab" id="tabchat" data-i18n="nav.chat" data-i18n-title="nav.chatHint" title="ship chat">Chat</button>
     <a href="/game/" class="games-link" data-nav="games" data-i18n="nav.games">Games</a>
@@ -295,6 +295,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/ladcp.js?v={{ site.asset_version }}"></script>
 <script src="static/photo-gallery.js?v={{ site.asset_version }}"></script>
 <script src="static/history.js?v={{ site.asset_version }}"></script>
+<script src="static/photo-notifications.js?v={{ site.asset_version }}"></script>
 <script src="static/nature.js?v={{ site.asset_version }}"></script>
 <script src="static/chat.js?v={{ site.asset_version }}"></script>
 <script src="static/feedback.js?v={{ site.asset_version }}"></script>

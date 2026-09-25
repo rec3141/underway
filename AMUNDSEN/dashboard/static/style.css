@@ -1620,3 +1620,12 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
 .ladcp-controls input[type=number]:focus { border-color: var(--accent); outline: none; }
 .ladcp-controls #ladcp-depth-slider { width: 120px; padding: 0; accent-color: var(--accent); cursor: pointer; }
 @media (max-width: 640px) { .ladcp-controls #ladcp-depth-slider { width: 90px; } }
+
+/* Keep the unread count inside the Photos tab in desktop and mobile navigation. */
+#tabs [data-tab="photos"] .notification-count {
+  display:inline-flex; align-items:center; justify-content:center; vertical-align:middle;
+  min-width:18px; height:18px; margin-left:6px; padding:0 5px; box-sizing:border-box;
+  border-radius:999px; background:#c5223b; color:#fff;
+  font-size:11px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;
+}
+#tabs [data-tab="photos"] .notification-count[hidden] { display:none; }

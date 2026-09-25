@@ -6022,6 +6022,52 @@
       "source": "Bathymetry",
       "text": "Bathymétrie",
       "status": "draft"
+    },
+    "export.copy": {
+      "source": "Copy to clipboard",
+      "text": "Copier dans le presse-papiers",
+      "status": "draft"
+    },
+    "export.copyHint": {
+      "source": "Copy a PNG at the selected size and resolution",
+      "text": "Copier une image PNG aux dimensions et à la résolution choisies",
+      "status": "draft"
+    },
+    "export.copying": {
+      "source": "Copying image…",
+      "text": "Copie de l’image…",
+      "status": "draft"
+    },
+    "export.copied": {
+      "source": "Copied PNG to clipboard.",
+      "text": "Image PNG copiée dans le presse-papiers.",
+      "status": "draft"
+    },
+    "export.copyUnsupported": {
+      "source": "Image copying is not supported by this browser. Use Export PNG instead.",
+      "text": "Ce navigateur ne permet pas de copier une image. Utilisez « Exporter en PNG ».",
+      "status": "draft"
+    },
+    "export.copyInsecure": {
+      "source": "Copying requires HTTPS or localhost. Use Export PNG on this connection.",
+      "text": "La copie nécessite HTTPS ou localhost. Utilisez « Exporter en PNG » avec cette connexion.",
+      "status": "draft"
+    },
+    "export.copyFailed": {
+      "source": "Could not copy the image. Check clipboard permissions, or use Export PNG.",
+      "text": "Impossible de copier l’image. Vérifiez les autorisations du presse-papiers ou utilisez « Exporter en PNG ».",
+      "status": "draft"
+    },
+    "photos.unread": {
+      "source": {
+        "one": "{count} new photo",
+        "other": "{count} new photos"
+      },
+      "text": {
+        "one": "{count} nouvelle photo",
+        "other": "{count} nouvelles photos"
+      },
+      "status": "draft"
     }
   }
 }

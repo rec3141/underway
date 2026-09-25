@@ -54,6 +54,13 @@ window.UW_UI_CATALOG = {
         "chatControls.send": "send",
         "chatControls.sidebar": "open as a side bar",
         "export.close": "Close export preview",
+        "export.copied": "Copied PNG to clipboard.",
+        "export.copy": "Copy to clipboard",
+        "export.copyFailed": "Could not copy the image. Check clipboard permissions, or use Export PNG.",
+        "export.copyHint": "Copy a PNG at the selected size and resolution",
+        "export.copyInsecure": "Copying requires HTTPS or localhost. Use Export PNG on this connection.",
+        "export.copyUnsupported": "Image copying is not supported by this browser. Use Export PNG instead.",
+        "export.copying": "Copying image…",
         "export.downloaded": "Downloaded.",
         "export.failed": "Export failed. Try a smaller size or resolution, and check that map tiles have loaded.",
         "export.graph": "Graph",
@@ -64,13 +71,6 @@ window.UW_UI_CATALOG = {
         "export.instructions": "Drag the panel’s bottom-right corner, or enter exact image dimensions. Large previews can be scrolled.",
         "export.map": "Map",
         "export.mapNote": "Map SVG contains a raster image; graph SVGs retain vector detail.",
-        "export.copy": "Copy to clipboard",
-        "export.copyHint": "Copy a PNG at the selected size and resolution",
-        "export.copying": "Copying image…",
-        "export.copied": "Copied PNG to clipboard.",
-        "export.copyUnsupported": "Image copying is not supported by this browser. Use Export PNG instead.",
-        "export.copyInsecure": "Copying requires HTTPS or localhost. Use Export PNG on this connection.",
-        "export.copyFailed": "Could not copy the image. Check clipboard permissions, or use Export PNG.",
         "export.png": "Export PNG",
         "export.preparing": "Preparing download…",
         "export.previewFailed": "Could not prepare the preview. Check that map tiles have loaded, then try again.",
@@ -1028,6 +1028,10 @@ window.UW_UI_CATALOG = {
         "pages.fed33eed5cc86f86": "message · Enter to send",
         "pages.fee60d38cb840402": "Community Visit",
         "pages.ff0139d07c592e9a": "confidence",
+        "photos.unread": {
+          "one": "{count} new photo",
+          "other": "{count} new photos"
+        },
         "provenance.basemap": "Basemap: {layers}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally.",
         "provenance.basemap.depth": "depth bands",
         "provenance.basemap.natural": "Natural Earth 10 m coastline, land and glaciers",
@@ -1341,6 +1345,13 @@ window.UW_UI_CATALOG = {
         "chatControls.send": "envoyer",
         "chatControls.sidebar": "ouvrir dans un panneau latéral",
         "export.close": "Fermer l’aperçu d’exportation",
+        "export.copied": "Image PNG copiée dans le presse-papiers.",
+        "export.copy": "Copier dans le presse-papiers",
+        "export.copyFailed": "Impossible de copier l’image. Vérifiez les autorisations du presse-papiers ou utilisez « Exporter en PNG ».",
+        "export.copyHint": "Copier une image PNG aux dimensions et à la résolution choisies",
+        "export.copyInsecure": "La copie nécessite HTTPS ou localhost. Utilisez « Exporter en PNG » avec cette connexion.",
+        "export.copyUnsupported": "Ce navigateur ne permet pas de copier une image. Utilisez « Exporter en PNG ».",
+        "export.copying": "Copie de l’image…",
         "export.downloaded": "Téléchargement lancé.",
         "export.failed": "Échec de l’exportation. Réduisez les dimensions ou la résolution et vérifiez que les tuiles cartographiques sont chargées.",
         "export.graph": "Graphique",
@@ -1351,13 +1362,6 @@ window.UW_UI_CATALOG = {
         "export.instructions": "Faites glisser le coin inférieur droit du panneau ou saisissez les dimensions exactes de l’image. Les grands aperçus peuvent être parcourus avec les barres de défilement.",
         "export.map": "Carte",
         "export.mapNote": "Le SVG d’une carte contient une image matricielle; les SVG des graphiques conservent leurs éléments vectoriels.",
-        "export.copy": "Copier dans le presse-papiers",
-        "export.copyHint": "Copier une image PNG aux dimensions et à la résolution choisies",
-        "export.copying": "Copie de l’image…",
-        "export.copied": "Image PNG copiée dans le presse-papiers.",
-        "export.copyUnsupported": "Ce navigateur ne permet pas de copier une image. Utilisez « Exporter en PNG ».",
-        "export.copyInsecure": "La copie nécessite HTTPS ou localhost. Utilisez « Exporter en PNG » avec cette connexion.",
-        "export.copyFailed": "Impossible de copier l’image. Vérifiez les autorisations du presse-papiers ou utilisez « Exporter en PNG ».",
         "export.png": "Exporter en PNG",
         "export.preparing": "Préparation du téléchargement…",
         "export.previewFailed": "Impossible de préparer l’aperçu. Vérifiez que les tuiles cartographiques sont chargées, puis réessayez.",
@@ -2315,6 +2319,10 @@ window.UW_UI_CATALOG = {
         "pages.fed33eed5cc86f86": "message · Entrée pour envoyer",
         "pages.fee60d38cb840402": "Visite communautaire",
         "pages.ff0139d07c592e9a": "confiance",
+        "photos.unread": {
+          "one": "{count} nouvelle photo",
+          "other": "{count} nouvelles photos"
+        },
         "provenance.basemap": "Fond de carte : {layers}; lieux habités provenant de GeoNames (CC BY 4.0; Nunavut, T.N.-O., Labrador, nord du Québec, de l’Ontario et du Manitoba, et Groenland); toutes les données sont servies localement.",
         "provenance.basemap.depth": "bandes de profondeur",
         "provenance.basemap.natural": "littoral, terres et glaciers de Natural Earth 10 m",
@@ -2774,6 +2782,34 @@ window.UW_UI_CATALOG = {
         "export.close": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "fab9f8264a496eb4d8786f64d2e01455a030e7fb30fd2040097af1b39d5dd7c4"
+        },
+        "export.copied": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f66fd76fca4c503c7fad73f6694524237dafe025d8649311162b1fe07f998cab"
+        },
+        "export.copy": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d87f2123bd41e9a0d1a0aa16a86cae25db3bcb6411a72687382f202f029322bc"
+        },
+        "export.copyFailed": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "ae1120172d8c850bb05256ed459cbeb58aeb9b2764be3cc77c0f2a7202e51777"
+        },
+        "export.copyHint": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "f443583cbd847cf5f66801f35981fa2a6304e13429282c5fe6d2dcfdfec6aa2e"
+        },
+        "export.copyInsecure": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "64dc7936a381ef1723aae9199525c0cf3ea663ee11ee45f5514dc804fcefdab5"
+        },
+        "export.copyUnsupported": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "54d7960c018d553279a0ab3224f51e4675110d6397160a7e0b1b3bf079aed626"
+        },
+        "export.copying": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "0ce3bbab6564a7f9f07800bf89f9b5073fae654703a2955a427d7bd307af3d95"
         },
         "export.downloaded": {
           "profile": "editorial-fr-ca-v4",
@@ -6642,6 +6678,10 @@ window.UW_UI_CATALOG = {
         "pages.ff0139d07c592e9a": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "526009817ef4263771aef512967c933ca4cf34a4de819784bc6f28606bfeabdf"
+        },
+        "photos.unread": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "afb2b0e8e821cc6225d46b9989003144452f39fe35eed9bbb931b9ed7d26a013"
         },
         "provenance.basemap": {
           "profile": "editorial-fr-ca-v4",
