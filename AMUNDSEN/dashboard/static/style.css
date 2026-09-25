@@ -627,6 +627,15 @@ html.bigtype .dockgroup .chips { height: auto; min-height:230px; }
 /* casts */
 /* selector above the figures */
 .cast-layout { display: flex; flex-direction: column; gap: 12px; }
+/* No Map on a wide screen: the figures take the map's place on the left and
+   the list stays beside them, as tall as the window allows */
+@media (min-width: 1101px) {
+  main.mapmin .cast-layout { display: grid; grid-template-columns: minmax(0, 7fr) minmax(360px, 5fr); column-gap: 16px; align-items: start; }
+  main.mapmin .castmain { grid-column: 1; grid-row: 1; }
+  main.mapmin .castside { grid-column: 2; grid-row: 1; position: sticky; top: 0; }
+  main.mapmin .tablewrap.castlist { max-height: calc(100vh - 260px); max-height: calc(100dvh - 260px); }
+  main.mapmin .castside .castfilter { flex-basis: 100%; }
+}
 .cast-bottle-table { margin-top: 12px; }
 .cast-bottle-table > summary { padding: 8px 12px; font-weight: 650; }
 .cast-bottle-table .pane-tools { padding: 8px 12px; align-items: center; }

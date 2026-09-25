@@ -578,6 +578,10 @@ def mvp_casts(leg: Leg) -> list[Cast]:
                 dips.append(c)
     tows: dict[str, list[Cast]] = {}
     for d in dips:
+        # a deck test or a start/stop with no dive logs a file with no samples
+        # in the water; it is not a dip and would stretch the tow's time and track
+        if not d.p:
+            continue
         tows.setdefault(d.station, []).append(d)
     out = []
     for tow, ds in sorted(tows.items()):
