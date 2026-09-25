@@ -1046,7 +1046,7 @@
     if (sampledCurrents) {
       const signed = ["Eastward current", "Northward current", "Current error"].includes(v);
       const bound = withVar.reduce((max, d) => d.vars[v].reduce((m, value) => Number.isFinite(value) ? Math.max(m, Math.abs(value)) : m, max), 0.001);
-      Object.assign(traces[0], { colorscale: signed ? "RdBu" : "Viridis", zmin: signed ? -bound : 0, zmax: bound });
+      Object.assign(traces[0], { colorscale: UW.cmap(signed ? "RdBu" : "Viridis"), zmin: signed ? -bound : 0, zmax: bound });
     }
     // Shade below the sounded bottom or deepest sample, preserving gaps between tows.
     {

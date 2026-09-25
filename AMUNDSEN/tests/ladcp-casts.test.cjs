@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
 const plots=[];
 const el={querySelectorAll:()=>[],querySelector:()=>({clientWidth:800}),classList:{toggle(){}},style:{}};
-const UW={THEME:{font:{}},C:{palette:['#123456']},fz:x=>x,CFG:{},fmtTs:String,store:{get:(k,d)=>d,set(){}},SITE:{local_tz:'America/Toronto'},M:{},shipAxis:x=>x,plotDate:x=>x,tzAbbr:()=> 'UTC',axisZoom(){},reactPlot:(e,t,l)=>{plots.push({t,l});return Promise.resolve(el)}};
+const UW={THEME:{font:{}},C:{palette:['#123456']},fz:x=>x,cmap:n=>'cmap:'+n,CFG:{},fmtTs:String,store:{get:(k,d)=>d,set(){}},SITE:{local_tz:'America/Toronto'},M:{},shipAxis:x=>x,plotDate:x=>x,tzAbbr:()=> 'UTC',axisZoom(){},reactPlot:(e,t,l)=>{plots.push({t,l});return Promise.resolve(el)}};
 const ctx={window:{addEventListener(){},UW,UWI18n:{t:x=>x,text:(s,v={})=>s.replace(/\{(\w+)\}/g,(_,k)=>v[k]??""),html:(s,v={})=>s.replace(/\{(\w+)\}/g,(_,k)=>v[k]??"")},UWData:{generationCache:()=>()=>{}}},document:{addEventListener(){},querySelector:()=>el},console,setTimeout,clearTimeout,Intl};
 let src=fs.readFileSync(require('path').join(__dirname,'../dashboard/static/tabs.js'),'utf8');src=src.slice(0,src.indexOf('  wireCasts(); wireStations();'))+' window.test={casts,depths,maxDepthValue,drawn,currentSeries,renderSection};})();';vm.runInNewContext(src,ctx);
 const t=ctx.window.test;
@@ -11,7 +11,7 @@ assert.equal(t.drawn(a,'Eastward current'),a.vars['Eastward current']);
 assert.deepEqual(Array.from(t.currentSeries(a,'Eastward current').depth),[8,16,24,null,48]);
 const ctd={p:[100],lat:70};assert.ok(t.depths(ctd)[0]<100&&t.depths(ctd)[0]>98);
 t.casts.variable='Eastward current';t.renderSection(el,[a,{...a,id:'L:LADCP002',cast:'002',lon:-69,vars:{'Eastward current':[.2,.5,null,.8]},time:'2026-09-22T00:00:00Z'}]);
-const plot=plots.at(-1),trace=plot.t[0];assert.equal(trace.type,'heatmap');assert.equal(trace.zmin,-.8);assert.equal(trace.zmax,.8);assert.equal(trace.x.length,240);assert.ok(plot.l.yaxis.range[0]>48);assert.doesNotMatch(el.innerHTML,/QC|not interpolated|Source:/);
+const plot=plots.at(-1),trace=plot.t[0];assert.equal(trace.type,'heatmap');assert.equal(trace.colorscale,'cmap:RdBu');assert.equal(trace.zmin,-.8);assert.equal(trace.zmax,.8);assert.equal(trace.x.length,240);assert.ok(plot.l.yaxis.range[0]>48);assert.doesNotMatch(el.innerHTML,/QC|not interpolated|Source:/);
 assert.ok(Math.abs(trace.z[8][120]-(-.2+.4*120/239))<1e-9);
 assert.equal(trace.z[0][120],null);
 console.log('PASS: native metre depth, CTD conversion, unsmoothed profiles, depth gaps, interpolated current sections and symmetric colour scale.');
