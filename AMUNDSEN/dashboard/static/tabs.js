@@ -616,8 +616,7 @@
       store.set('casts.single.order', ordered);
     }
     const upperAxes = ordered.slice(0, ordered.indexOf(CHART));
-    const provenance = isLadcp(pick) ? `<p class="muted">${esc(pick.qc_note || "Scientific QC not verified; inspect error velocity alongside currents.")}<br>Source: ${esc(pick.source?.path || "processed LADCP profile")}${pick.parent_cast_id ? ` · Rosette: ${esc(pick.parent_cast_id)}` : ""}</p>` : "";
-    host.innerHTML = provenance + `<div class="livebar">
+    host.innerHTML = `<div class="livebar">
       ${sheet ? `<div><a class="chip" href="${esc(sheet)}" target="_blank" rel="noopener">${uh("Rosette sheet ↗")}</a></div>` : ''}
       ${data.length > 1 ? `<div class="livevars"><span class="muted">${uh("Select Cast:")}</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
       ${profs.length > 1 ? `<div class="livevars"><span class="muted">${uh("dip:")}</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
@@ -663,8 +662,7 @@
     if (seq !== plotSeq || stamp !== UW.M.generated_utc) return false;
     UW.setLoadError("Casts", false);
     const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
-    const currents = data.filter(isLadcp);
-    $("#castmeta").textContent = ui("{v0} selected · {v1} profile{v2}", {v0: (data.length), v1: (dips), v2: (dips === 1 ? "" : "s")}) + (currents.length ? ui(" · LADCP: true east/north currents; source error velocity available; scientific QC not verified. Native bins, no smoothing.") : "");
+    $("#castmeta").textContent = ui("{v0} selected · {v1} profile{v2}", {v0: (data.length), v1: (dips), v2: (dips === 1 ? "" : "s")});
     if (casts.mode === "profiles") renderProfiles(host, data); else if (casts.mode === "single") renderSingle(host, data); else renderSection(host, data);
   }
 
@@ -783,7 +781,7 @@
     if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
     const legendHtml = () => castPanelHtml("cp-legend", LEGEND, ui("{v0} cast{v1}", {v0: (data.length), v1: (data.length === 1 ? "" : "s")}), true, true, false, false)
       .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
-      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}${isLadcp(d) ? `<br>Source: ${esc(d.source?.path || "processed LADCP")}${d.parent_cast_id ? `<br>Rosette: ${esc(d.parent_cast_id)}` : ""}` : ""}</small></span>`).join("")}</div>`);
+      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
     const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="${uh("restore")}">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
       vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("");
     // Single and Section replace these children, even when the Multi markup is unchanged.
@@ -965,14 +963,14 @@
     const unit = withVar[0].units[v] || "";
     // Resample onto a regular x grid so the section interpolates between
     // profiles in both modes (a heatmap on irregular x only smooths in pixels).
-    const cols = sampledCurrents ? [] : withVar.map(onDepthGrid);
+    const cols = withVar.map(onDepthGrid);
     const NX = 240;
     const x0 = Math.min(...xs), x1 = Math.max(...xs), span = x1 - x0 || 1;
     const xg = Array.from({ length: NX }, (_, i) => x0 + span * i / (NX - 1));
     const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
     const separateTows = (a, b) => withVar[a].parent?.id !== withVar[b].parent?.id &&
       (withVar[a].parent?.kind === "MVP" || withVar[b].parent?.kind === "MVP");
-    const z = sampledCurrents ? [] : grid.map((_, gi) => xg.map((xv) => {
+    const z = grid.map((_, gi) => xg.map((xv) => {
       let k = 0; while (k < order.length - 1 && xs[order[k + 1]] < xv) k++;
       const a = order[k], b = order[Math.min(k + 1, order.length - 1)];
       const za = cols[a][gi], zb = cols[b][gi];
@@ -990,7 +988,7 @@
     // movable (drag, or ▲ ▼); moving one switches the axis to custom and
     // keeps that order, and a link restores time order
     const entry = (d, i) => `<span class="chip reorder" draggable="true" data-i="${i}" title="${uh("drag, or ▲ ▼, to lay the profiles in your own order")}"><b>${i + 1}</b><span class="lbl">${esc(d.label)}<small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span><span class="nudges"><button type="button" class="nudge" data-d="-1" title="${uh("move up")}" ${i === 0 ? "disabled" : ""}>▲</button><button type="button" class="nudge" data-d="1" title="${uh("move down")}" ${i === withVar.length - 1 ? "disabled" : ""}>▼</button></span></span>`;
-    host.innerHTML = (sampledCurrents ? `<p class="muted">${uh("LADCP section: squares mark native depth bins at sampled stations. Empty space is unsampled; currents are not interpolated between stations.")}</p>` : "") + `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? `<a href="#" class="timeorder">${uh("↺ time order")}</a>` : ""}</div>` +
+    host.innerHTML = `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? `<a href="#" class="timeorder">${uh("↺ time order")}</a>` : ""}</div>` +
       castPanelHtml("cs-plot", uh("{v0} section", {v0: (v)}), uh("{v0} profiles · {v1} km · {v2}{v3}", {v0: (withVar.length), v1: (km.at(-1).toFixed(0)), v2: (unit), v3: (smoothW ? uh(" · smoothed over {v0} m", {v0: (smoothW)}) : "")}), false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide') + "</div>";
     const move = (from, to) => {
       const arr = [...withVar]; const [x] = arr.splice(from, 1); arr.splice(to, 0, x); saveOrder(arr);
@@ -1021,19 +1019,13 @@
         textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
         hovertext: withVar.map((d, i) => `${i + 1} · ${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
-    // Current sections retain native samples without interpolated station columns.
     if (sampledCurrents) {
-      const samples = withVar.flatMap((d, i) => depths(d).flatMap((depth, j) => Number.isFinite(d.vars[v][j]) ? [{ x: xPts[i], depth, value: d.vars[v][j], label: d.label }] : []));
       const signed = ["Eastward current", "Northward current", "Current error"].includes(v);
-      const bound = Math.max(0.001, ...samples.map((p) => Math.abs(p.value)));
-      traces[0] = { type: "scatter", mode: "markers", x: samples.map((p) => p.x), y: samples.map((p) => yT(p.depth)),
-        customdata: samples.map((p) => [p.depth, p.value, p.label]),
-        marker: { symbol: "square", size: 6, color: samples.map((p) => p.value), colorscale: signed ? "RdBu" : "Viridis",
-          cmin: signed ? -bound : 0, cmax: bound, showscale: true, colorbar: traces[0].colorbar },
-        hovertemplate: `%{customdata[2]}<br>%{customdata[0]:.1f} m · %{customdata[1]:.3f} ${esc(unit)}<extra></extra>` };
+      const bound = withVar.reduce((max, d) => d.vars[v].reduce((m, value) => Number.isFinite(value) ? Math.max(m, Math.abs(value)) : m, max), 0.001);
+      Object.assign(traces[0], { colorscale: signed ? "RdBu" : "Viridis", zmin: signed ? -bound : 0, zmax: bound });
     }
-    // Hydrographic sections shade below the sounded bottom or deepest sample.
-    if (!sampledCurrents) {
+    // Shade below the sounded bottom or deepest sample, preserving gaps between tows.
+    {
       const sounded = withVar.map((d) => d.bottom_m > 0);
       const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depths(d).at(-1)));
       const bottomRuns = [[]];

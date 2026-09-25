@@ -395,8 +395,8 @@ The map stays on the left; the tabs swap the right-hand pane.
   grids reject that file without blocking the other casts; nonfinite velocity
   values become JSON null. No depth extrapolation is performed by the importer.
   In Casts, choose **LADCP**, select profiles, then use **Single**, **Multi**
-  or **Section**. Sections show samples at stations without interpolating
-  between stations. On the map, enable **LADCP currents** and enter a depth
+  or **Section**. Sections interpolate between stations on the same depth and time/distance
+  grid as other casts. Source and processing notes are shown in Sources. On the map, enable **LADCP currents** and enter a depth
   in metres. Arrows use the nearest measured bin within half the typical bin
   spacing, follow the selected legs/time span, and omit unsampled depths.
   Arrowheads point toward flow; length and colour encode speed. Hover shows

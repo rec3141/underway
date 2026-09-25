@@ -96,7 +96,7 @@
       const text = `<b>LADCP cast ${esc(p.cast)}${p.station ? " · " + esc(p.station) : ""}</b><br>${esc(p.leg)} · ${esc(p.time)} UTC` +
         `<br>${s.depth.toFixed(1)} m · ${s.speed.toFixed(3)} m/s${s.direction == null ? " · calm" : ` toward ${s.direction.toFixed(0)}° true`}` +
         `<br>East ${s.u.toFixed(3)} · North ${s.v.toFixed(3)} m/s<br>Error velocity ${s.error == null ? "unavailable" : s.error.toFixed(3) + " m/s"}` +
-        `<br>${esc(p.qc_note || "Processed station profile; error velocity retained.")}<br>Click for current profile`;
+        `<br>Click for current profile`;
       if (points.length) out.push({ type: "scattermap", mode: "lines", name: "LADCP currents", showlegend: false,
         lat: points.map((q) => q[1]), lon: points.map((q) => q[0]), text: points.map(() => text), customdata: points.map(() => p.id), hoverinfo: "text",
         line: { color: speedColour(s.speed), width: selected.has(p.id) ? 4 : 2.5 } });

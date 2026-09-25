@@ -2071,6 +2071,8 @@
     $("#sources").lang = $("#notes").lang = window.UWI18n.locale;
     $("#notes").innerHTML =
       `<p><b>Surprise</b>: ${M.surprise.note ? `<span lang="en">${esc(M.surprise.note)}</span>` : esc(t("provenance.notComputed"))}. ${esc(t("provenance.surprise"))}</p>` +
+      `<p lang="en"><b>LADCP currents</b>: Processed lowered-ADCP exports from <code>Data/Rosette/&lt;leg&gt;/Ladcp/stn###.lad</code>, matched to their parent CTD cast. Depth bins are metres below the sea surface; eastward and northward velocities and error velocity are in m/s. Components reference true east/north, and arrows point in the direction of flow. Scientific QC has not been verified; source error velocities are retained without an automatic threshold.</p>` +
+      `<p lang="en">LADCP profiles retain native bins without smoothing. Transect sections interpolate onto the same depth and time/distance grid as other casts; values between stations are interpolated estimates. Map arrows use the nearest measured bin within half the typical bin spacing, omit unavailable depths, and do not extrapolate. Source headers and parent cast identifiers are retained in the downloadable cast JSON.</p>` +
       paragraph("zoom") + paragraph("heat") +
       paragraph("inputs", {files:M.files.total,legs:M.legs.length,latest:M.files.latest}) +
       paragraph("record", {start:fmtTs(Date.parse(M.data_range.start)),end:fmtTs(Date.parse(M.data_range.end)),zone:tzAbbr(),columns:M.columns_seen.length}) +
