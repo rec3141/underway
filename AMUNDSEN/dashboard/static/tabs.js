@@ -899,12 +899,26 @@
     }
     return out;
   }
+  // whether a profile can be a section column: it samples the variable at
+  // two depths or more, SECTION_MIN_SPAN metres apart at least
+  const SECTION_MIN_SPAN = 5;
+  const sectionable = (d, v) => {
+    const x = d.vars[v];
+    if (!x?.length) return false;
+    const ds = depths(d);
+    let n = 0, lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < ds.length; i++) if (x[i] != null && Number.isFinite(ds[i])) { n++; lo = Math.min(lo, ds[i]); hi = Math.max(hi, ds[i]); }
+    return n >= 2 && hi - lo >= SECTION_MIN_SPAN;
+  };
   function renderSection(host, data) {
     const v = casts.variable;
     // tows contribute every dip; everything is ordered by time, or in
     // custom mode as the user has arranged the legend
     const custom = casts.xmode === "custom", az = casts.xmode === "az";
-    let withVar = data.flatMap(profilesOf).filter((d) => d.vars[v]).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    // a dip only adds a column when it samples the variable over a few
+    // metres: the MVP logs deck tests and aborted dips with no samples or a
+    // single depth, which would leave nothing but a hole in the section
+    let withVar = data.flatMap(profilesOf).filter((d) => sectionable(d, v)).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     if (custom) withVar = customOrder(withVar);
     // A–Z: by station id, numbers in order (CardS-2 before CardS-10), then time
     const stationOf = (d) => String(d.station ?? d.parent?.station ?? d.label ?? "");
@@ -970,17 +984,27 @@
     const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
     const separateTows = (a, b) => withVar[a].parent?.id !== withVar[b].parent?.id &&
       (withVar[a].parent?.kind === "MVP" || withVar[b].parent?.kind === "MVP");
-    const z = grid.map((_, gi) => xg.map((xv) => {
-      let k = 0; while (k < order.length - 1 && xs[order[k + 1]] < xv) k++;
-      const a = order[k], b = order[Math.min(k + 1, order.length - 1)];
-      const za = cols[a][gi], zb = cols[b][gi];
-      if (a === b || xs[b] === xs[a]) return za;
-      const t = (xv - xs[a]) / (xs[b] - xs[a]);
-      // Dips within one tow form a section; the transit between tows is unsampled.
-      if (separateTows(a, b)) return t === 0 ? za : t === 1 ? zb : null;
-      if (za == null || zb == null) return t < 0.5 ? za : zb;      // no bridging into a gap
-      return za + (zb - za) * t;
-    }));
+    // Dips within one tow form a section; the transit between tows is
+    // unsampled, so each tow is its own run and nothing is drawn across a gap
+    const run = new Array(withVar.length).fill(0);
+    order.forEach((i, k) => { if (k) run[i] = run[order[k - 1]] + (separateTows(order[k - 1], i) ? 1 : 0); });
+    // at each depth, interpolate between the nearest profiles either side that
+    // sampled it, so a dip that stopped short or started deep leaves no hole;
+    // nothing reaches beyond the end profiles
+    const z = grid.map((_, gi) => {
+      const have = order.filter((i) => cols[i][gi] != null);
+      let k = 0;
+      return xg.map((xv) => {
+        if (!have.length) return null;
+        while (k < have.length - 1 && xs[have[k + 1]] <= xv) k++;
+        const a = have[k];
+        if (xs[a] > xv) return null;
+        if (xs[a] === xv) return cols[a][gi];
+        const b = have[k + 1];
+        if (b == null || run[a] !== run[b]) return null;
+        return cols[a][gi] + (cols[b][gi] - cols[a][gi]) * (xv - xs[a]) / (xs[b] - xs[a]);
+      });
+    });
     const xPlot = byTime ? xg.map(UW.plotDate) : xg;
     const xPts = byTime ? xs.map(UW.plotDate) : xs;
     const dense = withVar.length > 24;      // a tow: label only every few dips
