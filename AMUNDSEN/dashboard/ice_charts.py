@@ -454,6 +454,36 @@ def refresh(regions: tuple[str, ...] = REFRESH_REGIONS, product: str = "WIS36C")
     return {"added": added, "kept": kept, "failed": failed}
 
 
+def _placeholder(png: bytes) -> bool:
+    """Whether a daily raster is the Ice Service's "chart not available" sheet.
+
+    A real chart colours its ice (red, orange, yellow, green, purple) or its
+    open water (light blue); the stand-in carries only land, graticule and a
+    line of black text. Without Pillow, or for an image it cannot read, the
+    raster counts as a real chart.
+    """
+    try:
+        from PIL import Image
+        import numpy as np
+    except ImportError:
+        return False
+    import io
+    try:
+        with Image.open(io.BytesIO(png)) as image:
+            image = image.convert("RGBA")
+            image.thumbnail((600, 600))
+            pixels = np.asarray(image, dtype=float)
+    except Exception:
+        return False
+    rgb = pixels[..., :3][pixels[..., 3] > 0] / 255
+    if not len(rgb):
+        return True
+    top, bottom = rgb.max(axis=1), rgb.min(axis=1)
+    saturated = ((top - bottom) > 0.5 * top) & (top > 0.3)
+    water = (rgb[:, 2] - rgb[:, 0] > 0.08) & (rgb[:, 2] > 0.5)
+    return float((saturated | water).mean()) < 0.005
+
+
 def publish(root: Path) -> dict | None:
     """Publish local charts without a network request or GIS dependencies.
 
@@ -482,6 +512,18 @@ def publish(root: Path) -> dict | None:
             log.warning("ice chart %s not published: %s", path.name, exc)
     rasters = {path.name: path for path in SEED_DIR.glob("*.raster.json")}
     rasters.update({path.name: path for path in chart_dir().glob("*.raster.json")})
+    # only the newest daily raster of each region, and only when it is a real
+    # chart: an older one would stand in for a day the Ice Service has not charted
+    newest: dict[str, tuple[str, str, Path]] = {}
+    for name, metadata in rasters.items():
+        try:
+            entry = json.loads(metadata.read_text())
+            key = entry.get("valid_time") or entry["date"]
+            if entry["region"] not in newest or key > newest[entry["region"]][0]:
+                newest[entry["region"]] = (key, name, metadata)
+        except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            log.warning("ice chart %s not published: %s", metadata.name, exc)
+    rasters = {name: metadata for _, name, metadata in newest.values()}
     for name, metadata in sorted(rasters.items()):
         try:
             entry = json.loads(metadata.read_text())
@@ -500,6 +542,9 @@ def publish(root: Path) -> dict | None:
             data = source_image.read_bytes()
             if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) > MAX_BYTES:
                 raise ValueError("Invalid raster chart image")
+            if _placeholder(data):
+                log.info("ice chart %s is the Ice Service's chart-not-available sheet; not published", entry["id"])
+                continue
             digest = hashlib.sha256(data).hexdigest()[:16]
             destination = root / "data" / "ice-charts" / image_name
             if not destination.exists() or destination.read_bytes() != data:

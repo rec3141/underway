@@ -28,11 +28,10 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  UW.iceCharts.refresh(manifest,view,'2026-09-10');
  document.querySelector('#icechart-toggle').click();
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));
- result.initial=document.querySelector('#icechart-status').textContent.includes('2026-09-07')?'old':'wrong';
+ result.initial=document.querySelector('#icechart-toggle').title.includes('2026-09-07')?'old':'wrong';
  const pt=view.map.project([-85,75]);view.map.fire('click',{point:pt});
  result.clicked=!!document.querySelector('.icechart-detail[open]');
  document.querySelector('.icechart-detail button').click();
- const slider=document.querySelector('#icechart-opacity');slider.value='65';slider.dispatchEvent(new Event('input'));
  result.opacity=view.map.getPaintProperty('cis-ice-fill','fill-opacity');
  view.setStyle({...style,id:'second',layers:[{id:'background',type:'background',paint:{'background-color':'#244355'}},...style.layers.slice(1)]});
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));
@@ -52,8 +51,8 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  const realFetch=window.fetch;window.fetch=(url,options)=>realFetch(url==='/chart-fail'?'/chart-old':url,options);
  document.querySelector('#icechart-retry').click();
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));result.retried=true;
- UW.iceCharts.refresh(manifest,view,'2025-09-10');result.futureHidden=!view.map.getLayer('cis-ice-fill')&&document.querySelector('#icechart-status').textContent.includes('No cached chart on or before');
- UW.iceCharts.refresh(null,view,'2026-09-10');result.empty=document.querySelector('#icechart-status').textContent.includes('No ice charts cached');
+ UW.iceCharts.refresh(manifest,view,'2025-09-10');result.futureHidden=!view.map.getLayer('cis-ice-fill')&&document.querySelector('#icechart-toggle').title.includes('Cached chart unavailable');
+ UW.iceCharts.refresh(null,view,'2026-09-10');result.empty=document.querySelector('#icechart-toggle').title.includes('No ice charts cached');
  UW.iceCharts.refresh({charts:[{...manifest.charts[0],region:'<img src=x onerror=alert(1)>'}]},view,'2026-09-10');
  await until(()=>view.map.getLayer('cis-ice-fill')&&view.map.isSourceLoaded('cis-ice-chart'));await wait(100);view.map.fire('click',{point:pt});
  result.escaped=document.querySelectorAll('.icechart-detail img').length===0&&document.querySelector('.icechart-detail').textContent.includes('<img');
@@ -67,7 +66,7 @@ window.errors=[];window.done=false;window.result={};addEventListener('error',e=>
  UW.iceCharts.refresh(raster,view,'2026-09-15T03:22:00Z');
  await until(()=>view.map.getLayer('cis-ice-raster')&&view.map.isSourceLoaded('cis-ice-chart'));
  const rasterSource=view.map.getSource('cis-ice-chart');
- result.raster=view.map.getSource('cis-ice-chart').type==='image'&&document.querySelector('#icechart-status').textContent.includes('Daily raster analysis');
+ result.raster=view.map.getSource('cis-ice-chart').type==='image'&&document.querySelector('#icechart-toggle').title.includes('Eureka (daily raster)');
  result.rasterSize=[rasterSource.image.width,rasterSource.image.height];
  result.rasterClick=UW.iceCharts.click({point:pt});
  window.done=true;
@@ -105,10 +104,10 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
  assert.equal(result.initial,'old');assert.equal(result.clicked,true);assert.equal(result.layerRestored,true);
  assert.equal(result.off,true);assert.equal(result.cancelled,true);assert.equal(result.raceCleared,true);assert.equal(result.retried,true);
  assert.equal(result.futureHidden,true);assert.equal(result.empty,true);assert.equal(result.escaped,true);
- assert.equal(result.egg,'10');assert.equal(result.trackClick,true);assert.equal(result.opacity,.65);
+ assert.equal(result.egg,'10');assert.equal(result.trackClick,true);assert.equal(result.opacity,1);
  assert.equal(result.raster,true);assert.equal(result.rasterClick,false);
  assert.deepEqual(result.rasterSize,[2037,2048]);
  const screenshot=await call('Page.captureScreenshot',{format:'png'});
  fs.writeFileSync('/tmp/underway-cis-ice-browser.png',Buffer.from(screenshot.result.data,'base64'));
- console.log('PASS CIS vector and raster charts, date selection, popup, style change, toggle, failure/retry and no-cache states',result);
+ console.log('PASS CIS vector and raster charts, latest-chart selection, popup, style change, toggle, failure/retry and no-cache states',result);
 }finally{ws?.close();child?.kill();server.closeAllConnections();server.close();clearTimeout(watchdog);}})().catch(e=>{console.error(e);process.exitCode=1});

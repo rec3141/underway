@@ -1,10 +1,6 @@
 .icechart-controls {display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;padding:.6rem .75rem;border-top:1px solid var(--line,#536174);font-size:.8rem}
 .icechart-controls[hidden],.icechart-legend[hidden] {display:none}
-.icechart-controls label {display:flex;align-items:center;gap:.4rem}
-.icechart-controls select {max-width:17rem;padding:.3rem;color:inherit;background:var(--bg,#182432);border:1px solid var(--line,#536174);border-radius:4px}
-.icechart-controls input {width:90px;accent-color:#82ccff}
-#icechart-status {flex-basis:100%;line-height:1.5}
-.icechart-controls a,.icechart-detail a {color:inherit;text-decoration:underline}
+.icechart-detail a {color:inherit;text-decoration:underline}
 .icechart-legend {display:flex;gap:.7rem;flex-wrap:wrap}
 .icechart-legend span {display:inline-flex;align-items:center;gap:.25rem;white-space:nowrap}
 .icechart-legend i {width:12px;height:12px;display:inline-block;border:1px solid #536174;border-radius:2px}

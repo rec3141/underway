@@ -467,6 +467,7 @@ window.UW_UI_CATALOG = {
         "pages.4c3f03bb625194b7": "primary source",
         "pages.4c4e436f9a453c77": "Glossary",
         "pages.4c8692dac9206cdf": "Ask a Q",
+        "pages.4ca3018930fb3560": "Bathymetry",
         "pages.4cb0b250c6250d52": "ice",
         "pages.4cb4ea25583c2564": "year",
         "pages.4cfbc780ecbad3e8": "waypoint",
@@ -1746,6 +1747,7 @@ window.UW_UI_CATALOG = {
         "pages.4c3f03bb625194b7": "source primaire",
         "pages.4c4e436f9a453c77": "Glossaire",
         "pages.4c8692dac9206cdf": "Poser une question",
+        "pages.4ca3018930fb3560": "Bathymétrie",
         "pages.4cb0b250c6250d52": "glace",
         "pages.4cb4ea25583c2564": "année",
         "pages.4cfbc780ecbad3e8": "repère",
@@ -4410,6 +4412,10 @@ window.UW_UI_CATALOG = {
         "pages.4c8692dac9206cdf": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "5fe37503241e317f2c4322f424b90e3c5b571260c31a7c77e66bd1eb2f5c1812"
+        },
+        "pages.4ca3018930fb3560": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "75b1a4286adfbe3ab3f068bdb784adc12120cacf5397e5f4bb75fb3812b8d8df"
         },
         "pages.4cb0b250c6250d52": {
           "profile": "editorial-fr-ca-v4",

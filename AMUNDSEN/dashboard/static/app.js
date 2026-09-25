@@ -125,7 +125,7 @@
     const cs = getComputedStyle(document.documentElement);
     const v = (k) => cs.getPropertyValue("--" + k).trim();
     for (const k of ["bg", "card", "card-2", "line", "fg", "fg-2", "muted", "accent", "on-accent", "accent-2", "warn", "ok", "bad", "now", "purple", "pink", "gold",
-                     "marker", "marker-line", "floor", "floor-line", "map-bg", "map-land", "map-coast", "map-ice", "map-name-water", "map-name-land", "map-name-halo",
+                     "marker", "marker-line", "floor", "floor-line", "map-arrow", "map-arrow-halo", "map-bg", "map-land", "map-coast", "map-ice", "map-name-water", "map-name-land", "map-name-halo",
                      "sketch-coast", "plot-legend-bg"])
       C[k.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())] = v(k);
     C.palette = v("palette").split(/\s+/);
@@ -661,7 +661,8 @@
     if (!button) return;
     button.hidden = choices.length < 2;
     if (button.hidden) return;
-    const show = () => { const now = bathyNow(); button.textContent = `${ui("Bathy")} · ${ui(now.label)}`; button.classList.toggle("on", !!now.survey); };
+    // the button keeps one name; the tooltip says which picture is up
+    const show = () => { const now = bathyNow(); button.textContent = ui("Bathymetry"); button.title = `${ui(now.label)} · ${t("mapControls.bathyHint")}`; button.classList.toggle("on", !!now.survey); };
     button.onclick = () => {
       const at = choices.findIndex((b) => b.key === bathyNow().key);
       state.bathy = choices[(at + 1) % choices.length].key;
@@ -1061,7 +1062,7 @@
     const v = mapView?.getView(); if (!v) return;
     const [b, h] = labelBuckets(v.zoom);
     const places = state.communities && b !== labelsAt[0], stations = (state.stationList?.length || plansShown().length) && h !== labelsAt[1];
-    if (!places && !stations && !window.UW?.ladcpEnabled?.()) return;
+    if (!places && !stations) return;
     state.view = v; renderMap();
   }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
@@ -1506,7 +1507,7 @@
                 color: st.map((s) => selected.has(stKey(s)) ? C.accent2 : s.kind === "event" ? C.ok : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
-    traces.push(...(window.UW?.ladcpMapTraces?.(view.zoom ?? mapView?.getView()?.zoom ?? 6) || []));
+    traces.push(...(window.UW?.ladcpMapTraces?.() || []));
     // The regional satellite picture sits under the track; its high-resolution
     // ship-following and fixed-area details sit over it in the same style.
     const sat = (state.sat && satPicture()) || null;

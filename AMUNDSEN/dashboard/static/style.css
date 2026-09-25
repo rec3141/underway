@@ -42,6 +42,7 @@
   --kind-unknown: #9aa0aa;
   --shadow: rgba(0,0,0,.5);
   --map-fg: #e6ecf2; --map-halo: #0b1620;        /* the scale bar over the map, on every theme */
+  --map-arrow: #000000; --map-arrow-halo: rgba(255,255,255,.8);   /* current arrows over the map, on every theme */
   /* the graphs (Plotly) */
   --plot-bg: #121920; --plot-fg: #c9d4e0; --plot-grid: #243040; --plot-line: #34435a; --hover-bg: #1b242e;
   --plot-legend-bg: rgba(15,20,25,.88);
@@ -1610,24 +1611,12 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
 
 .tabs a.games-link { text-decoration:none; box-sizing:border-box; }
 
-/* the LADCP current layer: a pill like the map's layer toggles, then its
-   depth box and slider, the count and the speed key under the layer bar */
-.ladcp-controls { container: ladcp / inline-size; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 0 4px 8px; font-size: var(--t-md); }
+/* the ADCP current layer: its pill sits among the map's layer toggles (their
+   rules style it), and while it is on a depth slider and box follow it */
+.ladcp-controls { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .ladcp-controls [hidden] { display: none; }
-.ladcp-controls #ladcp-toggle { background: var(--card-2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: var(--t-md); cursor: pointer; }
-.ladcp-controls #ladcp-toggle:hover { border-color: var(--accent); color: var(--fg); }
-.ladcp-controls #ladcp-toggle.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 650; }
-.ladcp-controls label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--t-md); }
-.ladcp-controls input[type=number] { width: 6em; max-width: 100%; padding: 5px 8px; color: var(--fg); background: var(--card-2); border: 1px solid var(--line); border-radius: 7px; font: inherit; font-family: var(--mono); font-size: var(--t-md); }
+.ladcp-controls label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--t-sm); }
+.ladcp-controls input[type=number] { width: 4.5em; padding: 3px 6px; color: var(--fg); background: var(--card-2); border: 1px solid var(--line); border-radius: 7px; font-family: var(--mono); font-size: var(--t-sm); }
 .ladcp-controls input[type=number]:focus { border-color: var(--accent); outline: none; }
-.ladcp-controls #ladcp-depth-slider { display: none; flex: 1 1 140px; min-width: 140px; max-width: 280px; padding: 0; accent-color: var(--accent); cursor: pointer; }
-@container ladcp (min-width: 480px) {
-  .ladcp-controls #ladcp-depth-slider:not([hidden]) { display: block; }
-}
-.ladcp-controls .hint { color: var(--muted); font-size: var(--t-sm); }
-.ladcp-controls #ladcp-key { flex-basis: 100%; }
-/* the speed classes, matching the arrows ladcp.js draws on the map (speedColour) */
-.ladcp-controls .slow { color: var(--accent); }
-.ladcp-controls .mid { color: var(--accent-2); }
-.ladcp-controls .fast { color: var(--pink); }
-@media (max-width: 640px) { .ladcp-controls #ladcp-toggle { min-height: 44px; } }
+.ladcp-controls #ladcp-depth-slider { width: 120px; padding: 0; accent-color: var(--accent); cursor: pointer; }
+@media (max-width: 640px) { .ladcp-controls #ladcp-depth-slider { width: 90px; } }

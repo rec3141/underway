@@ -60,27 +60,23 @@
   const code = value => value == null || value === '' || value === '-9' ? '—' : String(value);
   const el = (tag, text, className) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (className) node.className = className; return node; };
   const $ = id => document.getElementById(id);
-  let enabled = false, initialized = false, charts = [], view = null, chart = null, collection = null;
-  let region = '', chosen = '', day = '', generation = 0, controller = null, loading = false, failure = '', ensureBusy = false, detail = null, detailProperties = null;
-  let opacity = .4, signature = '', reference = '';
+  // mode: off, the daily raster for the ship's area, or every region's weekly chart at once
+  let mode = 'off', shown = 'off', enabled = false, initialized = false, charts = [], view = null, chart = null, collection = null;
+  let day = '', generation = 0, controller = null, loading = false, failure = '', ensureBusy = false, detail = null, detailProperties = null;
+  let signature = '', reference = '';
   const cache = new Map();
+  const modes = () => ['daily', 'weekly'].filter(m => charts.some(c => (c.kind === 'raster') === (m === 'daily')));
 
   function initialize() {
     if (initialized || !$('icechart-toggle')) return;
     initialized = true;
-    enabled = !!UW.store?.get('icecharts.enabled', false);
-    region = UW.store?.get('icecharts.region', '') || '';
-    chosen = UW.store?.get('icecharts.chart', '') || '';
+    mode = UW.store?.get('icecharts.mode', UW.store?.get('icecharts.enabled', false) ? 'auto' : 'off') || 'off';
+    // one button steps through daily (when there is one), weekly, then off
     $('icechart-toggle').onclick = () => {
-      enabled = !enabled; UW.store?.set('icecharts.enabled', enabled);
+      const order = modes(), at = order.indexOf(shown);
+      mode = at + 1 >= order.length ? 'off' : order[at + 1];
+      UW.store?.set('icecharts.mode', mode);
       closeDetails(); select();
-    };
-    $('icechart-region').onchange = e => { region = e.target.value; chosen = ''; UW.store?.set('icecharts.region', region); UW.store?.set('icecharts.chart', ''); closeDetails(); select(); };
-    $('icechart-date').onchange = e => { chosen = e.target.value; UW.store?.set('icecharts.chart', chosen); closeDetails(); select(); };
-    $('icechart-opacity').oninput = e => {
-      opacity = Number(e.target.value) / 100; $('icechart-opacity-value').textContent = `${e.target.value}%`;
-      if (view?.map?.getLayer(FILL)) view.map.setPaintProperty(FILL, 'fill-opacity', opacity);
-      if (view?.map?.getLayer(RASTER)) view.map.setPaintProperty(RASTER, 'raster-opacity', opacity);
     };
     $('icechart-retry').onclick = () => load(true);
     renderLegend();
@@ -109,25 +105,53 @@
     else ensureLayers();
   }
 
+  // the daily raster valid by the map end, or the weekly charts as one: each
+  // region's latest by the map end (the regions do not overlap)
+  function current() {
+    if (shown === 'daily') return defaultChart(charts.filter(c => c.kind === 'raster'), reference);
+    const weekly = charts.filter(c => c.kind !== 'raster');
+    const parts = [...new Set(weekly.map(c => c.region))].sort().map(r => defaultChart(weekly.filter(c => c.region === r), reference)).filter(Boolean);
+    return parts.length ? {kind: 'weekly', parts, id: parts.map(c => c.id).join('+'), url: parts.map(c => c.url).join('|')} : null;
+  }
+
   function select() {
-    const regions = [...new Set(charts.map(c => c.region))].sort();
-    if (!regions.includes(region)) { region = charts.find(c => c.ship_area)?.region || regions[0] || ''; chosen = ''; }
-    const regional = charts.filter(c => c.region === region).sort((a, b) => b.date.localeCompare(a.date));
+    // the choice is kept while the charts for it are missing; another kind stands in
+    const order = modes();
+    shown = mode === 'off' ? 'off' : order.includes(mode) ? mode : order[0] || 'off';
+    enabled = mode !== 'off';
     const previous = chart;
-    chart = regional.find(c => c.id === chosen) || defaultChart(regional, reference);
-    $('icechart-region').replaceChildren(...regions.map(r => new Option(t(r), r)));
-    $('icechart-region').value = region;
-    $('icechart-date').replaceChildren(new Option(t("Latest on/before map end"), ''), ...regional.map(c => new Option(c.date, c.id)));
-    $('icechart-date').value = chosen && regional.some(c => c.id === chosen) ? chosen : '';
+    chart = enabled ? current() : null;
     $('icechart-toggle').classList.toggle('on', enabled);
     $('icechart-toggle').setAttribute('aria-pressed', String(enabled));
     $('icechart-controls').hidden = !enabled;
-    $('icechart-region').disabled = !regions.length;
-    $('icechart-date').disabled = !regional.length;
     if (!enabled || previous?.url !== chart?.url || previous?.id !== chart?.id) {
       ++generation; controller?.abort(); loading = false; collection = null; failure = ''; removeLayers(); closeDetails();
     }
     if (enabled && chart && !collection && !loading) load(); else { status(); ensureLayers(); }
+  }
+
+  async function fetchChart(requested, signal, retry) {
+    let data = !retry && cache.get(requested.url);
+    if (data) return data;
+    const response = await fetch(requested.url, {signal, cache: retry ? 'reload' : 'default'});
+    if (!response.ok) throw Error(`HTTP ${response.status}`);
+    if (requested.kind === 'raster') {
+      if (!Array.isArray(requested.coordinates) || requested.coordinates.length !== 4 || requested.coordinates.some(p => !Array.isArray(p) || p.length !== 2)) throw Error('Invalid raster coordinates');
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw Error('Invalid raster chart');
+      data = {kind: 'raster', url: URL.createObjectURL(blob)};
+    } else {
+      data = await response.json();
+      if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw Error('Invalid polygon chart');
+      if (data.features.some(f => !['Polygon', 'MultiPolygon'].includes(f.geometry?.type))) throw Error('Invalid chart geometry');
+    }
+    cache.set(requested.url, data);
+    if (cache.size > 8) {
+      const oldest = cache.keys().next().value, discarded = cache.get(oldest);
+      if (discarded?.kind === 'raster') URL.revokeObjectURL(discarded.url);
+      cache.delete(oldest);
+    }
+    return data;
   }
 
   async function load(retry = false) {
@@ -138,27 +162,12 @@
     loading = true; failure = ''; collection = null; removeLayers(); status();
     const timeout = setTimeout(() => requestController.abort(), 20000);
     try {
-      let data = !retry && cache.get(requested.url);
-      if (!data) {
-        const response = await fetch(requested.url, {signal: requestController.signal, cache: retry ? 'reload' : 'default'});
-        if (!response.ok) throw Error(`HTTP ${response.status}`);
-        if (requested.kind === 'raster') {
-          if (!Array.isArray(requested.coordinates) || requested.coordinates.length !== 4 || requested.coordinates.some(p => !Array.isArray(p) || p.length !== 2)) throw Error('Invalid raster coordinates');
-          const blob = await response.blob();
-          if (!blob.type.startsWith('image/')) throw Error('Invalid raster chart');
-          data = {kind: 'raster', url: URL.createObjectURL(blob)};
-        } else {
-          data = await response.json();
-          if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw Error('Invalid polygon chart');
-          if (data.features.some(f => !['Polygon', 'MultiPolygon'].includes(f.geometry?.type))) throw Error('Invalid chart geometry');
-        }
-        cache.set(requested.url, data);
-        if (cache.size > 4) {
-          const oldest = cache.keys().next().value, discarded = cache.get(oldest);
-          if (discarded?.kind === 'raster') URL.revokeObjectURL(discarded.url);
-          cache.delete(oldest);
-        }
-      }
+      let data;
+      if (requested.kind === 'weekly') {
+        // one collection; each polygon keeps the index of the chart it came from, for its details
+        const parts = await Promise.all(requested.parts.map(c => fetchChart(c, requestController.signal, retry)));
+        data = {type: 'FeatureCollection', features: parts.flatMap((p, i) => p.features.map(f => ({...f, properties: {...f.properties, chart_part: i}})))};
+      } else data = await fetchChart(requested, requestController.signal, retry);
       if (token !== generation) return;
       collection = data; loading = false; ensureLayers();
     } catch (error) {
@@ -167,19 +176,19 @@
     } finally { clearTimeout(timeout); if (token === generation) status(); }
   }
 
+  // the charts shown (region and valid date), or why there are none, go in the button's tooltip
   function status() {
-    let text;
+    const hint = window.UWI18n?.t('mapControls.iceChartsHint') || "Canadian Ice Service daily and regional ice charts";
+    const shown = chart?.kind === 'weekly' ? chart.parts : chart ? [chart] : [];
+    let text = '';
     if (!charts.length) text = t("No ice charts cached for this dashboard.");
-    else if (!chart) text = t('No cached chart on or before {date}. Choose an available date.', {date: day});
-    else {
-      const delta = Math.round((Date.parse(day) - Date.parse(chart.date)) / DAY);
-      const age = delta < 0 ? (delta === -1 ? t('1 day after map end') : t('{count} days after map end', {count: -delta})) : delta === 0 ? (Date.parse(chart.valid_time || chart.date) > Date.parse(reference) ? t("valid after map end") : t("same date as map end")) : (delta === 1 ? t('1 day before map end') : t('{count} days before map end', {count: delta}));
-      const ready = chart.kind === 'raster' ? t("Daily raster analysis for the ship area; use the original chart for egg codes.") : t("Click a polygon for its egg code. Regional analysis; conditions can change between charts.");
-      text = `${t(chart.region)} · ${validLabel(chart)} · ${age}. ${loading ? t(chart.kind === 'raster' ? 'Loading image…' : 'Loading polygons…') : failure ? t(failure) : ready}`;
-    }
-    $('icechart-status').textContent = text;
+    else if (enabled && !chart) text = t("Cached chart unavailable");
+    else if (enabled) text = shown.map(c => `${t(c.region)} · ${validLabel(c)}`).join('\n') +
+      (loading ? '\n' + t(chart.kind === 'raster' ? 'Loading image…' : 'Loading polygons…') : failure ? '\n' + t(failure) : '');
+    $('icechart-toggle').title = text ? `${text}\n${hint}` : hint;
     $('icechart-retry').hidden = !failure;
     $('icechart-legend').hidden = !collection || chart?.kind === 'raster';
+    $('icechart-controls').hidden = !enabled || ($('icechart-retry').hidden && $('icechart-legend').hidden);
   }
 
   function removeLayers() {
@@ -197,11 +206,11 @@
       if (chart.kind === 'raster') {
         if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'image', url: view.imageUrl(collection.url), coordinates: chart.coordinates});
         if (!m.getLayer(RASTER)) m.addLayer({id: RASTER, type: 'raster', source: SOURCE,
-          paint: {'raster-opacity': opacity, 'raster-fade-duration': 0, 'raster-resampling': 'linear'}}, before);
+          paint: {'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'linear'}}, before);
       } else {
-        if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'geojson', data: collection, tolerance: .1, attribution: chart.attribution || 'Canadian Ice Service / ECCC'});
+        if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'geojson', data: collection, tolerance: .1, attribution: (chart.parts?.[0] || chart).attribution || 'Canadian Ice Service / ECCC'});
         if (!m.getLayer(FILL)) m.addLayer({id: FILL, type: 'fill', source: SOURCE, paint: {
-          'fill-opacity': opacity,
+          'fill-opacity': 1,
           'fill-color': ['case', ['==', ['get', 'concentration'], null], '#9aa5b1', ['step', ['get', 'concentration'], colours[0], 1, colours[1], 4, colours[2], 7, colours[3], 9, colours[4]]]
         }}, before);
         if (!m.getLayer(OUTLINE)) m.addLayer({id: OUTLINE, type: 'line', source: SOURCE, paint: {'line-color': '#374151', 'line-width': .8, 'line-opacity': .65}}, before);
@@ -222,12 +231,13 @@
 
   function renderDetail() {
     if (!detailProperties || !chart) return;
+    const source = chart.parts?.[detailProperties.chart_part] || chart;
     if (!detail) {
       detail = el('dialog', null, 'icechart-detail'); detail.setAttribute('aria-labelledby', 'icechart-detail-title'); document.body.append(detail);
     }
     const p = detailProperties, head = el('div', null, 'icechart-detail-head'), title = el('h3', t("CIS ice egg")); title.id = 'icechart-detail-title';
     const close = el('button', t("Close")); close.onclick = () => detail.close(); head.append(title, close);
-    const meta = el('p', `${t(chart.region)} · ${validLabel(chart)}`);
+    const meta = el('p', `${t(source.region)} · ${validLabel(source)}`);
     const egg = el('div', null, 'icechart-egg'); egg.setAttribute('aria-label', t("Egg code: total concentration; partial concentrations; stages of development; ice forms"));
     egg.append(el('div', p.egg_ct || '—', 'icechart-egg-total'));
     for (const row of [['ca', 'cb', 'cc'], ['sa', 'sb', 'sc'], ['fa', 'fb', 'fc']]) {
@@ -250,11 +260,11 @@
     const raw = el('details'), summary = el('summary', t("Source SIGRID codes")); raw.append(summary, el('pre', ['CT', 'CA', 'CB', 'CC', 'SA', 'SB', 'SC', 'FA', 'FB', 'FC', 'CN', 'CD', 'CF'].map(k => k + ': ' + code(p[k])).join('  ')));
     const supplemental = el('div');
     if (p.trace_thicker_ice) supplemental.append(el('p', t('Trace ice thicker than type A: {value} (<1/10).', {value: p.trace_thicker_ice})));
-    const footer = el('p', chart.attribution || 'Canadian Ice Service / ECCC');
-    const source = safeLink(chart.source_url);
-    if (source) { const link = el('a', t("Original chart data")); link.href = source; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
+    const footer = el('p', source.attribution || 'Canadian Ice Service / ECCC');
+    const original = safeLink(source.source_url);
+    if (original) { const link = el('a', t("Original chart data")); link.href = original; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
     const guide = el('a', t("Egg-code guide")); guide.href = 'https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations/publications/interpreting-charts/chapter-1.html'; guide.target = '_blank'; guide.rel = 'noopener'; footer.append(document.createTextNode(' · '), guide);
-    const licence = safeLink(chart.licence_url);
+    const licence = safeLink(source.licence_url);
     if (licence) { const link = el('a', t("Open Government Licence")); link.href = licence; link.target = '_blank'; link.rel = 'noopener'; footer.append(document.createTextNode(' · '), link); }
     detail.replaceChildren(head, meta, egg, concentration, table, supplemental, note, raw, footer); if (!detail.open) detail.showModal();
     return true;
@@ -262,10 +272,7 @@
 
   window.addEventListener?.('uw:localechange', () => {
     if (!initialized) return;
-    // Re-label the existing options in place; do not call select/load or touch map state.
-    for (const option of $('icechart-region').options) option.textContent = t(option.value);
-    const latest = $('icechart-date').options[0];
-    if (latest) latest.textContent = t('Latest on/before map end');
+    // Re-label in place; do not call select/load or touch map state.
     renderLegend(); status();
     if (detail?.open) {
       const expanded = !!detail.querySelector('details')?.open;
