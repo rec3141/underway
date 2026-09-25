@@ -21,7 +21,12 @@
   // zoom; the slowest keep a stub and the fastest stop at 120 px.
   const PX_PER_MPS = 200;
   const arrowLength = (speed) => Math.min(120, Math.max(6, speed * PX_PER_MPS));
-  window.UWLadcp = { sampleAt, arrowLength };
+  // The depth slider is quadratic, like the compressed depth axes: its
+  // position is the square root of depth over the deepest, so the upper
+  // water column, where most bins and most change are, gets most of its travel.
+  const depthFromSlider = (position, top) => Math.round(top * position * position);
+  const sliderFromDepth = (depth, top) => top > 0 ? Math.sqrt(Math.min(1, Math.max(0, depth / top))) : 0;
+  window.UWLadcp = { sampleAt, arrowLength, depthFromSlider, sliderFromDepth };
   const UW = window.UW, host = typeof document !== "undefined" && document.querySelector("#ladcp-controls");
   if (!UW || !host) return;
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -30,18 +35,18 @@
   let profiles = [], loaded = null, loading = null, failedAt = 0, failed = false;
   const KEY = "ADCP currents at the chosen depth, for the selected legs and span. Arrows point downstream; 0.1 m/s = 20 px.";
   host.innerHTML = `<button id="ladcp-toggle" type="button" aria-pressed="false" title="${esc(KEY)}">ADCP</button>
-    <input id="ladcp-depth-slider" type="range" min="0" max="1000" step="1" aria-label="Current depth in metres" hidden>
+    <input id="ladcp-depth-slider" type="range" min="0" max="1" step="0.001" aria-label="Current depth in metres" hidden>
     <label id="ladcp-depth-label" hidden><input id="ladcp-depth" type="number" min="0" max="12000" step="1" aria-label="Current depth in metres"> m</label>`;
   const button = host.querySelector("#ladcp-toggle"), input = host.querySelector("#ladcp-depth");
   // what the arrows show, or why there are none, goes in the button's tooltip
   const status = (text) => { button.title = text ? `${text}\n${KEY}` : KEY; };
   input.value = depth;
   const slider = host.querySelector("#ladcp-depth-slider");
-  let redraw = null;
+  let redraw = null, top = 50;                     // top: the depth at the slider's far end
   function syncDepth(visible = profiles) {
     const deepest = visible.reduce((max, p) => Math.max(max, p.depth?.at(-1) || 0), 0);
-    slider.max = Math.max(50, Math.ceil(deepest / 50) * 50, depth);
-    slider.value = depth;
+    top = Math.max(50, Math.ceil(deepest / 50) * 50, depth);
+    slider.value = sliderFromDepth(depth, top);
     slider.setAttribute("aria-valuetext", `${depth} metres`);
     input.value = depth;
   }
@@ -57,7 +62,7 @@
     depth = next; syncDepth(); UW.store.set("ladcp.depth", depth); UW.renderMap();
   };
   slider.oninput = () => {
-    depth = slider.valueAsNumber; input.value = depth;
+    depth = depthFromSlider(slider.valueAsNumber, top); input.value = depth;
     slider.setAttribute("aria-valuetext", `${depth} metres`);
     UW.store.set("ladcp.depth", depth);
     if (redraw == null) redraw = requestAnimationFrame(() => { redraw = null; UW.renderMap(); });
