@@ -28,7 +28,9 @@
     return [point(0, 0), point(dx, dy), point(dx - head * dx - head * dy, dy - head * dy + head * dx),
       point(dx, dy), point(dx - head * dx + head * dy, dy - head * dy - head * dx)];
   }
-  const speedColour = (speed) => speed < 0.1 ? "#38bdf8" : speed < 0.3 ? "#fbbf24" : "#f472b6";
+  // Three speed classes in the theme's accent, amber and pink tokens (style.css
+  // .ladcp-controls .slow/.mid/.fast colour the key to match).
+  const speedColour = (speed) => { const C = window.UW?.C || {}; return speed < 0.1 ? C.accent : speed < 0.3 ? C.accent2 : C.pink; };
   window.UWLadcp = { sampleAt, arrowPoints, speedColour };
   const UW = window.UW, host = typeof document !== "undefined" && document.querySelector("#ladcp-controls");
   if (!UW || !host) return;
@@ -40,7 +42,7 @@
     <label id="ladcp-depth-label" hidden>Depth <input id="ladcp-depth" type="number" min="0" max="12000" step="1" aria-label="Current depth in metres"> m</label>
     <input id="ladcp-depth-slider" type="range" min="0" max="1000" step="1" aria-label="Current depth in metres" hidden>
     <span id="ladcp-status" class="hint" role="status" hidden></span>
-    <span id="ladcp-key" class="hint" hidden>Arrows point in the direction of flow · 0.5 m/s = 36 px · <span style="color:#38bdf8">&lt;0.1</span> / <span style="color:#fbbf24">0.1–0.3</span> / <span style="color:#f472b6">≥0.3 m/s</span></span>`;
+    <span id="ladcp-key" class="hint" hidden>Arrows point in the direction of flow · 0.5 m/s = 36 px · <span class="slow">&lt;0.1</span> / <span class="mid">0.1–0.3</span> / <span class="fast">≥0.3 m/s</span></span>`;
   const button = host.querySelector("#ladcp-toggle"), input = host.querySelector("#ladcp-depth"), status = host.querySelector("#ladcp-status");
   input.value = depth;
   const slider = host.querySelector("#ladcp-depth-slider");

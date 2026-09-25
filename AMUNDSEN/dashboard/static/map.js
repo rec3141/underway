@@ -88,7 +88,8 @@
   // ---------------------------------------------------------------- colour maps
   // [position, colour] stops shared by the map, the charts and the colour bars.
   // Viridis is Plotly's own; Magma is matplotlib's; Phase is a cyclic map for
-  // headings and directions (its ends meet).
+  // headings and directions (its ends meet); RdBu is ColorBrewer's diverging
+  // map, blue low through white to red high, for signed values such as currents.
   const CMAPS = {
     Viridis: [[0, "#440154"], [0.0627, "#48186a"], [0.1255, "#472d7b"], [0.1882, "#424086"], [0.251, "#3b528b"], [0.3137, "#33638d"],
       [0.3765, "#2c728e"], [0.4392, "#26828e"], [0.502, "#21918c"], [0.5647, "#1fa088"], [0.6275, "#28ae80"], [0.6902, "#3fbc73"],
@@ -97,6 +98,8 @@
       [0.75, "#fb8761"], [0.875, "#fec287"], [1, "#fcfdbf"]],
     Phase: [[0, "#a8780d"], [0.125, "#d3593a"], [0.25, "#e03b7a"], [0.375, "#b43fc4"], [0.5, "#6c5ce8"], [0.625, "#2c7ecb"],
       [0.75, "#1795a0"], [0.875, "#4f9f55"], [1, "#a8780d"]],
+    RdBu: [[0, "#053061"], [0.1, "#2166ac"], [0.2, "#4393c3"], [0.3, "#92c5de"], [0.4, "#d1e5f0"], [0.5, "#f7f7f7"],
+      [0.6, "#fddbc7"], [0.7, "#f4a582"], [0.8, "#d6604d"], [0.9, "#b2182b"], [1, "#67001f"]],
   };
   const cmap = (name) => (Array.isArray(name) ? name : CMAPS[name] || CMAPS.Viridis);
   const reversed = (stops) => stops.map(([t, c]) => [1 - t, c]).reverse();
