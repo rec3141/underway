@@ -12,6 +12,12 @@ from unittest.mock import patch
 from dashboard import ice_charts as ic
 
 try:
+    from PIL import Image
+    HAVE_PIL = True
+except ImportError:
+    HAVE_PIL = False
+
+try:
     import shapefile
     from pyproj import CRS, Transformer
     HAVE_GIS = True
@@ -294,6 +300,29 @@ class PublishTests(unittest.TestCase):
                 published = ic.publish(root / "www")
             self.assertEqual(published["charts"][0]["kind"], "raster")
             self.assertTrue((root / "www" / published["charts"][0]["url"].split("?")[0]).is_file())
+
+    @unittest.skipUnless(HAVE_PIL, "Pillow not installed")
+    def test_only_the_newest_real_daily_raster_is_published(self):
+        def png(colour):
+            image = Image.new("RGBA", (60, 60), (242, 236, 170, 255))      # land
+            image.paste(colour, (0, 0, 60, 20))
+            out = io.BytesIO(); image.save(out, "PNG"); return out.getvalue()
+        chart, sheet = png((200, 225, 250, 255)), png((0, 0, 0, 255))     # open water / a line of text
+        self.assertFalse(ic._placeholder(chart))
+        self.assertTrue(ic._placeholder(sheet))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(ic, "DB_DIR", root / "db"), patch.object(ic, "SEED_DIR", root / "seeds"):
+                ic.chart_dir().mkdir(parents=True)
+                for day, image in (("2026-09-14", chart), ("2026-09-20", sheet)):
+                    entry = {"id": f"eureka-daily-raster-{day}", "kind": "raster", "date": day, "region": "Eureka (daily raster)",
+                             "coordinates": [[-112, 84], [-47, 84], [-47, 74], [-112, 74]]}
+                    (ic.chart_dir() / f'{entry["id"]}.raster.json').write_text(json.dumps(entry))
+                    (ic.chart_dir() / f'{entry["id"]}.png').write_bytes(image)
+                # the newest is the chart-not-available sheet: no daily at all, not the older one
+                self.assertIsNone(ic.publish(root / "www"))
+                (ic.chart_dir() / "eureka-daily-raster-2026-09-20.png").write_bytes(chart)
+                self.assertEqual([c["id"] for c in ic.publish(root / "www")["charts"]], ["eureka-daily-raster-2026-09-20"])
 
 
 if __name__ == "__main__":
