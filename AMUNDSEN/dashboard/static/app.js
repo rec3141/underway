@@ -1061,7 +1061,7 @@
     const v = mapView?.getView(); if (!v) return;
     const [b, h] = labelBuckets(v.zoom);
     const places = state.communities && b !== labelsAt[0], stations = (state.stationList?.length || plansShown().length) && h !== labelsAt[1];
-    if (!places && !stations) return;
+    if (!places && !stations && !window.UW?.ladcpEnabled?.()) return;
     state.view = v; renderMap();
   }
   function mapMessage(text) { const m = $("#mapmsg"); m.hidden = !text; m.textContent = text || ""; }
@@ -1506,6 +1506,7 @@
                 color: st.map((s) => selected.has(stKey(s)) ? C.accent2 : s.kind === "event" ? C.ok : "rgba(255,255,255,.9)"),
                 opacity: .95 },
     });
+    traces.push(...(window.UW?.ladcpMapTraces?.(view.zoom ?? mapView?.getView()?.zoom ?? 6) || []));
     // The regional satellite picture sits under the track; its high-resolution
     // ship-following and fixed-area details sit over it in the same style.
     const sat = (state.sat && satPicture()) || null;

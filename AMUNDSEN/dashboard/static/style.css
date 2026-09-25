@@ -1600,3 +1600,13 @@ body.tab-wiki .maplayers .wiki-split:has(.mapmenu[hidden]) > button:first-child 
 #histmain h2 > .flag { margin-left:12px; font-size:var(--t-md); opacity:1; }
 
 .tabs a.games-link { text-decoration:none; box-sizing:border-box; }
+
+/* Current controls share the map width on phones and desktops. */
+.ladcp-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 4px 8px;border-bottom:1px solid var(--line)}
+.ladcp-controls label{display:flex;align-items:center;gap:5px;font-size:12px}
+.ladcp-controls input{width:70px;max-width:100%;padding:4px 6px;color:var(--fg);background:var(--card-2);border:1px solid var(--line);border-radius:5px;font:inherit}
+.ladcp-controls .hint{font-size:11px}
+.ladcp-controls [hidden]{display:none}
+
+.ladcp-controls #ladcp-key{flex-basis:100%;color:var(--muted)}
+.ladcp-controls #ladcp-status{color:var(--muted)}

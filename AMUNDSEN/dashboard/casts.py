@@ -1,6 +1,6 @@
 """CTD profiles for the cast viewer.
 
-Two sources:
+Profile sources:
 
 * Rosette casts. The profile is the SeaBird ``.cnv`` in
   ``Data/external_proprietary/CTD/`` when one exists (downcast, 1-dbar bins).
@@ -9,6 +9,8 @@ Two sources:
   float arrays; those supply the variables the ``.cnv`` lacks and are the only
   source for legs without ``.cnv`` files. The filename names the rosette
   (Classic or TM). Station, label and time come from the leg's CTD logbook.
+* LADCP current profiles: ``Data/Rosette/<leg>/Ladcp/*.lad`` contain
+  processed true east/north velocities on native depth bins in metres.
 * MVP (Moving Vessel Profiler) tows: ``Data/MVP/<leg>/<tow>/*.m1`` converted profiles,
   or AML CTD-SV ``.raw`` scans when a converted profile is unavailable.
   A tow directory becomes one dataset holding every dip.
@@ -74,7 +76,7 @@ PARALLEL_READS = 8            # concurrent CIFS reads
 class Cast:
     id: str
     leg: str
-    kind: str                     # CTD | MVP
+    kind: str                     # CTD | TM | MVP | LADCP
     cast: str
     time: str | None
     lat: float | None
@@ -95,9 +97,17 @@ class Cast:
     # pressure (dbar), depth (m), time and measured columns, in firing order
     bottles: list = field(default_factory=list)
 
+    depth: list = field(default_factory=list)
+    parent_cast_id: str | None = None
+    source: dict = field(default_factory=dict)
+    qc_note: str = ""
+
     def meta(self) -> dict:
         ps = self.profiles
-        return {"id": self.id, "leg": self.leg, "kind": self.kind, "cast": self.cast, "time": self.time,
+        return {**({"max_depth": max(self.depth) if self.depth else None,
+                    "parent_cast_id": self.parent_cast_id, "source": self.source,
+                    "qc_note": self.qc_note} if self.kind == "LADCP" else {}),
+                "id": self.id, "leg": self.leg, "kind": self.kind, "cast": self.cast, "time": self.time,
                 "time_end": self.time_end, "lat": self.lat, "lon": self.lon, "lat_end": self.lat_end, "lon_end": self.lon_end,
                 "station": self.station, "label": self.label, "bottom_m": self.bottom_m,
                 "max_p": (max(self.p) if self.p else None) if not ps else max((pr["p"][-1] for pr in ps if pr["p"]), default=None),
@@ -108,7 +118,7 @@ class Cast:
                 "file": f"data/casts/{self.leg}/{self.id.split(':')[-1]}.json"}
 
     def payload(self) -> dict:
-        return {**self.meta(), "p": self.p, "vars": self.vars, "units": self.units, "profiles": self.profiles, "bottles": self.bottles}
+        return {**self.meta(), **({"depth": self.depth} if self.kind == "LADCP" else {}), "p": self.p, "vars": self.vars, "units": self.units, "profiles": self.profiles, "bottles": self.bottles}
 
 
 # ---------------------------------------------------------------- cache
@@ -747,9 +757,11 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
     """Write per-cast JSON files and an index; return the index."""
     from .build import atomic_write   # local import: build imports this module
     (root / "data" / "casts").mkdir(parents=True, exist_ok=True)
+    from .ladcp import ladcp_casts
     index = []
+    currents = []
     for leg in legs:
-        casts = rosette_casts(leg) + mvp_casts(leg)
+        casts = rosette_casts(leg) + mvp_casts(leg) + ladcp_casts(leg, DATA_ROOT, DB_DIR)
         if not casts:
             continue
         out = root / "data" / "casts" / leg.id
@@ -775,9 +787,13 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
                 payload['log_url'] = meta['log_url']
             atomic_write(out / (c.id.split(":")[-1] + ".json"), json.dumps(payload, separators=(",", ":")))
             index.append(meta)
+            if c.kind == "LADCP":
+                currents.append(payload)
     index.sort(key=lambda m: (m["time"] or "", m["id"]))
-    idx = {"casts": index, "variables": sorted({v for m in index for v in m["vars"]})}
+    atomic_write(root / "data" / "casts" / "ladcp.json",
+                 json.dumps({"casts": currents}, separators=(",", ":"), allow_nan=False))
+    idx = {"ladcp_file": "data/casts/ladcp.json", "casts": index, "variables": sorted({v for m in index for v in m["vars"]})}
     atomic_write(root / "data" / "casts" / "index.json", json.dumps(idx, separators=(",", ":")))
-    log.info("casts: %d (%d rosette, %d TM, %d MVP tows)", len(index), sum(m["kind"] == "CTD" for m in index),
-             sum(m["kind"] == "TM" for m in index), sum(m["kind"] == "MVP" for m in index))
+    log.info("casts: %d (%d rosette, %d TM, %d MVP tows, %d LADCP)", len(index), sum(m["kind"] == "CTD" for m in index),
+             sum(m["kind"] == "TM" for m in index), sum(m["kind"] == "MVP" for m in index), len(currents))
     return idx

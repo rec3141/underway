@@ -23,7 +23,7 @@
     idx: null, loadedFor: null,
     sel: new Set(store.get("casts.sel", [])),
     mode: store.get("casts.mode", "profiles"),          // single | profiles (Multi) | section
-    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | TRS | live (the cast in the water)
+    kind: store.get("casts.kind", "all"),               // all | CTD | TM | MVP | LADCP | TRS | live (the cast in the water)
     xmode: store.get("casts.xmode", "time"),            // the section's own x axis: time | distance | custom (an order of the user's)
     order: store.get("casts.order", []),                // custom: profile ids in the order they are laid along the section
     variable: store.get("casts.var", "Temperature"),
@@ -53,7 +53,7 @@
   const dipSel = (towId) => selectionIds().filter((s) => s.startsWith(towId + "#")).map((s) => +s.split("#")[1]).sort((a, b) => a - b);
   casts.open = new Set(store.get("casts.open", []));
   const castLabel = (c) => c.kind === "LIVE" ? ui("Live cast") : c.kind === "MVP" ? ui("MVP tow {v0}{v1}", {v0: (c.cast), v1: (c.n_profiles ? ui(" · {v0} dips", {v0: (c.n_profiles)}) : "")})
-    : `${c.kind === "TM" ? ui("TM cast") : ui("Cast")} ${c.cast}${c.station ? " · " + c.station : ""}`;
+    : `${c.kind === "LADCP" ? ui("LADCP cast") : c.kind === "TM" ? ui("TM cast") : ui("Cast")} ${c.cast}${c.station ? " · " + c.station : ""}`;
   const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) + (c.time_end ? "–" + c.time_end.replace("T", " ").slice(11, 16) : "") : "";
   // a tow bundle expands into its dips — only the selected ones when dips were
   // picked individually, all of them when the tow was selected as a whole; a
@@ -78,11 +78,14 @@
       UW.showTab("stations"); renderStations(); return;
     }
     if (!casts.idx) {
-      if (!opts.quiet) return;
       try { await ensureCastIndex(); }
       catch { UW.setLoadError("Casts", true); return; }
     }
     if (!castById(key)) return;
+    if (castById(key).kind === "LADCP" && !["all", "LADCP"].includes(casts.kind)) {
+      casts.kind = "LADCP"; store.set("casts.kind", casts.kind);
+      for (const b of $("#castkind").querySelectorAll("button")) b.classList.toggle("on", b.dataset.k === casts.kind);
+    }
     if (opts.quiet) { if (opts.toggle || !casts.sel.has(key)) toggleCast(key); return; }
     toggleCast(key);
     if ($("#pane-casts").hidden) UW.showTab("casts");
@@ -251,7 +254,7 @@
     const rows = inLegs.filter((c) => c.kind === "TRS"
       ? c.members.some((id) => { const m = castById(id); return m && (UW.inFilter(m.leg, m.time_end || m.time, f) || UW.inFilter(m.leg, m.time, f)); })
       : UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
-      .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg, depth: c.max_p != null ? Math.round(depthFrom(c.max_p, c.lat)) : null, bottles: c.n_bottles ?? null }));
+      .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg, depth: maxDepthValue(c) != null ? Math.round(maxDepthValue(c)) : null, bottles: c.n_bottles ?? null }));
     const k = casts.sort.key, dir = casts.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : k === "sel" ? (casts.sel.has(r.id) ? 1 : 0) : r[k];
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
@@ -595,11 +598,15 @@
   async function renderSingle(host, data) {
     const pick = data.find((d) => d.id === single.id) || data[data.length - 1];
     if (!pick) { host.innerHTML = `<div class="empty">${uh("Select a cast from the list or the map.")}</div>`; return; }
-    single.id = pick.id;
+    const pickChanged = single.shownId !== pick.id;
+    single.shownId = pick.id; single.id = pick.id;
     const sheet = pick.log_url || castById(pick.id)?.log_url;
     const profs = profilesOf(pick);                        // a tow's selected dips, or the one profile
     const prof = profs.find((p) => p.index === single.dip) || profs[0];
     const vars = orderVars(Object.keys(prof.vars));
+    if (pickChanged && !single.vars.some((v) => vars.includes(v))) {
+      single.vars = isLadcp(prof) ? ["Eastward current", "Northward current", "Current speed"] : vars.slice(0, 2);
+    }
     const CHART = '__chart__';
     const savedOrder=store.get('casts.single.order',[]),ordered=[...savedOrder.filter(v=>v===CHART||vars.includes(v)),...vars.filter(v=>!savedOrder.includes(v))];
     if (!ordered.includes(CHART)) {
@@ -609,7 +616,8 @@
       store.set('casts.single.order', ordered);
     }
     const upperAxes = ordered.slice(0, ordered.indexOf(CHART));
-    host.innerHTML = `<div class="livebar">
+    const provenance = isLadcp(pick) ? `<p class="muted">${esc(pick.qc_note || "Scientific QC not verified; inspect error velocity alongside currents.")}<br>Source: ${esc(pick.source?.path || "processed LADCP profile")}${pick.parent_cast_id ? ` · Rosette: ${esc(pick.parent_cast_id)}` : ""}</p>` : "";
+    host.innerHTML = provenance + `<div class="livebar">
       ${sheet ? `<div><a class="chip" href="${esc(sheet)}" target="_blank" rel="noopener">${uh("Rosette sheet ↗")}</a></div>` : ''}
       ${data.length > 1 ? `<div class="livevars"><span class="muted">${uh("Select Cast:")}</span> ${data.map((d) => `<button type="button" class="chip ${d.id === pick.id ? "on" : ""}" data-id="${esc(d.id)}">${esc(castLabel(d))}</button>`).join("")}</div>` : ""}
       ${profs.length > 1 ? `<div class="livevars"><span class="muted">${uh("dip:")}</span> ${profs.map((p) => `<button type="button" class="chip ${p === prof ? "on" : ""}" data-dip="${p.index}" title="${esc(p.time || "")}">#${p.index + 1}</button>`).join("")}</div>` : ""}</div>
@@ -626,7 +634,7 @@
     for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
     const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
     drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? ui("{v0} · dip #{v1}", {v0: (castLabel(pick)), v1: (prof.index + 1)}) : castLabel(pick),
-      { depth: depths(prof), vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, drawn(prof, v)])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
+      { depth: currentSeries(prof, vars[0]).depth, vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, currentSeries(prof, v).values])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
         scope:[pick.id,single.dip], upperAxes, axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ui(" · bottom {v0} m", {v0: (Math.round(prof.bottom_m || pick.bottom_m))}) : ""}` }, ordered.filter(v=>v!==CHART&&single.vars.includes(v)));
     wireCastPanels(host, () => renderSingle(host, data));
   }
@@ -655,7 +663,8 @@
     if (seq !== plotSeq || stamp !== UW.M.generated_utc) return false;
     UW.setLoadError("Casts", false);
     const dips = data.reduce((n, d) => n + profilesOf(d).length, 0);
-    $("#castmeta").textContent = ui("{v0} selected · {v1} profile{v2}", {v0: (data.length), v1: (dips), v2: (dips === 1 ? "" : "s")});
+    const currents = data.filter(isLadcp);
+    $("#castmeta").textContent = ui("{v0} selected · {v1} profile{v2}", {v0: (data.length), v1: (dips), v2: (dips === 1 ? "" : "s")}) + (currents.length ? ui(" · LADCP: true east/north currents; source error velocity available; scientific QC not verified. Native bins, no smoothing.") : "");
     if (casts.mode === "profiles") renderProfiles(host, data); else if (casts.mode === "single") renderSingle(host, data); else renderSection(host, data);
   }
 
@@ -673,7 +682,7 @@
     const g = 9.780318 * (1 + (5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * p;
     return (((-1.82e-15 * p + 2.279e-10) * p - 2.2512e-5) * p + 9.72659) * p / g;
   }
-  const depths = (prof) => prof.depth || prof.p.map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));   // a live cast carries depth already
+  const depths = (prof) => prof.depth || (prof.p || []).map((p) => depthFrom(p, prof.lat ?? prof.parent?.lat));   // LADCP and live profiles carry metres directly
   // Depth axes are linear or compressed (square root of depth, so the upper
   // water column gets room); the switch is shared by every cast view. yT maps
   // a depth onto the axis, depthAxis labels it in metres.
@@ -686,7 +695,23 @@
     if (casts.dscale === "sqrt") { const t = DEPTH_TICKS.filter((d) => d <= maxD); ax.tickvals = t.map(yT); ax.ticktext = t.map(String); }
     return ax;
   }
-  const maxDepth = (c) => c.max_p != null ? `${Math.round(depthFrom(c.max_p, c.lat))} m` : "";
+  const maxDepthValue = (c) => c.max_depth ?? (c.max_p != null ? depthFrom(c.max_p, c.lat) : null);
+  const maxDepth = (c) => maxDepthValue(c) != null ? `${Math.round(maxDepthValue(c))} m` : "";
+  const isLadcp = (p) => (p.kind || p.parent?.kind) === "LADCP";
+  // Keep unsampled depth intervals visible in current profiles. The nominal
+  // bin spacing comes from the median positive interval of the native levels.
+  function currentSeries(prof, v) {
+    const ds = depths(prof), values = drawn(prof, v);
+    if (!isLadcp(prof)) return { depth: ds, values };
+    const intervals = ds.slice(1).map((d, i) => d - ds[i]).filter((d) => d > 0).sort((a, b) => a - b);
+    const limit = intervals.length ? intervals[Math.floor(intervals.length / 2)] * 1.5 : Infinity;
+    const depth = [], out = [];
+    ds.forEach((d, i) => {
+      if (i && d - ds[i - 1] > limit) { depth.push(null); out.push(null); }
+      depth.push(d); out.push(values?.[i] ?? null);
+    });
+    return { depth, values: out };
+  }
   // Temperature, salinity and density lead; the rest in a stable order
   const VAR_ORDER = ["Temperature", "Salinity", "Sigma-t", "Oxygen", "Oxygen saturation", "Fluorescence", "CDOM", "PAR", "Transmission", "Buoyancy frequency", "Sound velocity"];
   const orderVars = (vs) => [...vs].sort((a, b) => (VAR_ORDER.indexOf(a) + 1 || 99) - (VAR_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b));
@@ -758,7 +783,7 @@
     if (castPanelState.focus && !vars.includes(castPanelState.focus)) castPanelState.focus = null;
     const legendHtml = () => castPanelHtml("cp-legend", LEGEND, ui("{v0} cast{v1}", {v0: (data.length), v1: (data.length === 1 ? "" : "s")}), true, true, false, false)
       .replace('class="panel card castplot', 'class="panel card castplot legendpanel').replace(/<button class="reset"[^>]*>⟲<\/button>/, "")
-      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}</small></span>`).join("")}</div>`);
+      .replace('<div class="plot" id="cp-legend"></div>', `<div class="legendbody">${data.map((d, i) => `<span><i style="background:${pal(i)}"></i>${esc(castLabel(d))}<small>${esc(castDate(d))}${isLadcp(d) ? `<br>Source: ${esc(d.source?.path || "processed LADCP")}${d.parent_cast_id ? `<br>Rosette: ${esc(d.parent_cast_id)}` : ""}` : ""}</small></span>`).join("")}</div>`);
     const markup = (minimised.length ? `<div class="dock castdock">${minimised.map((v) => `<button class="chip" data-var="${esc(v)}" title="${uh("restore")}">${esc(v)} <span>▲</span></button>`).join("")}</div>` : "") +
       vars.map((v) => v === LEGEND ? legendHtml() : castPanelHtml(`cp-${v.replace(/\W+/g, "_")}`, v, data.find((d) => d.units[v])?.units[v] || "", true, true, true, v === castPanelState.focus)).join("");
     // Single and Section replace these children, even when the Multi markup is unchanged.
@@ -774,8 +799,9 @@
         ps.forEach((p, j) => {
           if (!p.vars[v]) return;
           const colour = ps.length > 1 ? towShade(pal(i), j, ps.length) : pal(i);
+          const series = currentSeries(p, v);
           traces.push({
-            type: "scatter", mode: "lines", name: p.label, x: drawn(p, v), y: depths(p).map(yT), customdata: depths(p), connectgaps: false,
+            type: "scatter", mode: "lines", name: p.label, x: series.values, y: series.depth.map(yT), customdata: series.depth, connectgaps: false,
             line: { width: ps.length > 1 ? 1 : 1.6, color: colour },
             opacity: ps.length > 1 ? 0.8 : 1,
             meta: { castLegend: { id: d.id, label: castLabel(d), date: castDate(d), color: pal(i) } },
@@ -862,7 +888,7 @@
   // the smoothing window (samples ≈ dbar) for a profile reaching maxD
   const smoothWindow = (maxD) => maxD > 1500 ? 21 : maxD > 400 ? 11 : 7;
   // a profile's variable as drawn: smoothed when it is rough and Smooth is on, else as stored
-  const drawn = (prof, v) => (casts.smooth && prof.vars[v] && isRough(prof, v)) ? runningMean(prof.vars[v], smoothWindow(prof.p?.length ? prof.p[prof.p.length - 1] : 0)) : prof.vars[v];
+  const drawn = (prof, v) => (!isLadcp(prof) && casts.smooth && prof.vars[v] && isRough(prof, v)) ? runningMean(prof.vars[v], smoothWindow(prof.p?.length ? prof.p[prof.p.length - 1] : 0)) : prof.vars[v];
   // a centred running mean over w samples, nulls left out of the average and
   // kept as gaps where the window holds nothing
   function runningMean(x, w) {
@@ -914,14 +940,15 @@
       toggleCast(transect.id);
     };
     // depth grid (metres) shared by every profile
-    const maxD = Math.max(...withVar.map((d) => depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
+    const sampledCurrents = withVar.some(isLadcp);
+    const maxD = Math.max(...withVar.map((d) => depths(d).at(-1) || 0));
     const step = maxD > 1500 ? 5 : maxD > 400 ? 2 : 1;
     const grid = []; for (let d = 0; d <= maxD; d += step) grid.push(d);
     // the jittery optical and chemical sensors are smoothed down the profile
     // (a centred running mean, a window that grows with the depth range)
     // before gridding, since a section is about the big picture
     // a section smooths a variable when it is rough in most of its profiles
-    const smoothW = casts.smooth && withVar.filter((d) => isRough(d, v)).length * 2 > withVar.length ? smoothWindow(maxD) : 0;
+    const smoothW = !sampledCurrents && casts.smooth && withVar.filter((d) => isRough(d, v)).length * 2 > withVar.length ? smoothWindow(maxD) : 0;
     const onDepthGrid = (prof) => onGrid({ p: depths(prof), vars: smoothW ? { [v]: runningMean(prof.vars[v], smoothW) } : prof.vars }, v, grid);
     // x follows the header's Time/Distance switch: distance is cumulative
     // along the profiles in time order, time is each profile's own
@@ -938,14 +965,14 @@
     const unit = withVar[0].units[v] || "";
     // Resample onto a regular x grid so the section interpolates between
     // profiles in both modes (a heatmap on irregular x only smooths in pixels).
-    const cols = withVar.map(onDepthGrid);
+    const cols = sampledCurrents ? [] : withVar.map(onDepthGrid);
     const NX = 240;
     const x0 = Math.min(...xs), x1 = Math.max(...xs), span = x1 - x0 || 1;
     const xg = Array.from({ length: NX }, (_, i) => x0 + span * i / (NX - 1));
     const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
     const separateTows = (a, b) => withVar[a].parent?.id !== withVar[b].parent?.id &&
       (withVar[a].parent?.kind === "MVP" || withVar[b].parent?.kind === "MVP");
-    const z = grid.map((_, gi) => xg.map((xv) => {
+    const z = sampledCurrents ? [] : grid.map((_, gi) => xg.map((xv) => {
       let k = 0; while (k < order.length - 1 && xs[order[k + 1]] < xv) k++;
       const a = order[k], b = order[Math.min(k + 1, order.length - 1)];
       const za = cols[a][gi], zb = cols[b][gi];
@@ -963,7 +990,7 @@
     // movable (drag, or ▲ ▼); moving one switches the axis to custom and
     // keeps that order, and a link restores time order
     const entry = (d, i) => `<span class="chip reorder" draggable="true" data-i="${i}" title="${uh("drag, or ▲ ▼, to lay the profiles in your own order")}"><b>${i + 1}</b><span class="lbl">${esc(d.label)}<small>${esc(xFmt(i))}${byTime ? ` · ${km[i].toFixed(0)} km` : ""}</small></span><span class="nudges"><button type="button" class="nudge" data-d="-1" title="${uh("move up")}" ${i === 0 ? "disabled" : ""}>▲</button><button type="button" class="nudge" data-d="1" title="${uh("move down")}" ${i === withVar.length - 1 ? "disabled" : ""}>▼</button></span></span>`;
-    host.innerHTML = `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? `<a href="#" class="timeorder">${uh("↺ time order")}</a>` : ""}</div>` +
+    host.innerHTML = (sampledCurrents ? `<p class="muted">${uh("LADCP section: squares mark native depth bins at sampled stations. Empty space is unsampled; currents are not interpolated between stations.")}</p>` : "") + `<div class="sectionwrap"><div class="castlegend vertical">${withVar.map(entry).join("")}${custom ? `<a href="#" class="timeorder">${uh("↺ time order")}</a>` : ""}</div>` +
       castPanelHtml("cs-plot", uh("{v0} section", {v0: (v)}), uh("{v0} profiles · {v1} km · {v2}{v3}", {v0: (withVar.length), v1: (km.at(-1).toFixed(0)), v2: (unit), v3: (smoothW ? uh(" · smoothed over {v0} m", {v0: (smoothW)}) : "")}), false, false, true, false).replace('class="panel card castplot', 'class="panel card castplot solo wide') + "</div>";
     const move = (from, to) => {
       const arr = [...withVar]; const [x] = arr.splice(from, 1); arr.splice(to, 0, x); saveOrder(arr);
@@ -994,25 +1021,34 @@
         textfont: { size: fz(11), color: THEME.font.color }, marker: { symbol: "triangle-down", size: dense ? 5 : 9, color: C.accent2 },
         hovertext: withVar.map((d, i) => `${i + 1} · ${d.label}<br>${d.time ? fmtTs(tms[i]) + " " + UW.tzAbbr() : ""}`), hoverinfo: "text", cliponaxis: false },
     ];
-    // echo-sounder bottom where there is one, else the deepest sample; the
-    // fill is clipped to the frame so a bottom far below the casts stays out of it
-    // seabed: the echo-sounder bottom logged with each profile (a marker), or
-    // the deepest sample where none was logged; straight segments between
-    // profiles, clipped to the frame
-    const sounded = withVar.map((d) => d.bottom_m > 0);
-    const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depthFrom(d.p[d.p.length - 1], d.lat ?? d.parent?.lat)));
-    const bottomRuns = [[]];
-    for (const i of order) {
-      const run = bottomRuns.at(-1);
-      if (run.length && separateTows(run.at(-1), i)) bottomRuns.push([]);
-      bottomRuns.at(-1).push(i);
+    // Current sections retain native samples without interpolated station columns.
+    if (sampledCurrents) {
+      const samples = withVar.flatMap((d, i) => depths(d).flatMap((depth, j) => Number.isFinite(d.vars[v][j]) ? [{ x: xPts[i], depth, value: d.vars[v][j], label: d.label }] : []));
+      const signed = ["Eastward current", "Northward current", "Current error"].includes(v);
+      const bound = Math.max(0.001, ...samples.map((p) => Math.abs(p.value)));
+      traces[0] = { type: "scatter", mode: "markers", x: samples.map((p) => p.x), y: samples.map((p) => yT(p.depth)),
+        customdata: samples.map((p) => [p.depth, p.value, p.label]),
+        marker: { symbol: "square", size: 6, color: samples.map((p) => p.value), colorscale: signed ? "RdBu" : "Viridis",
+          cmin: signed ? -bound : 0, cmax: bound, showscale: true, colorbar: traces[0].colorbar },
+        hovertemplate: `%{customdata[2]}<br>%{customdata[0]:.1f} m · %{customdata[1]:.3f} ${esc(unit)}<extra></extra>` };
     }
-    for (const run of bottomRuns) {
-      traces.push({ type: "scatter", mode: "lines", x: run.map(i => xPts[i]), y: run.map(() => yT(maxD + step)), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
-      traces.push({ type: "scatter", mode: "lines+markers", x: run.map(i => xPts[i]), y: run.map(i => yT(bottoms[i])), name: "bottom",
-        line: { color: C.floorLine, width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: C.floor,
-        marker: { size: run.map(i => sounded[i] ? 5 : 0), color: C.muted, symbol: "diamond" },
-        hovertext: run.map(i => sounded[i] ? `${withVar[i].label}<br>bottom ${Math.round(withVar[i].bottom_m)} m` : `${withVar[i].label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
+    // Hydrographic sections shade below the sounded bottom or deepest sample.
+    if (!sampledCurrents) {
+      const sounded = withVar.map((d) => d.bottom_m > 0);
+      const bottoms = withVar.map((d, i) => Math.min(maxD + step, sounded[i] ? d.bottom_m : depths(d).at(-1)));
+      const bottomRuns = [[]];
+      for (const i of order) {
+        const run = bottomRuns.at(-1);
+        if (run.length && separateTows(run.at(-1), i)) bottomRuns.push([]);
+        bottomRuns.at(-1).push(i);
+      }
+      for (const run of bottomRuns) {
+        traces.push({ type: "scatter", mode: "lines", x: run.map(i => xPts[i]), y: run.map(() => yT(maxD + step)), line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+        traces.push({ type: "scatter", mode: "lines+markers", x: run.map(i => xPts[i]), y: run.map(i => yT(bottoms[i])), name: "bottom",
+          line: { color: C.floorLine, width: 1.5, shape: "linear" }, fill: "tonexty", fillcolor: C.floor,
+          marker: { size: run.map(i => sounded[i] ? 5 : 0), color: C.muted, symbol: "diamond" },
+          hovertext: run.map(i => sounded[i] ? `${withVar[i].label}<br>bottom ${Math.round(withVar[i].bottom_m)} m` : `${withVar[i].label}<br>deepest sample ${Math.round(bottoms[i])} m`), hoverinfo: "text" });
+      }
     }
     // the bottle firings, after the bottom: its fill runs to the trace before it
     if (casts.bottles) {

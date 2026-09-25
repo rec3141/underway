@@ -150,7 +150,9 @@ Parsed casts are cached under `db/casts/<leg>/`. A cached cast is reused only
 while its source files (size and mtime) and the logbook row behind its
 metadata are unchanged; on the local mirror every cast is re-validated on
 every build, straight off the CIFS share only casts younger than three days
-are (a stat there costs a round trip). Delete a cache file to force a re-parse.
+are (a stat there costs a round trip). LADCP profiles always revalidate size
+and nanosecond mtime, including older casts, so corrected exports are imported.
+Delete a cache file to force a re-parse.
 
 `build` syncs every leg's store (only new or changed day files are parsed),
 combines the legs, computes derived variables, writes `data/w-*.json` for each
@@ -381,6 +383,29 @@ The map stays on the left; the tabs swap the right-hand pane.
   tow starts on the map; *Profiles* overlays the selection per variable (a
   tow's dips shade light to dark along the tow), *Section* grids one variable
   against the header's Time or Distance axis in time order.
+  Lowered ADCP profiles (`Data/Rosette/<leg>/Ladcp/stn###.lad`) appear as
+  separate **LADCP** casts linked to their parent CTD identifier. They retain
+  their native depth bins in metres; these are not pressure values in dbar.
+  Eastward and northward current, derived speed and source error velocity
+  are in m/s. Components already reference true north/east, so no magnetic
+  rotation is applied. Direction means where the water flows toward.
+  These processed exports have no verified scientific QC flag; error velocity
+  is preserved without imposing a threshold. The source header, file size and
+  timestamp travel with each profile. Invalid identity, coordinates or depth
+  grids reject that file without blocking the other casts; nonfinite velocity
+  values become JSON null. No depth extrapolation is performed by the importer.
+  In Casts, choose **LADCP**, select profiles, then use **Single**, **Multi**
+  or **Section**. Sections show samples at stations without interpolating
+  between stations. On the map, enable **LADCP currents** and enter a depth
+  in metres. Arrows use the nearest measured bin within half the typical bin
+  spacing, follow the selected legs/time span, and omit unsampled depths.
+  Arrowheads point toward flow; length and colour encode speed. Hover shows
+  actual bin depth and error velocity; click opens the current profile.
+  `data/casts/ladcp.json` contains the small collection of full current profiles
+  for depth-selectable map arrows, and the main cast index links it through
+  `ladcp_file`. The full mirror pass includes only `.lad` and diagnostic `.png`
+  files from each leg's `Ladcp` directory. Continuous shipboard ADCP time series
+  are a separate source and are not imported here.
   Both SeaBird CTDs are handled: the SBE 9 rosette (`prDM`, `t090C`, with
   CDOM, PAR and SUNA columns) and the SBE 19plus (`prdM`, `tv290C`). Files on
   the share are read in one call each — CIFS charges a network round trip per

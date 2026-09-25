@@ -122,6 +122,7 @@
         <a href="https://www.canada.ca/en/environment-climate-change/services/ice-forecasts-observations.html" target="_blank" rel="noopener" data-i18n="mapControls.iceService" data-i18n-locale>Canadian Ice Service / ECCC</a>
       </div>
     </div>
+    <div id="ladcp-controls" class="ladcp-controls group"></div>
     <div id="map"></div>
     <div id="campop" class="campop" hidden>
       <div class="head"><b id="camtitle"></b><span id="camsub"></span>
@@ -159,7 +160,7 @@
         <div class="castside">
           <div class="pane-tools compact">
             <span class="lbl" data-i18n="castsControls.type" data-i18n-locale>Select Cast Type</span>
-            <div class="group seg small" id="castkind"><button data-k="all" class="on" data-i18n-title="castsControls.allHint" title="every kind of cast" data-i18n="castsControls.all" data-i18n-locale>All</button><button data-k="live" data-i18n-title="castsControls.liveHint" title="the cast in the water, from Seasave's TCP/IP output" data-i18n="castsControls.live" data-i18n-locale>Live</button><button data-k="CTD" data-i18n-title="castsControls.rosetteHint" title="the classic rosette's CTD casts" data-i18n="castsControls.rosette" data-i18n-locale>Rosette</button><button data-k="TM" data-i18n-title="castsControls.tmHint" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" data-i18n-title="castsControls.mvpHint" title="moving vessel profiler tows">MVP</button><button data-k="TRS" data-i18n-title="castsControls.trsHint" title="saved transects">TRS</button></div>
+            <div class="group seg small" id="castkind"><button data-k="all" class="on" data-i18n-title="castsControls.allHint" title="every kind of cast" data-i18n="castsControls.all" data-i18n-locale>All</button><button data-k="live" data-i18n-title="castsControls.liveHint" title="the cast in the water, from Seasave's TCP/IP output" data-i18n="castsControls.live" data-i18n-locale>Live</button><button data-k="CTD" data-i18n-title="castsControls.rosetteHint" title="the classic rosette's CTD casts" data-i18n="castsControls.rosette" data-i18n-locale>Rosette</button><button data-k="TM" data-i18n-title="castsControls.tmHint" title="the trace-metal rosette's casts">TM</button><button data-k="MVP" data-i18n-title="castsControls.mvpHint" title="moving vessel profiler tows">MVP</button><button data-k="LADCP" title="lowered ADCP current profiles">LADCP</button><button data-k="TRS" data-i18n-title="castsControls.trsHint" title="saved transects">TRS</button></div>
             <div class="castfilter"><button id="castclear" data-i18n-title="castsControls.deselect" title="deselect all">clear selection</button><input type="search" id="castsearch" data-i18n-placeholder="castsControls.filterPlaceholder" placeholder="filter (station, label, date)" data-i18n-aria-label="castsControls.filter" aria-label="Filter casts"><button id="castcsv" data-i18n-title="castsControls.download" title="download the visible casts as tab-separated text">TSV</button></div>
           </div>
           <div class="tablewrap castlist" id="castlist"><table id="casttable"></table></div>
@@ -296,6 +297,7 @@ window.__MANIFEST__ = {{ m|tojson }};
 <script src="static/ice.js?v={{ site.asset_version }}"></script>
 <script src="static/intranet-live.js?v={{ site.asset_version }}"></script>
 <script src="static/tabs.js?v={{ site.asset_version }}"></script>
+<script src="static/ladcp.js?v={{ site.asset_version }}"></script>
 <script src="static/photo-gallery.js?v={{ site.asset_version }}"></script>
 <script src="static/history.js?v={{ site.asset_version }}"></script>
 <script src="static/nature.js?v={{ site.asset_version }}"></script>
