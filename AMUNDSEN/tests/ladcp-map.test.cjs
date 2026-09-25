@@ -20,3 +20,10 @@ test('arrow length follows speed on a fixed screen scale',()=>{
  assert.equal(arrowLength(0.001),6);assert.equal(arrowLength(2),120);
  assert.ok(arrowLength(.2)>arrowLength(.1));
 });
+test('the depth slider is quadratic: fine steps near the surface',()=>{
+ const {depthFromSlider,sliderFromDepth}=ctx.window.UWLadcp;
+ assert.equal(depthFromSlider(0,1000),0);assert.equal(depthFromSlider(1,1000),1000);assert.equal(depthFromSlider(.5,1000),250);
+ assert.ok(depthFromSlider(.1,1000)<=10);
+ for(const d of [0,7,50,333,1000])assert.equal(depthFromSlider(sliderFromDepth(d,1000),1000),d);
+ assert.equal(sliderFromDepth(2000,1000),1);assert.equal(sliderFromDepth(5,0),0);
+});
