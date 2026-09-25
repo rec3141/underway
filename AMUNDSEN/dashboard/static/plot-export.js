@@ -63,7 +63,7 @@
       <label><span data-i18n="export.width">Width (px)</span><input name="width" type="number" min="160" max="4096" step="1"></label>
       <label><span data-i18n="export.height">Height (px)</span><input name="height" type="number" min="160" max="4096" step="1"></label>
       <label><span data-i18n="export.scale">PNG DPI scale</span> <input type="range" min="1" max="4" step="0.5" value="2"></label><output></output>
-      <p class="export-format-note muted"></p><button type="button" data-format="png" data-i18n="export.png">Export PNG</button><button type="button" data-format="svg" data-i18n="export.svg">Export SVG</button><button type="button" class="export-kmz" hidden></button><p class="export-status" role="status"></p>
+      <p class="export-format-note muted"></p><button type="button" data-format="png" data-copy data-i18n="export.copy" data-i18n-title="export.copyHint">Copy to clipboard</button><button type="button" data-format="png" data-i18n="export.png">Export PNG</button><button type="button" data-format="svg" data-i18n="export.svg">Export SVG</button><button type="button" class="export-kmz" hidden></button><p class="export-status" role="status"></p>
       </aside><div class="export-viewport"><div class="export-canvas"></div></div></div>`;
     document.body.append(dialog);preview=dialog.querySelector('.export-canvas');
     dialog.querySelector('.export-close').onclick=()=>dialog.close();
@@ -82,15 +82,28 @@
     });
     for(const button of dialog.querySelectorAll('[data-format]'))button.onclick=async()=>{
       if(!ready)return;
-      const buttons=exportButtons();
-      buttons.forEach(b=>b.disabled=true);status('export.preparing');
+      const buttons=exportButtons(),copying=button.hasAttribute('data-copy'),current=version;
+      if(copying && (!window.isSecureContext || !navigator.clipboard?.write || !window.ClipboardItem)){
+        status(window.isSecureContext?'export.copyUnsupported':'export.copyInsecure');
+        return;
+      }
+      buttons.forEach(b=>b.disabled=true);status(copying?'export.copying':'export.preparing');
       try {
         const format=button.dataset.format,scale=format==='png'?Number(scaleInput().value):1;
-        const url=mapPreview?await mapImage(format,scale):await Plotly.toImage(preview,{format,...dimensions(),scale});
-        const link=document.createElement('a');link.href=url;link.download=`${filename}.${format}`;document.body.append(link);link.click();link.remove();
-        status('export.downloaded');
-      } catch {status('export.failed');}
-      finally {buttons.forEach(b=>b.disabled=false);}
+        const result=mapPreview?mapImage(format,scale):Plotly.toImage(preview,{format,...dimensions(),scale});
+        if(copying){
+          const png=Promise.resolve(result).then(url=>fetch(url)).then(response=>response.blob());
+          // Supply the image promise so clipboard access starts during the click gesture.
+          png.catch(()=>{});
+          await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);
+        }else{
+          const url=await result;
+          if(current!==version)return;
+          const link=document.createElement('a');link.href=url;link.download=`${filename}.${format}`;document.body.append(link);link.click();link.remove();
+        }
+        if(current===version)status(copying?'export.copied':'export.downloaded');
+      } catch {if(current===version)status(copying?'export.copyFailed':'export.failed');}
+      finally {if(current===version)buttons.forEach(b=>b.disabled=false);}
     };
     // The KMZ holds every layer the map has loaded, on screen or not, so it
     // comes from the live map view rather than the preview's framed copy.
