@@ -17,33 +17,24 @@
       error: finite(error) ? error : null };
   }
 
-  // Mercator offsets keep a 0.5 m/s vector 36 pixels long at the current zoom.
-  function arrowPoints(lat, lon, u, v, zoom) {
-    const speed = Math.hypot(u, v);
-    if (!speed) return [];
-    const scale = 72 * 360 / (512 * 2 ** zoom), dx = u * scale, dy = v * scale;
-    const mercY = Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * 180 / Math.PI;
-    const point = (x, y) => [lon + x, (2 * Math.atan(Math.exp((mercY + y) * Math.PI / 180)) - Math.PI / 2) * 180 / Math.PI];
-    const head = 0.28;
-    return [point(0, 0), point(dx, dy), point(dx - head * dx - head * dy, dy - head * dy + head * dx),
-      point(dx, dy), point(dx - head * dx + head * dy, dy - head * dy - head * dx)];
-  }
-  // Three speed classes in the theme's accent, amber and pink tokens (style.css
-  // .ladcp-controls .slow/.mid/.fast colour the key to match).
-  const speedColour = (speed) => { const C = window.UW?.C || {}; return speed < 0.1 ? C.accent : speed < 0.3 ? C.accent2 : C.pink; };
-  window.UWLadcp = { sampleAt, arrowPoints, speedColour };
+  // An arrow's length on screen in pixels: 0.1 m/s is 20 px, whatever the
+  // zoom; the slowest keep a stub and the fastest stop at 120 px.
+  const PX_PER_MPS = 200;
+  const arrowLength = (speed) => Math.min(120, Math.max(6, speed * PX_PER_MPS));
+  window.UWLadcp = { sampleAt, arrowLength };
   const UW = window.UW, host = typeof document !== "undefined" && document.querySelector("#ladcp-controls");
   if (!UW || !host) return;
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let enabled = UW.store.get("ladcp.enabled", false), depth = UW.store.get("ladcp.depth", 50);
   if (!finite(depth) || depth < 0) depth = 50;
   let profiles = [], loaded = null, loading = null, failedAt = 0, failed = false;
-  host.innerHTML = `<button id="ladcp-toggle" type="button" aria-pressed="false" title="Current vectors at sampled CTD stations, for the selected legs and time span">LADCP currents</button>
-    <label id="ladcp-depth-label" hidden>Depth <input id="ladcp-depth" type="number" min="0" max="12000" step="1" aria-label="Current depth in metres"> m</label>
+  const KEY = "ADCP currents at the chosen depth, for the selected legs and span. Arrows point downstream; 0.1 m/s = 20 px.";
+  host.innerHTML = `<button id="ladcp-toggle" type="button" aria-pressed="false" title="${esc(KEY)}">ADCP</button>
     <input id="ladcp-depth-slider" type="range" min="0" max="1000" step="1" aria-label="Current depth in metres" hidden>
-    <span id="ladcp-status" class="hint" role="status" hidden></span>
-    <span id="ladcp-key" class="hint" hidden>Arrows point in the direction of flow · 0.5 m/s = 36 px · <span class="slow">&lt;0.1</span> / <span class="mid">0.1–0.3</span> / <span class="fast">≥0.3 m/s</span></span>`;
-  const button = host.querySelector("#ladcp-toggle"), input = host.querySelector("#ladcp-depth"), status = host.querySelector("#ladcp-status");
+    <label id="ladcp-depth-label" hidden><input id="ladcp-depth" type="number" min="0" max="12000" step="1" aria-label="Current depth in metres"> m</label>`;
+  const button = host.querySelector("#ladcp-toggle"), input = host.querySelector("#ladcp-depth");
+  // what the arrows show, or why there are none, goes in the button's tooltip
+  const status = (text) => { button.title = text ? `${text}\n${KEY}` : KEY; };
   input.value = depth;
   const slider = host.querySelector("#ladcp-depth-slider");
   let redraw = null;
@@ -57,7 +48,7 @@
   syncDepth();
   function controls() {
     button.classList.toggle("on", enabled); button.setAttribute("aria-pressed", String(enabled));
-    for (const id of ["#ladcp-depth-label", "#ladcp-depth-slider", "#ladcp-status", "#ladcp-key"]) host.querySelector(id).hidden = !enabled;
+    for (const id of ["#ladcp-depth-label", "#ladcp-depth-slider"]) host.querySelector(id).hidden = !enabled;
   }
   button.onclick = () => { enabled = !enabled; UW.store.set("ladcp.enabled", enabled); controls(); if (!enabled) UW.setLoadError("LADCP", false); UW.renderMap(); };
   input.onchange = () => {
@@ -75,7 +66,7 @@
   async function load() {
     const generation = UW.M.generated_utc;
     if (loaded === generation || loading || Date.now() - failedAt < 15000) return;
-    loading = generation; status.textContent = "Loading station currents…";
+    loading = generation; status("Loading station currents…");
     try {
       const index = await UW.fetchJSON(`${UW.M.casts?.index || "data/casts/index.json"}?v=${encodeURIComponent(generation)}`);
       const data = index.ladcp_file ? await UW.fetchJSON(`${index.ladcp_file}?v=${encodeURIComponent(generation)}`) : { casts: [] };
@@ -84,30 +75,34 @@
     } catch { failedAt = Date.now(); failed = true; UW.setLoadError("LADCP", true); }
     finally { loading = null; UW.renderMap(); }
   }
-  UW.ladcpMapTraces = (zoom = 6) => {
+  UW.ladcpMapTraces = () => {
     if (!enabled) return [];
     void load();
     const f = UW.spanFilter(), visible = profiles.filter((p) => finite(p.lat) && finite(p.lon) && UW.inFilter(p.leg, p.time, f));
     syncDepth(visible);
     const samples = visible.map((p) => ({ p, s: sampleAt(p, depth) })).filter(({ s }) => s);
-    status.textContent = `${samples.length}/${visible.length} casts at ${depth} m (nearest measured bin)${failed ? " · update unavailable" : loading ? " · updating…" : ""}`;
-    if (!visible.length && !loading && !failed) status.textContent = profiles.length ? "No LADCP casts in this time span; expand the span or legs." : "No LADCP profiles available.";
-    const out = [], selected = UW.selectedCastKeys?.() || new Set();
+    status(!visible.length && !loading && !failed ? (profiles.length ? "No ADCP casts in this time span" : "No ADCP profiles available")
+      : `${samples.length}/${visible.length} casts at ${depth} m${failed ? " · update unavailable" : loading ? " · updating…" : ""}`);
+    const C = UW.C || {}, selected = UW.selectedCastKeys?.() || new Set();
+    const arrows = { plain: { lat: [], lon: [], text: [], customdata: [], angle: [], size: [] }, picked: { lat: [], lon: [], text: [], customdata: [], angle: [], size: [] } };
     for (const { p, s } of samples) {
-      const points = arrowPoints(p.lat, p.lon, s.u, s.v, zoom);
-      const text = `<b>LADCP cast ${esc(p.cast)}${p.station ? " · " + esc(p.station) : ""}</b><br>${esc(p.leg)} · ${esc(p.time)} UTC` +
+      const text = `<b>ADCP cast ${esc(p.cast)}${p.station ? " · " + esc(p.station) : ""}</b><br>${esc(p.leg)} · ${esc(p.time)} UTC` +
         `<br>${s.depth.toFixed(1)} m · ${s.speed.toFixed(3)} m/s${s.direction == null ? " · calm" : ` toward ${s.direction.toFixed(0)}° true`}` +
         `<br>East ${s.u.toFixed(3)} · North ${s.v.toFixed(3)} m/s<br>Error velocity ${s.error == null ? "unavailable" : s.error.toFixed(3) + " m/s"}` +
         `<br>Click for current profile`;
-      if (points.length) out.push({ type: "scattermap", mode: "lines", name: "LADCP currents", showlegend: false,
-        lat: points.map((q) => q[1]), lon: points.map((q) => q[0]), text: points.map(() => text), customdata: points.map(() => p.id), hoverinfo: "text",
-        line: { color: speedColour(s.speed), width: selected.has(p.id) ? 4 : 2.5 } });
-      out.push({ type: "scattermap", mode: "markers", name: "LADCP stations", showlegend: false,
-        lat: [p.lat], lon: [p.lon], text: [text], customdata: [p.id], hoverinfo: "text",
-        marker: { size: selected.has(p.id) ? 11 : 8, color: speedColour(s.speed) } });
+      const a = arrows[selected.has(p.id) ? "picked" : "plain"];
+      a.lat.push(p.lat); a.lon.push(p.lon); a.text.push(text); a.customdata.push(p.id);
+      a.angle.push(s.direction ?? 0); a.size.push(s.direction == null ? 4 : arrowLength(s.speed));
+    }
+    // plain arrows in the map's arrow ink; a selected cast's arrow haloed in the accent
+    const out = [];
+    for (const [key, halo] of [["plain", C.mapArrowHalo], ["picked", C.accent]]) {
+      const a = arrows[key];
+      if (a.lat.length) out.push({ type: "scattermap", mode: "markers", name: "ADCP currents", showlegend: false, hoverinfo: "text",
+        lat: a.lat, lon: a.lon, text: a.text, customdata: a.customdata,
+        marker: { symbol: "arrow", angle: a.angle, size: a.size, color: C.mapArrow, line: { color: halo } } });
     }
     return out;
   };
-  UW.ladcpEnabled = () => enabled;
   UW.renderMap();
 })();

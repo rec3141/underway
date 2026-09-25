@@ -353,23 +353,17 @@ const watchdog=setTimeout(()=>{child?.kill();server.closeAllConnections();server
     if(cisFixture) {
       await until('UW.mapView?.map?.isStyleLoaded()');
       await evaluate('document.querySelector("#icechart-toggle").click()');
-      assert.match(await evaluate('document.querySelector("#icechart-status").textContent'),/No cached chart on or before/);
-      await evaluate(`document.querySelector('#icechart-date').value=${JSON.stringify(cisFixture.chart.id)}; document.querySelector('#icechart-date').dispatchEvent(new Event('change')); UW.mapView.map.jumpTo({center:[-80,74],zoom:3});`);
-      await until('UW.mapView.map.getLayer("cis-ice-fill") && UW.mapView.map.isSourceLoaded("cis-ice-chart")');
-      await wait(300);
-      assert.match(await evaluate('document.querySelector("#icechart-status").textContent'),/after map end/);
-      assert(requests.some(p=>p.includes('/data/ice-charts/test.geojson')),'Published chart requested by the full app');
+      // the only chart is valid after the map's end, so none is drawn and the tooltip says why
+      assert.match(await evaluate('document.querySelector("#icechart-toggle").title'),/Cached chart unavailable/);
+      assert.equal(await evaluate('!UW.mapView.map.getLayer("cis-ice-fill")'),true);
       for(const width of [390,1280]) {
         await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<=640}); await wait(300);
-        const overflow=await evaluate(`Array.from(document.querySelectorAll('#icechart-controls label, #icechart-controls select, #icechart-controls a')).filter(e=>{const r=e.getBoundingClientRect();return r.width && (r.left < -1 || r.right > innerWidth+1)}).map(e=>e.outerHTML)`);
+        const overflow=await evaluate(`Array.from(document.querySelectorAll('#icechart-toggle, #icechart-controls button, #icechart-controls .icechart-legend')).filter(e=>{const r=e.getBoundingClientRect();return r.width && (r.left < -1 || r.right > innerWidth+1)}).map(e=>e.outerHTML)`);
         assert.deepEqual(overflow,[],'Ice chart controls fit the viewport');
       }
-      const clicked=await evaluate(`(()=>{const m=UW.mapView.map;for(let y=40;y<m.getCanvas().clientHeight;y+=30)for(let x=40;x<m.getCanvas().clientWidth;x+=30){if(UW.iceCharts.click({point:{x,y}}))return true;}return false;})()`);
-      assert.equal(clicked,true,'A real CIS polygon opens its egg details');
-      assert.match(await evaluate('document.querySelector(".icechart-detail").textContent'),/2026-09-07/);
       assert.deepEqual(await evaluate('window.__mapErrors'),[]);assert.deepEqual(await evaluate('window.__errors'),[]);
       if(process.env.UI_SCREENSHOT){const shot=await call('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.UI_SCREENSHOT,Buffer.from(shot.result.data,'base64'));}
-      console.log('PASS full dashboard with real CIS chart, explicit date selection, mobile controls, source geometry and egg details');return;
+      console.log('PASS full dashboard with a CIS chart valid after the map end left undrawn, and mobile controls');return;
     }
     if(process.env.PHOTO_UI) {
       await evaluate('UW.showTab("photos")');

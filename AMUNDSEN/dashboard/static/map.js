@@ -26,6 +26,25 @@
   const GROUPS = ["base", "live"];
   const FONT = ["Open Sans Regular"];                 // the one glyph stack served under static/geo/glyphs
   const DEFAULT_COLOUR = "#1f77b4";                   // Plotly's first colour, for a trace that names none
+  // An arrow icon "uw-arrow|<length px>|<ink>|<halo>" pointing north, its
+  // tail on a dot at the image centre so icon-rotate turns it about the
+  // point it belongs to. Drawn at twice the size for pixelRatio 2; the head
+  // keeps one size whatever the length, so only the shaft says how fast.
+  function arrowImage(id) {
+    const [, len, ink, halo] = id.split("|"), k = 2, L = +len * k;
+    const head = 7 * k, half = 4 * k, pad = 3 * k, w = 2 * (half + pad), h = 2 * (L + pad);
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const g = cv.getContext("2d"), cx = w / 2, cy = h / 2, tip = cy - L;
+    const shape = () => {
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, tip + head * 0.8); g.stroke();
+      g.beginPath(); g.moveTo(cx, tip); g.lineTo(cx - half, tip + head); g.lineTo(cx + half, tip + head); g.closePath(); g.fill(); g.stroke();
+      g.beginPath(); g.arc(cx, cy, 1.8 * k, 0, 2 * Math.PI); g.fill(); g.stroke();
+    };
+    g.lineCap = "round"; g.lineJoin = "round";
+    g.strokeStyle = g.fillStyle = halo; g.lineWidth = 4 * k; shape();
+    g.strokeStyle = g.fillStyle = ink; g.lineWidth = 1.5 * k; shape();
+    return g.getImageData(0, 0, w, h);
+  }
   const NULL_COLOUR = "#7d8895";                      // a point whose value is missing on a coloured track
   const PICK_PX = 7;                                  // how near the pointer a point must be to be hovered or clicked
   const PRESS_MS = 550;                               // how long a press is held to stand for a double click
@@ -170,7 +189,10 @@
           if (!ok(i)) continue;
           const g = { type: "Point", coordinates: [+lon[i], +lat[i]] };
           const sym = at(m.symbol, i), size = at(m.size, i) ?? 6, o = (at(m.opacity, i) ?? 1) * op;
-          if (sym && sym !== "circle") {
+          if (sym === "arrow") {
+            // an arrow marker.size pixels long, drawn to order (arrowImage), in marker.color with a marker.line.color halo
+            out.icons.push({ type: "Feature", geometry: g, properties: { t, i, z, ic: `uw-arrow|${Math.max(4, Math.round(size))}|${at(m.color, i) || DEFAULT_COLOUR}|${m.line?.color || "rgba(0,0,0,0)"}`, s: 1, rot: at(m.angle, i) ?? 0, o, h } });
+          } else if (sym && sym !== "circle") {
             // a sprite icon is scaled as Plotly scaled it: marker.size / 10 of its sprite image
             out.icons.push({ type: "Feature", geometry: g, properties: { t, i, z, ic: `${sym}-15`, s: size / 10, rot: at(m.angle, i) ?? 0, o, h } });
           } else {
@@ -288,6 +310,7 @@
       this.map.keyboard.disableRotation?.();
       this.el.appendChild(this.tip);
       this._styled = false;
+      this.map.on("styleimagemissing", (e) => { if (e.id.startsWith("uw-arrow|") && !this.map.hasImage(e.id)) this.map.addImage(e.id, arrowImage(e.id), { pixelRatio: 2 }); });
       this.map.on("style.load", () => { this._styled = true; this.ensureOverlay(); });
       this.map.on("styledata", () => this.ensureOverlay());
       this.map.on("remove", () => maplibregl.removeProtocol(this.imageProtocol));

@@ -61,8 +61,8 @@
   const el = (tag, text, className) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (className) node.className = className; return node; };
   const $ = id => document.getElementById(id);
   let enabled = false, initialized = false, charts = [], view = null, chart = null, collection = null;
-  let region = '', chosen = '', day = '', generation = 0, controller = null, loading = false, failure = '', ensureBusy = false, detail = null, detailProperties = null;
-  let opacity = .4, signature = '', reference = '';
+  let region = '', day = '', generation = 0, controller = null, loading = false, failure = '', ensureBusy = false, detail = null, detailProperties = null;
+  let signature = '', reference = '';
   const cache = new Map();
 
   function initialize() {
@@ -70,17 +70,12 @@
     initialized = true;
     enabled = !!UW.store?.get('icecharts.enabled', false);
     region = UW.store?.get('icecharts.region', '') || '';
-    chosen = UW.store?.get('icecharts.chart', '') || '';
+    // one button steps through the regions, the ship's area first, then off
     $('icechart-toggle').onclick = () => {
-      enabled = !enabled; UW.store?.set('icecharts.enabled', enabled);
+      const order = regionOrder(), at = enabled ? order.indexOf(region) : -1;
+      if (at + 1 >= order.length) enabled = false; else { enabled = true; region = order[at + 1]; }
+      UW.store?.set('icecharts.enabled', enabled); UW.store?.set('icecharts.region', region);
       closeDetails(); select();
-    };
-    $('icechart-region').onchange = e => { region = e.target.value; chosen = ''; UW.store?.set('icecharts.region', region); UW.store?.set('icecharts.chart', ''); closeDetails(); select(); };
-    $('icechart-date').onchange = e => { chosen = e.target.value; UW.store?.set('icecharts.chart', chosen); closeDetails(); select(); };
-    $('icechart-opacity').oninput = e => {
-      opacity = Number(e.target.value) / 100; $('icechart-opacity-value').textContent = `${e.target.value}%`;
-      if (view?.map?.getLayer(FILL)) view.map.setPaintProperty(FILL, 'fill-opacity', opacity);
-      if (view?.map?.getLayer(RASTER)) view.map.setPaintProperty(RASTER, 'raster-opacity', opacity);
     };
     $('icechart-retry').onclick = () => load(true);
     renderLegend();
@@ -109,21 +104,22 @@
     else ensureLayers();
   }
 
-  function select() {
+  // the regions with charts: the one covering the ship's area first, then A–Z
+  const regionOrder = () => {
     const regions = [...new Set(charts.map(c => c.region))].sort();
-    if (!regions.includes(region)) { region = charts.find(c => c.ship_area)?.region || regions[0] || ''; chosen = ''; }
-    const regional = charts.filter(c => c.region === region).sort((a, b) => b.date.localeCompare(a.date));
+    const ship = charts.find(c => c.ship_area)?.region;
+    return ship ? [ship, ...regions.filter(r => r !== ship)] : regions;
+  };
+
+  function select() {
+    const order = regionOrder();
+    if (!order.includes(region)) region = order[0] || '';
+    const regional = charts.filter(c => c.region === region);
     const previous = chart;
-    chart = regional.find(c => c.id === chosen) || defaultChart(regional, reference);
-    $('icechart-region').replaceChildren(...regions.map(r => new Option(t(r), r)));
-    $('icechart-region').value = region;
-    $('icechart-date').replaceChildren(new Option(t("Latest on/before map end"), ''), ...regional.map(c => new Option(c.date, c.id)));
-    $('icechart-date').value = chosen && regional.some(c => c.id === chosen) ? chosen : '';
+    chart = defaultChart(regional, reference);
     $('icechart-toggle').classList.toggle('on', enabled);
     $('icechart-toggle').setAttribute('aria-pressed', String(enabled));
     $('icechart-controls').hidden = !enabled;
-    $('icechart-region').disabled = !regions.length;
-    $('icechart-date').disabled = !regional.length;
     if (!enabled || previous?.url !== chart?.url || previous?.id !== chart?.id) {
       ++generation; controller?.abort(); loading = false; collection = null; failure = ''; removeLayers(); closeDetails();
     }
@@ -167,19 +163,17 @@
     } finally { clearTimeout(timeout); if (token === generation) status(); }
   }
 
+  // the chart shown (region and valid date), or why there is none, goes in the button's tooltip
   function status() {
-    let text;
+    const hint = window.UWI18n?.t('mapControls.iceChartsHint') || "Canadian Ice Service daily and regional ice charts";
+    let text = '';
     if (!charts.length) text = t("No ice charts cached for this dashboard.");
-    else if (!chart) text = t('No cached chart on or before {date}. Choose an available date.', {date: day});
-    else {
-      const delta = Math.round((Date.parse(day) - Date.parse(chart.date)) / DAY);
-      const age = delta < 0 ? (delta === -1 ? t('1 day after map end') : t('{count} days after map end', {count: -delta})) : delta === 0 ? (Date.parse(chart.valid_time || chart.date) > Date.parse(reference) ? t("valid after map end") : t("same date as map end")) : (delta === 1 ? t('1 day before map end') : t('{count} days before map end', {count: delta}));
-      const ready = chart.kind === 'raster' ? t("Daily raster analysis for the ship area; use the original chart for egg codes.") : t("Click a polygon for its egg code. Regional analysis; conditions can change between charts.");
-      text = `${t(chart.region)} · ${validLabel(chart)} · ${age}. ${loading ? t(chart.kind === 'raster' ? 'Loading image…' : 'Loading polygons…') : failure ? t(failure) : ready}`;
-    }
-    $('icechart-status').textContent = text;
+    else if (enabled && !chart) text = `${t(region)} · ${t("Cached chart unavailable")}`;
+    else if (enabled) text = `${t(chart.region)} · ${validLabel(chart)}${loading ? ' · ' + t(chart.kind === 'raster' ? 'Loading image…' : 'Loading polygons…') : failure ? ' · ' + t(failure) : ''}`;
+    $('icechart-toggle').title = text ? `${text}\n${hint}` : hint;
     $('icechart-retry').hidden = !failure;
     $('icechart-legend').hidden = !collection || chart?.kind === 'raster';
+    $('icechart-controls').hidden = !enabled || ($('icechart-retry').hidden && $('icechart-legend').hidden);
   }
 
   function removeLayers() {
@@ -197,11 +191,11 @@
       if (chart.kind === 'raster') {
         if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'image', url: view.imageUrl(collection.url), coordinates: chart.coordinates});
         if (!m.getLayer(RASTER)) m.addLayer({id: RASTER, type: 'raster', source: SOURCE,
-          paint: {'raster-opacity': opacity, 'raster-fade-duration': 0, 'raster-resampling': 'linear'}}, before);
+          paint: {'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'linear'}}, before);
       } else {
         if (!m.getSource(SOURCE)) m.addSource(SOURCE, {type: 'geojson', data: collection, tolerance: .1, attribution: chart.attribution || 'Canadian Ice Service / ECCC'});
         if (!m.getLayer(FILL)) m.addLayer({id: FILL, type: 'fill', source: SOURCE, paint: {
-          'fill-opacity': opacity,
+          'fill-opacity': 1,
           'fill-color': ['case', ['==', ['get', 'concentration'], null], '#9aa5b1', ['step', ['get', 'concentration'], colours[0], 1, colours[1], 4, colours[2], 7, colours[3], 9, colours[4]]]
         }}, before);
         if (!m.getLayer(OUTLINE)) m.addLayer({id: OUTLINE, type: 'line', source: SOURCE, paint: {'line-color': '#374151', 'line-width': .8, 'line-opacity': .65}}, before);
@@ -262,10 +256,7 @@
 
   window.addEventListener?.('uw:localechange', () => {
     if (!initialized) return;
-    // Re-label the existing options in place; do not call select/load or touch map state.
-    for (const option of $('icechart-region').options) option.textContent = t(option.value);
-    const latest = $('icechart-date').options[0];
-    if (latest) latest.textContent = t('Latest on/before map end');
+    // Re-label in place; do not call select/load or touch map state.
     renderLegend(); status();
     if (detail?.open) {
       const expanded = !!detail.querySelector('details')?.open;

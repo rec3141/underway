@@ -5051,6 +5051,10 @@
     "pages.4983bbf5bbbef105": {
       "text": "when the value is",
       "context": "Underway observation alert interface."
+    },
+    "pages.4ca3018930fb3560": {
+      "text": "Bathymetry",
+      "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     }
   }
 }
