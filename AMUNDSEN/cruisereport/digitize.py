@@ -392,6 +392,28 @@ def edit(ident: str, table: int, row: int, col: int, text: str) -> dict:
     return doc
 
 
+def grow(ident: str, table: int, what: str) -> dict:
+    """Add an empty row at the bottom or a column at the right of a table.
+
+    The new cells are the participant's (edited, near certain): whatever is
+    typed into them is their reading, not the model's.
+    """
+    with _lock:
+        doc = load(ident)
+        t = doc["tables"][table]
+        blank = lambda: {"t": "", "c": EDITED, "edited": True}  # noqa: E731
+        if what == "row":
+            t["rows"].append([blank() for _ in t["columns"]])
+        elif what == "col":
+            t["columns"].append(f"column {len(t['columns']) + 1}")
+            for r in t["rows"]:
+                r.append(blank())
+        else:
+            raise ValueError("add a row or a col")
+        _write(ident, doc)
+    return doc
+
+
 HUES = {3: 120, 2: 90, 1: 58, 0: 30, -1: 0}
 
 

@@ -475,19 +475,31 @@ function digTable(doc, k) {
   return h("div", { class: "scroll", style: "max-height:420px" }, table);
 }
 
-// The leg's operations, as searchable options for rows that matched nothing.
+// The leg's operations, as searchable options for rows that matched nothing. Each
+// option's value is the short form the "Matched to" column shows ("ES-Ice1
+// AMD2603-123"); its label adds the activity and time, which the search also covers.
+const opShort = (o) => [o.station || "—", o.label || o.key].join(" ");
+const opLong = (o) => [o.activity, (o.start_utc || "").slice(0, 16).replace("T", " ")].join(" · ");
 function opOptions() {
   let dl = document.getElementById("op-options");
   if (dl && dl.dataset.leg === R.leg && dl.options.length) return dl;
   dl = dl || document.body.appendChild(h("datalist", { id: "op-options" }));
   if (!INFO || INFO.leg !== R.leg) return dl;            // filled once the leg has loaded
   dl.dataset.leg = R.leg;
-  dl.replaceChildren(...(INFO?.operations || []).map((o) => h("option", {
-    value: [o.station || "—", o.label || o.key, o.activity, (o.start_utc || "").slice(0, 16).replace("T", " ")].join(" · ") })));
+  dl.replaceChildren(...(INFO?.operations || []).map((o) => h("option", { value: opShort(o), label: opLong(o) })));
   return dl;
 }
-const opFromOption = (text) => (INFO?.operations || []).find((o) =>
-  text === [o.station || "—", o.label || o.key, o.activity, (o.start_utc || "").slice(0, 16).replace("T", " ")].join(" · "));
+// The operation a typed or chosen text names: by its event label anywhere in the
+// text, else by the short or the full form, ignoring case, spacing and "·".
+const squash = (t) => String(t).toLowerCase().replace(/[·|]/g, " ").replace(/\s+/g, " ").trim();
+function opFromOption(text) {
+  const ops = INFO?.operations || [];
+  const label = /AMD\d{4}-\d{3}/i.exec(text)?.[0]?.toUpperCase();
+  if (label) { const o = ops.find((x) => x.label === label); if (o) return o; }
+  const t = squash(text);
+  return ops.find((o) => squash(opShort(o)) === t || squash(`${opShort(o)} ${opLong(o)}`) === t
+    || squash([o.station || "—", o.label || o.key, opLong(o)].join(" · ")) === t);
+}
 
 function matchSearch(id, k, row) {
   opOptions();
@@ -562,6 +574,8 @@ function renderDigitized() {
           digTable(doc, k),
           h("div", { class: "dig-tools" },
             h("span", { class: "pill match-count" }, ""),
+            h("button", { class: "ghost small", title: "Add an empty row at the bottom", onclick: () => growTable(id, k, "row") }, "+ row"),
+            h("button", { class: "ghost small", title: "Add an empty column at the right (click its header to name it)", onclick: () => growTable(id, k, "col") }, "+ column"),
             h("a", { class: "button ghost small", href: `api/digitized/${id}/${k}.tsv`, download: "" }, "TSV"),
             R.selection.logsheets.some((lg) => lg.source?.digitized === id && lg.source?.table === k)
               ? h("span", { class: "hint" }, "used as a log")
@@ -582,6 +596,21 @@ function renderDigitized() {
   $("#dig-count").textContent = ids.length ? `${ids.length} page${ids.length === 1 ? "" : "s"}` : "";
   renderStrip();
   renderLogChips();
+}
+
+// An empty row or column; the page's tables redraw, and logs made from the table follow.
+async function growTable(id, k, add) {
+  try {
+    const { linked, ...doc } = await api(`api/digitized/${id}/grow`, { table: k, add });
+    DIG[id] = doc;
+    renderDigitized();
+    const table = document.querySelector(`table[data-dig="${id}:${k}"]`);
+    const target = add === "row" ? table?.querySelector("tbody tr:last-child td:nth-child(2)")
+      : table?.querySelector("thead th:last-child");
+    target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    target?.focus();
+    for (const lg of R.selection.logsheets.filter((x) => (linked || []).includes(x.id))) await matchLog(lg);
+  } catch (e) { toast(`Could not add a ${add === "row" ? "row" : "column"}: ${e.message}`, true); }
 }
 
 async function useAsLogsheet(id, k, fillDown) {

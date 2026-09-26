@@ -118,3 +118,19 @@ def test_ticked_logs_name_the_teams_bottles():
     b = {"label": "AMD2603-230", "bottle": 2, "draws": {}}
     assert tables._team_bottle(b, [], tables.logged_bottles(logs, used))
     assert not tables._team_bottle({**b, "bottle": 5}, [], tables.logged_bottles(logs, used))
+
+
+def test_digitized_tables_grow(tmp_path, monkeypatch):
+    import pytest
+    from cruisereport import digitize
+
+    monkeypatch.setattr(digitize, "STATE_DIR", tmp_path)
+    doc = digitize.save("p.jpg", b"j", {"tables": [{"title": "t", "columns": ["A", "B"],
+                                                    "rows": [[{"t": "1", "c": 2}, {"t": "2", "c": 2}]]}], "notes": []})
+    digitize.grow(doc["id"], 0, "row")
+    t = digitize.grow(doc["id"], 0, "col")["tables"][0]
+    assert t["columns"] == ["A", "B", "column 3"]
+    assert [len(r) for r in t["rows"]] == [3, 3]
+    assert t["rows"][1][0] == {"t": "", "c": 3, "edited": True}
+    with pytest.raises(ValueError):
+        digitize.grow(doc["id"], 0, "sideways")

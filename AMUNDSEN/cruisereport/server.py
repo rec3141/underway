@@ -19,6 +19,7 @@ Routes (all JSON unless noted):
     GET  /api/digitized/<id>/<table>.tsv   one table as TSV
     GET  /api/digitized.xlsx?ids=a,b       every table as a sheet, confidence as fill
     POST /api/digitized/<id>/logsheet      {table, fill_down}: use a table as a logsheet
+    POST /api/digitized/<id>/grow          {table, add: "row"|"col"}: an empty row or column
     POST /api/digitized/<id>/setmatch      {table, row, op}: match a row by hand (op null clears)
     POST /api/digitized/<id>/again         queue the stored photo again
     POST /api/digitized/<id>/match         {table, fill_down, leg, groups}: row -> operation, now
@@ -191,10 +192,10 @@ class Handler(SimpleHTTPRequestHandler):
             "/api/docx": self._docx,
             "/api/digitize": lambda: self._digitize(q),
         }
-        m = re.fullmatch(r"/api/digitized/([0-9a-f]{12})/(edit|logsheet|match|again|setmatch)", u.path)
+        m = re.fullmatch(r"/api/digitized/([0-9a-f]{12})/(edit|logsheet|match|again|setmatch|grow)", u.path)
         if m:
             fn = {"edit": self._dig_edit, "logsheet": self._dig_logsheet, "match": self._dig_match,
-                  "again": self._dig_again, "setmatch": self._dig_setmatch}[m[2]]
+                  "again": self._dig_again, "setmatch": self._dig_setmatch, "grow": self._dig_grow}[m[2]]
             return self._guard(lambda: fn(m[1]))
         fn = routes.get(u.path)
         if fn is None:
@@ -217,6 +218,17 @@ class Handler(SimpleHTTPRequestHandler):
         name = self.headers.get("X-Filename") or "logbook.jpg"
         jpeg = digitize.prepare(self._body(), int(q.get("rotate", 0) or 0))
         self._json(200, digitize.submit(name, jpeg))
+
+    def _dig_grow(self, ident):
+        """Add a row or a column to a table; logsheets from the table follow."""
+        a = self._obj()
+        k = int(a["table"])
+        doc = digitize.grow(ident, k, str(a.get("add")))
+
+        def frame(fill_down):
+            cols, rows = digitize.rows_for_logsheet(ident, k, fill_down)
+            return pd.DataFrame(rows, columns=cols)
+        self._json(200, {**doc, "linked": logsheets.refresh_digitized(ident, k, frame)})
 
     def _dig_setmatch(self, ident):
         """Match one row by hand (op null clears it); logsheets from the table follow."""
