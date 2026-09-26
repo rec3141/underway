@@ -928,7 +928,7 @@ function updateWords() {
 }
 
 // --- 4 · tables -----------------------------------------------------------------
-const OPERATION_FIELDS = new Set(["station", "label", "activity", "start_utc", "end_utc", "duration_min", "lat", "lon",
+const OPERATION_FIELDS = new Set(["station", "label", "activity", "start_utc", "end_utc", "arrival_utc", "arrival_source", "duration_min", "lat", "lon",
   "depth_m", "depth_source", "n_bottles_team", "volume_team_l", "n_log_rows"]);
 function colGroups(t) {
   const c = INFO.columns;

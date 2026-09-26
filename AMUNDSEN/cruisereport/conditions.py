@@ -3,9 +3,12 @@
 Each value names its source, because the sources disagree and a reader needs
 to know which one they are looking at:
 
+* underway — the ship's record at its arrival on station (the visit's, so
+  every operation of a visit shares it): the mean over two minutes from when
+  it slowed below 1 kn before the first deployment (underway.arrival, .at);
+  sea state as 4σ of heave, and the ice camera's concentration and ice types
 * bridge — the event log row for the Deployment (met tower, TSG and echo
-  sounder as the bridge logged them)
-* underway — the median of the ACSD record around the Deployment
+  sounder as the bridge logged them), where the record has no value
 * observer — the rosette console's sheet for the same station within
   ``OBSERVER_WINDOW_H`` (cloud cover, sea state, ice as seen from deck)
 * CIS — the Canadian Ice Service chart for that date (with its age)
@@ -26,6 +29,7 @@ import math
 import threading
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 
 import pandas as pd
 
@@ -54,6 +58,8 @@ COLUMNS = [
     Column("label", "Event label", default=True),
     Column("activity", "Operation", default=True),
     Column("start_utc", "Start (UTC)", default=True),
+    Column("arrival_utc", "Arrival on station (UTC)"),
+    Column("arrival_source", "Arrival from"),
     Column("end_utc", "End (UTC)"),
     Column("duration_min", "Duration", "min", 0),
     Column("lat", "Latitude", "°N", 4, default=True),
@@ -68,10 +74,13 @@ COLUMNS = [
     Column("visibility_km", "Visibility", "km", 1),
     Column("sst_c", "SST", "°C", 2, default=True),
     Column("sss", "SSS", "PSU", 2, default=True),
+    Column("sea_state_m", "Sea state (4σ heave)", "m", 1),
     Column("fluo_ugl", "Surface fluorescence", "µg/L", 2),
     Column("o2_mll", "Surface O₂", "mL/L", 2),
     Column("ice", "Ice", default=True),
     Column("ice_source", "Ice source"),
+    Column("ice_camera_pct", "Ice (camera)", "%", 0),
+    Column("ice_camera_types", "Ice types (camera)"),
     Column("cloud_cover", "Cloud cover (sheet code)"),
     Column("sea_state", "Sea state (sheet code)"),
     Column("sun_elev_deg", "Sun elevation", "°", 0),
@@ -147,10 +156,20 @@ def _code(v):
     return None if v in (None, "-99") else v
 
 
-def for_operation(op: eventlog.Operation, sheets: list[dict]) -> dict:
+@lru_cache(maxsize=512)
+def _at_arrival(leg: str, when: str, _bucket: int) -> tuple[dict, dict | None]:
+    """The record and the ice camera at an arrival, shared by the visit's
+    operations; ``_bucket`` renews it every CACHE_S (the record grows)."""
+    return underway.at(leg, when) or {}, underway.camera_ice(when)
+
+
+def for_operation(op: eventlog.Operation, sheets: list[dict], arrival: tuple[str, str] | None = None) -> dict:
+    """One operation's conditions; the underway values are those at ``arrival``
+    (ISO time, how found), the visit's arrival on station."""
     s = op.summary()
     br = op.start.readings
-    uw = underway.around(op.leg, s["start_utc"]) or {}
+    arr, arr_how = arrival or (s["start_utc"], "deployment")
+    uw, cam = _at_arrival(op.leg, arr, int(time.monotonic() // CACHE_S))
     obs_sheet = _observer_sheet(s, sheets)
     obs = (obs_sheet or {}).get("observed", {})
     notes = []
@@ -166,18 +185,21 @@ def for_operation(op: eventlog.Operation, sheets: list[dict]) -> dict:
         notes.append(f"depth sources disagree (multibeam {mb:.0f} m, "
                      + ", ".join(f"{n} {v:.0f} m" for n, v in others) + ")")
 
-    air, air_src = _first((br.get("air_c"), "bridge"), (uw.get("air_c"), "underway"),
+    air, air_src = _first((uw.get("air_c"), "underway"), (br.get("air_c"), "bridge"),
                           (obs.get("air_c"), "observer"))
-    wdir, _ = _first((br.get("wind_dir_deg"), "bridge"), (uw.get("true_wind_dir_deg"), "underway"),
+    wdir, _ = _first((uw.get("true_wind_dir_deg"), "underway"), (br.get("wind_dir_deg"), "bridge"),
                      (obs.get("wind_dir_deg"), "observer"))
-    wspd, _ = _first((br.get("wind_kn"), "bridge"), (uw.get("true_wind_kn"), "underway"),
+    wspd, _ = _first((uw.get("true_wind_kn"), "underway"), (br.get("wind_kn"), "bridge"),
                      (obs.get("wind_kn"), "observer"))
-    pres, _ = _first((br.get("pressure_hpa"), "bridge"), (uw.get("pressure_hpa"), "underway"),
+    pres, _ = _first((uw.get("pressure_hpa"), "underway"), (br.get("pressure_hpa"), "bridge"),
                      (obs.get("pressure_hpa"), "observer"))
-    hum, _ = _first((br.get("humidity_pct"), "bridge"), (uw.get("humidity_pct"), "underway"),
+    hum, _ = _first((uw.get("humidity_pct"), "underway"), (br.get("humidity_pct"), "bridge"),
                     (obs.get("humidity_pct"), "observer"))
-    sst, _ = _first((br.get("water_c"), "bridge"), (uw.get("sst_c"), "underway"))
-    sss, _ = _first((br.get("water_sal"), "bridge"), (uw.get("sss"), "underway"))
+    sst, _ = _first((uw.get("sst_c"), "underway"), (br.get("water_c"), "bridge"))
+    sss, _ = _first((uw.get("sss"), "underway"), (br.get("water_sal"), "bridge"))
+    if cam and cam["offset_s"]:
+        notes.append(f"ice camera photo {abs(cam['offset_s']) // 60} min "
+                     f"{'after' if cam['offset_s'] > 0 else 'before'} arrival")
     if uw.get("tsg_pump_off"):
         notes.append("TSG intake pump off or restricted: surface-water values are unreliable")
 
@@ -205,13 +227,16 @@ def for_operation(op: eventlog.Operation, sheets: list[dict]) -> dict:
         "pressure_hpa": pres, "humidity_pct": hum,
         "visibility_km": vis / 1000 if vis is not None else None,
         "precip_mm_h": uw.get("precip_mm_h"),
-        "sst_c": sst, "sss": sss,
+        "arrival_utc": arr, "arrival_source": arr_how,
+        "sst_c": sst, "sss": sss, "sea_state_m": uw.get("sea_state_m"),
+        "ice_camera_pct": cam["pct"] if cam else None,
+        "ice_camera_types": ", ".join(f"{k} {v:.0f}%" for k, v in cam["types"] if v >= 1) or None if cam else None,
         "fluo_ugl": uw.get("fluo_ugl"), "o2_mll": uw.get("o2_mll"),
         "tsg_pump_off": bool(uw.get("tsg_pump_off")),
         "ice": ice_txt, "ice_source": ice_src, "ice_chart": chart,
         "cloud_cover": _code(obs.get("cloud_cover")), "sea_state": _code(obs.get("sea_state")),
         "observer_sheet": (obs_sheet or {}).get("file"),
-        "sun_elev_deg": sun_elevation(s["start_utc"], s["lat"], s["lon"]),
+        "sun_elev_deg": sun_elevation(arr, s["lat"], s["lon"]),
         "notes": "; ".join(notes) or None,
         "note_list": notes,
     }
@@ -234,12 +259,38 @@ def table(leg: str, keys: list[str]) -> list[dict]:
         if hit and now - hit[0] < CACHE_S:
             return [dict(r) for r in hit[1]]
     sheets = _sheet_times(leg, ops)
-    rows = sorted((for_operation(ops[k], sheets) for k in ident[1]), key=lambda r: r["start_utc"])
+    arrivals = _arrivals(leg, ops, ident[1])
+    rows = sorted((for_operation(ops[k], sheets, arrivals.get(k)) for k in ident[1]), key=lambda r: r["start_utc"])
     with _cache_lock:
         for k in [k for k, (t, _) in _cache.items() if now - t >= CACHE_S]:
             del _cache[k]
         _cache[ident] = (now, rows)
     return [dict(r) for r in rows]
+
+
+_arrival_cache: dict[tuple, tuple[str, str]] = {}
+
+
+def _arrivals(leg: str, ops: dict[str, eventlog.Operation], keys) -> dict[str, tuple[str, str]]:
+    """Operation key -> its visit's arrival on station (underway.arrival). A
+    visit is taken over all the leg's operations, so an operation's arrival
+    does not depend on which others are selected."""
+    every = visits([o.summary() for o in ops.values() if o.group != "void"])
+    wanted, out = set(keys), {}
+    for v in every:
+        if not wanted & {r["key"] for r in v}:
+            continue
+        first = v[0]["start_utc"]
+        ident = (leg, v[0].get("station"), first)
+        with _cache_lock:
+            hit = _arrival_cache.get(ident)
+        if hit is None:
+            hit = underway.arrival(leg, first)
+            with _cache_lock:
+                _arrival_cache[ident] = hit
+        for r in v:
+            out[r["key"]] = hit
+    return out
 
 
 def visits(rows: list[dict]) -> list[list[dict]]:
@@ -446,7 +497,7 @@ def summary(rows: list[dict]) -> str:
         met.append(f"wind speed from {_range(w, 0, 'kn')} "
                    f"(median {_fmt(float(pd.Series(w).median()), 0)} kn)")
     if met:
-        out.append("At the start of operations, " + " and ".join(met) + ".")
+        out.append("On arrival on station, " + " and ".join(met) + ".")
     sea = []
     sst = _span([r["sst_c"] for r in rows if not r.get("tsg_pump_off")], 2, "°C")
     sss = _span([r["sss"] for r in rows if not r.get("tsg_pump_off")], 2, "")

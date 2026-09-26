@@ -290,3 +290,35 @@ def test_exported_times_convert_between_utc_and_ship_time(monkeypatch):
     assert logsheets.shift_times(rows, roles, True, True, span) is rows
     dt = logsheets.shift_times([{"W": "2026-09-14 01:30"}], {"datetime": "W"}, False, True, span)
     assert dt == [{"W": "2026-09-13 21:30"}]
+
+
+def test_conditions_are_taken_on_arrival_as_a_two_minute_mean(tmp_path, monkeypatch):
+    import sqlite3
+
+    from cruisereport import underway
+
+    db = tmp_path / "leg.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE columns (col TEXT, key TEXT)")
+    con.executemany("INSERT INTO columns VALUES (?, ?)", [("c1", "posmv — speed (knt)"),
+                                                          ("c2", "avos — air temperature (deg c)"),
+                                                          ("c3", "avos — true wind direction (deg)")])
+    con.execute("CREATE TABLE obs (t INTEGER, c1 REAL, c2 REAL, c3 REAL)")
+    t0 = int(pd.Timestamp("2026-09-14T10:00:00", tz="UTC").timestamp())
+    # 10 s rows: under way (8 kn) until 10:30, then on station; air −3 °C then −5 °C.
+    con.executemany("INSERT INTO obs VALUES (?, ?, ?, ?)",
+                    [(t0 + i * 10, 8.0 if i < 180 else 0.3, -3.0 if i < 180 else -5.0, 350.0 if i % 2 else 10.0)
+                     for i in range(360)])
+    con.commit()
+    con.close()
+    monkeypatch.setattr(underway, "db_path", lambda leg: db)
+    monkeypatch.setattr(underway, "pump_off", lambda when: False)
+    underway._columns.cache_clear()
+
+    when, how = underway.arrival("leg", "2026-09-14T10:50:00")
+    assert (pd.Timestamp(when), how) == (pd.Timestamp("2026-09-14T10:30:00"), "ship slowed below 1 kn")
+    assert underway.arrival("leg", "2026-09-14T10:20:00")[1] == "first deployment (ship under way)"
+    got = underway.at("leg", when)
+    assert got["n"] == 13 and got["air_c"] == -5.0 and got["true_wind_kn"] is None
+    assert min(got["true_wind_dir_deg"], 360 - got["true_wind_dir_deg"]) < 1      # the mean of 350° and 10° is north
+    underway._columns.cache_clear()

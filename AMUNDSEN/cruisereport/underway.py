@@ -1,9 +1,11 @@
-"""The ship's continuous record around an event, from the underway stores.
+"""The ship's continuous record at its arrival on station, from the underway stores.
 
 The dashboard keeps one SQLite store per leg (``<underway db>/<leg>.db``,
-10-second ACSD rows in ``obs``, columns named in ``columns``). A reading at
-an event is the median over ``UNDERWAY_HALF_WINDOW_S`` either side, which
-rides over single bad scans. The stores are opened read-only.
+10-second ACSD rows in ``obs``, columns named in ``columns``). Conditions
+at a station are taken at the ship's arrival there (``arrival``: when its
+speed over ground last fell below ``STATION_SOG_KN`` before the first
+deployment) as the mean over ``ARRIVAL_MEAN_S`` from then (``at``). The
+stores are opened read-only.
 
 True wind direction is AVOS's own; it agrees with the bridge log, while
 heading plus relative direction does not (the anemometer carries a mounting
@@ -28,7 +30,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .config import UNDERWAY_DB_DIR, UNDERWAY_HALF_WINDOW_S
+from .config import ARRIVAL_MEAN_S, SEA_STATE_WINDOW_S, UNDERWAY_DB_DIR
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +66,7 @@ VARS = [
     Var("fluo_ugl", "tsg — fluorescence (ug/l)", "Surface fluorescence (TSG)", "µg/L", tsg=True),
     Var("o2_mll", "tsg — oxygene (ml/l)", "Surface oxygen (TSG)", "mL/L", tsg=True),
     Var("cdom", "tsg — ecocdom (mg/m3)", "Surface CDOM (TSG)", "mg/m³", tsg=True),
+    Var("heave_m", "posmv — heave (m)", "Heave", "m"),
 ]
 BY_KEY = {v.key: v for v in VARS}
 STATION_SOG_KN = 1.0
@@ -82,8 +85,34 @@ def _columns(path: str) -> dict[str, str]:
         con.close()
 
 
-def _circ_median(deg: np.ndarray) -> float | None:
-    """Mean direction of a short window (a median is not defined on a circle)."""
+def _epoch(when) -> int:
+    t = pd.Timestamp(when)
+    return int((t.tz_localize("UTC") if t.tzinfo is None else t).timestamp())
+
+
+def _rows(leg: str, t0: int, t1: int, keys: list[str] | None = None):
+    """(epoch seconds, values, vars) of the store between t0 and t1, or None."""
+    p = db_path(leg)
+    if not p.is_file():
+        return None
+    cols = _columns(str(p))
+    wanted = [(v, cols[v.source]) for v in VARS if v.source in cols and (keys is None or v.key in keys)]
+    if not wanted:
+        return None
+    con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+    try:
+        rows = con.execute(
+            f"SELECT t, {', '.join(c for _, c in wanted)} FROM obs WHERE t BETWEEN ? AND ? ORDER BY t",
+            (t0, t1)).fetchall()
+    finally:
+        con.close()
+    if not rows:
+        return None
+    arr = np.array(rows, dtype=float)
+    return arr[:, 0], arr[:, 1:], [v for v, _ in wanted]
+
+
+def _circ_mean(deg: np.ndarray) -> float | None:
     deg = deg[np.isfinite(deg)]
     if not len(deg):
         return None
@@ -91,39 +120,80 @@ def _circ_median(deg: np.ndarray) -> float | None:
     return float(np.degrees(np.arctan2(np.sin(r).mean(), np.cos(r).mean())) % 360)
 
 
-def around(leg: str, when: str, half: int = UNDERWAY_HALF_WINDOW_S) -> dict:
-    """Window readings at an ISO UTC time; missing values are None, never guessed."""
-    p = db_path(leg)
-    if not p.is_file():
-        return {}
-    cols = _columns(str(p))
-    wanted = [(v, cols[v.source]) for v in VARS if v.source in cols]
-    if not wanted:
-        return {}
-    t = int(pd.Timestamp(when).tz_localize("UTC").timestamp()) if pd.Timestamp(when).tzinfo is None \
-        else int(pd.Timestamp(when).timestamp())
-    con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
-    try:
-        rows = con.execute(
-            f"SELECT {', '.join(c for _, c in wanted)} FROM obs WHERE t BETWEEN ? AND ?",
-            (t - half, t + half)).fetchall()
-    finally:
-        con.close()
-    if not rows:
-        return {"n": 0}
-    arr = np.array(rows, dtype=float)
-    out: dict = {"n": len(rows)}
-    for i, (v, _) in enumerate(wanted):
+def arrival(leg: str, first_start: str, search_h: float = 6) -> tuple[str, str]:
+    """When the ship came onto station before ``first_start`` (the visit's first
+    deployment): just after the last moment within ``search_h`` hours that its
+    speed over ground was at or above STATION_SOG_KN. (ISO time, how found);
+    the deployment itself when the ship was still moving then (a trawl), was
+    already stopped for the whole search, or the record has no speed."""
+    t1 = _epoch(first_start)
+    got = _rows(leg, t1 - int(search_h * 3600), t1, ["sog_kn"])
+    if got is None:
+        return first_start, "first deployment (no speed record)"
+    t, v, _ = got
+    sog = v[:, 0]
+    ok = np.isfinite(sog)
+    t, sog = t[ok], sog[ok]
+    moving = np.nonzero(sog >= STATION_SOG_KN)[0]
+    if not len(sog) or not len(moving):
+        return first_start, "first deployment"
+    i = moving[-1]
+    if i == len(sog) - 1:
+        return first_start, "first deployment (ship under way)"
+    when = pd.Timestamp(t[i + 1], unit="s").isoformat()
+    return when, "ship slowed below 1 kn"
+
+
+def at(leg: str, when: str, seconds: int = ARRIVAL_MEAN_S) -> dict:
+    """Means over ``seconds`` from ``when`` (directions as circular means);
+    missing values are None, never guessed. Sea state is 4σ of heave over
+    SEA_STATE_WINDOW_S centred on ``when``."""
+    t0 = _epoch(when)
+    got = _rows(leg, t0, t0 + seconds)
+    if got is None:
+        return {"n": 0} if db_path(leg).is_file() else {}
+    _, arr, wanted = got
+    out: dict = {"n": len(arr)}
+    for i, v in enumerate(wanted):
         col = arr[:, i]
         if v.circular:
-            out[v.key] = _circ_median(col)
+            out[v.key] = _circ_mean(col)
         else:
             col = col[np.isfinite(col)]
-            out[v.key] = float(np.median(col)) if len(col) else None
+            out[v.key] = float(col.mean()) if len(col) else None
+    out.pop("heave_m", None)
     sog = out.get("sog_kn")
     out["true_wind_kn"] = out.get("rel_wind_kn") if sog is not None and sog < STATION_SOG_KN else None
     out["tsg_pump_off"] = pump_off(when)
+    half = SEA_STATE_WINDOW_S // 2
+    heave = _rows(leg, t0 - half, t0 + half, ["heave_m"])
+    h = heave[1][:, 0] if heave else np.array([])
+    h = h[np.isfinite(h)]
+    out["sea_state_m"] = float(4 * h.std(ddof=1)) if len(h) >= 12 else None
     return out
+
+
+def camera_ice(when: str, seconds: int = ARRIVAL_MEAN_S, reach_s: int = 600) -> dict | None:
+    """The ice camera's products at ``when``: its photos within ``seconds``
+    from then, else the nearest within ``reach_s``. {pct, types: [(type, %)],
+    n, offset_s} or None when the camera saw nothing near then."""
+    from . import underway_panels as UP
+
+    t = pd.Timestamp(when)
+    t = t.tz_convert("UTC").tz_localize(None) if t.tzinfo else t
+    df = UP._camera(t - pd.Timedelta(seconds=reach_s), t + pd.Timedelta(seconds=reach_s))
+    if df.empty:
+        return None
+    win = df[(df.index >= t) & (df.index <= t + pd.Timedelta(seconds=seconds))]
+    offset = 0
+    if win.empty:
+        near = abs((df.index - t).total_seconds())
+        win = df.iloc[[int(np.argmin(near))]]
+        offset = int(round((win.index[0] - t).total_seconds()))
+    means = win.mean()
+    types = sorted(((k, float(means[k])) for k in UP.ICE_TYPES if np.isfinite(means[k]) and means[k] > 0),
+                   key=lambda x: -x[1])
+    return {"pct": float(means["ice"]), "types": types, "n": len(win), "offset_s": offset}
 
 
 def _calendar_files() -> list[Path]:

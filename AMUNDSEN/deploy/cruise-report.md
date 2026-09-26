@@ -79,10 +79,20 @@ team can share one. The browser also keeps the current draft locally.
 | CTD logbook | `Data/Rosette/<leg>/Logs/*_CTD_logbook.csv` | cast number → event label |
 | Rosette sheets | `Data/Rosette/<leg>/Logs/RosetteSheet_*.xlsx` | bottles, team draws, observer's weather and ice |
 | Parsed casts | `<underway db>/casts/<leg>/*.json` | profiles and bottle-file values |
-| Underway store | `<underway db>/<leg>.db` | depth, met, TSG around each event |
+| Underway store | `<underway db>/<leg>.db` | arrival on station (speed), then depth, met, TSG and sea state (4σ heave) there |
+| Ice camera | `<underway db>/../ice/ice.sqlite` | ice concentration and types at arrival |
 | TSG pump stops | `<underway www>/data/calendar*.json` | flagging surface values |
 | Ice charts | `<underway db>/ice-charts/*.geojson` | CIS concentration where nothing was logged on board |
 | Basemap | the dashboard's `static/geo/*.geojson` | map land and bathymetry |
+
+Conditions are taken at the ship's arrival on station: when its speed over
+ground last fell below 1 kn before the visit's first deployment (the
+deployment itself when the ship was still moving then). Numeric values are
+the underway record's mean over the two minutes from arrival, directions a
+circular mean; the bridge's event-log reading and the rosette observer's are
+used only where the record has none. Sea state is 4σ of heave over the ten
+minutes around arrival, since two minutes of 10 s heave is too few samples.
+Every operation of a visit shares its arrival conditions.
 
 Each conditions value records its source. Bottom depth prefers the
 multibeam; the EK60, and the event log that copies it, pick a second bottom

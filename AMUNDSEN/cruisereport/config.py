@@ -46,5 +46,9 @@ def _ship_tz() -> str:
 # Ship time, for logs kept in it rather than UTC: the dashboard's LOCAL_TZ.
 SHIP_TZ = os.environ.get("CRUISE_SHIP_TZ") or _ship_tz()
 
-# Underway values are averaged over this many seconds either side of an event.
-UNDERWAY_HALF_WINDOW_S = 150
+# Conditions are the underway record's mean over this many seconds from the
+# ship's arrival on station (underway.arrival).
+ARRIVAL_MEAN_S = 120
+# Sea state is 4σ of heave over this window centred on arrival: the dashboard's
+# own window, since two minutes of 10 s heave is too few samples for a wave height.
+SEA_STATE_WINDOW_S = 600
