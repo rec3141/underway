@@ -138,11 +138,16 @@ function autoOps() {
   }
   return auto;
 }
-// selection.ops = (automatic ∪ added) − removed, in event-log order.
+// selection.ops = (automatic ∪ added) − removed, in event-log order. An own
+// tick or untick that the logs and instruments now say anyway is dropped: a
+// removal of an operation nothing brings in (its log was unticked), an addition
+// of one they bring in. So ticking a log again brings back all it matches.
 function syncOps() {
   if (!INFO) return;
   const sel = R.selection, auto = autoOps();
-  const added = new Set(sel.added || []), removed = new Set(sel.removed || []);
+  sel.added = (sel.added || []).filter((k) => !auto.has(k));
+  sel.removed = (sel.removed || []).filter((k) => auto.has(k));
+  const added = new Set(sel.added), removed = new Set(sel.removed);
   sel.ops = INFO.operations.map((o) => o.key).filter((k) => (auto.has(k) || added.has(k)) && !removed.has(k));
 }
 // A participant's own tick or untick of one operation; it stands until changed.
@@ -270,16 +275,22 @@ function renderTeams() {
   $("#teams-picked").textContent = picked.length ? picked.join(", ") : "";
 }
 
+// Rows of the ticked logs per operation.
 function logHits() {
   const hits = {};
-  for (const lg of Object.values(LOGS)) for (const r of lg.match?.rows || []) if (r.op) hits[r.op] = (hits[r.op] || 0) + 1;
+  for (const lg of R.selection.logsheets) {
+    if (lg.use === false) continue;
+    for (const r of LOGS[logKey(lg)]?.match?.rows || []) if (r.op) hits[r.op] = (hits[r.op] || 0) + 1;
+  }
   return hits;
 }
 function renderOps() {
   const sel = new Set(R.selection.ops);
   const f = squash($("#ops-filter").value);
-  const hits = logHits();
-  const shown = INFO.operations.filter((o) => (!f || squash(opFull(o)).includes(f)) && (sel.has(o.key) || R.selection.groups.includes(o.group) || hits[o.key] || f));
+  const hits = logHits(), auto = autoOps();
+  // The ticked operations, those the ticked logs and instruments bring in (an
+  // own untick shows greyed, to tick again), and whatever the filter finds.
+  const shown = INFO.operations.filter((o) => (!f || squash(opFull(o)).includes(f)) && (sel.has(o.key) || auto.has(o.key) || f));
   const t = $("#ops");
   t.replaceChildren(h("thead", {}, h("tr", {}, ...["", "Station", "Label", "Operation", "Instrument", "Start (UTC)", "Duration", "Depth (m)", "Logsheet rows"].map((x) => h("th", {}, x)))),
     h("tbody", {}, ...shown.map((o) => h("tr", { class: sel.has(o.key) ? "" : "off" },
@@ -293,7 +304,9 @@ function renderOps() {
   if (!shown.length) t.append(h("tbody", {}, h("tr", {}, h("td", { colspan: 9, class: "hint" },
     "Tick an instrument above, filter by name, or import a logsheet to list operations."))));
   const own = (R.selection.added || []).length + (R.selection.removed || []).length;
-  $("#ops-count").textContent = `${R.selection.ops.length} ticked${own ? ` (${own} by hand)` : ""}`;
+  $("#ops-count").replaceChildren(`${R.selection.ops.length} ticked`, ...(own ? [` (${own} by hand · `,
+    h("button", { class: "link", title: "Forget your own ticks and unticks: the operations follow your logs and instruments only",
+      onclick: () => { R.selection.added = []; R.selection.removed = []; selectionUpdated(); } }, "reset"), ")"] : []));
 }
 
 // Your logs as selectors: every logsheet, and every digitized table not yet used as one.
@@ -754,9 +767,9 @@ async function setDigRoles(id, k, roles) {
 
 // The "Matched to" cell of a transcribed table or a log. pick(key) saves a match
 // by hand: an operation key, NO_MATCH to leave the row unmatched whatever it
-// would match, or null to go back to the automatic match. Any match can be
-// replaced (✎: search for another) or removed (×); × on a match by hand goes
-// back to the automatic one.
+// would match, or null to go back to the automatic match. × removes an
+// automatic match (the row then offers the search for another) and takes a
+// match by hand back to the automatic one.
 const NO_MATCH = "none";
 function matchCell(td, r, text, pick, cellKey) {
   const search = () => opSearch((op) => pick(op.key), cellKey ? { "data-cell": cellKey } : {});
@@ -764,11 +777,6 @@ function matchCell(td, r, text, pick, cellKey) {
   if (r.op) {
     const hand = r.how === "by hand";
     td.replaceChildren(h("span", {}, `${text} `, h("span", { class: "how" }, r.how), " ",
-      btn("✎", "Choose another operation", () => {
-        const input = search();
-        td.replaceChildren(input, btn("↩", "Keep the match", () => matchCell(td, r, text, pick, cellKey)));
-        input.focus();
-      }),
       hand ? btn("×", "Undo this match (back to the automatic one)", () => pick(null))
         : btn("×", "Remove this match", () => pick(NO_MATCH))));
   } else {
