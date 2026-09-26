@@ -99,14 +99,13 @@
     <h3>Operations <span id="ops-count" class="pill"></span> <span class="hint">follow your logs and instruments; tick or untick any of them here as well</span></h3>
     <div class="ops-tools">
       <input id="ops-filter" placeholder="Filter by station, label, activity, date or comment">
-      <button class="ghost small" id="ops-all">Tick shown</button>
-      <button class="ghost small" id="ops-none">Untick shown</button>
     </div>
   </div>
   <div class="scroll"><table id="ops" class="data"></table></div>
 
   <div class="sub-card sources" id="bottles-box">
-    <h3>Bottles sampled <span id="bottle-count" class="pill"></span> <span class="hint">from the casts of the operations above; a tick or untick of your own here always stands</span></h3>
+    <h3>Bottles sampled <span id="bottle-count" class="pill"></span> <span class="hint">from the casts of the operations above; a tick or untick of your own here always stands</span>
+      <label class="inline hint" title="List every bottle on these casts, the ones not yours greyed, to tick one by hand"><input type="checkbox" id="bottle-all"> All bottles <span id="bottle-all-n"></span></label></h3>
     <details class="sub-card" id="teams-box">
     <summary>Rosette-sheet columns — which are your team? <span id="teams-picked" class="pill"></span></summary>
     <p class="hint">Team names are typed by hand on each sheet. Obvious slips (case, a stray digit, one letter off or two swapped) are merged under one name; hover a name to see the spellings it includes. Tick every name that is your team; the number is how many casts it drew water from.</p>

@@ -195,7 +195,7 @@ function renderBottleChips() {
   });
   box.replaceChildren(...(chips.length ? chips : [h("span", { class: "hint" }, "No logs yet.")]));
 }
-let bottleTimer, bottleSeq = 0;
+let bottleTimer, bottleSeq = 0, bottleShowAll = false;    // "All bottles": the others too, greyed, to tick one
 function renderBottles() {
   clearTimeout(bottleTimer);
   bottleTimer = setTimeout(drawBottles, 400);
@@ -220,10 +220,12 @@ async function drawBottles() {
     el.addEventListener("blur", () => { if (el.textContent.trim() !== String(shown ?? "")) editBottle(r.key, field, el.textContent); });
     return el;
   };
+  const listed = rows.filter((r) => r.chosen || bottleShowAll);
+  const all = checkAll(listed.map((r) => r.chosen), (on) => { listed.forEach((r) => setOwnBottle(r.key, on, r.auto)); bottlesChanged(); });
   t.replaceChildren(
-    h("thead", {}, h("tr", {}, ...["", "Station", "Label", "Cast", "Bottle", "Target", "Depth (m)", "Yours by", ...teams.map((x) => `${x} (L)`),
+    h("thead", {}, h("tr", {}, h("th", {}, all), ...["Station", "Label", "Cast", "Bottle", "Target", "Depth (m)", "Yours by", ...teams.map((x) => `${x} (L)`),
       "Volume (L)", "Note", "Sheet comment"].map((x) => h("th", {}, x)))),
-    h("tbody", {}, ...rows.map((r) => h("tr", { class: r.chosen ? "" : "off" },
+    h("tbody", {}, ...listed.map((r) => h("tr", { class: r.chosen ? "" : "off" },
       h("td", {}, h("input", { type: "checkbox", checked: r.chosen, title: r.own ? `ticked by hand (${r.own})` : "",
         onchange: (e) => { setOwnBottle(r.key, e.target.checked, r.auto); bottlesChanged(); } })),
       h("td", {}, r.station || "—"), h("td", {}, r.label), h("td", {}, r.cast ?? ""), h("td", { class: "num" }, r.bottle),
@@ -233,7 +235,8 @@ async function drawBottles() {
       edit(r, "volume", r.volume_team_l), edit(r, "note", r.note), h("td", { class: "hint" }, r.comment ?? "")))));
   if (!rows.length) t.append(h("tbody", {}, h("tr", {}, h("td", { class: "hint", colspan: 12 }, "No rosette bottles on the selected operations."))));
   const n = rows.filter((r) => r.chosen).length;
-  $("#bottle-count").textContent = rows.length ? `${n} of ${rows.length} yours` : "";
+  $("#bottle-count").textContent = rows.length ? `${n} yours` : "";
+  $("#bottle-all-n").textContent = rows.length ? `(${rows.length})` : "";
   const again = typing && t.querySelector(`[data-cell="${CSS.escape(typing.key)}"]`);
   if (again) { again.textContent = typing.text; again.focus(); getSelection().selectAllChildren(again); getSelection().collapseToEnd(); }
 }
@@ -275,6 +278,16 @@ function renderTeams() {
   $("#teams-picked").textContent = picked.length ? picked.join(", ") : "";
 }
 
+// The top-left box of a checkable table: ticked when every listed row is, half
+// when some are; a click ticks them all, or unticks them all when all were.
+function checkAll(states, set) {
+  const n = states.filter(Boolean).length;
+  const box = h("input", { type: "checkbox", title: "Tick or untick every row listed", checked: n > 0 && n === states.length,
+    disabled: !states.length, onchange: () => set(n !== states.length) });
+  box.indeterminate = n > 0 && n < states.length;
+  return box;
+}
+
 // Rows of the ticked logs per operation.
 function logHits() {
   const hits = {};
@@ -292,7 +305,8 @@ function renderOps() {
   // own untick shows greyed, to tick again), and whatever the filter finds.
   const shown = INFO.operations.filter((o) => (!f || squash(opFull(o)).includes(f)) && (sel.has(o.key) || auto.has(o.key) || f));
   const t = $("#ops");
-  t.replaceChildren(h("thead", {}, h("tr", {}, ...["", "Station", "Label", "Operation", "Instrument", "Start (UTC)", "Duration", "Depth (m)", "Logsheet rows"].map((x) => h("th", {}, x)))),
+  const all = checkAll(shown.map((o) => sel.has(o.key)), (on) => { shown.forEach((o) => setOwn(o.key, on, auto)); selectionUpdated(); });
+  t.replaceChildren(h("thead", {}, h("tr", {}, h("th", {}, all), ...["Station", "Label", "Operation", "Instrument", "Start (UTC)", "Duration", "Depth (m)", "Logsheet rows"].map((x) => h("th", {}, x)))),
     h("tbody", {}, ...shown.map((o) => h("tr", { class: sel.has(o.key) ? "" : "off" },
       h("td", {}, h("input", { type: "checkbox", checked: sel.has(o.key), "data-key": o.key, onchange: (e) => {
         setOwn(o.key, e.target.checked); selectionUpdated(); } })),
@@ -1213,8 +1227,6 @@ async function init() {
   $("#title").addEventListener("input", (e) => { R.header.title = e.target.value; persist(); });
   $$("[data-add]").forEach((b) => b.addEventListener("click", () => { R.header[b.dataset.add].push({}); renderPeople(b.dataset.add); }));
   $("#ops-filter").addEventListener("input", renderOps);
-  $("#ops-all").addEventListener("click", () => { const auto = autoOps(); $$("#ops input[data-key]").forEach((i) => setOwn(i.dataset.key, true, auto)); selectionUpdated(); });
-  $("#ops-none").addEventListener("click", () => { const auto = autoOps(); $$("#ops input[data-key]").forEach((i) => setOwn(i.dataset.key, false, auto)); selectionUpdated(); });
   $("#log-file").addEventListener("change", (e) => { for (const f of e.target.files) uploadLog(f); e.target.value = ""; });
   $("#dig-file").addEventListener("change", (e) => {
     for (const f of e.target.files) digQueue.push({ file: f, rotate: 0, url: URL.createObjectURL(f), status: "ready" });
@@ -1229,6 +1241,7 @@ async function init() {
   $("#cond-preview").addEventListener("click", previewNarrative);
   $$("[data-preset]").forEach((b) => b.addEventListener("click", () => addTable(b.dataset.preset)));
   $$("[data-fig]").forEach((b) => b.addEventListener("click", () => addFigure(b.dataset.fig)));
+  $("#bottle-all").addEventListener("change", (e) => { bottleShowAll = e.target.checked; drawBottles(); });
   $("#fig-times").addEventListener("change", (e) => { R.figure_times = e.target.value; persist(); renderFigures(); });
   $("#save-draft").addEventListener("click", saveDraft);
   $("#save-draft2").addEventListener("click", saveDraft);
