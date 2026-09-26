@@ -16,7 +16,7 @@
 <section><h2>Unique IP addresses seen</h2><div class="stats"><div><b id="ips-today">—</b>Today (UTC)</div><div><b id="ips-week">—</b>Last 7 days</div><div><b id="ips-total">—</b>Retained 90 days</div></div>
 <p id="ips-since"></p><p>Distinct client addresses from page opens and main-tab changes. Shared connections can represent multiple people; one person may use multiple addresses.</p></section>
 <section><h2>Page views</h2><div class="stats"><div><b id="today">—</b>Today (UTC)</div><div><b id="week">—</b>Last 7 days</div><div><b id="total">—</b>Retained total</div></div>
-<p>Page opens and main-tab changes, not unique visitors. Automatic data refreshes do not count. Up to 90 days retained.</p>
+<p>Page opens and main-tab changes, including the cruise report builder and the games, not unique visitors. Automatic data refreshes do not count. Up to 90 days retained.</p>
 <label for="days">Show </label><select id="days"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
 <div id="view-chart" class="view-chart" role="img" aria-label="Daily page views stacked by page, grouped by English, French and unrecorded language"></div>
 <div id="view-legend" class="view-legend"></div><p id="view-language-since" class="view-note"></p>
@@ -27,7 +27,7 @@
 const $=id=>document.getElementById(id),fmt=t=>t?new Date(t).toLocaleString():'Not checked';let data=null,busy=false;
 function rows(id,values){const body=$(id);body.replaceChildren();for(const values0 of values){const row=body.insertRow();for(const value of values0)row.insertCell().textContent=value;}if(!values.length){const cell=body.insertRow().insertCell();cell.colSpan=4;cell.textContent='No records yet.';}}
 const since=days=>new Date(Date.now()-(days-1)*86400000).toISOString().slice(0,10);
-const pageColours={underway:'#2878b8',casts:'#8f63b8',stations:'#df8b25',calendar:'#41a66b',wiki:'#d34d62',photos:'#19a6a8',sources:'#8a8175'};
+const pageColours={underway:'#2878b8',casts:'#8f63b8',stations:'#df8b25',calendar:'#41a66b',wiki:'#d34d62',photos:'#19a6a8',sources:'#8a8175',report:'#b8860b',games:'#5b6fd6'};
 const svgNode=(name,attrs={})=>{const node=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,value);return node;};
 function viewChart(days){
   const source=data.views_by_language||{},rows0=(source.rows||[]).filter(r=>r.day>=since(days));

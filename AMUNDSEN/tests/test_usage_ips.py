@@ -34,6 +34,14 @@ class UsageIPTests(unittest.TestCase):
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM client_ips WHERE ip='192.0.2.5'").fetchone()[0], 0)
             self.assertEqual(sum(r['views'] for r in usage.report()), 4)
 
+    def test_pages_beside_the_dashboard_are_counted(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(usage, 'DB_DIR', Path(tmp)):
+            usage.record('report', '192.0.2.1', 'en')
+            usage.record('games', '192.0.2.2', 'fr-CA')
+            self.assertEqual({r['page'] for r in usage.report()}, {'report', 'games'})
+            with self.assertRaises(ValueError):
+                usage.record('elsewhere', '192.0.2.3')
+
     def test_old_database_remains_readable_and_migrates_on_next_beacon(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(usage, 'DB_DIR', Path(tmp)):
             self.assertEqual(usage.report_ips(), dict(today=0, week=0, total=0, since=None))

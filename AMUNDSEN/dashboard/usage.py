@@ -6,7 +6,9 @@ from datetime import datetime, timedelta, timezone
 
 from .config import DB_DIR
 
-PAGES = {'underway', 'casts', 'stations', 'calendar', 'sources', 'wiki', 'photos'}
+# The dashboard's tabs, plus the pages served beside it on the ship: the
+# cruise report builder (/report/) and the game (/game/).
+PAGES = {'underway', 'casts', 'stations', 'calendar', 'sources', 'wiki', 'photos', 'report', 'games'}
 LANGUAGES = {'en': 'English', 'fr-CA': 'French'}
 
 
