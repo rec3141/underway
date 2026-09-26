@@ -2858,6 +2858,11 @@
       "text": "Choisir le tronçon et la période :",
       "status": "draft"
     },
+    "shell.reportBanner": {
+      "source": "Cruise reports: build yours →",
+      "text": "Rapports de mission : préparez le vôtre →",
+      "status": "draft"
+    },
     "shell.legsToShow": {
       "source": "Legs to show · ",
       "text": "Tronçons à afficher · ",

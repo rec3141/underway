@@ -157,6 +157,10 @@
       "text": "Select leg and time span:",
       "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
     },
+    "shell.reportBanner": {
+      "text": "Cruise reports: build yours →",
+      "context": "Header banner linking to the cruise report builder; a cruise report is the field report each science team writes for Amundsen Science before leaving the ship."
+    },
     "shell.legsToShow": {
       "text": "Legs to show · ",
       "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."

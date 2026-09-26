@@ -1076,6 +1076,7 @@ window.UW_UI_CATALOG = {
         "shell.colorHint": "the variable that colours the track and the graph points",
         "shell.legsToShow": "Legs to show · ",
         "shell.none": "none",
+        "shell.reportBanner": "Cruise reports: build yours →",
         "shell.selectLegSpan": "Select leg and time span:",
         "shell.showLast": "Show last",
         "shell.showSchedule": "show the schedule",
@@ -2367,6 +2368,7 @@ window.UW_UI_CATALOG = {
         "shell.colorHint": "variable qui détermine la couleur du trajet et des points des graphiques",
         "shell.legsToShow": "Tronçons à afficher · ",
         "shell.none": "aucun",
+        "shell.reportBanner": "Rapports de mission : préparez le vôtre →",
         "shell.selectLegSpan": "Choisir le tronçon et la période :",
         "shell.showLast": "Période affichée",
         "shell.showSchedule": "afficher le programme",
@@ -6858,6 +6860,10 @@ window.UW_UI_CATALOG = {
         "shell.none": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "30a0924a3360be687d1df9fcbbfdff62c01bc0fd14036ab9076cf7f451568666"
+        },
+        "shell.reportBanner": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "457366b22351388569b1f5584b9e8ec17c5151a653481817330ec990706c5fe7"
         },
         "shell.selectLegSpan": {
           "profile": "editorial-fr-ca-v4",

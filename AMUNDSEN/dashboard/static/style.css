@@ -208,6 +208,8 @@ a:hover { text-decoration: underline; }
 .brand .sub { color: var(--muted); font-size: var(--t-md); margin-top: 2px; }
 .brand .sub b { color: var(--fg); font-weight: 600; }
 .brand .sub .stale { color: var(--warn); font-weight: 600; }
+.brand .report-banner { display: inline-block; margin-top: 6px; padding: 3px 12px; border-radius: 999px; background: var(--tag-amber); color: var(--fg); font-size: var(--t-sm); font-weight: 600; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: top; }   /* the cruise report builder, served beside the dashboard at /report/ */
+.brand .report-banner:hover { box-shadow: inset 0 0 0 1px var(--accent-2); }
 .brand .sub .schedlink { color: var(--accent-2); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; cursor: pointer; }   /* the schedule shortcut next to LIVE */
 .brand #status { display: flex; align-items: baseline; min-width: 0; white-space: nowrap; height: 1.4em; line-height: 1.4; }
 .brand #status .status-now { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
