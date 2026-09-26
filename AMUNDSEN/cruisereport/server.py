@@ -11,7 +11,7 @@ Routes (all JSON unless noted):
     POST /api/logsheet/match               {id, sheet, roles, leg, groups}: rows matched to operations
     POST /api/logsheet/<id>/edit           {sheet, row, col, text}: a participant's correction
     POST /api/logsheet/<id>/grow           {sheet, add: "row"|"col"}: an empty row or column
-    POST /api/logsheet/<id>/setmatch       {sheet, row, op}: match a row by hand (op null clears)
+    POST /api/logsheet/<id>/setmatch       {sheet, row, op}: match a row by hand ("none": no match; null: automatic)
     GET  /api/logsheet/<id>.tsv?sheet=<s>  one sheet as TSV
     GET  /api/logsheet/<id>.xlsx           every sheet, corrected cells filled
     POST /api/conditions                   {report}: narrative preview and word count
@@ -25,7 +25,8 @@ Routes (all JSON unless noted):
     GET  /api/digitized.xlsx?ids=a,b       every table as a sheet, confidence as fill
     POST /api/digitized/<id>/logsheet      {table, fill_down}: use a table as a logsheet
     POST /api/digitized/<id>/grow          {table, add: "row"|"col"}: an empty row or column
-    POST /api/digitized/<id>/setmatch      {table, row, op}: match a row by hand (op null clears)
+    POST /api/digitized/<id>/setmatch      {table, row, op}: match a row by hand ("none": no match; null: automatic)
+    POST /api/digitized/<id>/roles         {table, roles}: what each column holds (null: the guesses)
     POST /api/digitized/<id>/again         queue the stored photo again
     POST /api/digitized/<id>/match         {table, fill_down, leg, groups}: row -> operation, now
     GET  /api/drafts                       saved drafts
@@ -211,10 +212,11 @@ class Handler(SimpleHTTPRequestHandler):
             "/api/docx": self._docx,
             "/api/digitize": lambda: self._digitize(q),
         }
-        m = re.fullmatch(r"/api/digitized/([0-9a-f]{12})/(edit|logsheet|match|again|setmatch|grow)", u.path)
+        m = re.fullmatch(r"/api/digitized/([0-9a-f]{12})/(edit|logsheet|match|again|setmatch|grow|roles)", u.path)
         if m:
             fn = {"edit": self._dig_edit, "logsheet": self._dig_logsheet, "match": self._dig_match,
-                  "again": self._dig_again, "setmatch": self._dig_setmatch, "grow": self._dig_grow}[m[2]]
+                  "again": self._dig_again, "setmatch": self._dig_setmatch, "grow": self._dig_grow,
+                  "roles": self._dig_roles}[m[2]]
             return self._guard(lambda: fn(m[1]))
         m = re.fullmatch(r"/api/logsheet/([0-9a-f]{12})/(edit|grow|setmatch)", u.path)
         if m:
@@ -263,6 +265,14 @@ class Handler(SimpleHTTPRequestHandler):
             return pd.DataFrame(rows, columns=cols)
         self._json(200, {"linked": logsheets.refresh_digitized(ident, k, frame)})
 
+    def _dig_roles(self, ident):
+        """What each column holds; the logsheets made from the table are named so
+        the page can give them the same roles."""
+        a = self._obj()
+        k = int(a["table"])
+        digitize.set_roles(ident, k, a.get("roles"))
+        self._json(200, {"linked": logsheets.made_from(ident, k)})
+
     def _dig_again(self, ident):
         """Queue the stored photo again; its tables (corrections too) are replaced when done."""
         self._json(200, digitize.requeue(ident))
@@ -282,11 +292,11 @@ class Handler(SimpleHTTPRequestHandler):
         a = self._obj()
         k = int(a.get("table", 0))
         cols, rows = digitize.rows_for_logsheet(ident, k, bool(a.get("fill_down", True)))
-        roles = logsheets.guess_roles(pd.DataFrame([{c: v for c, v in r.items() if c != logsheets.HAND_COLUMN}
-                                                    for r in rows]))
+        roles = digitize.load(ident)["tables"][k].get("roles") or logsheets.guess_roles(
+            pd.DataFrame([{c: v for c, v in r.items() if c != logsheets.HAND_COLUMN} for r in rows]))
         matched = logsheets.match(rows, roles, a["leg"], a.get("groups"))
         ops = {o.key: o.summary() for o in eventlog.operations(a["leg"])}
-        self._json(200, {"roles": roles, "rows": [
+        self._json(200, {"roles": roles, "columns": [c for c in cols if c != logsheets.HAND_COLUMN], "rows": [
             {"op": r["_op"], "how": r["_how"],
              "label": " ".join(x for x in (ops.get(r["_op"], {}).get("station"),
                                            ops.get(r["_op"], {}).get("label")) if x) or None}
@@ -302,8 +312,9 @@ class Handler(SimpleHTTPRequestHandler):
         name = f"{Path(doc['name']).stem} · {title}"
         meta = logsheets.save_frames(name, {"transcribed": df},
                                      {"digitized": ident, "table": k, "fill_down": bool(a.get("fill_down", True))})
+        chosen = doc["tables"][k].get("roles")
         self._json(200, {"id": meta["id"], "name": meta["name"], "sheets": {
-            s: {"columns": d["columns"], "roles": d["roles"], "n": len(d["rows"])}
+            s: {"columns": d["columns"], "roles": chosen or d["roles"], "n": len(d["rows"])}
             for s, d in meta["sheets"].items()}})
 
     def _upload(self, q):

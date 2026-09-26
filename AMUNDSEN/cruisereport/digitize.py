@@ -305,6 +305,7 @@ def _work() -> None:
                 doc.update(result, status="done")
                 for t in doc.get("tables", []):
                     t.pop("manual", None)
+                    t.pop("roles", None)
                 _write(ident, _shape(doc))
         except Exception as e:                 # the page says why; the queue goes on
             with _lock:
@@ -385,6 +386,10 @@ def edit(ident: str, table: int, row: int, col: int, text: str) -> dict:
         doc = load(ident)
         t = doc["tables"][table]
         if row < 0:
+            roles = t.get("roles") or {}
+            for role, c in list(roles.items()):
+                if c == t["columns"][col]:
+                    roles[role] = text          # a renamed column keeps its role
             t["columns"][col] = text
         else:
             t["rows"][row][col] = {"t": text, "c": EDITED, "edited": True}
@@ -417,8 +422,23 @@ def grow(ident: str, table: int, what: str) -> dict:
 HUES = {3: 120, 2: 90, 1: 58, 0: 30, -1: 0}
 
 
+def set_roles(ident: str, table: int, roles: dict[str, str] | None) -> dict:
+    """The participant's choice of what each column holds (role -> column name,
+    as rows_for_logsheet names the columns); None goes back to the guesses."""
+    with _lock:
+        doc = load(ident)
+        t = doc["tables"][table]
+        if roles is None:
+            t.pop("roles", None)
+        else:
+            t["roles"] = {str(k): str(v) for k, v in roles.items() if v}
+        _write(ident, doc)
+    return doc
+
+
 def set_match(ident: str, table: int, row: int, op_key: str | None) -> dict:
-    """A participant's own match for one row (None clears it)."""
+    """A participant's own match for one row: an operation key, NO_MATCH
+    (logsheets) to leave it unmatched, or None to go back to the automatic match."""
     with _lock:
         doc = load(ident)
         manual = doc["tables"][table].setdefault("manual", {})

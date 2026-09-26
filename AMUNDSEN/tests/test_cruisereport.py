@@ -187,3 +187,42 @@ def test_uploaded_logsheet_edits_matches_and_exports(tmp_path, monkeypatch):
                                  {"digitized": "0" * 12, "table": 0})
     with pytest.raises(ValueError):
         logsheets.edit(made["id"], "transcribed", 0, 0, "2")
+
+
+def test_any_automatic_match_can_be_removed_or_replaced_by_hand(monkeypatch):
+    class Op:
+        def __init__(self, key, station, t):
+            self.key, self.group = key, "ctd"
+            self._s = {"key": key, "label": key, "station": station, "group": "ctd", "start_utc": t,
+                       "lat": None, "lon": None}
+
+        def summary(self):
+            return self._s
+
+    monkeypatch.setattr(logsheets.eventlog, "operations",
+                        lambda leg: [Op("AMD2603-001", "S1", "2026-09-01T10:00:00"),
+                                     Op("AMD2603-002", "S2", "2026-09-02T10:00:00")])
+    monkeypatch.setattr(logsheets.ctd, "label_for_cast", lambda leg: {})
+    roles = {"station": "Stn", "label": "Event"}
+    rows = [{"Event": "AMD2603-001", "Stn": "S1"},                        # by label
+            {"Event": "", "Stn": "S2"},                                   # by the one visit to S2
+            {"Event": "AMD2603-001", "Stn": "S1", logsheets.HAND_COLUMN: logsheets.NO_MATCH},
+            {"Event": "", "Stn": "S2", logsheets.HAND_COLUMN: logsheets.NO_MATCH},
+            {"Event": "AMD2603-001", "Stn": "S1", logsheets.HAND_COLUMN: "AMD2603-002"}]
+    got = [(r["_op"], r["_how"]) for r in logsheets.match(rows, roles, "leg")]
+    assert got == [("AMD2603-001", "label"), ("AMD2603-002", "station"),
+                   (None, "removed by hand"), (None, "removed by hand"), ("AMD2603-002", "by hand")]
+
+
+def test_digitized_column_roles_are_kept_and_follow_a_rename(tmp_path, monkeypatch):
+    from cruisereport import digitize
+
+    monkeypatch.setattr(digitize, "STATE_DIR", tmp_path)
+    doc = digitize.save("p.jpg", b"j", {"tables": [{"title": "t", "columns": ["STN", "T"],
+                                                    "rows": [[{"t": "S1", "c": 2}, {"t": "10:00", "c": 2}]]}], "notes": []})
+    digitize.set_roles(doc["id"], 0, {"station": "STN", "time": "T", "cast": ""})
+    assert digitize.load(doc["id"])["tables"][0]["roles"] == {"station": "STN", "time": "T"}
+    digitize.edit(doc["id"], 0, -1, 1, "Time (UTC)")
+    assert digitize.load(doc["id"])["tables"][0]["roles"] == {"station": "STN", "time": "Time (UTC)"}
+    digitize.set_roles(doc["id"], 0, None)
+    assert "roles" not in digitize.load(doc["id"])["tables"][0]

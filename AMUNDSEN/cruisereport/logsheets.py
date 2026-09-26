@@ -10,7 +10,8 @@ the guesses and the participant corrects them.
 Each row is matched to an event-log operation, and the method is kept with
 it so the participant can check it:
 
-0. ``by hand``      the participant chose the operation for this row
+0. ``by hand``      the participant chose the operation for this row, or
+                    ``removed by hand``: chose none, so nothing below is tried
 1. ``label``        the row carries an event label (``AMD2603-010``)
 1b. ``cast``        the row's cast number is in the leg's CTD logbook, which
                     names the event label (a misread station name then does
@@ -42,6 +43,9 @@ from .config import STATE_DIR
 LABEL_RE = re.compile(r"\bAMD\d{4}-\d{3}\b", re.I)
 # A digitized table's rows matched by hand carry the event label in this column.
 HAND_COLUMN = "Event label (matched by hand)"
+# A row the participant unmatched by hand carries this instead of an event label:
+# it stays unmatched however well it would match automatically.
+NO_MATCH = "none"
 TIME_WINDOW_H = 3
 ONE_VISIT_H = 12
 MAX_KM = 5
@@ -214,6 +218,9 @@ def match(rows: list[dict], roles: dict, leg: str, groups: list[str] | None = No
         key, how = None, None
         text = " ".join(str(v) for v in r.values() if not _is_blank(v))
         hand = str(r.get(HAND_COLUMN) or "")
+        if hand == NO_MATCH:
+            out.append({**r, "_op": None, "_how": "removed by hand"})
+            continue
         if hand and hand in by_key:
             key, how = hand, "by hand"
         m = None if key else (LABEL_RE.search(str(r.get(roles.get("label", ""), "")) or "")
@@ -386,7 +393,8 @@ def grow(ident: str, sheet: str, what: str) -> dict:
 
 
 def set_match(ident: str, sheet: str, row: int, op_key: str | None) -> dict:
-    """A participant's own match for one row (None clears it)."""
+    """A participant's own match for one row: an operation key, NO_MATCH to
+    leave it unmatched, or None to go back to the automatic match."""
     with _lock:
         meta, sh = _editable(ident, sheet)
         manual = sh.setdefault("manual", {})
@@ -438,6 +446,19 @@ def xlsx(ident: str) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def made_from(ident: str, table: int) -> list[str]:
+    """The logsheets made from digitized table (ident, table)."""
+    out = []
+    for p in _dir().glob("*.json"):
+        try:
+            src = json.loads(p.read_text()).get("source") or {}
+        except ValueError:
+            continue
+        if src.get("digitized") == ident and src.get("table") == table:
+            out.append(p.stem)
+    return out
 
 
 def refresh_digitized(ident: str, table: int, build) -> list[str]:

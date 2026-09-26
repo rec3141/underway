@@ -310,13 +310,9 @@ function renderLogs() {
           renderLogs(); selectionUpdated(); } }, "Remove")));
     for (const lg of parts) {
       const m = LOGS[logKey(lg)]?.match;
-      const roleSel = (role) => h("label", {}, role,
-        h("select", { onchange: (e) => { if (e.target.value) lg.roles[role] = e.target.value; else delete lg.roles[role]; matchLog(lg); } },
-          h("option", { value: "" }, "—"), ...(m?.columns || []).map((c) => h("option", { value: c, selected: lg.roles[role] === c }, c))));
       if (parts.length > 1) card.append(h("h3", {}, lg.sheet, " ", m ? h("span", { class: "pill" }, `${m.matched} of ${m.total} rows matched`) : "",
         lg.use === false ? h("span", { class: "hint" }, " · not ticked under Your logs") : ""));
-      card.append(h("p", { class: "hint" }, "Which column holds what? Correct any guess and the rows are matched again."),
-        h("div", { class: "cols" }, ...(m?.role_options || []).map(roleSel)));
+      card.append(h("p", { class: "hint" }, "Under each column name, say what it holds (a guess until you change it); the rows are matched again."));
       if (m) card.append(...logTable(lg, m));
     }
     box.append(card);
@@ -356,14 +352,13 @@ function logTable(lg, m) {
   };
   const table = h("table", { class: "data dig" },
     h("thead", {}, h("tr", {}, h("th", { title: "The operation each row matches, re-checked after every correction" }, "Matched to"),
-      ...cols.map((c) => cell("th", c, -1, m.columns.indexOf(c))))),
+      ...cols.map((c) => cell("th", c, -1, m.columns.indexOf(c)))),
+      h("tr", { class: "roles" }, roleHead(), ...cols.map((c) => h("th", {}, roleSelect(c, lg.roles, (roles) =>
+        src ? setDigRoles(src.digitized, src.table, roles) : (lg.roles = roles, persist(), matchLog(lg))))))),
     h("tbody", {}, ...m.rows.map((r, i) => {
       const op = r.op && INFO.operations.find((o) => o.key === r.op);
-      const match = op
-        ? h("span", {}, `${opShort(op)} `, h("span", { class: "how" }, r.how),
-          r.how === "by hand" ? h("button", { class: "link", title: "Undo this match", onclick: () => pick(i, null) }, "×") : null)
-        : opSearch((o) => pick(i, o.key), { "data-cell": `${logKey(lg)}:${i}:match` });
-      return h("tr", {}, h("td", { class: "match" }, match),
+      const match = matchCell(h("td", { class: "match" }), r, op ? opShort(op) : r.op, (key) => pick(i, key), `${logKey(lg)}:${i}:match`);
+      return h("tr", {}, match,
         ...cols.map((c) => cell("td", r.cells[c] == null ? "" : String(r.cells[c]), i, m.columns.indexOf(c))));
     })));
   return [
@@ -574,7 +569,8 @@ function digTable(doc, k) {
   };
   const table = h("table", { class: "data dig", "data-dig": `${doc.id}:${k}` },
     h("thead", {}, h("tr", {}, h("th", { title: "The operation each row matches, re-checked after every correction" }, "Matched to"),
-      ...t.columns.map((x, j) => cell("th", { t: x, c: 3 }, -1, j)))),
+      ...t.columns.map((x, j) => cell("th", { t: x, c: 3 }, -1, j))),
+      h("tr", { class: "roles" }, roleHead(), ...t.columns.map(() => h("th", {})))),
     h("tbody", {}, ...t.rows.map((r, i) => h("tr", {}, h("td", { class: "match" }, "…"), ...r.map((c, j) => cell("td", c, i, j))))));
   return h("div", { class: "scroll", style: "max-height:420px" }, table);
 }
@@ -619,7 +615,57 @@ function opSearch(pick, attrs = {}) {
   });
   return input;
 }
-const matchSearch = (id, k, row) => opSearch((op) => setMatch(id, k, row, op.key));
+// What a column holds, chosen in the header row under its name. A role belongs
+// to one column at a time: giving it to this column takes it from any other.
+const ROLE_LABELS = { label: "Event label", station: "Station", datetime: "Date & time", date: "Date", time: "Time",
+  lat: "Latitude", lon: "Longitude", depth: "Depth", bottle: "Bottle", cast: "Cast", sample_id: "Sample ID" };
+function roleSelect(col, roles, change) {
+  const mine = Object.keys(roles || {}).find((r) => roles[r] === col) || "";
+  return h("select", { class: "role", "aria-label": `What the column ${col} holds`,
+    title: "What this column holds; rows are matched to operations by these", onchange: (e) => {
+      const next = Object.fromEntries(Object.entries(roles || {}).filter(([r, c]) => c !== col && r !== e.target.value));
+      if (e.target.value) next[e.target.value] = col;
+      change(next);
+    } },
+    h("option", { value: "" }, "—"),
+    ...Object.entries(ROLE_LABELS).map(([r, label]) => h("option", { value: r, selected: r === mine }, label)));
+}
+const roleHead = () => h("th", { class: "role-head", title: "What each column holds" }, "holds →");
+// New roles for a transcribed table: its match column and the logs made from it follow.
+async function setDigRoles(id, k, roles) {
+  try {
+    const { linked } = await api(`api/digitized/${id}/roles`, { table: k, roles });
+    await refreshMatches(id, k);
+    for (const lg of R.selection.logsheets.filter((x) => (linked || []).includes(x.id))) { lg.roles = { ...roles }; await matchLog(lg); }
+    persist();
+  } catch (e) { toast(`Not saved: ${e.message}`, true); }
+}
+
+// The "Matched to" cell of a transcribed table or a log. pick(key) saves a match
+// by hand: an operation key, NO_MATCH to leave the row unmatched whatever it
+// would match, or null to go back to the automatic match. Any match can be
+// replaced (✎: search for another) or removed (×); a match by hand is undone.
+const NO_MATCH = "none";
+function matchCell(td, r, text, pick, cellKey) {
+  const search = () => opSearch((op) => pick(op.key), cellKey ? { "data-cell": cellKey } : {});
+  const btn = (label, title, fn) => h("button", { class: "link", title, onclick: fn }, label);
+  if (r.op) {
+    const hand = r.how === "by hand";
+    td.replaceChildren(h("span", {}, `${text} `, h("span", { class: "how" }, r.how), " ",
+      btn("✎", "Choose another operation", () => {
+        const input = search();
+        td.replaceChildren(input, btn("↩", "Keep the match", () => matchCell(td, r, text, pick, cellKey)));
+        input.focus();
+      }),
+      hand ? btn("×", "Undo this match (back to the automatic one)", () => pick(null))
+        : btn("×", "Remove this match", () => pick(NO_MATCH))));
+  } else if (r.how === "removed by hand") {
+    td.replaceChildren(search(), btn("↺", "Restore the automatic match", () => pick(null)));
+  } else {
+    td.replaceChildren(search());
+  }
+  return td;
+}
 
 async function setMatch(id, k, row, op) {
   try {
@@ -634,16 +680,13 @@ async function refreshMatches(id, k) {
   if (!table || !R.leg) return;
   try {
     const m = await api(`api/digitized/${id}/match`, { table: k, fill_down: fillOf(id, k), leg: R.leg, groups: R.selection.groups });
+    const heads = table.querySelectorAll("thead tr.roles th");
+    (m.columns || []).forEach((c, j) => heads[j + 1]?.replaceChildren(roleSelect(c, m.roles, (roles) => setDigRoles(id, k, roles))));
     const cells = table.querySelectorAll("tbody td.match");
     m.rows.forEach((r, i) => {
       const td = cells[i];
       if (!td) return;
-      if (r.op) {
-        td.replaceChildren(h("span", {}, `${r.label || r.op} `, h("span", { class: "how" }, r.how),
-          r.how === "by hand" ? h("button", { class: "link", title: "Undo this match", onclick: () => setMatch(id, k, i, null) }, "×") : null));
-      } else {
-        td.replaceChildren(matchSearch(id, k, i));
-      }
+      matchCell(td, r, r.label || r.op, (op) => setMatch(id, k, i, op));
     });
     const n = m.rows.filter((r) => r.op).length;
     const note = table.closest(".scroll")?.nextElementSibling?.querySelector(".match-count");
