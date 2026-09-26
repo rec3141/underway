@@ -355,14 +355,14 @@ async function uploadLog(file) {
     const meta = await api(`api/logsheet?leg=${encodeURIComponent(R.leg)}`, await file.arrayBuffer(),
       { raw: true, headers: { "X-Filename": file.name, "Content-Type": "application/octet-stream" } });
     const sheets = Object.keys(meta.sheets);
-    const added = sheets.map((sheet) => ({ id: meta.id, name: sheets.length > 1 ? `${meta.name} · ${sheet}` : meta.name,
+    const added = sheets.map((sheet) => ({ id: meta.id, name: sheets.length > 1 ? `${sheet} · ${meta.name}` : meta.name,
       file: meta.name, sheet, roles: meta.sheets[sheet].roles }));
     R.selection.logsheets.push(...added);
     await Promise.all(added.map(matchLog));
   } catch (e) { toast(`Could not read ${file.name}: ${e.message}`, true); }
 }
 // Every sheet of a log is its own entry in selection.logsheets, ticked on its own
-// under "Your logs" (use), and its match is LOGS[logKey].
+// under "Your logs" (use) and named "sheet · file", and its match is LOGS[logKey].
 const logKey = (lg) => `${lg.id}:${lg.sheet}`;
 const logName = (lg) => lg.file || LOGS[logKey(lg)]?.match?.name || lg.name;
 function logFiles() {
@@ -378,14 +378,15 @@ function addSheets(first, sheets) {
   const names = Object.keys(sheets || {});
   if (names.length < 2 || names.every((n) => have.has(n))) return [];
   const file = logName(first);
-  for (const x of sel) if (x.id === first.id) { x.file = file; x.name = `${file} · ${x.sheet}`; }
-  const added = names.filter((n) => !have.has(n)).map((sheet) => ({ id: first.id, name: `${file} · ${sheet}`, file, sheet,
+  for (const x of sel) if (x.id === first.id) { x.file = file; x.name = `${x.sheet} · ${file}`; }
+  const added = names.filter((n) => !have.has(n)).map((sheet) => ({ id: first.id, name: `${sheet} · ${file}`, file, sheet,
     roles: { ...(sheets[sheet].roles || {}) }, use: false }));
   sel.splice(sel.indexOf(sel.filter((x) => x.id === first.id).at(-1)) + 1, 0, ...added);
   return added;
 }
 // Match a logsheet's rows again; the operations it brings in follow (if it is ticked).
 async function matchLog(lg) {
+  if (lg.file) lg.name = `${lg.sheet} · ${lg.file}`;          // the sheet first (drafts named it after the file)
   const m = await api("api/logsheet/match", { id: lg.id, sheet: lg.sheet, roles: lg.roles, local: !!lg.local, leg: R.leg, groups: R.selection.groups });
   LOGS[logKey(lg)] = { name: lg.name, match: m };
   renderLogs(); selectionUpdated();
