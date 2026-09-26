@@ -1,0 +1,22 @@
+[Unit]
+Description=Cruise report builder, beside the dashboard at /report/ (deploy/cruise-report.md)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@UNDERWAY_USER@
+Group=@UNDERWAY_GROUP@
+WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
+EnvironmentFile=@UNDERWAY_SITE@
+Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
+# drafts, uploaded logsheets and digitized logbook pages
+Environment=CRUISE_STATE_DIR=@UNDERWAY_HOME@/report
+Environment=OPENBLAS_NUM_THREADS=2
+# credentials: OPENROUTER_REPORT_KEY for the logbook photos; mode 600
+EnvironmentFile=-@UNDERWAY_CONFIG@/underway.env
+ExecStart=@UNDERWAY_PYTHON@ -m cruisereport serve --bind 127.0.0.1 --port 8044
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

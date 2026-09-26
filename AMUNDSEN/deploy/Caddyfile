@@ -1,11 +1,18 @@
 # Ship-LAN front door on port 80. The dashboard (underway-dashboard.service,
 # 127.0.0.1:8042) answers at /underway/ and at http://underway.local (mDNS
-# alias from underway-mdns.service); the older static sites under
+# alias from underway-mdns.service), the cruise report builder
+# (underway-report.service, 127.0.0.1:8044) at /report/ on both; the older static sites under
 # /var/www/html and the :5000 API keep their paths.
 :80 {
     encode zstd gzip
     redir / /underway/ 302
     redir /underway /underway/ 302
+    # the cruise report builder (underway-report.service)
+    redir /report /report/ 302
+    redir /report.html /report/ 302
+    handle_path /report/* {
+        reverse_proxy 127.0.0.1:8044
+    }
     handle_path /underway/* {
         reverse_proxy 127.0.0.1:8042
     }
@@ -24,5 +31,12 @@
 
 http://underway.local {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:8042
+    redir /report /report/ 302
+    redir /report.html /report/ 302
+    handle_path /report/* {
+        reverse_proxy 127.0.0.1:8044
+    }
+    handle {
+        reverse_proxy 127.0.0.1:8042
+    }
 }

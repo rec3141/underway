@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cruise Report Builder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='4' width='20' height='24' rx='3' fill='%230f1419'/%3E%3Cpath d='M10 11h12M10 16h12M10 21h8' stroke='%235cc8ff' stroke-width='2.4'/%3E%3C/svg%3E">
+<script>/* follows the underway dashboard's theme and text size (same keys, same origin), before the first paint:
+   data-theme carries the theme's type size, data-scheme its light or dark colours, data-size the reader's size */
+(function () {
+  var d = document.documentElement, t = "auto";
+  try { t = JSON.parse(localStorage.getItem("uw:theme")) || "auto"; } catch (e) { /* no storage */ }
+  if (t === "auto") t = matchMedia("(prefers-color-scheme: light)").matches ? "claude-light" : "claude-dark";
+  d.dataset.theme = t;
+  d.dataset.scheme = /dark/.test(t) ? "dark" : "light";
+  try { var s = JSON.parse(localStorage.getItem("uw:textsize")); if (s === "normal" || s === "large") d.dataset.size = s; }
+  catch (e) { /* theme size */ }
+})();</script>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Cruise Report Builder</h1>
+    <p class="sub">Build your team's Amundsen cruise report from the ship's own records, then download it in the 2026 template.</p>
+  </div>
+  <div class="top-actions">
+    <label class="inline">Draft
+      <select id="draft-list"><option value="">— open a saved draft —</option></select>
+    </label>
+    <button id="save-draft" class="ghost">Save draft</button>
+    <button id="download" class="primary">Download .docx</button>
+  </div>
+</header>
+
+<nav class="steps" id="steps">
+  <a href="#s-team">1 · Team</a>
+  <a href="#s-work">2 · What you did</a>
+  <a href="#s-cond">3 · Conditions</a>
+  <a href="#s-tables">4 · Tables</a>
+  <a href="#s-figs">5 · Figures</a>
+  <a href="#s-text">6 · Text</a>
+  <span class="words" id="words" title="Your text plus the generated narrative; tables and captions are not counted">— words</span>
+</nav>
+
+<main>
+<section id="s-team" class="card">
+  <h2>1 · Team and leg</h2>
+  <div class="grid2">
+    <label>Leg <select id="leg"></select></label>
+    <label>Team name <span class="hint">(used in the file name: Cruise Report_TeamName.docx)</span>
+      <input id="team" placeholder="e.g. Collins"></label>
+  </div>
+  <label>Brief project title <input id="title" placeholder="Brief Project Title"></label>
+  <div class="people">
+    <h3>Project leaders</h3>
+    <div id="leaders"></div>
+    <button class="ghost small" data-add="leaders">+ Add leader</button>
+  </div>
+  <div class="people">
+    <h3>Cruise participants on this leg</h3>
+    <div id="participants"></div>
+    <button class="ghost small" data-add="participants">+ Add participant</button>
+  </div>
+</section>
+
+<section id="s-work" class="card">
+  <h2>2 · What you did</h2>
+  <p class="lead">Tick the instruments your team worked with. The operations from the bridge's event log are listed below; untick any that were not yours.</p>
+  <div id="groups" class="chips"></div>
+
+  <details class="sub-card" id="teams-box">
+    <summary>Rosette bottles — which columns on the rosette sheets are your team? <span id="teams-picked" class="pill"></span></summary>
+    <p class="hint">Team names are typed by hand on each sheet. Obvious slips (case, a stray digit, one letter off or two swapped) are merged under one name; hover a name to see the spellings it includes. Tick every name that is your team; the number is how many casts it drew water from.</p>
+    <div id="teams" class="chips"></div>
+  </details>
+
+  <details class="sub-card" id="log-box">
+    <summary>Import your team's logsheet <span id="log-count" class="pill"></span></summary>
+    <p class="hint">Upload the spreadsheet you kept on board (.xlsx or .csv). Each row is matched to an operation, first by event label (AMD####-###), then by station and time or date, then by time and position. Matched operations are ticked below, and the sheet's columns can go into your tables.</p>
+    <input type="file" id="log-file" accept=".xlsx,.xls,.csv,.tsv,.txt">
+    <div id="logsheets"></div>
+  </details>
+
+  <details class="sub-card" id="dig-box">
+    <summary>Digitize logbook photos <span id="dig-count" class="pill"></span></summary>
+    <p class="hint">Photograph a paper logbook page (any orientation). A vision model transcribes every table on it; each cell is coloured by the model's estimate of the odds it is right (its reading and its place in the table), from green (near certain) to red (a guess). Click any cell to correct it — a corrected cell turns green. Export a table as TSV, all pages as one XLSX (a sheet per table, same colours), or use a table as a logsheet to pick your operations and fill your report tables. Each page takes about 30 seconds to 2 minutes.</p>
+    <input type="file" id="dig-file" accept="image/*" multiple>
+    <div id="dig-queue" class="dig-queue"></div>
+    <div class="row" id="dig-actions" hidden>
+      <button class="primary small" id="dig-go">Transcribe</button>
+      <span class="hint" id="dig-status"></span>
+    </div>
+    <div class="dig-legend"><span>odds the cell is right:</span><i style="--h:120"></i>near certain <i style="--h:90"></i>very likely <i style="--h:58"></i>likely <i style="--h:30"></i>even <i style="--h:0"></i>a guess</div>
+    <div id="dig-results"></div>
+    <div class="row"><a id="dig-xlsx" class="button ghost small" hidden>Download all pages (.xlsx)</a></div>
+  </details>
+
+  <div class="ops-head">
+    <h3>Operations <span id="ops-count" class="pill"></span></h3>
+    <div class="ops-tools">
+      <input id="ops-filter" placeholder="Filter by station, label or activity">
+      <button class="ghost small" id="ops-all">Tick shown</button>
+      <button class="ghost small" id="ops-none">Untick shown</button>
+    </div>
+  </div>
+  <div class="scroll"><table id="ops" class="data"></table></div>
+</section>
+
+<section id="s-cond" class="card">
+  <h2>3 · Conditions at your stations</h2>
+  <p class="lead">Written from the event log, the ship's underway record, the rosette sheets and the Canadian Ice Service charts. Each value says where it came from; anything not recorded is said to be missing, never filled in.</p>
+  <div class="radio-row" id="narr-mode">
+    <label><input type="radio" name="narr" value="summary" checked> One summary paragraph <span class="hint">(recommended — the report is limited to 3000 words)</span></label>
+    <label><input type="radio" name="narr" value="stations"> A paragraph per station visit</label>
+    <label><input type="radio" name="narr" value=""> No narrative</label>
+  </div>
+  <p class="hint">A conditions table (one row per operation) can be added in step 4 with any of the conditions columns.</p>
+  <button class="ghost" id="cond-preview">Preview narrative</button>
+  <div id="narratives" class="prose"></div>
+</section>
+
+<section id="s-tables" class="card">
+  <h2>4 · Tables</h2>
+  <p class="lead">Each table has one row per operation, per bottle or per logsheet row. Columns can come from any linked table: a bottle row can show its station's air temperature, a logsheet row its bottom depth.</p>
+  <div class="add-row">
+    <button class="ghost" data-preset="conditions">+ Station conditions table</button>
+    <button class="ghost" data-preset="stations">+ Station list (position, depth, time)</button>
+    <button class="ghost" data-preset="bottles">+ Bottles sampled</button>
+    <button class="ghost" data-preset="blank">+ Empty table</button>
+  </div>
+  <div id="tables"></div>
+</section>
+
+<section id="s-figs" class="card">
+  <h2>5 · Figures</h2>
+  <div class="add-row">
+    <button class="ghost" data-fig="map">+ Station map</button>
+    <button class="ghost" data-fig="profiles">+ CTD profiles</button>
+    <button class="ghost" data-fig="ts">+ T–S diagram</button>
+    <button class="ghost" data-fig="underway">+ Underway record</button>
+  </div>
+  <p class="hint">Photos and your own plots are best added in Word after downloading.</p>
+  <div id="figures" class="fig-grid"></div>
+</section>
+
+<section id="s-text" class="card">
+  <h2>6 · Your text</h2>
+  <p class="lead">Paragraphs separated by a blank line become separate paragraphs in Word. The generated narrative, tables and figures follow your text in the section you chose.</p>
+  <div id="texts"></div>
+</section>
+
+<section class="card closing">
+  <p>When you download, save the file as <b>Cruise Report_<span id="team-echo">TeamX</span>.docx</b> in <code>\\10.0.0.10\share\<span id="year-echo">2026</span>\<span id="leg-echo">Leg X</span>\Cruise Report</code> before the end of your leg, and please fill in the <a href="https://forms.office.com/pages/responsepage.aspx?id=1Yt3Vj9q00uiZZMWPk1b_gh57p447ntAk8e2w2XL-pVUOEhWRTRJTUE2UTlIS0tGVUFLNlpIMkdMTi4u&route=shorturl" target="_blank" rel="noopener">Amundsen user survey</a>.</p>
+  <div class="add-row">
+    <button id="save-draft2" class="ghost">Save draft</button>
+    <button id="download2" class="primary">Download .docx</button>
+  </div>
+</section>
+</main>
+
+<dialog id="lightbox" aria-label="Photo preview">
+  <div class="lb-bar"><span id="lb-title"></span><span class="hint">click the photo to zoom · Esc to close</span><button id="lb-close" class="ghost small" aria-label="Close">×</button></div>
+  <div class="lb-body"><img id="lb-img" alt=""></div>
+</dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="report.js"></script>
+</body>
+</html>

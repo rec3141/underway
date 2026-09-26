@@ -6,10 +6,11 @@
 #
 #   deploy-pull.sh            fetch, fast-forward, restart what needs it
 #
-# What the pull brings in takes effect by itself except for two things: a
+# What the pull brings in takes effect by itself except for three things: a
 # change under dashboard/*.py needs the serving processes restarted (the
-# build subprocess picks code up on its own), and a change under deploy/
-# needs the units installed with deploy/install.sh — this script only says so.
+# build subprocess picks code up on its own), a change under cruisereport/*.py
+# needs the report builder restarted, and a change under deploy/ needs the
+# units installed with deploy/install.sh — this script only says so.
 set -euo pipefail
 APP=${UNDERWAY_APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}    # the checkout this script lives in
 OWNER=$(stat -c %U "$APP")
@@ -34,6 +35,11 @@ if grep '^AMUNDSEN/dashboard/.*\.py$' <<<"$changed" | grep -qvE '^AMUNDSEN/dashb
   if systemctl is-enabled --quiet underway-codex.service; then
     systemctl restart underway-codex.service
   fi
+fi
+# The cruise report builder's page and scripts are read from disk; its Python is not.
+if grep -q '^AMUNDSEN/cruisereport/.*\.py$' <<<"$changed" && systemctl is-enabled --quiet underway-report.service; then
+  echo "deploy: restarting the cruise report builder"
+  systemctl restart underway-report.service
 fi
 if grep -q '^AMUNDSEN/deploy/' <<<"$changed"; then
   echo "deploy: unit files changed; install them: sudo $APP/AMUNDSEN/deploy/install.sh"

@@ -31,12 +31,16 @@ ice-charts = ["pyshp>=2.3", "pyproj>=3.6"]
 sampling = ["scikit-learn>=1.5", "umap-learn>=0.5.7,<0.6", "threadpoolctl>=3", "requests>=2.31"]
 # the sea route's eikonal solver; it builds from source, so it needs a compiler
 routing = ["scikit-fmm>=2025.6"]
+# the cruise report builder (cruisereport/): Word export, figures, logbook photos
+report = ["python-docx>=1.1", "matplotlib>=3.8", "pyproj>=3.6", "Pillow>=10"]
 
 [project.scripts]
 underway = "dashboard.cli:main"
+cruise-report = "cruisereport.__main__:main"
 
 [tool.setuptools]
-packages = ["dashboard"]
+packages = ["dashboard", "cruisereport"]
 
 [tool.setuptools.package-data]
 dashboard = ["templates/*.j2", "static/*", "static/geo/*", "ice_assets/*"]
+cruisereport = ["static/*"]

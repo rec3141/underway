@@ -19,7 +19,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SITE=${UNDERWAY_SITE:-/etc/underway/site.env}
 UNITDIR=/etc/systemd/system
-CORE=(underway.timer underway-deploy.timer underway-dashboard.service underway-uptime.timer underway-ice-charts.timer)
+CORE=(underway.timer underway-deploy.timer underway-dashboard.service underway-report.service underway-uptime.timer underway-ice-charts.timer)
 mode=${1:-install}
 
 [[ -r $SITE ]] || { echo "no $SITE: copy $HERE/site.env.example there and edit it" >&2; exit 1; }
@@ -87,7 +87,7 @@ fi
 [[ $(id -u) == 0 ]] || { echo "run with sudo: sudo $0 $*" >&2; exit 1; }
 
 # the state directories, owned by the service account
-for d in db cache www chat camera360; do
+for d in db cache www chat camera360 report; do
   install -d -o "$UNDERWAY_USER" -g "$UNDERWAY_GROUP" "$UNDERWAY_HOME/$d"
 done
 

@@ -47,6 +47,8 @@ dashboard/           the Python package
   templates/         index.html.j2
   static/            app.js, map.js (the map), style.css, plotly.min.js (the charts),
                      maplibre-gl.js/.css (the map's library), geo/*.geojson
+cruisereport/        the cruise report builder, served beside the dashboard at
+                     /report/ (deploy/cruise-report.md)
 update_underway_py.sh    systemd-facing wrapper: build into the web root
 pyproject.toml           package metadata; `pip install -e .` gives an `underway` command
 deprecated/              the previous R implementation and its wrappers, kept for reference
@@ -595,6 +597,16 @@ The glyphs under `static/geo/glyphs/` are built with `fontnik`
 (`npm install fontnik`, then `fontnik.range({font, start, end})` for the
 four Latin ranges 0–1023) from the Open Sans TTFs in the googlefonts/opensans
 repository.
+
+## Cruise report builder
+
+`cruisereport/` is a separate page at `http://underway.local/report/`: a
+science team picks its instruments, rosette bottles and logsheets (or
+photographs its paper logbooks, which a vision model transcribes), and
+downloads its cruise report in Amundsen Science's template, with station
+conditions, tables, maps and figures drawn from the same stores as this
+dashboard. It runs as its own user service on port 8044; setup, routing and
+checks are in `deploy/cruise-report.md`.
 
 ## Publishing to the public web
 
