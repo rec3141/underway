@@ -17,7 +17,8 @@ Routes (all JSON unless noted):
          both take &out=utc|ship&leg=<leg>&times=<JSON {sheet: {roles, local}}> to
          rewrite dates and times into UTC or ship time
     POST /api/conditions                   {report}: narrative preview and word count
-    POST /api/table                        {report, index}: one table, formatted, first rows
+    POST /api/table                        {report, index}: one table, formatted
+    POST /api/bottles                      {report}: the selected operations' bottles, which are the team's
     POST /api/figure                       {report, spec}: {images: [PNG data URLs]}
     POST /api/docx                         {report}: the .docx
     POST /api/digitize?rotate=<deg>        raw photo body, X-Filename: queue a logbook page
@@ -224,6 +225,7 @@ class Handler(SimpleHTTPRequestHandler):
             "/api/logsheet/match": self._match,
             "/api/conditions": self._conditions,
             "/api/table": self._table,
+            "/api/bottles": self._bottles,
             "/api/figure": self._figure,
             "/api/docx": self._docx,
             "/api/digitize": lambda: self._digitize(q),
@@ -384,10 +386,17 @@ class Handler(SimpleHTTPRequestHandler):
         sel = rep.get("selection", {})
         logs = report._logs(rep)
         tab = tables.build(rep["leg"], spec, sel.get("ops", []), sel.get("teams", []), logs,
-                           report.logged_bottles(rep, logs))
+                           report.logged_bottles(rep, logs), sel.get("bottles"))
         body = [[tables.fmt(v, c) for v, c in zip(r, tab["columns"])]
                 for r in tab["body"]]
         self._json(200, {"columns": tab["columns"], "body": body, "total": len(tab["body"])})
+
+    def _bottles(self):
+        rep = self._obj()["report"]
+        sel = rep.get("selection", {})
+        rows = tables.bottle_rows(rep["leg"], sel.get("ops", []), sel.get("teams", []),
+                                  report.logged_bottles(rep), sel.get("bottles"))
+        self._json(200, _clean({"rows": rows}))
 
     def _figure(self):
         a = self._obj()

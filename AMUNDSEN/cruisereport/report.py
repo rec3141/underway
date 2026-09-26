@@ -8,7 +8,9 @@ The page sends one JSON document (saved as the participant's draft):
       "text": {"intro", "methods", "results", "references", "recommendations",
                "publications", "presentations", "in_progress"},
       "selection": {"groups": [...], "ops": [keys], "teams": [...],
-                    "logsheets": [{"id", "sheet", "roles", "use", "local"}]},
+                    "logsheets": [{"id", "sheet", "roles", "use", "bottles", "local"}],
+                    "bottles": {"added": [keys], "removed": [keys],
+                                "edits": {key: {"volume", "note"}}}},
       "conditions": {"narrative": "summary" | "stations" | null},
       "tables": [{"title", "rows", "columns": [...], "section"}],
       "figures": [{"kind": "map"|"profiles"|"ts"|"underway", "caption", "section", "options"}]
@@ -77,12 +79,14 @@ def _figure(report: dict, spec: dict) -> bytes:
         teams = report.get("selection", {}).get("teams", [])
         if opts.get("team_bottles"):
             logged = logged_bottles(report)
-            rows = [b for b in tables._bottles(leg, set(keys))
-                    if not (teams or logged) or tables._team_bottle(b, teams, logged)]
-            bottles = [(b["salinity"], b["temperature"]) for b in rows
-                       if b.get("salinity") is not None and b.get("temperature") is not None]
-            if teams or logged:
-                label = "Bottles sampled by " + ", ".join(teams + (["your logs"] if logged else []))
+            picked = report.get("selection", {}).get("bottles")
+            every = tables._bottles(leg, set(keys))
+            chosen = tables.chosen_bottles(every, teams, logged, picked)
+            bottles = [(b["salinity"], b["temperature"]) for b in every if tables.bottle_key(b) in chosen
+                       and b.get("salinity") is not None and b.get("temperature") is not None]
+            if teams or logged or (picked or {}).get("added"):
+                label = "Bottles sampled by " + ", ".join(
+                    teams + (["your logs"] if logged else []) + (["your picks"] if (picked or {}).get("added") else []))
         return figures.ts_diagram(leg, rosette_keys, bottles, label)
     raise ValueError(f"unknown figure kind {kind}")
 
@@ -103,7 +107,7 @@ def content(report: dict) -> dict:
     for t in report.get("tables", []):
         if not t.get("columns"):
             continue
-        tab = tables.build(leg, t, keys, teams, logs, logged_bottles(report, logs))
+        tab = tables.build(leg, t, keys, teams, logs, logged_bottles(report, logs), sel.get("bottles"))
         blocks.append({"section": t.get("section", "methods"), "kind": "table",
                        "caption": t.get("title") or "", "table": tab})
     for f in report.get("figures", []):

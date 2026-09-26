@@ -154,7 +154,83 @@ function setOwn(key, on, auto = autoOps()) {
   sel.added = [...added]; sel.removed = [...removed];
 }
 function selectionUpdated() {
-  syncOps(); renderLogChips(); renderOps(); renderTables(); persist(); selectionChanged();
+  syncOps(); renderLogChips(); renderOps(); renderTables(); persist(); selectionChanged(); renderBottles();
+}
+
+// --- bottles sampled --------------------------------------------------------------
+// selection.bottles: {added, removed, edits: {key: {volume, note}}}, like the
+// operations' own ticks; the server says which bottles its sources choose.
+const bottlePicks = () => (R.selection.bottles = R.selection.bottles || { added: [], removed: [], edits: {} });
+function setOwnBottle(key, on, auto) {
+  const b = bottlePicks();
+  b.added = b.added.filter((k) => k !== key); b.removed = b.removed.filter((k) => k !== key);
+  if (on !== auto) (on ? b.added : b.removed).push(key);
+}
+function editBottle(key, field, text) {
+  const b = bottlePicks(), e = { ...(b.edits[key] || {}) };
+  const v = field === "volume" ? (text.trim() === "" ? null : Number(text.replace(",", "."))) : text.trim() || null;
+  if (field === "volume" && v != null && !Number.isFinite(v)) return toast("A volume is a number of litres.", true);
+  if (v == null) delete e[field]; else e[field] = v;
+  if (Object.keys(e).length) b.edits[key] = e; else delete b.edits[key];
+  bottlesChanged();
+}
+function bottlesChanged() { persist(); renderTables(); selectionChanged(); renderBottles(); }
+// Logs as bottle sources, ticked apart from their tick for operations.
+function renderBottleChips() {
+  const box = $("#bottle-log-chips");
+  if (!box) return;
+  const chips = R.selection.logsheets.map((lg) => {
+    const m = LOGS[logKey(lg)]?.match, col = lg.roles?.bottle;
+    const n = col && m ? m.rows.filter((r) => r.op && /^\s*\d{1,2}\s*$/.test(String(r.cells?.[col] ?? ""))).length : 0;
+    return h("label", { class: "chip log" + (col && lg.bottles !== false ? " on" : ""),
+      title: col ? `${n} rows name a bottle (column ${col}) and match an operation` : "No column is marked Bottle in this log's header row" },
+      h("input", { type: "checkbox", disabled: !col, checked: !!col && lg.bottles !== false,
+        onchange: (e) => { lg.bottles = e.target.checked; renderBottleChips(); bottlesChanged(); } }),
+      lg.name, h("span", { class: "n" }, col ? `${n} bottles` : "no Bottle column"));
+  });
+  box.replaceChildren(...(chips.length ? chips : [h("span", { class: "hint" }, "No logs yet.")]));
+}
+let bottleTimer, bottleSeq = 0;
+function renderBottles() {
+  clearTimeout(bottleTimer);
+  bottleTimer = setTimeout(drawBottles, 400);
+}
+async function drawBottles() {
+  renderBottleChips();
+  const t = $("#bottles");
+  if (!t || !R.leg || !INFO) return;
+  const seq = ++bottleSeq;
+  let rows;
+  try { rows = (await api("api/bottles", { report: R })).rows; } catch (e) { return toast(`Bottles: ${e.message}`, true); }
+  if (seq !== bottleSeq) return;                   // a newer request is on its way
+  const active = document.activeElement?.closest?.("#bottles [data-cell]");
+  const typing = active && { key: active.dataset.cell, text: active.textContent };
+  const teams = R.selection.teams;
+  const edits = bottlePicks().edits;
+  const edit = (r, field, shown) => {
+    const key = `${r.key}:${field}`, own = edits[r.key]?.[field] != null;
+    const el = h("td", { contenteditable: "true", spellcheck: "false", "data-cell": key, class: (own ? "edited " : "") + (field === "volume" ? "num" : ""),
+      title: own ? "typed here" : field === "volume" ? "From the rosette sheet; type to change" : "" }, shown ?? "");
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
+    el.addEventListener("blur", () => { if (el.textContent.trim() !== String(shown ?? "")) editBottle(r.key, field, el.textContent); });
+    return el;
+  };
+  t.replaceChildren(
+    h("thead", {}, h("tr", {}, ...["", "Station", "Label", "Cast", "Bottle", "Target", "Depth (m)", "Yours by", ...teams.map((x) => `${x} (L)`),
+      "Volume (L)", "Note", "Sheet comment"].map((x) => h("th", {}, x)))),
+    h("tbody", {}, ...rows.map((r) => h("tr", { class: r.chosen ? "" : "off" },
+      h("td", {}, h("input", { type: "checkbox", checked: r.chosen, title: r.own ? `ticked by hand (${r.own})` : "",
+        onchange: (e) => { setOwnBottle(r.key, e.target.checked, r.auto); bottlesChanged(); } })),
+      h("td", {}, r.station || "—"), h("td", {}, r.label), h("td", {}, r.cast ?? ""), h("td", { class: "num" }, r.bottle),
+      h("td", {}, r.target ?? ""), h("td", { class: "num" }, r.depth_m != null ? Math.round(r.depth_m) : ""),
+      h("td", { class: "hint" }, r.own ? `by hand${r.own === "removed" ? " (removed)" : ""}` : r.sources.join(", ") || (r.chosen ? "every bottle" : "")),
+      ...teams.map((x) => h("td", { class: "num" }, r.draws[x] ?? "")),
+      edit(r, "volume", r.volume_team_l), edit(r, "note", r.note), h("td", { class: "hint" }, r.comment ?? "")))));
+  if (!rows.length) t.append(h("tbody", {}, h("tr", {}, h("td", { class: "hint", colspan: 12 }, "No rosette bottles on the selected operations."))));
+  const n = rows.filter((r) => r.chosen).length;
+  $("#bottle-count").textContent = rows.length ? `${n} of ${rows.length} yours` : "";
+  const again = typing && t.querySelector(`[data-cell="${CSS.escape(typing.key)}"]`);
+  if (again) { again.textContent = typing.text; again.focus(); getSelection().selectAllChildren(again); getSelection().collapseToEnd(); }
 }
 
 function renderGroups() {
@@ -1045,7 +1121,7 @@ async function loadLeg(leg) {
     R.selection.removed = [];
   }
   syncOps();
-  renderGroups(); renderTeams(); renderOps(); renderTables(); renderFigures(); echo(); renderDigitized();
+  renderGroups(); renderTeams(); renderOps(); renderTables(); renderFigures(); echo(); renderDigitized(); renderBottles();
   for (const lg of R.selection.logsheets) matchLog(lg).catch((e) => toast(`${lg.name}: ${e.message}`, true));
   persist();
 }

@@ -114,10 +114,17 @@ def test_ticked_logs_name_the_teams_bottles():
         {"BOT": "HOT WATER", "_op": "AMD2603-230"}, {"BOT": "3", "_op": None}]}}
     used = [{"id": "a", "sheet": "s", "use": True}]
     assert tables.logged_bottles(logs, used) == {("AMD2603-230", 1): "eDNA", ("AMD2603-230", 2): "eDNA"}
-    assert tables.logged_bottles(logs, [{**used[0], "use": False}]) == {}
-    b = {"label": "AMD2603-230", "bottle": 2, "draws": {}}
-    assert tables._team_bottle(b, [], tables.logged_bottles(logs, used))
-    assert not tables._team_bottle({**b, "bottle": 5}, [], tables.logged_bottles(logs, used))
+    assert tables.logged_bottles(logs, [{**used[0], "bottles": False}]) == {}
+    assert tables.logged_bottles(logs, [{**used[0], "use": False}]) != {}      # operations and bottles tick apart
+    logged = tables.logged_bottles(logs, used)
+    bottles = [{"label": "AMD2603-230", "bottle": n, "draws": {"Collins": 2} if n == 5 else {}} for n in (1, 2, 5, 7)]
+    pick = lambda picked, teams=(): tables.chosen_bottles(bottles, list(teams), logged, picked)  # noqa: E731
+    assert pick(None) == {"AMD2603-230#1": "eDNA", "AMD2603-230#2": "eDNA"}
+    assert pick(None, ["Collins"]) == {"AMD2603-230#1": "eDNA", "AMD2603-230#2": "eDNA", "AMD2603-230#5": "Collins"}
+    assert pick({"added": ["AMD2603-230#7"], "removed": ["AMD2603-230#1"]}) == {
+        "AMD2603-230#2": "eDNA", "AMD2603-230#7": "by hand"}
+    assert len(tables.chosen_bottles(bottles, [], {}, None)) == 4                  # nothing to go by: every bottle
+    assert tables.chosen_bottles(bottles, [], {}, {"added": ["AMD2603-230#7"]}) == {"AMD2603-230#7": "by hand"}
 
 
 def test_digitized_tables_grow(tmp_path, monkeypatch):

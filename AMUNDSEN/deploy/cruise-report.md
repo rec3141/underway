@@ -35,9 +35,13 @@ links to it (`shell.reportBanner`), and the status page counts its views as
    operations selected are those the ticked logs match plus every operation
    of the ticked instruments, and they follow the logs as they are corrected
    or re-matched; a participant's own tick or untick in the operations list
-   always stands. Bottles a ticked log lists (a cast and bottle number) count
-   as the team's, as rosette-sheet draws do, in bottle tables and the T–S
-   marks.
+   always stands. Below the operations, **Bottles sampled** lists every
+   rosette bottle on their casts. A bottle is the team's when a ticked
+   rosette-sheet column drew from it or a log ticked there as a bottle source
+   (apart from its tick for operations) lists it in its Bottle column; with
+   neither, every bottle counts. Each bottle can be ticked or unticked by
+   hand, which always stands, and its volume and a note typed in. Bottle
+   tables, per-operation bottle counts and the T–S marks use that choice.
 
    **Digitize logbook photos.** Photograph a paper logbook page (any
    orientation) and a vision model (OpenRouter, `google/gemini-3.8-flash`;

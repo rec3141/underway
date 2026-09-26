@@ -48,6 +48,8 @@ BOTTLE_COLS = [
     *[Col(f"bottle.{k}", label, unit, d) for k, label, unit, d, _ in BTL_PARAMS],
     Col("bottle.light_pct", "% light"),
     Col("bottle.in_log", "In your logs"),
+    Col("bottle.volume_team_l", "Volume drawn (team)", "L", 1),
+    Col("bottle.note", "Note"),
     Col("bottle.cast", "Cast no."),
     Col("bottle.comment", "Bottle comment"),
 ]
@@ -132,11 +134,12 @@ def _team_volume(draws: dict, teams: list[str]) -> float | None:
 
 
 def logged_bottles(logs: dict[str, dict], used: list[dict]) -> dict[tuple[str, int], str]:
-    """(operation, bottle number) -> the log that lists it, from the ticked logs
-    whose rows name a bottle (the "bottle" role) and match an operation."""
+    """(operation, bottle number) -> the log that lists it, from the logs ticked
+    as bottle sources (``bottles``, apart from their tick for operations) whose
+    rows name a bottle (the "bottle" role) and match an operation."""
     out: dict[tuple[str, int], str] = {}
     for lg in used:
-        if lg.get("use") is False:
+        if lg.get("bottles") is False:
             continue
         m = logs.get(f"log:{lg['id']}:{lg['sheet']}")
         col = (m or {}).get("roles", {}).get("bottle")
@@ -149,28 +152,96 @@ def logged_bottles(logs: dict[str, dict], used: list[dict]) -> dict[tuple[str, i
     return out
 
 
-def _team_bottle(b: dict, teams: list[str], logged: dict) -> bool:
-    return any(t in b["draws"] for t in teams) or (b["label"], b["bottle"]) in logged
+def bottle_key(b: dict) -> str:
+    return f"{b['label']}#{b['bottle']}"
+
+
+def _sources(b: dict, teams: list[str], logged: dict) -> list[str]:
+    """What says a bottle is the team's: rosette-sheet columns, then a log."""
+    why = [t for t in teams if t in b["draws"]]
+    if (b["label"], b["bottle"]) in logged:
+        why.append(logged[(b["label"], b["bottle"])])
+    return why
+
+
+def chosen_bottles(bottles: list[dict], teams: list[str], logged: dict, picked: dict | None) -> dict[str, str]:
+    """The team's bottles among ``bottles`` (the selected operations' casts),
+    bottle_key -> why. A bottle is the team's when a ticked rosette-sheet
+    column drew from it or a ticked log lists it; ``picked`` (selection.bottles:
+    {added, removed, edits}) adds and removes bottles by hand, and that always
+    stands. With nothing to go by, every bottle counts."""
+    picked = picked or {}
+    added, removed = set(picked.get("added") or []), set(picked.get("removed") or [])
+    named = bool(teams or logged or added)
+    out = {}
+    for b in bottles:
+        k = bottle_key(b)
+        if k in removed:
+            continue
+        why = _sources(b, teams, logged)
+        if k in added and not why:
+            why = ["by hand"]
+        if why or not named:
+            out[k] = ", ".join(why) or "every bottle"
+    return out
+
+
+def _decorate(bottles: list[dict], teams: list[str], logged: dict, picked: dict | None) -> dict[str, str]:
+    """Mark each bottle chosen or not, with its team volume (a volume typed on
+    the page wins) and note; the chosen set."""
+    edits = (picked or {}).get("edits") or {}
+    chosen = chosen_bottles(bottles, teams, logged, picked)
+    for b in bottles:
+        k = bottle_key(b)
+        e = edits.get(k) or {}
+        b["in_log"] = logged.get((b["label"], b["bottle"]))
+        b["chosen"] = k in chosen
+        b["volume_team_l"] = e["volume"] if e.get("volume") not in (None, "") else _team_volume(b["draws"], teams)
+        b["note"] = e.get("note") or None
+    return chosen
+
+
+def bottle_rows(leg: str, op_keys: list[str], teams: list[str], logged: dict, picked: dict | None) -> list[dict]:
+    """Every bottle of the selected operations' casts, for the page's bottle table."""
+    bottles = _bottles(leg, set(op_keys))
+    _decorate(bottles, teams, logged, picked)
+    auto = chosen_bottles(bottles, teams, logged, None)        # before the page's own ticks
+    ops = eventlog.by_key(leg)
+    picked = picked or {}
+    added, removed = set(picked.get("added") or []), set(picked.get("removed") or [])
+    order = {k: i for i, k in enumerate(op_keys)}
+    out = []
+    for b in sorted(bottles, key=lambda b: (order.get(b["label"], 1e9), b["bottle"])):
+        k = bottle_key(b)
+        op = ops.get(b["label"])
+        out.append({"key": k, "label": b["label"], "station": op.station if op else None, "cast": b["cast"],
+                    "bottle": b["bottle"], "target": b["target"], "depth_m": b["depth_m"],
+                    "trip_db": b["trip_db"], "draws": {t: b["draws"][t] for t in teams if t in b["draws"]},
+                    "sources": _sources(b, teams, logged), "chosen": b["chosen"], "auto": k in auto,
+                    "own": "added" if k in added else "removed" if k in removed else None,
+                    "volume_team_l": b["volume_team_l"], "note": b["note"], "comment": b["comment"]})
+    return out
 
 
 def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
-          logs: dict[str, dict], logged: dict[tuple[str, int], str] | None = None) -> dict:
+          logs: dict[str, dict], logged: dict[tuple[str, int], str] | None = None,
+          picked: dict | None = None) -> dict:
     """One report table: ``spec`` = {title, rows, columns}.
 
     ``logs`` maps "log:<id>:<sheet>" to a matched logsheet (logsheets.matched);
-    ``logged`` is ``logged_bottles``: those bottles count as the team's, like a
-    rosette-sheet draw.
+    ``logged`` is ``logged_bottles`` and ``picked`` the page's own bottle
+    choices and edits (chosen_bottles).
     """
     logged = logged or {}
     keys = set(op_keys)
     op_rows = {r["key"]: r for r in conditions.table(leg, list(keys))}
     bottles = _bottles(leg, keys)
-    for b in bottles:
-        b["in_log"] = logged.get((b["label"], b["bottle"]))
+    _decorate(bottles, teams, logged, picked)
+    named = bool(teams or logged or (picked or {}).get("added"))
     for r in op_rows.values():
-        mine = [b for b in bottles if b["label"] == r["key"] and _team_bottle(b, teams, logged)]
-        r["n_bottles_team"] = len(mine) if (teams or logged) else None
-        vols = [_team_volume(b["draws"], teams) for b in mine]
+        mine = [b for b in bottles if b["label"] == r["key"] and b["chosen"]]
+        r["n_bottles_team"] = len(mine) if named else None
+        vols = [b["volume_team_l"] for b in mine]
         r["volume_team_l"] = sum(v for v in vols if v) if any(vols) else None
         r["n_log_rows"] = sum(1 for lg in logs.values() for x in lg["rows"] if x["_op"] == r["key"]) \
             if logs else None
@@ -179,7 +250,7 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
     if source == "operations":
         base = [{"op": r} for r in sorted(op_rows.values(), key=lambda r: r["start_utc"])]
     elif source == "bottles":
-        rows = [b for b in bottles if not (teams or logged) or _team_bottle(b, teams, logged)]
+        rows = [b for b in bottles if b["chosen"]]
         base = [{"op": op_rows.get(b["label"], {}), "bottle": b} for b in rows]
         base.sort(key=lambda x: (x["op"].get("start_utc") or "", x["bottle"]["bottle"]))
     elif source == "logs" or source.startswith("log:"):
