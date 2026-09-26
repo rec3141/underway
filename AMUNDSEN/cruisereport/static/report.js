@@ -201,10 +201,9 @@ function logHits() {
 }
 function renderOps() {
   const sel = new Set(R.selection.ops);
-  const f = $("#ops-filter").value.trim().toLowerCase();
+  const f = squash($("#ops-filter").value);
   const hits = logHits();
-  const shown = INFO.operations.filter((o) => (!f || [o.station, o.label, o.activity, o.group_label]
-    .some((v) => (v || "").toLowerCase().includes(f))) && (sel.has(o.key) || R.selection.groups.includes(o.group) || hits[o.key] || f));
+  const shown = INFO.operations.filter((o) => (!f || squash(opFull(o)).includes(f)) && (sel.has(o.key) || R.selection.groups.includes(o.group) || hits[o.key] || f));
   const t = $("#ops");
   t.replaceChildren(h("thead", {}, h("tr", {}, ...["", "Station", "Label", "Operation", "Instrument", "Start (UTC)", "Duration", "Depth (m)", "Logsheet rows"].map((x) => h("th", {}, x)))),
     h("tbody", {}, ...shown.map((o) => h("tr", { class: sel.has(o.key) ? "" : "off" },
@@ -475,18 +474,21 @@ function digTable(doc, k) {
   return h("div", { class: "scroll", style: "max-height:420px" }, table);
 }
 
-// The leg's operations, as searchable options for rows that matched nothing. Each
-// option's value is the short form the "Matched to" column shows ("ES-Ice1
-// AMD2603-123"); its label adds the activity and time, which the search also covers.
+// The leg's operations, as searchable options for rows that matched nothing. The
+// whole description is the option's value, because browsers search and show a
+// datalist option's value but not reliably its label. The operations filter
+// searches the same text.
 const opShort = (o) => [o.station || "—", o.label || o.key].join(" ");
-const opLong = (o) => [o.activity, (o.start_utc || "").slice(0, 16).replace("T", " ")].join(" · ");
+const opLong = (o) => [o.activity, o.group_label, (o.start_utc || "").slice(0, 16).replace("T", " "),
+  o.station_type, o.comment].filter(Boolean).join(" · ");
+const opFull = (o) => `${opShort(o)} · ${opLong(o)}`;
 function opOptions() {
   let dl = document.getElementById("op-options");
   if (dl && dl.dataset.leg === R.leg && dl.options.length) return dl;
   dl = dl || document.body.appendChild(h("datalist", { id: "op-options" }));
   if (!INFO || INFO.leg !== R.leg) return dl;            // filled once the leg has loaded
   dl.dataset.leg = R.leg;
-  dl.replaceChildren(...(INFO?.operations || []).map((o) => h("option", { value: opShort(o), label: opLong(o) })));
+  dl.replaceChildren(...(INFO?.operations || []).map((o) => h("option", { value: opFull(o) })));
   return dl;
 }
 // The operation a typed or chosen text names: by its event label anywhere in the
@@ -497,13 +499,12 @@ function opFromOption(text) {
   const label = /AMD\d{4}-\d{3}/i.exec(text)?.[0]?.toUpperCase();
   if (label) { const o = ops.find((x) => x.label === label); if (o) return o; }
   const t = squash(text);
-  return ops.find((o) => squash(opShort(o)) === t || squash(`${opShort(o)} ${opLong(o)}`) === t
-    || squash([o.station || "—", o.label || o.key, opLong(o)].join(" · ")) === t);
+  return ops.find((o) => squash(opShort(o)) === t || squash(opFull(o)) === t);
 }
 
 function matchSearch(id, k, row) {
   opOptions();
-  const input = h("input", { list: "op-options", class: "match-search", placeholder: "unmatched: search station, label, date…",
+  const input = h("input", { list: "op-options", class: "match-search", placeholder: "unmatched: search station, label, activity, date…",
     "aria-label": "Search for the operation this row belongs to" });
   input.addEventListener("change", () => {
     const op = opFromOption(input.value.trim());
