@@ -134,3 +134,14 @@ def test_digitized_tables_grow(tmp_path, monkeypatch):
     assert t["rows"][1][0] == {"t": "", "c": 3, "edited": True}
     with pytest.raises(ValueError):
         digitize.grow(doc["id"], 0, "sideways")
+
+
+def test_log_columns_by_header_and_role():
+    from cruisereport import tables
+
+    a = {"log": {"ST": "LAS-2", "Depth ": "529", "_op": "x"}, "lg": {"name": "p1", "roles": {"station": "ST"}}}
+    b = {"log": {"STATION": "ES2", "depth": "30"}, "lg": {"name": "p3", "roles": {"station": "STATION"}}}
+    assert [tables._value(r, "log.DEPTH") for r in (a, b)] == ["529", "30"]      # case and spacing
+    assert [tables._value(r, "logrole.station") for r in (a, b)] == ["LAS-2", "ES2"]
+    assert tables._value(a, "logmeta.log") == "p1"
+    assert tables._value(a, "log.CAST") is None

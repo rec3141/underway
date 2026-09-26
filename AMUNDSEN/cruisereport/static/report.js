@@ -677,9 +677,9 @@ function colGroups(t) {
     groups.push(["Bottle", c.bottle]);
     groups.push(["Drawn by team (L)", R.selection.teams.map((x) => ({ id: `draw.${x}`, label: x }))]);
   }
-  if (t.rows.startsWith("log:")) {
-    const id = t.rows.split(":")[1];
-    groups.push([`Logsheet · ${LOGS[id]?.name || id}`, (LOGS[id]?.match?.columns || []).map((x) => ({ id: `log.${x}`, label: x }))]);
+  if (t.rows === "logs") {
+    groups.push(["Your logs · by role", c.logrole || []]);
+    groups.push(["Your logs · columns (rows with it)", logHeaders().map(([key, name, n]) => ({ id: `log.${name}`, label: `${name} (${n})` }))]);
   }
   return groups;
 }
@@ -687,16 +687,46 @@ const colLabel = (id) => {
   for (const list of Object.values(INFO?.columns || {})) { const c = list.find((x) => x.id === id); if (c) return c.label; }
   return id.split(".").slice(1).join(".");
 };
+// Every header across the ticked logs, merged across case and spacing, most
+// rows first: [key, the spelling most rows use, rows whose log has it].
+const HAND_COLUMN = "Event label (matched by hand)";
+function logHeaders() {
+  const seen = new Map();
+  for (const lg of R.selection.logsheets) {
+    if (lg.use === false) continue;
+    const m = LOGS[lg.id]?.match;
+    if (!m) continue;
+    for (const col of m.columns || []) {
+      if (col === HAND_COLUMN) continue;
+      const key = col.split(/\s+/).join(" ").toLowerCase();
+      const e = seen.get(key) || { n: 0, names: new Map() };
+      e.n += m.rows.length;
+      e.names.set(col, (e.names.get(col) || 0) + m.rows.length);
+      seen.set(key, e);
+    }
+  }
+  return [...seen.entries()]
+    .map(([key, e]) => [key, [...e.names.entries()].sort((a, b) => b[1] - a[1])[0][0], e.n])
+    .sort((a, b) => b[2] - a[2] || a[1].localeCompare(b[1]));
+}
+
 function renderTables() {
   if (!INFO) return;
+  for (const t of R.tables) if (t.rows.startsWith("log:")) t.rows = "logs";   // one log's rows: now all of them
   const box = $("#tables");
   box.replaceChildren(...R.tables.map((t, i) => {
+    const logRows = R.selection.logsheets.filter((lg) => lg.use !== false).reduce((a, lg) => a + (LOGS[lg.id]?.match?.total || 0), 0);
+    const nLogs = R.selection.logsheets.filter((lg) => lg.use !== false).length;
     const sources = [["operations", "One row per operation"], ["bottles", "One row per rosette bottle"],
-      ...R.selection.logsheets.map((lg) => [`log:${lg.id}:${lg.sheet}`, `One row per logsheet row · ${lg.name}`])];
+      ["logs", nLogs ? `One row per row of your logs (${nLogs} log${nLogs === 1 ? "" : "s"}, ${logRows} rows)` : "One row per row of your logs (tick logs in step 2)"]];
     const card = h("div", { class: "tbl" },
       h("div", { class: "tbl-head" },
         h("label", {}, "Caption", h("input", { value: t.title || "", placeholder: "Table caption", oninput: (e) => { t.title = e.target.value; persist(); } })),
-        h("label", {}, "Rows", h("select", { onchange: (e) => { t.rows = e.target.value; t.columns = t.columns.filter((c) => c.startsWith("op.")); renderTables(); persist(); } },
+        h("label", {}, "Rows", h("select", { onchange: (e) => {
+            t.rows = e.target.value;
+            if (t.rows === "logs" && !t.columns.some((c) => /^log(role|meta)?\./.test(c))) t.columns = ["logmeta.log", "logrole.station", "logrole.cast", "logrole.bottle", ...t.columns.filter((c) => c.startsWith("op."))];
+            else t.columns = t.columns.filter((c) => c.startsWith("op.") || (t.rows === "logs" && /^log(role|meta)?\./.test(c)));
+            renderTables(); persist(); } },
           ...sources.map(([v, l]) => h("option", { value: v, selected: t.rows === v }, l)))),
         h("label", {}, "Section", h("select", { onchange: (e) => { t.section = e.target.value; persist(); } },
           ...SECTIONS.map(([v, l]) => h("option", { value: v, selected: (t.section || "methods") === v }, l)))),

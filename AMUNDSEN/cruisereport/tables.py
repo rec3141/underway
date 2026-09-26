@@ -52,6 +52,11 @@ BOTTLE_COLS = [
     Col("bottle.comment", "Bottle comment"),
 ]
 
+# Columns that take, from each log, whichever of its columns plays the role.
+LOG_ROLES = {"station": "Station (your logs)", "cast": "Cast (your logs)", "bottle": "Bottle (your logs)",
+             "depth": "Depth (your logs)", "datetime": "Date and time (your logs)", "date": "Date (your logs)",
+             "sample_id": "Sample ID (your logs)", "label": "Event label (your logs)"}
+
 OP_EXTRA = [
     Col("op.n_bottles_team", "Bottles sampled (team)"),
     Col("op.volume_team_l", "Volume drawn (team)", "L", 1),
@@ -69,6 +74,8 @@ def catalog(leg: str, teams: list[str], logs: list[dict]) -> dict:
         "op": [c.__dict__ for c in op_columns()],
         "bottle": [c.__dict__ for c in BOTTLE_COLS],
         "draw": [Col(f"draw.{t}", f"{t} (drawn)", "L").__dict__ for t in teams],
+        "logrole": [Col("logmeta.log", "Log").__dict__]
+                   + [Col(f"logrole.{k}", v).__dict__ for k, v in LOG_ROLES.items()],
     }
     for lg in logs:
         meta = logsheets.load(lg["id"])
@@ -175,12 +182,12 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
         rows = [b for b in bottles if not (teams or logged) or _team_bottle(b, teams, logged)]
         base = [{"op": op_rows.get(b["label"], {}), "bottle": b} for b in rows]
         base.sort(key=lambda x: (x["op"].get("start_utc") or "", x["bottle"]["bottle"]))
-    elif source.startswith("log:"):
-        lg = logs.get(source)
-        if lg is None:
-            raise KeyError(f"logsheet {source} is not loaded")
-        base = [{"op": op_rows.get(x["_op"]) or {}, "log": x} for x in lg["rows"]
-                if x["_op"] is None or x["_op"] in keys or not keys]
+    elif source == "logs" or source.startswith("log:"):
+        # Every ticked log's rows, stacked (a table from before the combined
+        # source, "log:<id>:<sheet>", shows them all too).
+        base = [{"op": op_rows.get(x["_op"]) or {}, "log": x, "lg": lg}
+                for lg in logs.values() if lg.get("use") is not False
+                for x in lg["rows"] if x["_op"] is None or x["_op"] in keys or not keys]
     else:
         raise ValueError(f"unknown row source {source}")
 
@@ -196,6 +203,10 @@ def _col_meta(cid: str, teams: list[str]) -> dict:
     table, _, field = cid.partition(".")
     if table == "draw":
         return Col(cid, f"{field} (L)").__dict__
+    if table == "logrole":
+        return Col(cid, LOG_ROLES.get(field, field)).__dict__
+    if table == "logmeta":
+        return Col(cid, "Log").__dict__
     return Col(cid, field).__dict__
 
 
@@ -208,8 +219,20 @@ def _value(base: dict, cid: str):
     if table == "draw":
         return ((base.get("bottle") or {}).get("draws") or {}).get(field)
     if table == "log":
-        return (base.get("log") or {}).get(field)
+        # The row's column whose header reads the same, ignoring case and spacing.
+        row, want = base.get("log") or {}, _header_key(field)
+        return next((v for k, v in row.items() if not k.startswith("_") and _header_key(k) == want), None)
+    if table == "logrole":
+        roles = (base.get("lg") or {}).get("roles") or {}
+        col = roles.get(field)
+        return (base.get("log") or {}).get(col) if col else None
+    if table == "logmeta":
+        return (base.get("lg") or {}).get("name") if field == "log" else None
     return None
+
+
+def _header_key(h: str) -> str:
+    return " ".join(str(h).split()).casefold()
 
 
 def fmt(v, col: dict) -> str:

@@ -37,6 +37,8 @@ def _logs(report: dict) -> dict[str, dict]:
     for lg in sel.get("logsheets", []):
         m = logsheets.matched(lg["id"], lg["sheet"], lg.get("roles") or {}, report["leg"],
                               sel.get("groups"))
+        m["use"] = lg.get("use", True)
+        m["name"] = lg.get("name") or m.get("name")
         out[f"log:{lg['id']}:{lg['sheet']}"] = m
     return out
 
