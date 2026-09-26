@@ -278,7 +278,7 @@ def save_upload(name: str, raw: bytes) -> dict:
 def save_frames(name: str, sheets: dict[str, pd.DataFrame], source: dict | None = None) -> dict:
     """A logsheet made from tables already in hand (a digitized logbook page)."""
     ident = uuid.uuid4().hex[:12]
-    safe = re.sub(r"[^\w.\- ]+", "_", name)[:120]
+    safe = re.sub(r"[^\w.\-· ]+", "_", name)[:120]
     return _save_meta(ident, safe, sheets, source)
 
 

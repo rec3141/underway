@@ -104,3 +104,17 @@ def test_digitize_queue_runs_fails_and_resumes(tmp_path, monkeypatch):
     assert done["status"] == "done" and done["tables"][0]["rows"][0][0] == {"t": "1", "c": 1}
     failed = digitize.load(bad["id"])
     assert failed["status"] == "failed" and "model unavailable" in failed["error"]
+
+
+def test_ticked_logs_name_the_teams_bottles():
+    from cruisereport import tables
+
+    logs = {"log:a:s": {"name": "eDNA", "roles": {"bottle": "BOT"}, "rows": [
+        {"BOT": "1", "_op": "AMD2603-230"}, {"BOT": " 2 ", "_op": "AMD2603-230"},
+        {"BOT": "HOT WATER", "_op": "AMD2603-230"}, {"BOT": "3", "_op": None}]}}
+    used = [{"id": "a", "sheet": "s", "use": True}]
+    assert tables.logged_bottles(logs, used) == {("AMD2603-230", 1): "eDNA", ("AMD2603-230", 2): "eDNA"}
+    assert tables.logged_bottles(logs, [{**used[0], "use": False}]) == {}
+    b = {"label": "AMD2603-230", "bottle": 2, "draws": {}}
+    assert tables._team_bottle(b, [], tables.logged_bottles(logs, used))
+    assert not tables._team_bottle({**b, "bottle": 5}, [], tables.logged_bottles(logs, used))

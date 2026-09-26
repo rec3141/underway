@@ -66,25 +66,10 @@
 
 <section id="s-work" class="card">
   <h2>2 · What you did</h2>
-  <p class="lead">Tick the instruments your team worked with. The operations from the bridge's event log are listed below; untick any that were not yours.</p>
-  <div id="groups" class="chips"></div>
-
-  <details class="sub-card" id="teams-box">
-    <summary>Rosette bottles — which columns on the rosette sheets are your team? <span id="teams-picked" class="pill"></span></summary>
-    <p class="hint">Team names are typed by hand on each sheet. Obvious slips (case, a stray digit, one letter off or two swapped) are merged under one name; hover a name to see the spellings it includes. Tick every name that is your team; the number is how many casts it drew water from.</p>
-    <div id="teams" class="chips"></div>
-  </details>
-
-  <details class="sub-card" id="log-box">
-    <summary>Import your team's logsheet <span id="log-count" class="pill"></span></summary>
-    <p class="hint">Upload the spreadsheet you kept on board (.xlsx or .csv). Each row is matched to an operation, first by event label (AMD####-###), then by station and time or date, then by time and position. Matched operations are ticked below, and the sheet's columns can go into your tables.</p>
-    <input type="file" id="log-file" accept=".xlsx,.xls,.csv,.tsv,.txt">
-    <div id="logsheets"></div>
-  </details>
-
+  <p class="lead">Bring in your own records first — photographs of your paper logbooks, or the spreadsheet you kept on board — then tick what is yours. Your selection is the operations your ticked logs match, plus every operation of the instruments you tick; the rosette columns you tick say which bottles were yours.</p>
   <details class="sub-card" id="dig-box">
     <summary>Digitize logbook photos <span id="dig-count" class="pill"></span></summary>
-    <p class="hint">Photograph a paper logbook page (any orientation). A vision model transcribes every table on it; each cell is coloured by the model's estimate of the odds it is right (its reading and its place in the table), from green (near certain) to red (a guess). Click any cell to correct it — a corrected cell turns green. Export a table as TSV, all pages as one XLSX (a sheet per table, same colours), or use a table as a logsheet to pick your operations and fill your report tables. Each page takes about 30 seconds to 2 minutes.</p>
+    <p class="hint">Photograph a paper logbook page (any orientation). A vision model transcribes every table on it; each cell is coloured by the model's estimate of the odds it is right (its reading and its place in the table), from green (near certain) to red (a guess). Click any cell to correct it — a corrected cell turns green. Export a table as TSV, all pages as one XLSX (a sheet per table, same colours), or tick a table under “Select what's yours” to include the operations it matches and use its columns in your tables. Each page takes about 30 seconds to 2 minutes.</p>
     <input type="file" id="dig-file" accept="image/*" multiple>
     <div id="dig-queue" class="dig-queue"></div>
     <div class="row" id="dig-actions" hidden>
@@ -96,8 +81,26 @@
     <div class="row"><a id="dig-xlsx" class="button ghost small" hidden>Download all pages (.xlsx)</a></div>
   </details>
 
+  <details class="sub-card" id="log-box">
+    <summary>Import your team's logsheet <span id="log-count" class="pill"></span></summary>
+    <p class="hint">Upload the spreadsheet you kept on board (.xlsx or .csv). Each row is matched to an operation, first by event label (AMD####-###), then by station and time or date, then by time and position. Tick the sheet under “Select what's yours” to include every operation it matches; its columns can also go into your tables.</p>
+    <input type="file" id="log-file" accept=".xlsx,.xls,.csv,.tsv,.txt">
+    <div id="logsheets"></div>
+  </details>
+
+  <div class="sub-card sources">
+    <h3>Select what's yours</h3>
+    <div class="source-row"><span class="source-label">Your logs</span><div id="log-chips" class="chips"></div></div>
+    <div class="source-row"><span class="source-label">Instruments</span><div id="groups" class="chips"></div></div>
+    <details class="sub-card" id="teams-box">
+    <summary>Rosette bottles — which columns on the rosette sheets are your team? <span id="teams-picked" class="pill"></span></summary>
+    <p class="hint">Team names are typed by hand on each sheet. Obvious slips (case, a stray digit, one letter off or two swapped) are merged under one name; hover a name to see the spellings it includes. Tick every name that is your team; the number is how many casts it drew water from.</p>
+    <div id="teams" class="chips"></div>
+    </details>
+  </div>
+
   <div class="ops-head">
-    <h3>Operations <span id="ops-count" class="pill"></span></h3>
+    <h3>Operations <span id="ops-count" class="pill"></span> <span class="hint">follow your logs and instruments; a tick or untick of your own here always stands</span></h3>
     <div class="ops-tools">
       <input id="ops-filter" placeholder="Filter by station, label or activity">
       <button class="ghost small" id="ops-all">Tick shown</button>

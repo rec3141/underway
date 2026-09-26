@@ -41,6 +41,12 @@ def _logs(report: dict) -> dict[str, dict]:
     return out
 
 
+def logged_bottles(report: dict, logs: dict | None = None) -> dict:
+    """The bottles the ticked logs list (tables.logged_bottles)."""
+    logs = _logs(report) if logs is None else logs
+    return tables.logged_bottles(logs, report.get("selection", {}).get("logsheets", []))
+
+
 def figure(report: dict, spec: dict) -> list[bytes]:
     """One figure spec as one or more PNGs (underway panels split across images)."""
     leg = report["leg"]
@@ -68,12 +74,13 @@ def _figure(report: dict, spec: dict) -> bytes:
         bottles, label = None, "Bottles sampled"
         teams = report.get("selection", {}).get("teams", [])
         if opts.get("team_bottles"):
+            logged = logged_bottles(report)
             rows = [b for b in tables._bottles(leg, set(keys))
-                    if not teams or any(t in b["draws"] for t in teams)]
+                    if not (teams or logged) or tables._team_bottle(b, teams, logged)]
             bottles = [(b["salinity"], b["temperature"]) for b in rows
                        if b.get("salinity") is not None and b.get("temperature") is not None]
-            if teams:
-                label = "Bottles sampled by " + ", ".join(teams)
+            if teams or logged:
+                label = "Bottles sampled by " + ", ".join(teams + (["your logs"] if logged else []))
         return figures.ts_diagram(leg, rosette_keys, bottles, label)
     raise ValueError(f"unknown figure kind {kind}")
 
@@ -94,7 +101,7 @@ def content(report: dict) -> dict:
     for t in report.get("tables", []):
         if not t.get("columns"):
             continue
-        tab = tables.build(leg, t, keys, teams, logs)
+        tab = tables.build(leg, t, keys, teams, logs, logged_bottles(report, logs))
         blocks.append({"section": t.get("section", "methods"), "kind": "table",
                        "caption": t.get("title") or "", "table": tab})
     for f in report.get("figures", []):

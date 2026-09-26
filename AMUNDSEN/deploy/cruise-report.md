@@ -14,12 +14,19 @@ links to it (`shell.reportBanner`), and the status page counts its views as
 
 1. **Team.** Pick the leg, and give the team name, title, leaders and
    participants.
-2. **What you did.** Tick the instruments. The event log's operations for
-   those instruments are ticked, and any can be unticked. Tick the team's
-   column names on the rosette sheets (every spelling). Optionally import the
-   team's own logsheet (`.xlsx`/`.csv`). Its rows are matched to operations by
-   event label, then station + time or date, then time + position. The match
-   method is shown per row, and the column roles can be corrected.
+2. **What you did.** First bring in the team's own records: photographs of
+   paper logbooks (below) and logsheets (`.xlsx`/`.csv`), whose rows are
+   matched to operations by event label, cast number, station + time or date,
+   time + position, or a station visited once; the match method is shown per
+   row and the column roles can be corrected. Then, under "Select what's
+   yours", tick logs, instruments and the team's rosette-sheet columns. The
+   operations selected are those the ticked logs match plus every operation
+   of the ticked instruments, and they follow the logs as they are corrected
+   or re-matched; a participant's own tick or untick in the operations list
+   always stands. Bottles a ticked log lists (a cast and bottle number) count
+   as the team's, as rosette-sheet draws do, in bottle tables and the T–S
+   marks.
+
    **Digitize logbook photos.** Photograph a paper logbook page (any
    orientation) and a vision model (OpenRouter, `google/gemini-3.8-flash`;
    `openai/gpt-6-luna-pro` if it refuses) turns it into importable tables:

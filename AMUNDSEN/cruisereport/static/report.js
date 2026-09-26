@@ -53,7 +53,9 @@ function blank(leg = "") {
     leg, leg_label: "", team: "",
     header: { title: "", leaders: [{}], participants: [{}] },
     text: {},
-    selection: { groups: [], ops: [], teams: [], logsheets: [] },
+    // ops is derived (syncOps): the instruments' and ticked logs' operations,
+    // plus added, minus removed (the participant's own ticks and unticks)
+    selection: { groups: [], ops: [], added: [], removed: [], teams: [], logsheets: [] },
     digitized: [],
     conditions: { narrative: "summary" },
     tables: [], figures: [],
@@ -124,6 +126,37 @@ function echo() {
 }
 
 // --- 2 · what you did -----------------------------------------------------------
+// The operations the ticked instruments and the ticked logs bring in.
+function autoOps() {
+  const auto = new Set();
+  if (!INFO) return auto;
+  const groups = new Set(R.selection.groups);
+  for (const o of INFO.operations) if (groups.has(o.group)) auto.add(o.key);
+  for (const lg of R.selection.logsheets) {
+    if (lg.use === false) continue;
+    for (const r of LOGS[lg.id]?.match?.rows || []) if (r.op) auto.add(r.op);
+  }
+  return auto;
+}
+// selection.ops = (automatic ∪ added) − removed, in event-log order.
+function syncOps() {
+  if (!INFO) return;
+  const sel = R.selection, auto = autoOps();
+  const added = new Set(sel.added || []), removed = new Set(sel.removed || []);
+  sel.ops = INFO.operations.map((o) => o.key).filter((k) => (auto.has(k) || added.has(k)) && !removed.has(k));
+}
+// A participant's own tick or untick of one operation; it stands until changed.
+function setOwn(key, on, auto = autoOps()) {
+  const sel = R.selection;
+  const added = new Set(sel.added || []), removed = new Set(sel.removed || []);
+  if (on) { removed.delete(key); if (!auto.has(key)) added.add(key); }
+  else { added.delete(key); if (auto.has(key)) removed.add(key); }
+  sel.added = [...added]; sel.removed = [...removed];
+}
+function selectionUpdated() {
+  syncOps(); renderLogChips(); renderOps(); renderTables(); persist(); selectionChanged();
+}
+
 function renderGroups() {
   const box = $("#groups");
   box.replaceChildren(...INFO.groups.map((g) => {
@@ -135,15 +168,8 @@ function renderGroups() {
 }
 function toggleGroup(id, on) {
   const sel = R.selection;
-  const keys = INFO.operations.filter((o) => o.group === id).map((o) => o.key);
-  if (on) {
-    sel.groups.push(id);
-    sel.ops = [...new Set([...sel.ops, ...keys])];
-  } else {
-    sel.groups = sel.groups.filter((g) => g !== id);
-    sel.ops = sel.ops.filter((k) => !keys.includes(k));
-  }
-  renderGroups(); renderOps(); persist(); selectionChanged();
+  sel.groups = on ? [...new Set([...sel.groups, id])] : sel.groups.filter((g) => g !== id);
+  renderGroups(); selectionUpdated();
 }
 
 const stem = (s) => s.toLowerCase().replace(/[^a-z]/g, "").slice(0, 5);
@@ -161,7 +187,7 @@ function renderTeams() {
               similar ? "Looks like another name you ticked" : ""].filter(Boolean).join(". ") },
       h("input", { type: "checkbox", checked: on, onchange: (e) => {
         R.selection.teams = e.target.checked ? [...picked, name] : picked.filter((t) => t !== name);
-        renderTeams(); renderTables(); persist(); selectionChanged(); } }),
+        renderTeams(); selectionUpdated(); } }),
       name, also.length ? h("span", { class: "n" }, `+${also.length} spelling${also.length > 1 ? "s" : ""}`) : null,
       h("span", { class: "n" }, String(t.casts)));
   }));
@@ -183,9 +209,7 @@ function renderOps() {
   t.replaceChildren(h("thead", {}, h("tr", {}, ...["", "Station", "Label", "Operation", "Instrument", "Start (UTC)", "Duration", "Depth (m)", "Logsheet rows"].map((x) => h("th", {}, x)))),
     h("tbody", {}, ...shown.map((o) => h("tr", { class: sel.has(o.key) ? "" : "off" },
       h("td", {}, h("input", { type: "checkbox", checked: sel.has(o.key), "data-key": o.key, onchange: (e) => {
-        const s = new Set(R.selection.ops); e.target.checked ? s.add(o.key) : s.delete(o.key);
-        R.selection.ops = [...s]; e.target.closest("tr").className = e.target.checked ? "" : "off";
-        $("#ops-count").textContent = `${R.selection.ops.length} ticked`; persist(); selectionChanged(); } })),
+        setOwn(o.key, e.target.checked); selectionUpdated(); } })),
       h("td", {}, o.station || "—"), h("td", {}, o.label || "—"), h("td", {}, o.activity),
       h("td", {}, o.group_label), h("td", {}, (o.start_utc || "").replace("T", " ").slice(0, 16)),
       h("td", { class: "num" }, o.duration_min != null ? `${Math.round(o.duration_min)} min` : ""),
@@ -193,7 +217,33 @@ function renderOps() {
       h("td", { class: "num" }, hits[o.key] ? String(hits[o.key]) : "")))));
   if (!shown.length) t.append(h("tbody", {}, h("tr", {}, h("td", { colspan: 9, class: "hint" },
     "Tick an instrument above, filter by name, or import a logsheet to list operations."))));
-  $("#ops-count").textContent = `${R.selection.ops.length} ticked`;
+  const own = (R.selection.added || []).length + (R.selection.removed || []).length;
+  $("#ops-count").textContent = `${R.selection.ops.length} ticked${own ? ` (${own} by hand)` : ""}`;
+}
+
+// Your logs as selectors: every logsheet, and every digitized table not yet used as one.
+function renderLogChips() {
+  const box = $("#log-chips");
+  if (!box) return;
+  const chips = R.selection.logsheets.map((lg) => {
+    const m = LOGS[lg.id]?.match, on = lg.use !== false;
+    const ops = new Set((m?.rows || []).map((r) => r.op).filter(Boolean)).size;
+    return h("label", { class: "chip log" + (on ? " on" : ""), title: m ? `${m.matched} of ${m.total} rows match ${ops} operations` : "matching…" },
+      h("input", { type: "checkbox", checked: on, onchange: (e) => { lg.use = e.target.checked; selectionUpdated(); } }),
+      lg.name, h("span", { class: "n" }, m ? `${ops} ops` : "…"));
+  });
+  for (const id of R.digitized || []) {
+    const doc = DIG[id];
+    if (doc?.status !== "done") continue;
+    doc.tables.forEach((t, k) => {
+      if (R.selection.logsheets.some((lg) => lg.source?.digitized === id && lg.source?.table === k)) return;
+      chips.push(h("label", { class: "chip log", title: "A transcribed table: tick to use it" },
+        h("input", { type: "checkbox", onchange: (e) => { e.target.disabled = true; useAsLogsheet(id, k, fillOf(id, k)); } }),
+        `${doc.name.replace(/\.[^.]+$/, "")}${doc.tables.length > 1 ? ` · ${t.title || `table ${k + 1}`}` : ""}`,
+        h("span", { class: "n" }, `${t.rows.length} rows`)));
+    });
+  }
+  box.replaceChildren(...(chips.length ? chips : [h("span", { class: "hint" }, "Transcribe logbook photos or import a logsheet above; each becomes a log you can tick here.")]));
 }
 
 // --- logsheets ------------------------------------------------------------------
@@ -208,10 +258,11 @@ async function uploadLog(file) {
     await matchLog(R.selection.logsheets.at(-1));
   } catch (e) { toast(`Could not read ${file.name}: ${e.message}`, true); }
 }
+// Match a logsheet's rows again; the operations it brings in follow (if it is ticked).
 async function matchLog(lg) {
   const m = await api("api/logsheet/match", { id: lg.id, sheet: lg.sheet, roles: lg.roles, leg: R.leg, groups: R.selection.groups });
   LOGS[lg.id] = { ...(LOGS[lg.id] || {}), name: lg.name, match: m };
-  renderLogs(); renderOps(); renderTables(); persist();
+  renderLogs(); selectionUpdated();
 }
 function renderLogs() {
   const box = $("#logsheets");
@@ -230,8 +281,9 @@ function renderLogs() {
         sheets.length > 1 ? h("select", { onchange: (e) => { lg.sheet = e.target.value; lg.roles = L.sheets[lg.sheet].roles; matchLog(lg); } },
           ...sheets.map((s) => h("option", { value: s, selected: s === lg.sheet }, s))) : ` · ${lg.sheet}`, " ",
         m ? h("span", { class: "pill" }, `${m.matched} of ${m.total} rows matched`) : "", " ",
-        h("button", { class: "ghost small", onclick: () => tickMatched(lg) }, "Tick matched operations"), " ",
-        h("button", { class: "danger small", onclick: () => { R.selection.logsheets.splice(i, 1); delete LOGS[lg.id]; renderLogs(); renderOps(); renderTables(); persist(); } }, "Remove")),
+        h("label", { class: "inline hint" }, h("input", { type: "checkbox", checked: lg.use !== false,
+          onchange: (e) => { lg.use = e.target.checked; selectionUpdated(); } }), " use to select operations"), " ",
+        h("button", { class: "danger small", onclick: () => { R.selection.logsheets.splice(i, 1); delete LOGS[lg.id]; renderLogs(); selectionUpdated(); } }, "Remove")),
       h("p", { class: "hint" }, "Which column holds what? Correct any guess and the rows are matched again."),
       h("div", { class: "cols" }, ...(m?.role_options || []).map(roleSel)));
     if (m) {
@@ -248,12 +300,6 @@ function renderLogs() {
     box.append(card);
   }
   $("#log-count").textContent = total ? `${R.selection.logsheets.length} sheet(s), ${total} rows` : "";
-}
-function tickMatched(lg) {
-  const keys = (LOGS[lg.id]?.match?.rows || []).map((r) => r.op).filter(Boolean);
-  R.selection.ops = [...new Set([...R.selection.ops, ...keys])];
-  renderOps(); persist(); selectionChanged();
-  toast(`${new Set(keys).size} operations ticked from ${lg.name}.`);
 }
 
 
@@ -517,7 +563,9 @@ function renderDigitized() {
           h("div", { class: "dig-tools" },
             h("span", { class: "pill match-count" }, ""),
             h("a", { class: "button ghost small", href: `api/digitized/${id}/${k}.tsv`, download: "" }, "TSV"),
-            h("button", { class: "ghost small", onclick: () => useAsLogsheet(id, k, fill.checked) }, "Use as logsheet"),
+            R.selection.logsheets.some((lg) => lg.source?.digitized === id && lg.source?.table === k)
+              ? h("span", { class: "hint" }, "used as a log")
+              : h("button", { class: "ghost small", onclick: () => useAsLogsheet(id, k, fill.checked) }, "Use as a log"),
             h("label", { class: "inline hint" }, fill, " carry station, cast and date down into blank and ditto (″ ↓) cells")),
         ];
       }),
@@ -533,6 +581,7 @@ function renderDigitized() {
   x.setAttribute("download", "logbook_transcription.xlsx");
   $("#dig-count").textContent = ids.length ? `${ids.length} page${ids.length === 1 ? "" : "s"}` : "";
   renderStrip();
+  renderLogChips();
 }
 
 async function useAsLogsheet(id, k, fillDown) {
@@ -540,11 +589,10 @@ async function useAsLogsheet(id, k, fillDown) {
     const meta = await api(`api/digitized/${id}/logsheet`, { table: k, fill_down: fillDown });
     const sheet = Object.keys(meta.sheets)[0];
     LOGS[meta.id] = { name: meta.name, sheets: meta.sheets };
-    R.selection.logsheets.push({ id: meta.id, name: meta.name, sheet, roles: meta.sheets[sheet].roles });
+    R.selection.logsheets.push({ id: meta.id, name: meta.name, sheet, roles: meta.sheets[sheet].roles,
+      source: { digitized: id, table: k }, use: true });
     await matchLog(R.selection.logsheets.at(-1));
-    $("#log-box").open = true;
-    $("#log-box").scrollIntoView({ behavior: "smooth", block: "start" });
-    toast(`${meta.name} added as a logsheet — check the matches, then “Tick matched operations”.`);
+    toast(`${meta.name} is ticked under “Select what's yours”; the operations it matches are included.`);
   } catch (e) { toast(`Could not use the table: ${e.message}`, true); }
 }
 
@@ -589,9 +637,13 @@ function updateWords() {
 }
 
 // --- 4 · tables -----------------------------------------------------------------
+const OPERATION_FIELDS = new Set(["station", "label", "activity", "start_utc", "end_utc", "duration_min", "lat", "lon",
+  "depth_m", "depth_source", "n_bottles_team", "volume_team_l", "n_log_rows"]);
 function colGroups(t) {
   const c = INFO.columns;
-  const groups = [["Operation & conditions", c.op]];
+  const field = (col) => col.id.split(".").slice(1).join(".");
+  const groups = [["Operation", c.op.filter((x) => OPERATION_FIELDS.has(field(x)))],
+                  ["Conditions", c.op.filter((x) => !OPERATION_FIELDS.has(field(x)))]];
   if (t.rows === "bottles") {
     groups.push(["Bottle", c.bottle]);
     groups.push(["Drawn by team (L)", R.selection.teams.map((x) => ({ id: `draw.${x}`, label: x }))]);
@@ -742,6 +794,12 @@ async function loadLeg(leg) {
   INFO = await api(`api/leg?leg=${encodeURIComponent(leg)}`);
   const known = new Set(INFO.operations.map((o) => o.key));
   R.selection.ops = R.selection.ops.filter((k) => known.has(k));
+  if (!Array.isArray(R.selection.added)) {        // a draft from before the derived selection
+    const auto = autoOps();
+    R.selection.added = R.selection.ops.filter((k) => !auto.has(k));
+    R.selection.removed = [];
+  }
+  syncOps();
   renderGroups(); renderTeams(); renderOps(); renderTables(); renderFigures(); echo(); renderDigitized();
   for (const lg of R.selection.logsheets) matchLog(lg).catch((e) => toast(`${lg.name}: ${e.message}`, true));
   persist();
@@ -794,6 +852,7 @@ async function download(btn) {
 // One page view for the dashboard's status page (Underway status → Page views).
 // On underway.local the dashboard owns /api/; on the ship's IP addresses it sits under /underway/.
 function countVisit() {
+  if (location.port) return;                  // a direct server port, not the ship's front door
   const path = location.hostname === "underway.local" ? "/api/usage" : "/underway/api/usage";
   try { navigator.sendBeacon?.(path, "report|en"); } catch (e) { /* counting is best effort */ }
 }
@@ -806,8 +865,8 @@ async function init() {
   $("#title").addEventListener("input", (e) => { R.header.title = e.target.value; persist(); });
   $$("[data-add]").forEach((b) => b.addEventListener("click", () => { R.header[b.dataset.add].push({}); renderPeople(b.dataset.add); }));
   $("#ops-filter").addEventListener("input", renderOps);
-  $("#ops-all").addEventListener("click", () => { const s = new Set(R.selection.ops); $$("#ops input[data-key]").forEach((i) => s.add(i.dataset.key)); R.selection.ops = [...s]; renderOps(); persist(); selectionChanged(); });
-  $("#ops-none").addEventListener("click", () => { const off = new Set($$("#ops input[data-key]").map((i) => i.dataset.key)); R.selection.ops = R.selection.ops.filter((k) => !off.has(k)); renderOps(); persist(); selectionChanged(); });
+  $("#ops-all").addEventListener("click", () => { const auto = autoOps(); $$("#ops input[data-key]").forEach((i) => setOwn(i.dataset.key, true, auto)); selectionUpdated(); });
+  $("#ops-none").addEventListener("click", () => { const auto = autoOps(); $$("#ops input[data-key]").forEach((i) => setOwn(i.dataset.key, false, auto)); selectionUpdated(); });
   $("#log-file").addEventListener("change", (e) => { for (const f of e.target.files) uploadLog(f); e.target.value = ""; });
   $("#dig-file").addEventListener("change", (e) => {
     for (const f of e.target.files) digQueue.push({ file: f, rotate: 0, url: URL.createObjectURL(f), status: "ready" });
@@ -829,7 +888,7 @@ async function init() {
   $("#download2").addEventListener("click", (e) => download(e.target));
   $("#leg").addEventListener("change", (e) => {
     if (R.selection.ops.length && !window.confirm("Switching legs clears the ticked operations. Continue?")) { e.target.value = R.leg; return; }
-    R.selection = { ...blank().selection, teams: [] };
+    R.selection = blank().selection;
     loadLeg(e.target.value).catch((err) => toast(err.message, true));
   });
   renderAll();

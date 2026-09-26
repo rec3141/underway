@@ -15,6 +15,7 @@ name from ``rosette.canonical``) and ``log.<column>``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from . import conditions, ctd, eventlog, logsheets, rosette
@@ -46,6 +47,7 @@ BOTTLE_COLS = [
     Col("bottle.time_utc", "Trip time (UTC)"),
     *[Col(f"bottle.{k}", label, unit, d) for k, label, unit, d, _ in BTL_PARAMS],
     Col("bottle.light_pct", "% light"),
+    Col("bottle.in_log", "In your logs"),
     Col("bottle.cast", "Cast no."),
     Col("bottle.comment", "Bottle comment"),
 ]
@@ -122,19 +124,45 @@ def _team_volume(draws: dict, teams: list[str]) -> float | None:
     return sum(vals) if vals else None
 
 
+def logged_bottles(logs: dict[str, dict], used: list[dict]) -> dict[tuple[str, int], str]:
+    """(operation, bottle number) -> the log that lists it, from the ticked logs
+    whose rows name a bottle (the "bottle" role) and match an operation."""
+    out: dict[tuple[str, int], str] = {}
+    for lg in used:
+        if lg.get("use") is False:
+            continue
+        m = logs.get(f"log:{lg['id']}:{lg['sheet']}")
+        col = (m or {}).get("roles", {}).get("bottle")
+        if not col:
+            continue
+        for r in m["rows"]:
+            n = re.fullmatch(r"\s*(\d{1,2})\s*", str(r.get(col) or ""))
+            if r.get("_op") and n:
+                out.setdefault((r["_op"], int(n[1])), m.get("name") or lg.get("name") or "log")
+    return out
+
+
+def _team_bottle(b: dict, teams: list[str], logged: dict) -> bool:
+    return any(t in b["draws"] for t in teams) or (b["label"], b["bottle"]) in logged
+
+
 def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
-          logs: dict[str, dict]) -> dict:
+          logs: dict[str, dict], logged: dict[tuple[str, int], str] | None = None) -> dict:
     """One report table: ``spec`` = {title, rows, columns}.
 
-    ``logs`` maps "log:<id>:<sheet>" to a matched logsheet (logsheets.matched).
+    ``logs`` maps "log:<id>:<sheet>" to a matched logsheet (logsheets.matched);
+    ``logged`` is ``logged_bottles``: those bottles count as the team's, like a
+    rosette-sheet draw.
     """
+    logged = logged or {}
     keys = set(op_keys)
     op_rows = {r["key"]: r for r in conditions.table(leg, list(keys))}
     bottles = _bottles(leg, keys)
+    for b in bottles:
+        b["in_log"] = logged.get((b["label"], b["bottle"]))
     for r in op_rows.values():
-        mine = [b for b in bottles if b["label"] == r["key"] and
-                any(t in b["draws"] for t in teams)]
-        r["n_bottles_team"] = len(mine) if teams else None
+        mine = [b for b in bottles if b["label"] == r["key"] and _team_bottle(b, teams, logged)]
+        r["n_bottles_team"] = len(mine) if (teams or logged) else None
         vols = [_team_volume(b["draws"], teams) for b in mine]
         r["volume_team_l"] = sum(v for v in vols if v) if any(vols) else None
         r["n_log_rows"] = sum(1 for lg in logs.values() for x in lg["rows"] if x["_op"] == r["key"]) \
@@ -144,7 +172,7 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
     if source == "operations":
         base = [{"op": r} for r in sorted(op_rows.values(), key=lambda r: r["start_utc"])]
     elif source == "bottles":
-        rows = [b for b in bottles if not teams or any(t in b["draws"] for t in teams)]
+        rows = [b for b in bottles if not (teams or logged) or _team_bottle(b, teams, logged)]
         base = [{"op": op_rows.get(b["label"], {}), "bottle": b} for b in rows]
         base.sort(key=lambda x: (x["op"].get("start_utc") or "", x["bottle"]["bottle"]))
     elif source.startswith("log:"):

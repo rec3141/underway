@@ -298,8 +298,9 @@ class Handler(SimpleHTTPRequestHandler):
         a = self._obj()
         rep, spec = a["report"], a["report"]["tables"][int(a["index"])]
         sel = rep.get("selection", {})
-        tab = tables.build(rep["leg"], spec, sel.get("ops", []), sel.get("teams", []),
-                           report._logs(rep))
+        logs = report._logs(rep)
+        tab = tables.build(rep["leg"], spec, sel.get("ops", []), sel.get("teams", []), logs,
+                           report.logged_bottles(rep, logs))
         body = [[tables.fmt(v, c) for v, c in zip(r, tab["columns"])]
                 for r in tab["body"][:PREVIEW_ROWS]]
         self._json(200, {"columns": tab["columns"], "body": body, "total": len(tab["body"])})
