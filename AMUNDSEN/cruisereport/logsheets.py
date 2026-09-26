@@ -251,6 +251,44 @@ def _when(row: dict, roles: dict, span=None) -> tuple[pd.Timestamp | None, tuple
     return (day.normalize() if day is not None else None), clock
 
 
+def leg_span(leg: str) -> tuple[pd.Timestamp, pd.Timestamp] | None:
+    """First and last operation start of the leg, UTC."""
+    starts = [pd.Timestamp(o.summary()["start_utc"]) for o in eventlog.operations(leg) if o.group != "void"]
+    return (min(starts), max(starts)) if starts else None
+
+
+def shift_times(rows: list[dict], roles: dict, local_in: bool, local_out: bool, span=None) -> list[dict]:
+    """Rows with their dates and times rewritten from UTC or ship time
+    (``local_in``) into the other (``local_out``). A row with a date and a time
+    is converted exactly (the date may change); a time with no date is moved
+    by the ship's offset on the leg's first day; a date alone is left as is."""
+    if local_in == local_out or not (roles.get("datetime") or roles.get("time")):
+        return rows
+    to = lambda t: (t.tz_localize(SHIP_TZ, ambiguous="NaT", nonexistent="shift_forward").tz_convert("UTC")  # noqa: E731
+                    if local_in else t.tz_localize("UTC").tz_convert(SHIP_TZ)).tz_localize(None)
+    out = []
+    for r in rows:
+        day, clock = _when(r, roles, span)
+        if clock is None:
+            out.append(r)
+            continue
+        base = day if day is not None else (span[0].normalize() if span else pd.Timestamp("2000-01-01"))
+        t = to(base + pd.Timedelta(hours=clock[0], minutes=clock[1]))
+        if pd.isna(t):
+            out.append(r)
+            continue
+        r = dict(r)
+        if roles.get("datetime") and _clock(r.get(roles["datetime"])) is not None:
+            r[roles["datetime"]] = t.strftime("%Y-%m-%d %H:%M") if day is not None else t.strftime("%H:%M")
+        else:
+            if roles.get("time"):
+                r[roles["time"]] = t.strftime("%H:%M")
+            if day is not None and roles.get("date"):
+                r[roles["date"]] = t.strftime("%Y-%m-%d")
+        out.append(r)
+    return out
+
+
 def _km(lat1, lon1, lat2, lon2) -> float:
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dl = math.radians(lon2 - lon1)
@@ -493,16 +531,23 @@ def _text(v) -> str:
     return "" if v is None else re.sub(r"[\t\r\n]+", " ", str(v))
 
 
-def tsv(ident: str, sheet: str) -> str:
+def tsv(ident: str, sheet: str, times: dict | None = None) -> str:
+    """One sheet as TSV. ``times`` ({roles, local, out, span}) rewrites its
+    dates and times into UTC or ship time (shift_times)."""
     sh = load(ident)["sheets"][sheet]
+    rows = sh["rows"]
+    if times:
+        rows = shift_times(rows, times.get("roles") or {}, bool(times.get("local")), bool(times.get("out")),
+                           times.get("span"))
     lines = ["\t".join(_text(c) for c in sh["columns"])]
-    lines += ["\t".join(_text(r.get(c)) for c in sh["columns"]) for r in sh["rows"]]
+    lines += ["\t".join(_text(r.get(c)) for c in sh["columns"]) for r in rows]
     return "\n".join(lines) + "\n"
 
 
-def xlsx(ident: str) -> bytes:
+def xlsx(ident: str, times: dict | None = None) -> bytes:
     """Every sheet of a logsheet as it stands, cells corrected on the page filled
-    as a transcription's corrected cells are."""
+    as a transcription's corrected cells are. ``times`` ({out, span, sheets:
+    {sheet: {roles, local}}}) rewrites the dates and times into UTC or ship time."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -518,7 +563,12 @@ def xlsx(ident: str) -> bytes:
         ws.append(sh["columns"])
         for cell in ws[1]:
             cell.font = Font(bold=True)
-        for r in sh["rows"]:
+        rows = sh["rows"]
+        per = (times or {}).get("sheets", {}).get(name)
+        if per:
+            rows = shift_times(rows, per.get("roles") or {}, bool(per.get("local")), bool(times.get("out")),
+                               times.get("span"))
+        for r in rows:
             ws.append([r.get(c) for c in sh["columns"]])
         for i, j in sh.get("edited") or []:
             ws.cell(i + 2, j + 1).fill = fill

@@ -469,11 +469,30 @@ def colour(c: int | None, scheme: str = "light") -> str:
     return f"{round(r * 255):02X}{round(g * 255):02X}{round(b * 255):02X}"
 
 
-def tsv(ident: str, table: int) -> str:
+def _texts(ident: str, table: int, out: bool | None, span) -> list[list[str]]:
+    """A table's cell texts, its dates and times rewritten into ship time
+    (``out`` true) or UTC (false) from what the table says it is in."""
+    import pandas as pd
+
+    from .logsheets import guess_roles, shift_times
+
+    t = load(ident)["tables"][table]
+    texts = [[c["t"] for c in r] for r in t["rows"]]
+    if out is None or bool(out) == bool(t.get("local")):
+        return texts
+    cols, _ = rows_for_logsheet(ident, table, False)
+    rows = [dict(zip(cols, r)) for r in texts]
+    roles = t.get("roles") or guess_roles(pd.DataFrame(rows, columns=cols[:len(t["columns"])]))
+    return [[r.get(c, "") for c in cols[:len(t["columns"])]]
+            for r in shift_times(rows, roles, bool(t.get("local")), bool(out), span)]
+
+
+def tsv(ident: str, table: int, out: bool | None = None, span=None) -> str:
+    """One table as TSV; ``out`` rewrites its times into ship time or UTC."""
     t = load(ident)["tables"][table]
     clean = lambda s: re.sub(r"[\t\r\n]+", " ", s or "")  # noqa: E731
     lines = ["\t".join(clean(c) for c in t["columns"])]
-    lines += ["\t".join(clean(c["t"]) for c in r) for r in t["rows"]]
+    lines += ["\t".join(clean(c) for c in r) for r in _texts(ident, table, out, span)]
     return "\n".join(lines) + "\n"
 
 
@@ -486,9 +505,10 @@ def _sheet_title(title: str, used: set[str]) -> str:
     return name
 
 
-def xlsx(idents: list[str]) -> bytes:
+def xlsx(idents: list[str], out: bool | None = None, span=None) -> bytes:
     """Every table of the given pages as its own sheet, confidence as cell fill;
-    a Notes sheet with the text outside the tables and a Legend."""
+    a Notes sheet with the text outside the tables and a Legend. ``out``
+    rewrites the times into ship time or UTC."""
     wb = Workbook()
     wb.remove(wb.active)
     used: set[str] = set()
@@ -503,8 +523,8 @@ def xlsx(idents: list[str]) -> bytes:
             ws.append(t["columns"])
             for cell in ws[1]:
                 cell.font = bold
-            for r in t["rows"]:
-                ws.append([c["t"] for c in r])
+            for r, texts in zip(t["rows"], _texts(ident, k, out, span)):
+                ws.append(texts)
                 for j, c in enumerate(r, start=1):
                     ws.cell(ws.max_row, j).fill = PatternFill("solid", fgColor=colour(c["c"]))
             for j in range(1, len(t["columns"]) + 1):

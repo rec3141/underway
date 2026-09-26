@@ -303,7 +303,9 @@ function renderLogs() {
     const card = h("div", { class: "tbl" },
       h("div", { class: "row" }, h("b", {}, logName(parts[0])), " ",
         ms.every(Boolean) ? h("span", { class: "pill" }, `${matched} of ${rows} rows matched`) : "", " ",
-        h("a", { class: "button ghost small", href: `api/logsheet/${id}.xlsx`, download: "", title: "Every sheet of this log, corrected cells filled green" }, "XLSX"), " ",
+        dlLink("XLSX", () => `api/logsheet/${id}.xlsx?times=${logTimes(parts)}${outQuery(`log:${id}`)}`,
+          { title: "Every sheet of this log, corrected cells filled green" }), " ",
+        exportTz(`log:${id}`), " ",
         h("button", { class: "danger small", onclick: () => {
           R.selection.logsheets = R.selection.logsheets.filter((x) => x.id !== id);
           for (const lg of parts) delete LOGS[logKey(lg)];
@@ -368,7 +370,7 @@ function logTable(lg, m) {
     h("div", { class: "dig-tools" },
       m.editable ? h("button", { class: "ghost small", title: "Add an empty row at the bottom", onclick: () => growLog(lg, "row") }, "+ row") : null,
       m.editable ? h("button", { class: "ghost small", title: "Add an empty column at the right (click its header to name it)", onclick: () => growLog(lg, "col") }, "+ column") : null,
-      h("a", { class: "button ghost small", href: `api/logsheet/${lg.id}.tsv?sheet=${sheet}`, download: "" }, "TSV"),
+      dlLink("TSV", () => `api/logsheet/${lg.id}.tsv?sheet=${sheet}&times=${logTimes([lg])}${outQuery(`log:${lg.id}`)}`),
       src ? h("span", { class: "hint" }, "Made from a transcribed table: correct its cells there, above.") : null),
   ];
 }
@@ -639,6 +641,21 @@ function timeToggle(local, change) {
       h("option", { value: "utc", selected: !local }, "UTC"),
       h("option", { value: "ship", selected: !!local }, `ship time (${INFO?.ship_tz || "local"})`)));
 }
+// The time zone a download's dates and times are written in: as the table has
+// them (""), UTC or ship time; per log, and one for all transcriptions.
+const EXPORT_TZ = {};
+function exportTz(key) {
+  return h("label", { class: "inline hint", title: "Dates and times in the downloads: as written, or converted" }, "download times ",
+    h("select", { class: "tz-out", onchange: (e) => { EXPORT_TZ[key] = e.target.value; } },
+      ...[["", "as written"], ["utc", "UTC"], ["ship", `ship time (${INFO?.ship_tz || "local"})`]]
+        .map(([v, l]) => h("option", { value: v, selected: (EXPORT_TZ[key] || "") === v }, l))));
+}
+const outQuery = (key) => EXPORT_TZ[key] ? `&out=${EXPORT_TZ[key]}&leg=${encodeURIComponent(R.leg)}` : "";
+// A download link whose address is made when it is clicked, so it follows the time choice.
+const dlLink = (label, build, attrs = {}) => h("a", { class: "button ghost small", download: "", href: build(), ...attrs,
+  onclick: (e) => { e.currentTarget.href = build(); } }, label);
+const logTimes = (parts) => encodeURIComponent(JSON.stringify(Object.fromEntries(parts.map((lg) => [lg.sheet, { roles: lg.roles, local: !!lg.local }]))));
+
 async function setDigLocal(id, k, local) {
   try {
     const { linked } = await api(`api/digitized/${id}/local`, { table: k, local });
@@ -733,8 +750,8 @@ function renderDigitized() {
             }) }, "Transcribe again"),
           h("button", { class: "danger small", onclick: stop(() => { R.digitized = R.digitized.filter((x) => x !== id); persist(); renderDigitized(); }) }, "Remove"))),
       h("div", { class: "dig-tools" }, photo,
-        h("a", { class: "button ghost small xlsx-all", href: `api/digitized.xlsx?ids=${ids.join(",")}`, download: "logbook_transcription.xlsx",
-          title: `Every table from all ${ids.length} transcribed page${ids.length === 1 ? "" : "s"}, a sheet each, coloured by confidence` }, "Download all sheets (.xlsx)")),
+        dlLink("Download all sheets (.xlsx)", () => `api/digitized.xlsx?ids=${ids.join(",")}${outQuery("dig")}`, { class: "button ghost small xlsx-all", download: "logbook_transcription.xlsx",
+          title: `Every table from all ${ids.length} transcribed page${ids.length === 1 ? "" : "s"}, a sheet each, coloured by confidence` }), exportTz("dig")),
       ...doc.tables.flatMap((t, k) => {
         const fill = h("input", { type: "checkbox", checked: fillOf(id, k), onchange: (e) => { digFill[`${id}:${k}`] = e.target.checked; refreshMatches(id, k); } });
         return [
@@ -745,7 +762,7 @@ function renderDigitized() {
             timeToggle(t.local, (on) => setDigLocal(id, k, on)),
             h("button", { class: "ghost small", title: "Add an empty row at the bottom", onclick: () => growTable(id, k, "row") }, "+ row"),
             h("button", { class: "ghost small", title: "Add an empty column at the right (click its header to name it)", onclick: () => growTable(id, k, "col") }, "+ column"),
-            h("a", { class: "button ghost small", href: `api/digitized/${id}/${k}.tsv`, download: "" }, "TSV"),
+            dlLink("TSV", () => `api/digitized/${id}/${k}.tsv?${outQuery("dig").slice(1)}`),
             R.selection.logsheets.some((lg) => lg.source?.digitized === id && lg.source?.table === k)
               ? h("span", { class: "hint" }, "used as a log")
               : h("button", { class: "ghost small", onclick: () => useAsLogsheet(id, k, fill.checked) }, "Use as a log"),
@@ -761,6 +778,7 @@ function renderDigitized() {
   const x = $("#dig-xlsx");
   x.hidden = !ids.length;
   x.href = `api/digitized.xlsx?ids=${ids.join(",")}`;
+  x.onclick = () => { x.href = `api/digitized.xlsx?ids=${ids.join(",")}${outQuery("dig")}`; };
   x.setAttribute("download", "logbook_transcription.xlsx");
   $("#dig-count").textContent = ids.length ? `${ids.length} page${ids.length === 1 ? "" : "s"}` : "";
   renderStrip();

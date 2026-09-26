@@ -14,6 +14,8 @@ Routes (all JSON unless noted):
     POST /api/logsheet/<id>/setmatch       {sheet, row, op}: match a row by hand ("none": no match; null: automatic)
     GET  /api/logsheet/<id>.tsv?sheet=<s>  one sheet as TSV
     GET  /api/logsheet/<id>.xlsx           every sheet, corrected cells filled
+         both take &out=utc|ship&leg=<leg>&times=<JSON {sheet: {roles, local}}> to
+         rewrite dates and times into UTC or ship time
     POST /api/conditions                   {report}: narrative preview and word count
     POST /api/table                        {report, index}: one table, formatted, first rows
     POST /api/figure                       {report, spec}: {images: [PNG data URLs]}
@@ -23,6 +25,7 @@ Routes (all JSON unless noted):
     POST /api/digitized/<id>/edit          {table, row, col, text}: a participant's correction
     GET  /api/digitized/<id>/<table>.tsv   one table as TSV
     GET  /api/digitized.xlsx?ids=a,b       every table as a sheet, confidence as fill
+         both take &out=utc|ship&leg=<leg> to rewrite dates and times
     POST /api/digitized/<id>/logsheet      {table, fill_down}: use a table as a logsheet
     POST /api/digitized/<id>/grow          {table, add: "row"|"col"}: an empty row or column
     POST /api/digitized/<id>/setmatch      {table, row, op}: match a row by hand ("none": no match; null: automatic)
@@ -145,6 +148,13 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(500, {"error": f"{type(e).__name__}: {e}"})
 
     # --- GET -----------------------------------------------------------------
+    @staticmethod
+    def _out(q):
+        """An export's time zone (True ship time, False UTC, None as written) and the leg's span."""
+        out = {"ship": True, "utc": False}.get(q.get("out", ""))
+        span = logsheets.leg_span(q["leg"]) if out is not None and q.get("leg") else None
+        return out, span
+
     def do_GET(self):
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
@@ -172,27 +182,31 @@ class Handler(SimpleHTTPRequestHandler):
                 doc = digitize.load(m[1])
                 name = re.sub(r"[^\w\-]+", "_", doc["tables"][int(m[2])].get("title") or doc["name"])
                 self._send(200, "text/tab-separated-values; charset=utf-8",
-                           digitize.tsv(m[1], int(m[2])).encode(),
+                           digitize.tsv(m[1], int(m[2]), *self._out(q)).encode(),
                            {"Content-Disposition": f'attachment; filename="{name}.tsv"'})
             return self._guard(tsv)
         if u.path == "/api/digitized.xlsx":
             ids = [i for i in q.get("ids", "").split(",") if re.fullmatch(r"[0-9a-f]{12}", i)]
             return self._guard(lambda: self._send(
                 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                digitize.xlsx(ids), {"Content-Disposition": 'attachment; filename="logbook_transcription.xlsx"'}))
+                digitize.xlsx(ids, *self._out(q)), {"Content-Disposition": 'attachment; filename="logbook_transcription.xlsx"'}))
         m = re.fullmatch(r"/api/logsheet/([0-9a-f]{12})\.(tsv|xlsx)", u.path)
         if m:
             def export():
                 meta = logsheets.load(m[1])
+                out, span = self._out(q)
+                per = json.loads(q.get("times") or "{}") if out is not None else {}
                 stem = re.sub(r"[^\w\-]+", "_", Path(meta["name"]).stem) or "logsheet"
                 if m[2] == "xlsx":
                     return self._send(200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                      logsheets.xlsx(m[1]),
+                                      logsheets.xlsx(m[1], {"out": out, "span": span, "sheets": per}
+                                                     if out is not None else None),
                                       {"Content-Disposition": f'attachment; filename="{stem}.xlsx"'})
                 sheet = q.get("sheet") or next(iter(meta["sheets"]))
                 name = stem if len(meta["sheets"]) == 1 else f"{stem}_{re.sub(r'[^\w\-]+', '_', sheet)}"
                 self._send(200, "text/tab-separated-values; charset=utf-8",
-                           logsheets.tsv(m[1], sheet).encode(),
+                           logsheets.tsv(m[1], sheet, {**per.get(sheet, {}), "out": out, "span": span}
+                                         if out is not None and sheet in per else None).encode(),
                            {"Content-Disposition": f'attachment; filename="{name}.tsv"'})
             return self._guard(export)
         m = re.fullmatch(r"/api/draft/([\w\-]+)", u.path)

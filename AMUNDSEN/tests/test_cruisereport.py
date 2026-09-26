@@ -269,3 +269,17 @@ def test_ship_time_and_time_only_rows_match(monkeypatch):
     assert (ship[0]["_op"], ship[0]["_how"]) == ("AMD2603-001", "station+time")
     got = logsheets.match([{"Stn": "S1", "Time": "0130"}], {"station": "Stn", "time": "Time"}, "leg")
     assert (got[0]["_op"], got[0]["_how"]) == ("AMD2603-002", "station+time")
+
+
+def test_exported_times_convert_between_utc_and_ship_time(monkeypatch):
+    monkeypatch.setattr(logsheets, "SHIP_TZ", "America/Toronto")        # UTC−4 in September
+    span = (pd.Timestamp("2026-09-01"), pd.Timestamp("2026-09-26"))
+    rows = [{"D": "14/09/2026", "T": "0130", "X": 1}, {"D": "", "T": "22:00", "X": 2}, {"D": "2026-09-14", "T": "", "X": 3}]
+    roles = {"date": "D", "time": "T"}
+    ship = logsheets.shift_times(rows, roles, False, True, span)
+    assert ship == [{"D": "2026-09-13", "T": "21:30", "X": 1}, {"D": "", "T": "18:00", "X": 2}, rows[2]]
+    back = logsheets.shift_times(ship, roles, True, False, span)
+    assert back[0] == {"D": "2026-09-14", "T": "01:30", "X": 1}
+    assert logsheets.shift_times(rows, roles, True, True, span) is rows
+    dt = logsheets.shift_times([{"W": "2026-09-14 01:30"}], {"datetime": "W"}, False, True, span)
+    assert dt == [{"W": "2026-09-13 21:30"}]
