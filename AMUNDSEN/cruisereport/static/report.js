@@ -1127,20 +1127,38 @@ async function loadLeg(leg) {
 }
 function renderAll() {
   R.digitized = R.digitized || [];
-  renderTeam(); renderTexts(); loadDigitized();
+  renderTeam(); renderTexts(); loadDigitized(); showSaved();
+  $("#fig-times").value = R.figure_times || "utc";
   $$('#narr-mode input').forEach((r) => (r.checked = r.value === (R.conditions.narrative || "")));
 }
 async function refreshDrafts() {
   try {
     const { drafts } = await api("api/drafts");
+    const name = draftName().replace(/^-+|-+$/g, "").slice(0, 80);   // as the server names it
+    const mine = drafts.find((d) => d.name === name);                  // after a reload: this draft's last save
+    if (mine && !savedAt) { savedAt = mine.mtime * 1000; showSaved(); }
     $("#draft-list").replaceChildren(h("option", { value: "" }, "— open a saved draft —"),
       ...drafts.map((d) => h("option", { value: d.name }, `${d.name} · ${new Date(d.mtime * 1000).toLocaleString()}`)));
   } catch (e) { /* the list is a convenience */ }
 }
 const draftName = () => `${(R.team || "team").trim()}-${R.leg || "leg"}`.replace(/[^\w-]+/g, "-");
+// When the draft was last saved on (or opened from) the server, shown beside the word count.
+let savedAt = null;
+function showSaved() {
+  const el = $("#saved");
+  if (!el) return;
+  if (!savedAt) { el.textContent = "not saved on the server"; el.classList.add("stale"); return; }
+  const s = Math.round((Date.now() - savedAt) / 1000);
+  const ago = s < 60 ? "just now" : s < 3600 ? `${Math.floor(s / 60)} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ${Math.floor(s % 3600 / 60)} min ago`
+    : new Date(savedAt).toLocaleString();
+  el.textContent = `saved ${ago}`;
+  el.classList.toggle("stale", s >= 1800);
+}
+setInterval(showSaved, 15000);
 async function saveDraft() {
   try {
     const { saved } = await api(`api/draft/${encodeURIComponent(draftName())}`, R, { method: "PUT" });
+    savedAt = Date.now(); showSaved();
     toast(`Draft saved as “${saved}”. Anyone on the ship network can open it from the Draft list.`);
     refreshDrafts();
   } catch (e) { toast(`Not saved: ${e.message}`, true); }
@@ -1149,6 +1167,7 @@ async function openDraft(name) {
   if (!name) return;
   try {
     R = Object.assign(blank(), await api(`api/draft/${encodeURIComponent(name)}`));
+    savedAt = null; refreshDrafts();
     renderAll();
     $("#leg").value = R.leg;
     await loadLeg(R.leg);
@@ -1202,6 +1221,7 @@ async function init() {
   $("#cond-preview").addEventListener("click", previewNarrative);
   $$("[data-preset]").forEach((b) => b.addEventListener("click", () => addTable(b.dataset.preset)));
   $$("[data-fig]").forEach((b) => b.addEventListener("click", () => addFigure(b.dataset.fig)));
+  $("#fig-times").addEventListener("change", (e) => { R.figure_times = e.target.value; persist(); renderFigures(); });
   $("#save-draft").addEventListener("click", saveDraft);
   $("#save-draft2").addEventListener("click", saveDraft);
   $("#draft-list").addEventListener("change", (e) => openDraft(e.target.value));

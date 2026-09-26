@@ -34,7 +34,7 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 from pyproj import Transformer  # noqa: E402
 
 from . import activities, ctd, underway  # noqa: E402
-from .config import GEO_DIR  # noqa: E402
+from .config import GEO_DIR, SHIP_TZ  # noqa: E402
 
 CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7",
                "#e34948"]
@@ -386,11 +386,12 @@ def ts_diagram(leg: str, keys: list[str], bottles: list[tuple[float, float]] | N
 ICE_PALETTE = CATEGORICAL[:6]
 
 
-def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None) -> bytes:
+def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None, ship: bool = False) -> bytes:
     """Stacked panels over the selected operations' period (6 h either side).
 
     Panels are ordered and labelled by the Underway tab's groups; the grey
-    lines mark the selected operations and nothing else. One image; see
+    lines mark the selected operations and nothing else. The time axis is UTC,
+    or ship time (``SHIP_TZ``) with ``ship``. One image; see
     ``underway_images`` for the split into pages.
     """
     from . import underway_panels as UP
@@ -408,7 +409,10 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
     height = 1.2 * len(chosen) + 0.5 + (0.35 if ice_legend else 0)
     fig, axes = plt.subplots(len(chosen), 1, figsize=(6.3, height), sharex=True, squeeze=False)
     axes = axes[:, 0]
-    starts = sorted({pd.Timestamp(r["start_utc"]) for r in rows})
+    # Everything is read in UTC and only drawn in ship time.
+    tx = (lambda i: pd.DatetimeIndex(i).tz_localize("UTC").tz_convert(SHIP_TZ).tz_localize(None)) if ship \
+        else (lambda i: i)
+    starts = tx(pd.DatetimeIndex(sorted({pd.Timestamp(r["start_utc"]) for r in rows})))
     cam = data["camera"]
     for ax, pn in zip(axes, chosen):
         src = data[pn["source"]] if pn["source"] != "camera" else None
@@ -417,10 +421,10 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
                 ax.text(0.5, 0.5, "no camera products", transform=ax.transAxes, ha="center",
                         va="center", color=INK2, fontsize=7)
             else:
-                ax.plot(cam.index, cam["ice"], ".", ms=1.2, color=GRID, zorder=1)
+                ax.plot(tx(cam.index), cam["ice"], ".", ms=1.2, color=GRID, zorder=1)
                 # 30-minute centred mean on a 10-minute grid: no line across photo gaps
                 smooth = cam["ice"].resample("10min").mean().rolling(3, center=True, min_periods=1).mean()
-                ax.plot(smooth.index, smooth, color=CATEGORICAL[0], lw=0.9, zorder=2)
+                ax.plot(tx(smooth.index), smooth, color=CATEGORICAL[0], lw=0.9, zorder=2)
                 ax.set_ylim(-3, 103)
         elif pn["id"] == "Camera · ice composition":
             if cam.empty:
@@ -428,7 +432,7 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
                         va="center", color=INK2, fontsize=7)
             else:
                 hourly = cam[UP.ICE_TYPES].resample("1h").mean()
-                ax.stackplot(hourly.index, *[hourly[k].fillna(0) for k in UP.ICE_TYPES],
+                ax.stackplot(tx(hourly.index), *[hourly[k].fillna(0) for k in UP.ICE_TYPES],
                              colors=ICE_PALETTE, labels=UP.ICE_TYPES, linewidth=0)
                 ax.set_ylim(0, 100)
         elif src is None or src.empty or pn["id"] not in src:
@@ -437,11 +441,11 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
         else:
             y = src[pn["id"]]
             if pn["circular"]:
-                ax.plot(y.index, y, ".", ms=1.6, color=CATEGORICAL[0])
+                ax.plot(tx(y.index), y, ".", ms=1.6, color=CATEGORICAL[0])
                 ax.set_ylim(0, 360)
                 ax.set_yticks([0, 90, 180, 270, 360])
             else:
-                ax.plot(y.index, y, color=CATEGORICAL[0], lw=0.9,
+                ax.plot(tx(y.index), y, color=CATEGORICAL[0], lw=0.9,
                         drawstyle="steps-mid" if pn["source"] == "hourly" else "default")
             if pn["reverse"]:
                 ax.invert_yaxis()
@@ -458,11 +462,12 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
         ax.set_ylabel(unit, rotation=0, ha="right", va="center", fontsize=7)
         ax.grid(True, axis="y", color=GRID, lw=0.4)
         ax.tick_params(labelsize=6.5)
-    axes[-1].set_xlim(t0, t1)
+    x0, x1 = tx(pd.DatetimeIndex([t0, t1]))
+    axes[-1].set_xlim(x0, x1)
     loc = matplotlib.dates.AutoDateLocator(minticks=4, maxticks=8)
     axes[-1].xaxis.set_major_locator(loc)
     axes[-1].xaxis.set_major_formatter(matplotlib.dates.ConciseDateFormatter(loc))
-    axes[-1].set_xlabel("UTC", fontsize=7, color=INK2)
+    axes[-1].set_xlabel(f"ship time ({SHIP_TZ})" if ship else "UTC", fontsize=7, color=INK2)
     fig.align_ylabels(axes)
     if ice_legend:
         # Below the panels, so the ice types do not narrow every axis.
@@ -516,8 +521,8 @@ def split_panels(ids: list[str]) -> list[list[str]]:
     return [[p["id"] for p in ordered[a:b]] for a, b in zip(edges, edges[1:])]
 
 
-def underway_images(leg: str, rows: list[dict], panels: list[str] | None = None) -> list[bytes]:
+def underway_images(leg: str, rows: list[dict], panels: list[str] | None = None, ship: bool = False) -> list[bytes]:
     from . import underway_panels as UP
 
-    return [underway_series(leg, rows, chunk) for chunk in split_panels(panels or UP.DEFAULT)] \
-        or [underway_series(leg, rows, panels)]
+    return [underway_series(leg, rows, chunk, ship) for chunk in split_panels(panels or UP.DEFAULT)] \
+        or [underway_series(leg, rows, panels, ship)]

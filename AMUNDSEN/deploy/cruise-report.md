@@ -64,7 +64,8 @@ links to it (`shell.reportBanner`), and the status page counts its views as
    team's bottles marked ×), and the underway record: any of the Underway
    tab's panels, in its groups (Surprise, Lab, Met Station, Bridge, Winches,
    Ice camera), with grey lines at the selected operations only. Figures
-   redraw when the selection changes.
+   redraw when the selection changes; the underway record's time axis is UTC or
+   ship time.
 6. **Text.** The template's sections. The word counter includes the
    generated narrative against the template's 3000-word limit.
 

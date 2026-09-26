@@ -41,6 +41,7 @@
   <a href="#s-figs">5 · Figures</a>
   <a href="#s-text">6 · Text</a>
   <span class="words" id="words" title="Your text plus the generated narrative; tables and captions are not counted">— words</span>
+  <span class="saved" id="saved" title="When this draft was last saved on the ship's server (Save draft); your browser keeps every change as you go">not saved</span>
 </nav>
 
 <main>
@@ -149,6 +150,8 @@
     <button class="ghost" data-fig="profiles">+ CTD profiles</button>
     <button class="ghost" data-fig="ts">+ T–S diagram</button>
     <button class="ghost" data-fig="underway">+ Underway record</button>
+    <label class="inline hint" title="The underway record's time axis">Times in <select id="fig-times">
+      <option value="utc">UTC</option><option value="ship">ship time</option></select></label>
   </div>
   <p class="hint">Photos and your own plots are best added in Word after downloading.</p>
   <div id="figures" class="fig-grid"></div>

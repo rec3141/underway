@@ -13,7 +13,8 @@ The page sends one JSON document (saved as the participant's draft):
                                 "edits": {key: {"volume", "note"}}}},
       "conditions": {"narrative": "summary" | "stations" | null},
       "tables": [{"title", "rows", "columns": [...], "section"}],
-      "figures": [{"kind": "map"|"profiles"|"ts"|"underway", "caption", "section", "options"}]
+      "figures": [{"kind": "map"|"profiles"|"ts"|"underway", "caption", "section", "options"}],
+      "figure_times": "utc" | "ship"      (the underway record's time axis)
     }
 
 ``selection.ops`` is the explicit list of operations; the page fills it from
@@ -57,7 +58,8 @@ def figure(report: dict, spec: dict) -> list[bytes]:
     if spec["kind"] == "underway":
         keys = report.get("selection", {}).get("ops", [])
         return figures.underway_images(leg, conditions.table(leg, keys),
-                                       (spec.get("options") or {}).get("panels"))
+                                       (spec.get("options") or {}).get("panels"),
+                                       report.get("figure_times") == "ship")
     return [_figure(report, spec)]
 
 

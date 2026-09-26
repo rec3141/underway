@@ -47,6 +47,8 @@ nav.steps a { color: var(--fg-2); text-decoration: none; }
 nav.steps a:hover { color: var(--accent); }
 .words { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); }
 .words.over { color: var(--warn); font-weight: 600; }
+.saved { font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--t-xs); }
+.saved.stale { color: var(--warn); }
 
 main { max-width: 1180px; margin: 0 auto; padding: 16px 16px 60px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin: 0 0 16px; }
