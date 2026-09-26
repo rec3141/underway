@@ -9,6 +9,11 @@ Routes (all JSON unless noted):
     GET  /api/leg?leg=<leg>                instruments, operations, rosette teams, columns
     POST /api/logsheet?leg=<leg>           raw file body, X-Filename header: parse and guess
     POST /api/logsheet/match               {id, sheet, roles, leg, groups}: rows matched to operations
+    POST /api/logsheet/<id>/edit           {sheet, row, col, text}: a participant's correction
+    POST /api/logsheet/<id>/grow           {sheet, add: "row"|"col"}: an empty row or column
+    POST /api/logsheet/<id>/setmatch       {sheet, row, op}: match a row by hand (op null clears)
+    GET  /api/logsheet/<id>.tsv?sheet=<s>  one sheet as TSV
+    GET  /api/logsheet/<id>.xlsx           every sheet, corrected cells filled
     POST /api/conditions                   {report}: narrative preview and word count
     POST /api/table                        {report, index}: one table, formatted, first rows
     POST /api/figure                       {report, spec}: {images: [PNG data URLs]}
@@ -172,6 +177,21 @@ class Handler(SimpleHTTPRequestHandler):
             return self._guard(lambda: self._send(
                 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 digitize.xlsx(ids), {"Content-Disposition": 'attachment; filename="logbook_transcription.xlsx"'}))
+        m = re.fullmatch(r"/api/logsheet/([0-9a-f]{12})\.(tsv|xlsx)", u.path)
+        if m:
+            def export():
+                meta = logsheets.load(m[1])
+                stem = re.sub(r"[^\w\-]+", "_", Path(meta["name"]).stem) or "logsheet"
+                if m[2] == "xlsx":
+                    return self._send(200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                      logsheets.xlsx(m[1]),
+                                      {"Content-Disposition": f'attachment; filename="{stem}.xlsx"'})
+                sheet = q.get("sheet") or next(iter(meta["sheets"]))
+                name = stem if len(meta["sheets"]) == 1 else f"{stem}_{re.sub(r'[^\w\-]+', '_', sheet)}"
+                self._send(200, "text/tab-separated-values; charset=utf-8",
+                           logsheets.tsv(m[1], sheet).encode(),
+                           {"Content-Disposition": f'attachment; filename="{name}.tsv"'})
+            return self._guard(export)
         m = re.fullmatch(r"/api/draft/([\w\-]+)", u.path)
         if m:
             return self._guard(lambda: self._json(
@@ -196,6 +216,9 @@ class Handler(SimpleHTTPRequestHandler):
             fn = {"edit": self._dig_edit, "logsheet": self._dig_logsheet, "match": self._dig_match,
                   "again": self._dig_again, "setmatch": self._dig_setmatch, "grow": self._dig_grow}[m[2]]
             return self._guard(lambda: fn(m[1]))
+        m = re.fullmatch(r"/api/logsheet/([0-9a-f]{12})/(edit|grow|setmatch)", u.path)
+        if m:
+            return self._guard(lambda: self._log_change(m[1], m[2]))
         fn = routes.get(u.path)
         if fn is None:
             return self._json(404, {"error": "no such route"})
@@ -290,6 +313,18 @@ class Handler(SimpleHTTPRequestHandler):
             s: {"columns": d["columns"], "roles": d["roles"], "n": len(d["rows"])}
             for s, d in meta["sheets"].items()}}
         self._json(200, out)
+
+    def _log_change(self, ident, what):
+        """A correction, a new row or column, or a match by hand, in an uploaded logsheet."""
+        a = self._obj()
+        sheet = str(a["sheet"])
+        if what == "edit":
+            logsheets.edit(ident, sheet, int(a["row"]), int(a["col"]), str(a["text"]))
+        elif what == "grow":
+            logsheets.grow(ident, sheet, str(a.get("add")))
+        else:
+            logsheets.set_match(ident, sheet, int(a["row"]), a.get("op") or None)
+        self._json(200, {"columns": logsheets.load(ident)["sheets"][sheet]["columns"]})
 
     def _match(self):
         a = self._obj()

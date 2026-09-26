@@ -30,6 +30,7 @@ import io
 import json
 import math
 import re
+import threading
 import uuid
 from pathlib import Path
 
@@ -44,6 +45,7 @@ HAND_COLUMN = "Event label (matched by hand)"
 TIME_WINDOW_H = 3
 ONE_VISIT_H = 12
 MAX_KM = 5
+_lock = threading.Lock()              # one read-modify-write of a logsheet record at a time
 
 ROLES = ["label", "station", "datetime", "date", "time", "lat", "lon", "depth", "bottle",
          "cast", "sample_id"]
@@ -301,12 +303,141 @@ def load(ident: str) -> dict:
 
 
 def matched(ident: str, sheet: str, roles: dict, leg: str, groups=None) -> dict:
+    """The sheet's rows matched to operations; rows the participant matched by
+    hand keep that match. ``sheets`` gives every sheet of the upload with its
+    guessed roles, so the page can offer the others. ``edited`` lists the [row, column] cells changed on
+    the page, and ``editable`` is false for a logsheet made from a digitized
+    table, which is edited there and rewritten from it."""
     meta = load(ident)
     sh = meta["sheets"][sheet]
-    rows = match(sh["rows"], roles, leg, groups)
+    manual = sh.get("manual") or {}
+    rows = [{**r, HAND_COLUMN: manual[str(i)]} if str(i) in manual else r
+            for i, r in enumerate(sh["rows"])]
+    rows = match(rows, roles, leg, groups)
     return {"id": ident, "name": meta["name"], "sheet": sheet, "columns": sh["columns"],
-            "roles": roles, "rows": rows,
+            "roles": roles, "rows": rows, "edited": sh.get("edited") or [],
+            "sheets": {k: {"roles": v["roles"], "n": len(v["rows"])} for k, v in meta["sheets"].items()},
+            "editable": not meta.get("source"),
             "matched": sum(1 for r in rows if r["_op"]), "total": len(rows)}
+
+
+def _write(ident: str, meta: dict) -> None:
+    (_dir() / f"{ident}.json").write_text(json.dumps(meta, default=str))
+
+
+def _editable(ident: str, sheet: str) -> tuple[dict, dict]:
+    meta = load(ident)
+    if meta.get("source"):
+        raise ValueError("this log is made from a transcribed table: correct it there")
+    return meta, meta["sheets"][sheet]
+
+
+def _typed(text: str):
+    """A typed cell as the upload would have read it: a number stays a number,
+    but one with a leading zero (a sample id "0012") stays text."""
+    text = text.strip()
+    if not text:
+        return None
+    if re.fullmatch(r"[-+]?(0|[1-9]\d*)", text):
+        return int(text)
+    if re.fullmatch(r"[-+]?(\d+\.\d*|\.\d+)([eE][-+]?\d+)?", text):
+        return float(text)
+    return text
+
+
+def edit(ident: str, sheet: str, row: int, col: int, text: str) -> dict:
+    """A participant's correction of one cell; row -1 renames the column."""
+    with _lock:
+        meta, sh = _editable(ident, sheet)
+        old = sh["columns"][col]
+        if row < 0:
+            new = " ".join(text.split())
+            if not new or new == old:
+                return meta
+            if new in sh["columns"]:
+                raise ValueError(f"there is already a column called {new}")
+            sh["columns"][col] = new
+            sh["rows"] = [{(new if k == old else k): v for k, v in r.items()} for r in sh["rows"]]
+        else:
+            sh["rows"][row][old] = _typed(text)
+            if [row, col] not in sh.setdefault("edited", []):
+                sh["edited"].append([row, col])
+        _write(ident, meta)
+    return meta
+
+
+def grow(ident: str, sheet: str, what: str) -> dict:
+    """An empty row at the bottom or a column at the right."""
+    with _lock:
+        meta, sh = _editable(ident, sheet)
+        if what == "row":
+            sh["rows"].append({c: None for c in sh["columns"]})
+        elif what == "col":
+            n = len(sh["columns"]) + 1
+            while f"column {n}" in sh["columns"]:
+                n += 1
+            sh["columns"].append(f"column {n}")
+            for r in sh["rows"]:
+                r[f"column {n}"] = None
+        else:
+            raise ValueError("add a row or a col")
+        _write(ident, meta)
+    return meta
+
+
+def set_match(ident: str, sheet: str, row: int, op_key: str | None) -> dict:
+    """A participant's own match for one row (None clears it)."""
+    with _lock:
+        meta, sh = _editable(ident, sheet)
+        manual = sh.setdefault("manual", {})
+        if op_key:
+            manual[str(row)] = op_key
+        else:
+            manual.pop(str(row), None)
+        _write(ident, meta)
+    return meta
+
+
+def _text(v) -> str:
+    return "" if v is None else re.sub(r"[\t\r\n]+", " ", str(v))
+
+
+def tsv(ident: str, sheet: str) -> str:
+    sh = load(ident)["sheets"][sheet]
+    lines = ["\t".join(_text(c) for c in sh["columns"])]
+    lines += ["\t".join(_text(r.get(c)) for c in sh["columns"]) for r in sh["rows"]]
+    return "\n".join(lines) + "\n"
+
+
+def xlsx(ident: str) -> bytes:
+    """Every sheet of a logsheet as it stands, cells corrected on the page filled
+    as a transcription's corrected cells are."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    from .digitize import EDITED, colour
+
+    meta = load(ident)
+    wb = Workbook()
+    wb.remove(wb.active)
+    fill = PatternFill("solid", fgColor=colour(EDITED))
+    for name, sh in meta["sheets"].items():
+        ws = wb.create_sheet(re.sub(r"[\[\]:*?/\\]", " ", name)[:31] or "Sheet")
+        ws.append(sh["columns"])
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+        for r in sh["rows"]:
+            ws.append([r.get(c) for c in sh["columns"]])
+        for i, j in sh.get("edited") or []:
+            ws.cell(i + 2, j + 1).fill = fill
+        for j in range(1, len(sh["columns"]) + 1):
+            width = max(len(str(ws.cell(i, j).value or "")) for i in range(1, ws.max_row + 1))
+            ws.column_dimensions[get_column_letter(j)].width = min(40, max(8, width + 2))
+        ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
 
 
 def refresh_digitized(ident: str, table: int, build) -> list[str]:

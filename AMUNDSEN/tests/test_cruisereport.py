@@ -145,3 +145,45 @@ def test_log_columns_by_header_and_role():
     assert [tables._value(r, "logrole.station") for r in (a, b)] == ["LAS-2", "ES2"]
     assert tables._value(a, "logmeta.log") == "p1"
     assert tables._value(a, "log.CAST") is None
+
+
+def test_uploaded_logsheet_edits_matches_and_exports(tmp_path, monkeypatch):
+    import io
+
+    import openpyxl
+    import pytest
+
+    monkeypatch.setattr(logsheets, "STATE_DIR", tmp_path)
+    csv = b"Station,Depth,Sample ID\nBay Fiord,10,0012\nBay Fiord,20,0013\n"
+    meta = logsheets.save_upload("net.csv", csv)
+    ident, sheet = meta["id"], "csv"
+
+    logsheets.edit(ident, sheet, 0, 1, "12.5")
+    logsheets.edit(ident, sheet, 1, 2, "0014")
+    logsheets.edit(ident, sheet, -1, 1, "Depth (m)")
+    logsheets.grow(ident, sheet, "row")
+    logsheets.grow(ident, sheet, "col")
+    sh = logsheets.load(ident)["sheets"][sheet]
+    assert sh["columns"] == ["Station", "Depth (m)", "Sample ID", "column 4"]
+    assert sh["rows"][0]["Depth (m)"] == 12.5 and sh["rows"][1]["Sample ID"] == "0014"
+    assert len(sh["rows"]) == 3 and sh["rows"][2] == dict.fromkeys(sh["columns"])
+    assert sh["edited"] == [[0, 1], [1, 2]]
+    with pytest.raises(ValueError):
+        logsheets.edit(ident, sheet, -1, 0, "Sample ID")          # a column name already taken
+
+    logsheets.set_match(ident, sheet, 2, "OPKEY")
+    assert logsheets.load(ident)["sheets"][sheet]["manual"] == {"2": "OPKEY"}
+    logsheets.set_match(ident, sheet, 2, None)
+    assert logsheets.load(ident)["sheets"][sheet]["manual"] == {}
+
+    assert logsheets.tsv(ident, sheet).splitlines()[:2] == [
+        "Station\tDepth (m)\tSample ID\tcolumn 4", "Bay Fiord\t12.5\t0012\t"]
+    ws = openpyxl.load_workbook(io.BytesIO(logsheets.xlsx(ident)))["csv"]
+    assert ws["B2"].value == 12.5 and ws["B2"].fill.fgColor.rgb.endswith(ws["C3"].fill.fgColor.rgb[-6:])
+    assert ws["A2"].fill.fill_type is None
+
+    # A log made from a transcribed table is corrected there, not here.
+    made = logsheets.save_frames("page · table 1", {"transcribed": pd.DataFrame({"A": [1]})},
+                                 {"digitized": "0" * 12, "table": 0})
+    with pytest.raises(ValueError):
+        logsheets.edit(made["id"], "transcribed", 0, 0, "2")

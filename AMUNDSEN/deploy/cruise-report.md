@@ -18,8 +18,14 @@ links to it (`shell.reportBanner`), and the status page counts its views as
    paper logbooks (below) and logsheets (`.xlsx`/`.csv`), whose rows are
    matched to operations by event label, cast number, station + time or date,
    time + position, or a station visited once; the match method is shown per
-   row and the column roles can be corrected. Then, under "Select what's
-   yours", tick logs, instruments and the team's rosette-sheet columns. The
+   row and the column roles can be corrected. An uploaded logsheet's cells
+   and headers are editable, rows and columns can be added, and an unmatched
+   row is matched by searching the leg's operations (station, label,
+   activity, date, comment); every change re-matches the rows. The upload
+   itself is kept as sent; the corrected sheet exports as TSV or XLSX
+   (corrected cells filled green). A logsheet made from a digitized table is
+   corrected in the transcription. Then, under "Select what's
+   yours", tick logs (each sheet of a workbook is a log of its own), instruments and the team's rosette-sheet columns. The
    operations selected are those the ticked logs match plus every operation
    of the ticked instruments, and they follow the logs as they are corrected
    or re-matched; a participant's own tick or untick in the operations list

@@ -45,7 +45,7 @@ const LOCAL_KEY = "cr:current";
 
 let R = blank();
 let INFO = null;                 // /api/leg for R.leg
-const LOGS = {};                 // logsheet id -> {name, sheets, match}
+const LOGS = {};                 // "id:sheet" (logKey) -> {name, match}
 let narrWords = 0;
 
 function blank(leg = "") {
@@ -134,7 +134,7 @@ function autoOps() {
   for (const o of INFO.operations) if (groups.has(o.group)) auto.add(o.key);
   for (const lg of R.selection.logsheets) {
     if (lg.use === false) continue;
-    for (const r of LOGS[lg.id]?.match?.rows || []) if (r.op) auto.add(r.op);
+    for (const r of LOGS[logKey(lg)]?.match?.rows || []) if (r.op) auto.add(r.op);
   }
   return auto;
 }
@@ -225,10 +225,10 @@ function renderLogChips() {
   const box = $("#log-chips");
   if (!box) return;
   const chips = R.selection.logsheets.map((lg) => {
-    const m = LOGS[lg.id]?.match, on = lg.use !== false;
+    const m = LOGS[logKey(lg)]?.match, on = lg.use !== false;
     const ops = new Set((m?.rows || []).map((r) => r.op).filter(Boolean)).size;
     return h("label", { class: "chip log" + (on ? " on" : ""), title: m ? `${m.matched} of ${m.total} rows match ${ops} operations` : "matching…" },
-      h("input", { type: "checkbox", checked: on, onchange: (e) => { lg.use = e.target.checked; selectionUpdated(); } }),
+      h("input", { type: "checkbox", checked: on, onchange: (e) => { lg.use = e.target.checked; renderLogs(); selectionUpdated(); } }),
       lg.name, h("span", { class: "n" }, m ? `${ops} ops` : "…"));
   });
   for (const id of R.digitized || []) {
@@ -251,54 +251,159 @@ async function uploadLog(file) {
     toast(`Reading ${file.name}…`);
     const meta = await api(`api/logsheet?leg=${encodeURIComponent(R.leg)}`, await file.arrayBuffer(),
       { raw: true, headers: { "X-Filename": file.name, "Content-Type": "application/octet-stream" } });
-    const sheet = Object.keys(meta.sheets)[0];
-    LOGS[meta.id] = { name: meta.name, sheets: meta.sheets };
-    R.selection.logsheets.push({ id: meta.id, name: meta.name, sheet, roles: meta.sheets[sheet].roles });
-    await matchLog(R.selection.logsheets.at(-1));
+    const sheets = Object.keys(meta.sheets);
+    const added = sheets.map((sheet) => ({ id: meta.id, name: sheets.length > 1 ? `${meta.name} · ${sheet}` : meta.name,
+      file: meta.name, sheet, roles: meta.sheets[sheet].roles }));
+    R.selection.logsheets.push(...added);
+    await Promise.all(added.map(matchLog));
   } catch (e) { toast(`Could not read ${file.name}: ${e.message}`, true); }
+}
+// Every sheet of a log is its own entry in selection.logsheets, ticked on its own
+// under "Your logs" (use), and its match is LOGS[logKey].
+const logKey = (lg) => `${lg.id}:${lg.sheet}`;
+const logName = (lg) => lg.file || LOGS[logKey(lg)]?.match?.name || lg.name;
+function logFiles() {
+  const files = new Map();
+  for (const lg of R.selection.logsheets) files.set(lg.id, [...(files.get(lg.id) || []), lg]);
+  return [...files.entries()];
+}
+// A log with sheets not in the selection (a draft saved when one sheet was
+// chosen) gets them as entries, unticked, so each can be ticked and corrected.
+function addSheets(first, sheets) {
+  const sel = R.selection.logsheets;
+  const have = new Set(sel.filter((x) => x.id === first.id).map((x) => x.sheet));
+  const names = Object.keys(sheets || {});
+  if (names.length < 2 || names.every((n) => have.has(n))) return [];
+  const file = logName(first);
+  for (const x of sel) if (x.id === first.id) { x.file = file; x.name = `${file} · ${x.sheet}`; }
+  const added = names.filter((n) => !have.has(n)).map((sheet) => ({ id: first.id, name: `${file} · ${sheet}`, file, sheet,
+    roles: { ...(sheets[sheet].roles || {}) }, use: false }));
+  sel.splice(sel.indexOf(sel.filter((x) => x.id === first.id).at(-1)) + 1, 0, ...added);
+  return added;
 }
 // Match a logsheet's rows again; the operations it brings in follow (if it is ticked).
 async function matchLog(lg) {
   const m = await api("api/logsheet/match", { id: lg.id, sheet: lg.sheet, roles: lg.roles, leg: R.leg, groups: R.selection.groups });
-  LOGS[lg.id] = { ...(LOGS[lg.id] || {}), name: lg.name, match: m };
+  LOGS[logKey(lg)] = { name: lg.name, match: m };
   renderLogs(); selectionUpdated();
+  for (const x of addSheets(lg, m.sheets)) matchLog(x).catch((e) => toast(`${x.name}: ${e.message}`, true));
 }
 function renderLogs() {
   const box = $("#logsheets");
+  // A redraw (after any correction or re-match) keeps the cell being typed in and each table's scroll.
+  const active = document.activeElement?.closest?.("[data-cell]");
+  const typing = active && { key: active.dataset.cell, text: active.value ?? active.textContent };
+  const scrolls = Object.fromEntries([...box.querySelectorAll(".scroll[data-log]")].map((el) => [el.dataset.log, [el.scrollTop, el.scrollLeft]]));
   box.replaceChildren();
   let total = 0;
-  for (const [i, lg] of R.selection.logsheets.entries()) {
-    const L = LOGS[lg.id] || {};
-    const m = L.match;
-    total += m ? m.total : 0;
-    const roleSel = (role) => h("label", {}, role,
-      h("select", { onchange: (e) => { if (e.target.value) lg.roles[role] = e.target.value; else delete lg.roles[role]; matchLog(lg); } },
-        h("option", { value: "" }, "—"), ...(m?.columns || []).map((c) => h("option", { value: c, selected: lg.roles[role] === c }, c))));
-    const sheets = Object.keys(L.sheets || {});
+  for (const [id, parts] of logFiles()) {
+    const ms = parts.map((lg) => LOGS[logKey(lg)]?.match);
+    total += ms.reduce((a, m) => a + (m?.total || 0), 0);
+    const matched = ms.reduce((a, m) => a + (m?.matched || 0), 0), rows = ms.reduce((a, m) => a + (m?.total || 0), 0);
     const card = h("div", { class: "tbl" },
-      h("div", { class: "row" }, h("b", {}, lg.name), " ",
-        sheets.length > 1 ? h("select", { onchange: (e) => { lg.sheet = e.target.value; lg.roles = L.sheets[lg.sheet].roles; matchLog(lg); } },
-          ...sheets.map((s) => h("option", { value: s, selected: s === lg.sheet }, s))) : ` · ${lg.sheet}`, " ",
-        m ? h("span", { class: "pill" }, `${m.matched} of ${m.total} rows matched`) : "", " ",
-        h("label", { class: "inline hint" }, h("input", { type: "checkbox", checked: lg.use !== false,
-          onchange: (e) => { lg.use = e.target.checked; selectionUpdated(); } }), " use to select operations"), " ",
-        h("button", { class: "danger small", onclick: () => { R.selection.logsheets.splice(i, 1); delete LOGS[lg.id]; renderLogs(); selectionUpdated(); } }, "Remove")),
-      h("p", { class: "hint" }, "Which column holds what? Correct any guess and the rows are matched again."),
-      h("div", { class: "cols" }, ...(m?.role_options || []).map(roleSel)));
-    if (m) {
-      const cols = m.columns.slice(0, 8);
-      card.append(h("div", { class: "scroll", style: "max-height:260px" }, h("table", { class: "data" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Matched to"), h("th", {}, "How"), ...cols.map((c) => h("th", {}, c)))),
-        h("tbody", {}, ...m.rows.slice(0, 200).map((r) => {
-          const op = INFO.operations.find((o) => o.key === r.op);
-          return h("tr", {}, h("td", {}, op ? `${op.station || ""} ${op.label || ""}` : "—"),
-            h("td", {}, h("span", { class: "how" + (r.how ? "" : " none") }, r.how || "unmatched")),
-            ...cols.map((c) => h("td", {}, r.cells[c] == null ? "" : String(r.cells[c]).slice(0, 40))));
-        })))));
+      h("div", { class: "row" }, h("b", {}, logName(parts[0])), " ",
+        ms.every(Boolean) ? h("span", { class: "pill" }, `${matched} of ${rows} rows matched`) : "", " ",
+        h("a", { class: "button ghost small", href: `api/logsheet/${id}.xlsx`, download: "", title: "Every sheet of this log, corrected cells filled green" }, "XLSX"), " ",
+        h("button", { class: "danger small", onclick: () => {
+          R.selection.logsheets = R.selection.logsheets.filter((x) => x.id !== id);
+          for (const lg of parts) delete LOGS[logKey(lg)];
+          renderLogs(); selectionUpdated(); } }, "Remove")));
+    for (const lg of parts) {
+      const m = LOGS[logKey(lg)]?.match;
+      const roleSel = (role) => h("label", {}, role,
+        h("select", { onchange: (e) => { if (e.target.value) lg.roles[role] = e.target.value; else delete lg.roles[role]; matchLog(lg); } },
+          h("option", { value: "" }, "—"), ...(m?.columns || []).map((c) => h("option", { value: c, selected: lg.roles[role] === c }, c))));
+      if (parts.length > 1) card.append(h("h3", {}, lg.sheet, " ", m ? h("span", { class: "pill" }, `${m.matched} of ${m.total} rows matched`) : "",
+        lg.use === false ? h("span", { class: "hint" }, " · not ticked under Your logs") : ""));
+      card.append(h("p", { class: "hint" }, "Which column holds what? Correct any guess and the rows are matched again."),
+        h("div", { class: "cols" }, ...(m?.role_options || []).map(roleSel)));
+      if (m) card.append(...logTable(lg, m));
     }
     box.append(card);
   }
+  for (const [id, [top, left]] of Object.entries(scrolls)) {
+    const el = box.querySelector(`.scroll[data-log="${CSS.escape(id)}"]`);
+    if (el) { el.scrollTop = top; el.scrollLeft = left; }
+  }
+  const again = typing && box.querySelector(`[data-cell="${CSS.escape(typing.key)}"]`);
+  if (again) {
+    if ("value" in again) again.value = typing.text; else again.textContent = typing.text;
+    again.focus();
+    if (again.isContentEditable) getSelection().selectAllChildren(again), getSelection().collapseToEnd();
+  }
   $("#log-count").textContent = total ? `${R.selection.logsheets.length} sheet(s), ${total} rows` : "";
+}
+
+// A log's rows as a table like a transcribed one: every cell and header can be
+// corrected, rows and columns added, and an unmatched row matched by searching.
+// A log made from a transcribed table is corrected in the transcription (it is
+// rebuilt from it), so here only its matches can be set.
+function logTable(lg, m) {
+  const src = lg.source?.digitized ? lg.source : null;
+  const edited = new Set((m.edited || []).map(([r, c]) => `${r}:${c}`));
+  const cols = m.columns.filter((c) => c !== HAND_COLUMN);
+  const sheet = encodeURIComponent(lg.sheet);
+  const pick = (row, op) => src ? setMatch(src.digitized, src.table, row, op) : setLogMatch(lg, row, op);
+  const cell = (tag, text, row, col) => {
+    const key = `${logKey(lg)}:${row}:${col}`;
+    if (!m.editable) return h(tag, {}, text);
+    const done = edited.has(`${row}:${col}`);
+    const el = h(tag, { contenteditable: "true", spellcheck: "false", "data-cell": key, class: done ? "edited" : "",
+      title: done ? "corrected by hand" : "", style: done && tag === "td" ? `background:${confColour(3)}` : "" }, text);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
+    el.addEventListener("blur", () => { if (el.textContent.trim() !== text) editLog(lg, row, col, text, el.textContent.trim()); });
+    return el;
+  };
+  const table = h("table", { class: "data dig" },
+    h("thead", {}, h("tr", {}, h("th", { title: "The operation each row matches, re-checked after every correction" }, "Matched to"),
+      ...cols.map((c) => cell("th", c, -1, m.columns.indexOf(c))))),
+    h("tbody", {}, ...m.rows.map((r, i) => {
+      const op = r.op && INFO.operations.find((o) => o.key === r.op);
+      const match = op
+        ? h("span", {}, `${opShort(op)} `, h("span", { class: "how" }, r.how),
+          r.how === "by hand" ? h("button", { class: "link", title: "Undo this match", onclick: () => pick(i, null) }, "×") : null)
+        : opSearch((o) => pick(i, o.key), { "data-cell": `${logKey(lg)}:${i}:match` });
+      return h("tr", {}, h("td", { class: "match" }, match),
+        ...cols.map((c) => cell("td", r.cells[c] == null ? "" : String(r.cells[c]), i, m.columns.indexOf(c))));
+    })));
+  return [
+    h("div", { class: "scroll", "data-log": logKey(lg), style: "max-height:420px" }, table),
+    h("div", { class: "dig-tools" },
+      m.editable ? h("button", { class: "ghost small", title: "Add an empty row at the bottom", onclick: () => growLog(lg, "row") }, "+ row") : null,
+      m.editable ? h("button", { class: "ghost small", title: "Add an empty column at the right (click its header to name it)", onclick: () => growLog(lg, "col") }, "+ column") : null,
+      h("a", { class: "button ghost small", href: `api/logsheet/${lg.id}.tsv?sheet=${sheet}`, download: "" }, "TSV"),
+      src ? h("span", { class: "hint" }, "Made from a transcribed table: correct its cells there, above.") : null),
+  ];
+}
+
+// A cell or header corrected in an uploaded log. A renamed column keeps its role
+// and its place in the report's tables.
+async function editLog(lg, row, col, before, text) {
+  try {
+    await api(`api/logsheet/${lg.id}/edit`, { sheet: lg.sheet, row, col, text });
+    if (row < 0) {
+      for (const [role, c] of Object.entries(lg.roles)) if (c === before) lg.roles[role] = text;
+      for (const t of R.tables) t.columns = t.columns.map((c) => c === `log.${before}` ? `log.${text}` : c);
+      renderTables(); persist();
+    }
+  } catch (e) { toast(`Not saved: ${e.message}`, true); }
+  await matchLog(lg);
+}
+async function growLog(lg, add) {
+  try {
+    await api(`api/logsheet/${lg.id}/grow`, { sheet: lg.sheet, add });
+    await matchLog(lg);
+    const table = document.querySelector(`.scroll[data-log="${CSS.escape(logKey(lg))}"] table`);
+    const target = add === "row" ? table?.querySelector("tbody tr:last-child td:nth-child(2)") : table?.querySelector("thead th:last-child");
+    target?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    target?.focus();
+  } catch (e) { toast(`Could not add a ${add === "row" ? "row" : "column"}: ${e.message}`, true); }
+}
+async function setLogMatch(lg, row, op) {
+  try {
+    await api(`api/logsheet/${lg.id}/setmatch`, { sheet: lg.sheet, row, op });
+    await matchLog(lg);
+  } catch (e) { toast(`Match not saved: ${e.message}`, true); }
 }
 
 
@@ -502,17 +607,19 @@ function opFromOption(text) {
   return ops.find((o) => squash(opShort(o)) === t || squash(opFull(o)) === t);
 }
 
-function matchSearch(id, k, row) {
+// A search box for the operation an unmatched row belongs to; pick(op) saves it.
+function opSearch(pick, attrs = {}) {
   opOptions();
   const input = h("input", { list: "op-options", class: "match-search", placeholder: "unmatched: search station, label, activity, date…",
-    "aria-label": "Search for the operation this row belongs to" });
+    "aria-label": "Search for the operation this row belongs to", ...attrs });
   input.addEventListener("change", () => {
     const op = opFromOption(input.value.trim());
-    if (op) setMatch(id, k, row, op.key);
+    if (op) pick(op);
     else if (input.value.trim()) toast("Pick one of the listed operations.");
   });
   return input;
 }
+const matchSearch = (id, k, row) => opSearch((op) => setMatch(id, k, row, op.key));
 
 async function setMatch(id, k, row, op) {
   try {
@@ -618,7 +725,6 @@ async function useAsLogsheet(id, k, fillDown) {
   try {
     const meta = await api(`api/digitized/${id}/logsheet`, { table: k, fill_down: fillDown });
     const sheet = Object.keys(meta.sheets)[0];
-    LOGS[meta.id] = { name: meta.name, sheets: meta.sheets };
     R.selection.logsheets.push({ id: meta.id, name: meta.name, sheet, roles: meta.sheets[sheet].roles,
       source: { digitized: id, table: k }, use: true });
     await matchLog(R.selection.logsheets.at(-1));
@@ -695,7 +801,7 @@ function logHeaders() {
   const seen = new Map();
   for (const lg of R.selection.logsheets) {
     if (lg.use === false) continue;
-    const m = LOGS[lg.id]?.match;
+    const m = LOGS[logKey(lg)]?.match;
     if (!m) continue;
     for (const col of m.columns || []) {
       if (col === HAND_COLUMN) continue;
@@ -716,8 +822,8 @@ function renderTables() {
   for (const t of R.tables) if (t.rows.startsWith("log:")) t.rows = "logs";   // one log's rows: now all of them
   const box = $("#tables");
   box.replaceChildren(...R.tables.map((t, i) => {
-    const logRows = R.selection.logsheets.filter((lg) => lg.use !== false).reduce((a, lg) => a + (LOGS[lg.id]?.match?.total || 0), 0);
-    const nLogs = R.selection.logsheets.filter((lg) => lg.use !== false).length;
+    const logRows = R.selection.logsheets.filter((lg) => lg.use !== false).reduce((a, lg) => a + (LOGS[logKey(lg)]?.match?.total || 0), 0);
+    const nLogs = new Set(R.selection.logsheets.filter((lg) => lg.use !== false).map((lg) => lg.id)).size;
     const sources = [["operations", "One row per operation"], ["bottles", "One row per rosette bottle"],
       ["logs", nLogs ? `One row per row of your logs (${nLogs} log${nLogs === 1 ? "" : "s"}, ${logRows} rows)` : "One row per row of your logs (tick logs in step 2)"]];
     const card = h("div", { class: "tbl" },
