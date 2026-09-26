@@ -301,7 +301,7 @@ async function transcribeQueue(btn) {
       const doc = await api(`api/digitize?rotate=${q.rotate}`, await q.file.arrayBuffer(),
         { raw: true, headers: { "X-Filename": q.file.name, "Content-Type": "application/octet-stream" } });
       DIG[doc.id] = doc;
-      R.digitized.push(doc.id);
+      R.digitized.unshift(doc.id);                // newest page on top
       persist();
       renderDigitized();
     } catch (e) { toast(`${q.file.name}: ${e.message}`, true); }
@@ -529,7 +529,12 @@ function renderTables() {
         h("label", {}, "Section", h("select", { onchange: (e) => { t.section = e.target.value; persist(); } },
           ...SECTIONS.map(([v, l]) => h("option", { value: v, selected: (t.section || "methods") === v }, l)))),
         h("button", { class: "ghost small", onclick: () => previewTable(i, card) }, "Preview"),
-        h("button", { class: "danger small", onclick: () => { R.tables.splice(i, 1); renderTables(); persist(); } }, "Remove")),
+        h("div", { class: "row" },
+          h("button", { class: "ghost small", title: "Move up (earlier in the report)", disabled: i === 0,
+            onclick: () => { [R.tables[i - 1], R.tables[i]] = [R.tables[i], R.tables[i - 1]]; renderTables(); persist(); } }, "↑"),
+          h("button", { class: "ghost small", title: "Move down (later in the report)", disabled: i === R.tables.length - 1,
+            onclick: () => { [R.tables[i + 1], R.tables[i]] = [R.tables[i], R.tables[i + 1]]; renderTables(); persist(); } }, "↓"),
+          h("button", { class: "danger small", onclick: () => { R.tables.splice(i, 1); renderTables(); persist(); } }, "Remove"))),
       h("div", { class: "order" }, h("span", { class: "hint" }, "Columns in order (click to remove): "),
         ...t.columns.map((c) => h("span", { class: "pill", title: "Remove", onclick: () => { t.columns = t.columns.filter((x) => x !== c); renderTables(); persist(); } }, colLabel(c) + " ×"))),
       h("div", { class: "cols" }, ...colGroups(t).map(([name, cols]) => h("fieldset", {}, h("legend", {}, name),
@@ -554,8 +559,10 @@ async function previewTable(i, card) {
 function addTable(preset) {
   const p = structuredClone(PRESETS[preset]);
   if (preset === "bottles") p.columns.push(...R.selection.teams.map((x) => `draw.${x}`));
-  R.tables.push({ ...p, section: "methods" });
+  R.tables.unshift({ ...p, section: "methods" });   // on top, where it is seen; first in Word too
   renderTables(); persist();
+  const first = $("#tables .tbl");
+  if (first) { first.classList.add("new"); first.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
 }
 
 // --- 5 · figures ----------------------------------------------------------------

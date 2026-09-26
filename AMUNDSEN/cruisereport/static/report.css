@@ -110,6 +110,9 @@ table.data td.num { text-align: right; }
 .add-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .tbl { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; background: var(--bg); }
 .tbl-head { display: grid; grid-template-columns: 2fr 1fr 1fr auto auto; gap: 8px; align-items: end; }
+.tbl-head .row { display: flex; gap: 4px; }
+.tbl.new { animation: tbl-new 2.4s ease-out; }
+@keyframes tbl-new { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
 @media (max-width: 800px) { .tbl-head { grid-template-columns: 1fr 1fr; } }
 .tbl-head label { margin: 0; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 16px; margin: 10px 0; }
