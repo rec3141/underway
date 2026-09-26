@@ -226,3 +226,46 @@ def test_digitized_column_roles_are_kept_and_follow_a_rename(tmp_path, monkeypat
     assert digitize.load(doc["id"])["tables"][0]["roles"] == {"station": "STN", "time": "Time (UTC)"}
     digitize.set_roles(doc["id"], 0, None)
     assert "roles" not in digitize.load(doc["id"])["tables"][0]
+
+
+def test_dates_and_times_as_logbooks_write_them():
+    span = (pd.Timestamp("2026-09-01"), pd.Timestamp("2026-09-26"))
+    when = lambda d, t: logsheets._when({"D": d, "T": t}, {"date": "D", "time": "T"}, span)  # noqa: E731
+    sep14 = pd.Timestamp("2026-09-14")
+    for d in ("2026-09-14", "14/09/2026", "09/14/2026", "14-Sep", "Sep 14", "20260914", "DOY 257", "14/09/26"):
+        assert when(d, "14:20") == (sep14, (14, 20)), d
+    assert when("05/09/2026", "")[0] == pd.Timestamp("2026-09-05")       # day first: that is in the leg
+    for t in ("14:20", "14h20", "1420", 1420, "14.20", "2:20 PM", "14:20:00", 0.5972, "1899-12-30T14:20:00"):
+        assert when("2026-09-14", t)[1] == (14, 20), t
+    assert when("", "14:20") == (None, (14, 20))
+    assert when("2026-09-14", "25:10")[1] is None
+    dt = lambda x: logsheets._when({"X": x}, {"datetime": "X"}, span)  # noqa: E731
+    assert dt("14.09.2026") == (sep14, None)
+    assert dt("14/09/2026 14:20") == (sep14, (14, 20))
+
+
+def test_ship_time_and_time_only_rows_match(monkeypatch):
+    class Op:
+        group = "ctd"
+
+        def __init__(self, key, station, t):
+            self.key = key
+            self._s = {"key": key, "label": key, "station": station, "group": "ctd", "start_utc": t,
+                       "lat": None, "lon": None}
+
+        def summary(self):
+            return self._s
+
+    monkeypatch.setattr(logsheets.eventlog, "operations",
+                        lambda leg: [Op("AMD2603-001", "S1", "2026-09-14T18:00:00"),
+                                     Op("AMD2603-002", "S1", "2026-09-15T02:00:00")])
+    monkeypatch.setattr(logsheets.ctd, "label_for_cast", lambda leg: {})
+    monkeypatch.setattr(logsheets, "SHIP_TZ", "America/Toronto")        # UTC−4 in September
+    roles = {"station": "Stn", "date": "Date", "time": "Time"}
+    rows = [{"Stn": "S1", "Date": "2026-09-14", "Time": "14:00"}]
+    utc = logsheets.match(rows, roles, "leg")
+    ship = logsheets.match(rows, roles, "leg", local=True)
+    assert (utc[0]["_op"], utc[0]["_how"]) == ("AMD2603-001", "station+date")   # 4 h off in UTC
+    assert (ship[0]["_op"], ship[0]["_how"]) == ("AMD2603-001", "station+time")
+    got = logsheets.match([{"Stn": "S1", "Time": "0130"}], {"station": "Stn", "time": "Time"}, "leg")
+    assert (got[0]["_op"], got[0]["_how"]) == ("AMD2603-002", "station+time")

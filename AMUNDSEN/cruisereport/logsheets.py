@@ -16,13 +16,21 @@ it so the participant can check it:
 1b. ``cast``        the row's cast number is in the leg's CTD logbook, which
                     names the event label (a misread station name then does
                     not matter)
-2. ``station+time`` same station, closest operation within ``TIME_WINDOW_H``
-3. ``station+date`` same station, same UTC day, no usable time
+2. ``station+time`` same station, closest operation within ``TIME_WINDOW_H``;
+                    a time with no date is taken on the days of the station's
+                    operations
+3. ``station+date`` same station, same day, no usable time
 4. ``time+position`` closest operation within ``TIME_WINDOW_H`` and ``MAX_KM``
 5. ``station``      no usable date, but the leg visited that station only once
                     (all its operations within ``ONE_VISIT_H``)
 
 A row that matches nothing stays in the table, unmatched.
+
+Dates and times are read as logbooks write them: day and month in either
+order (whichever falls within the leg), no year (the leg's), day of year
+("DOY 257"), times as 14:20, 14h20, 1420, 14.20, 2:20 PM or an Excel day
+fraction. A table's times are UTC unless it is marked as kept in ship time
+(``SHIP_TZ``); then the event log's times are compared in ship time.
 """
 
 from __future__ import annotations
@@ -33,12 +41,13 @@ import math
 import re
 import threading
 import uuid
+import warnings
 from pathlib import Path
 
 import pandas as pd
 
 from . import ctd, eventlog
-from .config import STATE_DIR
+from .config import SHIP_TZ, STATE_DIR
 
 LABEL_RE = re.compile(r"\bAMD\d{4}-\d{3}\b", re.I)
 # A digitized table's rows matched by hand carry the event label in this column.
@@ -155,38 +164,91 @@ def _float(v) -> float | None:
     return f if math.isfinite(f) else None
 
 
-def _when(row: dict, roles: dict) -> tuple[pd.Timestamp | None, bool]:
-    """(timestamp, has_clock) from the datetime column, or date + time."""
-    def ts(v):
-        if _is_blank(v):
-            return None
-        try:
-            t = pd.Timestamp(v)
-        except (ValueError, TypeError):
-            try:
-                t = pd.to_datetime(str(v), dayfirst=False, errors="coerce")
-            except (ValueError, TypeError):
-                return None
-        return None if pd.isna(t) else t.tz_localize(None) if t.tzinfo else t
+CLOCK_RE = re.compile(r"(?<![\d.])(\d{1,2})\s*[:hH.]\s*(\d{2})(?:\s*[:.]\s*\d{2})?(?!\d)(?![.\-/]\d)\s*([aApP])?\.?[mM]?\.?")
+HHMM_RE = re.compile(r"\s*(\d{3,4})\s*([aApP])?\.?[mM]?\.?\s*")
+DOY_RE = re.compile(r"^\s*(?:doy|jd|julian(?:\s*day)?|day)\s*[#:]?\s*(\d{1,3})\s*$", re.I)
 
+
+def _hm(h: int, m: int, ampm: str | None) -> tuple[int, int] | None:
+    if ampm:
+        if not 1 <= h <= 12:
+            return None
+        h = h % 12 + (12 if ampm.lower() == "p" else 0)
+    return (h, m) if h < 24 and m < 60 else None
+
+
+def _clock(v) -> tuple[int, int] | None:
+    """Hour and minute from a time cell, however it is written."""
+    if _is_blank(v):
+        return None
+    if hasattr(v, "hour") and not isinstance(v, str):
+        return v.hour, v.minute
+    if isinstance(v, float) and 0 <= v < 1:            # Excel's fraction of a day
+        mins = round(v * 1440) % 1440
+        return mins // 60, mins % 60
+    text = str(v)
+    m = HHMM_RE.fullmatch(text) if isinstance(v, (int, str)) else None
+    if m:
+        return _hm(int(m[1]) // 100, int(m[1]) % 100, m[2])
+    m = CLOCK_RE.search(text)
+    return _hm(int(m[1]), int(m[2]), m[3]) if m else None
+
+
+def _date(v, span: tuple[pd.Timestamp, pd.Timestamp] | None) -> pd.Timestamp | None:
+    """A day from a date cell. Day and month are taken in the order that puts
+    the day within ``span`` (the leg), and a date with no year takes the leg's."""
+    if _is_blank(v):
+        return None
+    if isinstance(v, pd.Timestamp) or (hasattr(v, "year") and not isinstance(v, str)):
+        t = pd.Timestamp(v)
+        return t.tz_localize(None) if t.tzinfo else t
+    text = str(v).strip()
+    year = span[0].year if span else None
+    if re.fullmatch(r"\d{8}", text):                  # 20260914
+        t = pd.to_datetime(text, format="%Y%m%d", errors="coerce")
+        return None if pd.isna(t) else t
+    m = DOY_RE.match(text)
+    if m and year:
+        return pd.Timestamp(year, 1, 1) + pd.Timedelta(days=int(m[1]) - 1)
+    has_year = bool(re.search(r"\d{4}|\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2}\b", text))
+    cands = []
+    for dayfirst in (True, False):
+        with warnings.catch_warnings():               # both orders are tried on purpose
+            warnings.simplefilter("ignore")
+            t = pd.to_datetime(text, dayfirst=dayfirst, errors="coerce")
+        if pd.isna(t):
+            continue
+        t = t.tz_localize(None) if t.tzinfo else t
+        if not has_year and year:
+            try:
+                t = t.replace(year=year)
+            except ValueError:                        # 29 February
+                continue
+        cands.append(t)
+    if not cands:
+        return None
+    if span:
+        lo, hi = span[0].normalize() - pd.Timedelta(days=2), span[1].normalize() + pd.Timedelta(days=2)
+        inside = [t for t in cands if lo <= t <= hi]
+        if inside:
+            return inside[0]
+    return cands[0]
+
+
+def _when(row: dict, roles: dict, span=None) -> tuple[pd.Timestamp | None, tuple[int, int] | None]:
+    """(day, clock) from the datetime column, or the date and time columns. The
+    day is None when only a time is written; the clock None when only a day is."""
+    day = clock = None
     if roles.get("datetime"):
-        t = ts(row.get(roles["datetime"]))
-        if t is not None:
-            return t, (t.hour, t.minute, t.second) != (0, 0, 0)
-    d = ts(row.get(roles["date"])) if roles.get("date") else None
-    if d is None:
-        # Compact dates (20240813) read as integers.
-        raw = str(row.get(roles.get("date", ""), "")).strip()
-        if re.fullmatch(r"\d{8}", raw):
-            d = pd.Timestamp(raw)
-    if d is None:
-        return None, False
-    tm = row.get(roles["time"]) if roles.get("time") else None
-    if not _is_blank(tm):
-        m = re.match(r"^\s*(\d{1,2})[:h](\d{2})", str(tm))
-        if m:
-            return d.normalize() + pd.Timedelta(hours=int(m[1]), minutes=int(m[2])), True
-    return d.normalize(), (d.hour, d.minute) != (0, 0)
+        v = row.get(roles["datetime"])
+        day, clock = _date(v, span), _clock(v)
+        if day is not None and clock is None and (day.hour, day.minute) != (0, 0):
+            clock = (day.hour, day.minute)
+    if day is None and roles.get("date"):
+        day = _date(row.get(roles["date"]), span)
+    if clock is None and roles.get("time"):
+        clock = _clock(row.get(roles["time"]))
+    return (day.normalize() if day is not None else None), clock
 
 
 def _km(lat1, lon1, lat2, lon2) -> float:
@@ -196,9 +258,17 @@ def _km(lat1, lon1, lat2, lon2) -> float:
     return 6371 * 2 * math.asin(math.sqrt(min(1, a)))
 
 
-def match(rows: list[dict], roles: dict, leg: str, groups: list[str] | None = None) -> list[dict]:
-    """Each row with ``_op`` (operation key or None) and ``_how``."""
+def match(rows: list[dict], roles: dict, leg: str, groups: list[str] | None = None,
+          local: bool = False) -> list[dict]:
+    """Each row with ``_op`` (operation key or None) and ``_how``. With ``local``
+    the rows' dates and times are ship time (SHIP_TZ), else UTC."""
     ops = [o.summary() for o in eventlog.operations(leg) if o.group != "void"]
+    # Each operation's start in the rows' own time: UTC, or ship time.
+    start = {}
+    for o in ops:
+        t = pd.Timestamp(o["start_utc"])
+        start[o["key"]] = t.tz_localize("UTC").tz_convert(SHIP_TZ).tz_localize(None) if local else t
+    span = (min(start.values()), max(start.values())) if start else None
     by_label = {o["label"]: o for o in ops if o["label"]}
     by_key = {o["key"]: o for o in ops}
     by_station: dict[str, list[dict]] = {}
@@ -210,8 +280,11 @@ def match(rows: list[dict], roles: dict, leg: str, groups: list[str] | None = No
     def rank(cands, t):
         # Prefer the instruments the participant ticked, then the nearest in time.
         return sorted(cands, key=lambda o: (o["group"] not in pref if pref else False,
-                                            abs((pd.Timestamp(o["start_utc"]) - t).total_seconds())
+                                            abs((start[o["key"]] - t).total_seconds())
                                             if t is not None else 0))
+
+    def near(cands, t):
+        return [o for o in cands if abs((start[o["key"]] - t).total_seconds()) <= TIME_WINDOW_H * 3600]
 
     out = []
     for r in rows:
@@ -232,30 +305,40 @@ def match(rows: list[dict], roles: dict, leg: str, groups: list[str] | None = No
             label = cast_labels.get(int(m[1])) if m else None
             if label and label in by_label:
                 key, how = by_label[label]["key"], "cast"
-        t, clock = _when(r, roles)
+        day, clock = _when(r, roles, span)
+        at = lambda d: d + pd.Timedelta(hours=clock[0], minutes=clock[1])  # noqa: E731
+        t = at(day) if day is not None and clock else day
         if key is None and roles.get("station"):
             cands = by_station.get(_norm_station(r.get(roles["station"])), [])
-            if cands and t is not None and clock:
-                near = [o for o in cands
-                        if abs((pd.Timestamp(o["start_utc"]) - t).total_seconds()) <= TIME_WINDOW_H * 3600]
-                if near:
-                    key, how = rank(near, t)[0]["key"], "station+time"
-            if key is None and cands and t is not None:
-                day = [o for o in cands if pd.Timestamp(o["start_utc"]).normalize() == t.normalize()]
-                if day:
-                    key, how = rank(day, t)[0]["key"], "station+date"
-        if key is None and t is not None and clock and roles.get("lat") and roles.get("lon"):
+            if cands and day is not None and clock:
+                hits = near(cands, t)
+                if hits:
+                    key, how = rank(hits, t)[0]["key"], "station+time"
+            if key is None and cands and day is None and clock:
+                # A time with no date: on the day before, of or after each of the station's operations.
+                best = None
+                for o in cands:
+                    for shift in (-1, 0, 1):
+                        tt = at(start[o["key"]].normalize() + pd.Timedelta(days=shift))
+                        gap = abs((start[o["key"]] - tt).total_seconds())
+                        if gap <= TIME_WINDOW_H * 3600 and (best is None or gap < best[0]):
+                            best = (gap, o)
+                if best:
+                    key, how = best[1]["key"], "station+time"
+            if key is None and cands and day is not None:
+                same = [o for o in cands if start[o["key"]].normalize() == day]
+                if same:
+                    key, how = rank(same, t)[0]["key"], "station+date"
+        if key is None and day is not None and clock and roles.get("lat") and roles.get("lon"):
             lat, lon = _float(r.get(roles["lat"])), _float(r.get(roles["lon"]))
             if lat is not None and lon is not None:
-                near = [o for o in ops if o["lat"] is not None
-                        and abs((pd.Timestamp(o["start_utc"]) - t).total_seconds()) <= TIME_WINDOW_H * 3600
-                        and _km(lat, lon, o["lat"], o["lon"]) <= MAX_KM]
-                if near:
-                    key, how = rank(near, t)[0]["key"], "time+position"
+                hits = [o for o in near(ops, t) if o["lat"] is not None and _km(lat, lon, o["lat"], o["lon"]) <= MAX_KM]
+                if hits:
+                    key, how = rank(hits, t)[0]["key"], "time+position"
         if key is None and roles.get("station"):
             cands = by_station.get(_norm_station(r.get(roles["station"])), [])
             if cands:
-                starts = [pd.Timestamp(o["start_utc"]) for o in cands]
+                starts = [start[o["key"]] for o in cands]
                 if max(starts) - min(starts) <= pd.Timedelta(hours=ONE_VISIT_H):
                     key, how = rank(cands, None)[0]["key"], "station"
         out.append({**r, "_op": key, "_how": how})
@@ -309,7 +392,7 @@ def load(ident: str) -> dict:
     return json.loads((_dir() / f"{ident}.json").read_text())
 
 
-def matched(ident: str, sheet: str, roles: dict, leg: str, groups=None) -> dict:
+def matched(ident: str, sheet: str, roles: dict, leg: str, groups=None, local: bool = False) -> dict:
     """The sheet's rows matched to operations; rows the participant matched by
     hand keep that match. ``sheets`` gives every sheet of the upload with its
     guessed roles, so the page can offer the others. ``edited`` lists the [row, column] cells changed on
@@ -320,8 +403,8 @@ def matched(ident: str, sheet: str, roles: dict, leg: str, groups=None) -> dict:
     manual = sh.get("manual") or {}
     rows = [{**r, HAND_COLUMN: manual[str(i)]} if str(i) in manual else r
             for i, r in enumerate(sh["rows"])]
-    rows = match(rows, roles, leg, groups)
-    return {"id": ident, "name": meta["name"], "sheet": sheet, "columns": sh["columns"],
+    rows = match(rows, roles, leg, groups, local)
+    return {"id": ident, "local": local, "name": meta["name"], "sheet": sheet, "columns": sh["columns"],
             "roles": roles, "rows": rows, "edited": sh.get("edited") or [],
             "sheets": {k: {"roles": v["roles"], "n": len(v["rows"])} for k, v in meta["sheets"].items()},
             "editable": not meta.get("source"),

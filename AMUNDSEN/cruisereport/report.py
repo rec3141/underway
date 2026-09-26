@@ -8,7 +8,7 @@ The page sends one JSON document (saved as the participant's draft):
       "text": {"intro", "methods", "results", "references", "recommendations",
                "publications", "presentations", "in_progress"},
       "selection": {"groups": [...], "ops": [keys], "teams": [...],
-                    "logsheets": [{"id", "sheet", "roles"}]},
+                    "logsheets": [{"id", "sheet", "roles", "use", "local"}]},
       "conditions": {"narrative": "summary" | "stations" | null},
       "tables": [{"title", "rows", "columns": [...], "section"}],
       "figures": [{"kind": "map"|"profiles"|"ts"|"underway", "caption", "section", "options"}]
@@ -36,7 +36,7 @@ def _logs(report: dict) -> dict[str, dict]:
     out = {}
     for lg in sel.get("logsheets", []):
         m = logsheets.matched(lg["id"], lg["sheet"], lg.get("roles") or {}, report["leg"],
-                              sel.get("groups"))
+                              sel.get("groups"), bool(lg.get("local")))
         m["use"] = lg.get("use", True)
         m["name"] = lg.get("name") or m.get("name")
         out[f"log:{lg['id']}:{lg['sheet']}"] = m

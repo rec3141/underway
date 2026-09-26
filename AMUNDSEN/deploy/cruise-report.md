@@ -18,10 +18,16 @@ links to it (`shell.reportBanner`), and the status page counts its views as
    paper logbooks (below) and logsheets (`.xlsx`/`.csv`), whose rows are
    matched to operations by event label, cast number, station + time or date,
    time + position, or a station visited once; the match method is shown per
-   row and the column roles can be corrected. An uploaded logsheet's cells
-   and headers are editable, rows and columns can be added, and an unmatched
-   row is matched by searching the leg's operations (station, label,
-   activity, date, comment); every change re-matches the rows. The upload
+   row. What each column holds (station, date, time, cast…) is chosen in a
+   row under its header. Dates and times are read as logbooks write them:
+   day and month in either order (whichever falls in the leg), no year, day
+   of year, 14:20 / 14h20 / 1420 / 2:20 PM, Excel fractions; a time with no
+   date matches within the station's visit. Each table says whether its
+   times are UTC or ship time (`CRUISE_SHIP_TZ`, else the dashboard's
+   `LOCAL_TZ`). Any match can be removed or replaced by searching the leg's
+   operations (station, label, activity, date, comment). An uploaded
+   logsheet's cells and headers are editable and rows and columns can be
+   added; every change re-matches the rows. The upload
    itself is kept as sent; the corrected sheet exports as TSV or XLSX
    (corrected cells filled green). A logsheet made from a digitized table is
    corrected in the transcription. Then, under "Select what's

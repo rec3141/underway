@@ -283,7 +283,7 @@ function addSheets(first, sheets) {
 }
 // Match a logsheet's rows again; the operations it brings in follow (if it is ticked).
 async function matchLog(lg) {
-  const m = await api("api/logsheet/match", { id: lg.id, sheet: lg.sheet, roles: lg.roles, leg: R.leg, groups: R.selection.groups });
+  const m = await api("api/logsheet/match", { id: lg.id, sheet: lg.sheet, roles: lg.roles, local: !!lg.local, leg: R.leg, groups: R.selection.groups });
   LOGS[logKey(lg)] = { name: lg.name, match: m };
   renderLogs(); selectionUpdated();
   for (const x of addSheets(lg, m.sheets)) matchLog(x).catch((e) => toast(`${x.name}: ${e.message}`, true));
@@ -312,7 +312,9 @@ function renderLogs() {
       const m = LOGS[logKey(lg)]?.match;
       if (parts.length > 1) card.append(h("h3", {}, lg.sheet, " ", m ? h("span", { class: "pill" }, `${m.matched} of ${m.total} rows matched`) : "",
         lg.use === false ? h("span", { class: "hint" }, " · not ticked under Your logs") : ""));
-      card.append(h("p", { class: "hint" }, "Under each column name, say what it holds (a guess until you change it); the rows are matched again."));
+      const src = lg.source?.digitized ? lg.source : null;
+      card.append(h("div", { class: "row" }, h("span", { class: "hint" }, "Under each column name, say what it holds (a guess until you change it); the rows are matched again."), " ",
+        timeToggle(lg.local, (on) => src ? setDigLocal(src.digitized, src.table, on) : (lg.local = on, persist(), matchLog(lg)))));
       if (m) card.append(...logTable(lg, m));
     }
     box.append(card);
@@ -630,6 +632,22 @@ function roleSelect(col, roles, change) {
     h("option", { value: "" }, "—"),
     ...Object.entries(ROLE_LABELS).map(([r, label]) => h("option", { value: r, selected: r === mine }, label)));
 }
+// Whether a table's dates and times are UTC or ship time.
+function timeToggle(local, change) {
+  return h("label", { class: "inline hint", title: "The times written in this table: UTC, or the ship's clock" }, "Times are ",
+    h("select", { class: "tz", onchange: (e) => change(e.target.value === "ship") },
+      h("option", { value: "utc", selected: !local }, "UTC"),
+      h("option", { value: "ship", selected: !!local }, `ship time (${INFO?.ship_tz || "local"})`)));
+}
+async function setDigLocal(id, k, local) {
+  try {
+    const { linked } = await api(`api/digitized/${id}/local`, { table: k, local });
+    if (DIG[id]?.tables?.[k]) DIG[id].tables[k].local = local;
+    await refreshMatches(id, k);
+    for (const lg of R.selection.logsheets.filter((x) => (linked || []).includes(x.id))) { lg.local = local; await matchLog(lg); }
+    persist();
+  } catch (e) { toast(`Not saved: ${e.message}`, true); }
+}
 const roleHead = () => h("th", { class: "role-head", title: "What each column holds" }, "holds →");
 // New roles for a transcribed table: its match column and the logs made from it follow.
 async function setDigRoles(id, k, roles) {
@@ -644,7 +662,8 @@ async function setDigRoles(id, k, roles) {
 // The "Matched to" cell of a transcribed table or a log. pick(key) saves a match
 // by hand: an operation key, NO_MATCH to leave the row unmatched whatever it
 // would match, or null to go back to the automatic match. Any match can be
-// replaced (✎: search for another) or removed (×); a match by hand is undone.
+// replaced (✎: search for another) or removed (×); × on a match by hand goes
+// back to the automatic one.
 const NO_MATCH = "none";
 function matchCell(td, r, text, pick, cellKey) {
   const search = () => opSearch((op) => pick(op.key), cellKey ? { "data-cell": cellKey } : {});
@@ -659,8 +678,6 @@ function matchCell(td, r, text, pick, cellKey) {
       }),
       hand ? btn("×", "Undo this match (back to the automatic one)", () => pick(null))
         : btn("×", "Remove this match", () => pick(NO_MATCH))));
-  } else if (r.how === "removed by hand") {
-    td.replaceChildren(search(), btn("↺", "Restore the automatic match", () => pick(null)));
   } else {
     td.replaceChildren(search());
   }
@@ -725,6 +742,7 @@ function renderDigitized() {
           digTable(doc, k),
           h("div", { class: "dig-tools" },
             h("span", { class: "pill match-count" }, ""),
+            timeToggle(t.local, (on) => setDigLocal(id, k, on)),
             h("button", { class: "ghost small", title: "Add an empty row at the bottom", onclick: () => growTable(id, k, "row") }, "+ row"),
             h("button", { class: "ghost small", title: "Add an empty column at the right (click its header to name it)", onclick: () => growTable(id, k, "col") }, "+ column"),
             h("a", { class: "button ghost small", href: `api/digitized/${id}/${k}.tsv`, download: "" }, "TSV"),
@@ -769,7 +787,7 @@ async function useAsLogsheet(id, k, fillDown) {
     const meta = await api(`api/digitized/${id}/logsheet`, { table: k, fill_down: fillDown });
     const sheet = Object.keys(meta.sheets)[0];
     R.selection.logsheets.push({ id: meta.id, name: meta.name, sheet, roles: meta.sheets[sheet].roles,
-      source: { digitized: id, table: k }, use: true });
+      source: { digitized: id, table: k }, use: true, local: !!meta.local });
     await matchLog(R.selection.logsheets.at(-1));
     toast(`${meta.name} is ticked under “Select what's yours”; the operations it matches are included.`);
   } catch (e) { toast(`Could not use the table: ${e.message}`, true); }

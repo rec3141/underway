@@ -34,5 +34,17 @@ STATE_DIR = _env("CRUISE_STATE_DIR", default=str(Path.home() / ".local/share/cru
 
 WORD_LIMIT = 3000
 
+
+def _ship_tz() -> str:
+    try:
+        from dashboard.config import LOCAL_TZ
+        return LOCAL_TZ
+    except ImportError:                       # run without the dashboard beside it
+        return "America/Toronto"
+
+
+# Ship time, for logs kept in it rather than UTC: the dashboard's LOCAL_TZ.
+SHIP_TZ = os.environ.get("CRUISE_SHIP_TZ") or _ship_tz()
+
 # Underway values are averaged over this many seconds either side of an event.
 UNDERWAY_HALF_WINDOW_S = 150

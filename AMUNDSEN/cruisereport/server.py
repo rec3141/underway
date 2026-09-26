@@ -8,7 +8,7 @@ Routes (all JSON unless noted):
     GET  /api/legs                         legs with an event log
     GET  /api/leg?leg=<leg>                instruments, operations, rosette teams, columns
     POST /api/logsheet?leg=<leg>           raw file body, X-Filename header: parse and guess
-    POST /api/logsheet/match               {id, sheet, roles, leg, groups}: rows matched to operations
+    POST /api/logsheet/match               {id, sheet, roles, leg, groups, local}: rows matched to operations
     POST /api/logsheet/<id>/edit           {sheet, row, col, text}: a participant's correction
     POST /api/logsheet/<id>/grow           {sheet, add: "row"|"col"}: an empty row or column
     POST /api/logsheet/<id>/setmatch       {sheet, row, op}: match a row by hand ("none": no match; null: automatic)
@@ -27,6 +27,7 @@ Routes (all JSON unless noted):
     POST /api/digitized/<id>/grow          {table, add: "row"|"col"}: an empty row or column
     POST /api/digitized/<id>/setmatch      {table, row, op}: match a row by hand ("none": no match; null: automatic)
     POST /api/digitized/<id>/roles         {table, roles}: what each column holds (null: the guesses)
+    POST /api/digitized/<id>/local         {table, local}: its times are ship time (true) or UTC
     POST /api/digitized/<id>/again         queue the stored photo again
     POST /api/digitized/<id>/match         {table, fill_down, leg, groups}: row -> operation, now
     GET  /api/drafts                       saved drafts
@@ -52,7 +53,7 @@ from urllib.parse import parse_qs, quote, urlparse
 import pandas as pd
 
 from . import activities, digitize, eventlog, logsheets, report, rosette, tables, underway_panels
-from .config import STATE_DIR, WORD_LIMIT
+from .config import SHIP_TZ, STATE_DIR, WORD_LIMIT
 
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).resolve().parent / "static"
@@ -80,6 +81,7 @@ def leg_info(leg: str) -> dict:
     order = activities.DISPLAY_ORDER
     return {
         "leg": leg,
+        "ship_tz": SHIP_TZ,
         "groups": [{"id": g, "label": activities.LABELS[g], "count": counts[g]}
                    for g in order if g in counts],
         "operations": ops,
@@ -212,11 +214,11 @@ class Handler(SimpleHTTPRequestHandler):
             "/api/docx": self._docx,
             "/api/digitize": lambda: self._digitize(q),
         }
-        m = re.fullmatch(r"/api/digitized/([0-9a-f]{12})/(edit|logsheet|match|again|setmatch|grow|roles)", u.path)
+        m = re.fullmatch(r"/api/digitized/([0-9a-f]{12})/(edit|logsheet|match|again|setmatch|grow|roles|local)", u.path)
         if m:
             fn = {"edit": self._dig_edit, "logsheet": self._dig_logsheet, "match": self._dig_match,
                   "again": self._dig_again, "setmatch": self._dig_setmatch, "grow": self._dig_grow,
-                  "roles": self._dig_roles}[m[2]]
+                  "roles": self._dig_roles, "local": self._dig_local}[m[2]]
             return self._guard(lambda: fn(m[1]))
         m = re.fullmatch(r"/api/logsheet/([0-9a-f]{12})/(edit|grow|setmatch)", u.path)
         if m:
@@ -273,6 +275,14 @@ class Handler(SimpleHTTPRequestHandler):
         digitize.set_roles(ident, k, a.get("roles"))
         self._json(200, {"linked": logsheets.made_from(ident, k)})
 
+    def _dig_local(self, ident):
+        """Whether a table's times are ship time; the logs made from it are named
+        so the page can set theirs the same."""
+        a = self._obj()
+        k = int(a["table"])
+        digitize.set_local(ident, k, bool(a.get("local")))
+        self._json(200, {"linked": logsheets.made_from(ident, k)})
+
     def _dig_again(self, ident):
         """Queue the stored photo again; its tables (corrections too) are replaced when done."""
         self._json(200, digitize.requeue(ident))
@@ -292,11 +302,13 @@ class Handler(SimpleHTTPRequestHandler):
         a = self._obj()
         k = int(a.get("table", 0))
         cols, rows = digitize.rows_for_logsheet(ident, k, bool(a.get("fill_down", True)))
-        roles = digitize.load(ident)["tables"][k].get("roles") or logsheets.guess_roles(
+        t = digitize.load(ident)["tables"][k]
+        roles = t.get("roles") or logsheets.guess_roles(
             pd.DataFrame([{c: v for c, v in r.items() if c != logsheets.HAND_COLUMN} for r in rows]))
-        matched = logsheets.match(rows, roles, a["leg"], a.get("groups"))
+        local = bool(t.get("local"))
+        matched = logsheets.match(rows, roles, a["leg"], a.get("groups"), local)
         ops = {o.key: o.summary() for o in eventlog.operations(a["leg"])}
-        self._json(200, {"roles": roles, "columns": [c for c in cols if c != logsheets.HAND_COLUMN], "rows": [
+        self._json(200, {"roles": roles, "local": local, "columns": [c for c in cols if c != logsheets.HAND_COLUMN], "rows": [
             {"op": r["_op"], "how": r["_how"],
              "label": " ".join(x for x in (ops.get(r["_op"], {}).get("station"),
                                            ops.get(r["_op"], {}).get("label")) if x) or None}
@@ -313,7 +325,7 @@ class Handler(SimpleHTTPRequestHandler):
         meta = logsheets.save_frames(name, {"transcribed": df},
                                      {"digitized": ident, "table": k, "fill_down": bool(a.get("fill_down", True))})
         chosen = doc["tables"][k].get("roles")
-        self._json(200, {"id": meta["id"], "name": meta["name"], "sheets": {
+        self._json(200, {"id": meta["id"], "name": meta["name"], "local": bool(doc["tables"][k].get("local")), "sheets": {
             s: {"columns": d["columns"], "roles": chosen or d["roles"], "n": len(d["rows"])}
             for s, d in meta["sheets"].items()}})
 
@@ -339,7 +351,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _match(self):
         a = self._obj()
-        m = logsheets.matched(a["id"], a["sheet"], a.get("roles") or {}, a["leg"], a.get("groups"))
+        m = logsheets.matched(a["id"], a["sheet"], a.get("roles") or {}, a["leg"], a.get("groups"),
+                              bool(a.get("local")))
         m["rows"] = [{"op": r["_op"], "how": r["_how"],
                       "cells": {k: r.get(k) for k in m["columns"]}} for r in m["rows"]]
         m["role_options"] = logsheets.ROLES

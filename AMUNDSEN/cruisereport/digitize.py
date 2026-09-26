@@ -306,6 +306,7 @@ def _work() -> None:
                 for t in doc.get("tables", []):
                     t.pop("manual", None)
                     t.pop("roles", None)
+                    t.pop("local", None)
                 _write(ident, _shape(doc))
         except Exception as e:                 # the page says why; the queue goes on
             with _lock:
@@ -432,6 +433,15 @@ def set_roles(ident: str, table: int, roles: dict[str, str] | None) -> dict:
             t.pop("roles", None)
         else:
             t["roles"] = {str(k): str(v) for k, v in roles.items() if v}
+        _write(ident, doc)
+    return doc
+
+
+def set_local(ident: str, table: int, local: bool) -> dict:
+    """Whether the table's dates and times are ship time (else UTC)."""
+    with _lock:
+        doc = load(ident)
+        doc["tables"][table]["local"] = bool(local)
         _write(ident, doc)
     return doc
 
