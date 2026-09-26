@@ -138,7 +138,7 @@ table.data td.num { text-align: right; }
 
 /* logbook digitization */
 .dig-queue { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
-.dig-thumb { width: 120px; border: 1px solid var(--line); border-radius: 6px; padding: 4px; background: var(--card-2); font-size: var(--t-xs); text-align: center; }
+.dig-thumb { width: 132px; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 6px; padding: 4px; background: var(--card-2); font-size: var(--t-xs); text-align: center; }
 .dig-thumb img { width: 100%; height: 140px; object-fit: contain; background: #fff; border-radius: 4px; transition: transform .2s; }
 .dig-thumb .row { justify-content: center; gap: 4px; margin-top: 4px; }
 .dig-legend { display: flex; align-items: center; gap: 2px; margin: 8px 0; font-size: var(--t-xs); color: var(--muted); }
@@ -175,3 +175,18 @@ dialog#lightbox[open] { display: flex; flex-direction: column; }
 .lb-body.zoom img { max-width: none; max-height: none; cursor: zoom-out; }
 .dig-thumb img, img.page-thumb { cursor: zoom-in; }
 img.page-thumb { height: 120px; width: auto; border-radius: 4px; background: #fff; border: 1px solid var(--line); }
+.dig-queue { position: sticky; top: 38px; z-index: 3; background: var(--bg); padding: 6px 0; overflow-x: auto; flex-wrap: nowrap; }
+.dig-thumb .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dig-thumb .err { color: var(--warn); font-size: var(--t-xs); max-height: 3em; overflow: hidden; }
+.dig-thumb.done img, .dig-thumb .st-done { cursor: pointer; }
+.st { display: inline-block; border-radius: 999px; padding: 0 6px; font-size: var(--t-xs); }
+.st-queued { background: var(--tag); color: var(--fg-2); }
+.st-working { background: var(--tag-amber); color: var(--fg); animation: st-pulse 1.6s ease-in-out infinite; }
+.st-failed { background: var(--warn); color: #fff; }
+.st-done { background: var(--ok-bg); color: var(--fg); }
+@keyframes st-pulse { 50% { opacity: .55; } }
+details.dig-page > summary { cursor: pointer; list-style: none; }
+details.dig-page > summary::-webkit-details-marker { display: none; }
+details.dig-page > summary::before { content: "▸"; margin-right: 4px; color: var(--muted); }
+details.dig-page[open] > summary::before { content: "▾"; }
+details.dig-page:not([open]) { padding-bottom: 8px; }

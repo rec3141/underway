@@ -13,14 +13,14 @@ Routes (all JSON unless noted):
     POST /api/table                        {report, index}: one table, formatted, first rows
     POST /api/figure                       {report, spec}: {images: [PNG data URLs]}
     POST /api/docx                         {report}: the .docx
-    POST /api/digitize?rotate=<deg>        raw photo body, X-Filename: transcribe a logbook page
+    POST /api/digitize?rotate=<deg>        raw photo body, X-Filename: queue a logbook page
     GET  /api/digitized/<id>               a transcription;  /image the photo
     POST /api/digitized/<id>/edit          {table, row, col, text}: a participant's correction
     GET  /api/digitized/<id>/<table>.tsv   one table as TSV
     GET  /api/digitized.xlsx?ids=a,b       every table as a sheet, confidence as fill
     POST /api/digitized/<id>/logsheet      {table, fill_down}: use a table as a logsheet
     POST /api/digitized/<id>/setmatch      {table, row, op}: match a row by hand (op null clears)
-    POST /api/digitized/<id>/again         transcribe the stored photo again
+    POST /api/digitized/<id>/again         queue the stored photo again
     POST /api/digitized/<id>/match         {table, fill_down, leg, groups}: row -> operation, now
     GET  /api/drafts                       saved drafts
     GET  /api/draft/<name>                 one draft
@@ -216,7 +216,7 @@ class Handler(SimpleHTTPRequestHandler):
     def _digitize(self, q):
         name = self.headers.get("X-Filename") or "logbook.jpg"
         jpeg = digitize.prepare(self._body(), int(q.get("rotate", 0) or 0))
-        self._json(200, digitize.save(name, jpeg, digitize.transcribe_page(jpeg)))
+        self._json(200, digitize.submit(name, jpeg))
 
     def _dig_setmatch(self, ident):
         """Match one row by hand (op null clears it); logsheets from the table follow."""
@@ -230,10 +230,8 @@ class Handler(SimpleHTTPRequestHandler):
         self._json(200, {"linked": logsheets.refresh_digitized(ident, k, frame)})
 
     def _dig_again(self, ident):
-        """Transcribe the stored photo again, replacing the page's tables (corrections too)."""
-        doc = digitize.load(ident)
-        jpeg = digitize.image(ident)
-        self._json(200, digitize.save(doc["name"], jpeg, digitize.transcribe_page(jpeg), ident))
+        """Queue the stored photo again; its tables (corrections too) are replaced when done."""
+        self._json(200, digitize.requeue(ident))
 
     def _dig_edit(self, ident):
         """Save a correction, then rewrite the logsheets made from that table."""
@@ -334,6 +332,7 @@ def _clean(obj):
 
 
 def serve(port: int = 8044, bind: str = "0.0.0.0") -> None:
+    digitize.start()
     httpd = ThreadingHTTPServer((bind, port), Handler)
     log.info("cruise report on http://%s:%d/report.html", bind, port)
     httpd.serve_forever()

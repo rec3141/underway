@@ -70,3 +70,37 @@ def test_digitize_levels_and_ditto(tmp_path, monkeypatch):
     assert rows[2]["CAST"] == ""                                          # a row of its own
     digitize.edit(doc["id"], 0, 2, 1, "080")
     assert digitize.load(doc["id"])["tables"][0]["rows"][2][1] == {"t": "080", "c": 3, "edited": True}
+
+
+def test_digitize_queue_runs_fails_and_resumes(tmp_path, monkeypatch):
+    from cruisereport import digitize
+
+    monkeypatch.setattr(digitize, "STATE_DIR", tmp_path)
+    monkeypatch.setattr(digitize, "_workers", [])
+    monkeypatch.setattr(digitize, "_jobs", digitize.queue.Queue())
+    answers = {"good.jpg": {"tables": [{"title": "t", "columns": ["A"], "rows": [[{"t": "1", "c": "likely"}]]}],
+                            "notes": [], "model": "m", "usage": {}, "seconds": 1}}
+
+    def fake(jpeg):
+        name = jpeg.decode()
+        if name not in answers:
+            raise RuntimeError("model unavailable")
+        return answers[name]
+    monkeypatch.setattr(digitize, "transcribe_page", fake)
+
+    # A page left "working" by a restart is taken up again on start.
+    stale = digitize.submit("good.jpg", b"good.jpg")
+    doc = digitize.load(stale["id"])
+    doc["status"] = "working"
+    digitize._write(stale["id"], doc)
+    digitize._jobs = digitize.queue.Queue()          # the restart's empty in-memory queue
+
+    digitize.start(workers=1)
+    good = digitize.submit("good.jpg", b"good.jpg")
+    bad = digitize.submit("bad.jpg", b"bad.jpg")
+    digitize._jobs.join()
+    assert digitize.load(stale["id"])["status"] == "done"
+    done = digitize.load(good["id"])
+    assert done["status"] == "done" and done["tables"][0]["rows"][0][0] == {"t": "1", "c": 1}
+    failed = digitize.load(bad["id"])
+    assert failed["status"] == "failed" and "model unavailable" in failed["error"]

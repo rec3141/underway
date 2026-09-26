@@ -196,6 +196,8 @@ def transcribe_page(jpeg: bytes) -> dict:
 # the model's.
 
 import colorsys  # noqa: E402
+import queue  # noqa: E402
+import threading  # noqa: E402
 import uuid  # noqa: E402
 
 from openpyxl import Workbook  # noqa: E402
@@ -220,23 +222,119 @@ def _path(ident: str, ext: str) -> Path:
     return _dir() / f"{ident}.{ext}"
 
 
-def save(name: str, jpeg: bytes, result: dict, ident: str | None = None) -> dict:
-    """Store a transcription; with ``ident``, replace that page's (same photo)."""
-    if ident is None:
-        ident = uuid.uuid4().hex[:12]
-        _path(ident, "jpg").write_bytes(jpeg)
-    else:
-        _path(ident, "json")                      # validates the id
-    doc = {"id": ident, "name": re.sub(r"[^\w.\- ]+", "_", Path(name).name)[:120],
-           "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **result}
+def _write(ident: str, doc: dict) -> None:
+    """Replace a page's record in one step, so a reader never sees half of it."""
+    tmp = _path(ident, "json").with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False))
+    tmp.replace(_path(ident, "json"))
+
+
+def _shape(doc: dict) -> dict:
+    """Every row as wide as its table, every cell a {"t", "c"} pair."""
     _levels(doc)
-    for t in doc["tables"]:
+    for t in doc.get("tables", []):
         width = max([len(t["columns"])] + [len(r) for r in t["rows"]])
         t["columns"] = (t["columns"] + [""] * width)[:width]
         t["rows"] = [(r + [{"t": "", "c": EDITED}] * width)[:width] for r in t["rows"]]
-    _levels(doc)
-    _path(ident, "json").write_text(json.dumps(doc, ensure_ascii=False))
+    return _levels(doc)
+
+
+def _safe_name(name: str) -> str:
+    return re.sub(r"[^\w.\- ]+", "_", Path(name).name)[:120]
+
+
+def save(name: str, jpeg: bytes, result: dict) -> dict:
+    """Store a finished transcription of a new photo (without the queue)."""
+    ident = uuid.uuid4().hex[:12]
+    _path(ident, "jpg").write_bytes(jpeg)
+    doc = _shape({"id": ident, "name": _safe_name(name), "status": "done",
+                  "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **result})
+    _write(ident, doc)
     return doc
+
+
+# --- the transcription queue --------------------------------------------------------
+#
+# A submitted photo is stored at once with status "queued" and transcribed by
+# one of WORKERS background threads ("working", then "done" or "failed" with
+# the error). The queue lives on disk: closing the page loses nothing, and on
+# start the server takes up every page still queued or working.
+
+WORKERS = 2
+_jobs: queue.Queue = queue.Queue()
+_lock = threading.Lock()              # one read-modify-write of a page record at a time
+_workers: list[threading.Thread] = []
+
+
+def submit(name: str, jpeg: bytes) -> dict:
+    ident = uuid.uuid4().hex[:12]
+    _path(ident, "jpg").write_bytes(jpeg)
+    doc = {"id": ident, "name": _safe_name(name), "status": "queued", "tables": [], "notes": [],
+           "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    _write(ident, doc)
+    _jobs.put(ident)
+    return doc
+
+
+def requeue(ident: str) -> dict:
+    """Transcribe a page's photo again; its tables (and corrections) are replaced when done."""
+    with _lock:
+        doc = load(ident)
+        doc["status"] = "queued"
+        doc.pop("error", None)
+        _write(ident, doc)
+    _jobs.put(ident)
+    return doc
+
+
+def _work() -> None:
+    while True:
+        ident = _jobs.get()
+        try:
+            with _lock:
+                doc = load(ident)
+                if doc.get("status") != "queued":
+                    continue                  # removed, or already taken
+                doc.update(status="working", started=time.time())
+                _write(ident, doc)
+            result = transcribe_page(image(ident))
+            with _lock:
+                doc = load(ident)
+                for k in ("error", "fallback_reason", "model", "usage", "seconds"):
+                    doc.pop(k, None)
+                doc.update(result, status="done")
+                for t in doc.get("tables", []):
+                    t.pop("manual", None)
+                _write(ident, _shape(doc))
+        except Exception as e:                 # the page says why; the queue goes on
+            with _lock:
+                try:
+                    doc = load(ident)
+                    doc.update(status="failed", error=str(e)[:300])
+                    _write(ident, doc)
+                except (OSError, ValueError):
+                    pass
+        finally:
+            _jobs.task_done()
+
+
+def start(workers: int = WORKERS) -> None:
+    """Start the workers and take up the pages left queued or working."""
+    if _workers:
+        return
+    for p in sorted(_dir().glob("*.json"), key=lambda p: p.stat().st_mtime):
+        try:
+            doc = json.loads(p.read_text())
+        except ValueError:
+            continue
+        if doc.get("status") in ("queued", "working"):
+            doc["status"] = "queued"
+            _write(doc["id"], doc)
+            _jobs.put(doc["id"])
+    for _ in range(workers):
+        t = threading.Thread(target=_work, name="digitize", daemon=True)
+        t.start()
+        _workers.append(t)
 
 
 def level(c) -> int:
@@ -272,7 +370,9 @@ def _levels(doc: dict) -> dict:
 
 
 def load(ident: str) -> dict:
-    return _levels(json.loads(_path(ident, "json").read_text()))
+    doc = _levels(json.loads(_path(ident, "json").read_text()))
+    doc.setdefault("status", "done")           # pages stored before the queue
+    return doc
 
 
 def image(ident: str) -> bytes:
@@ -281,13 +381,14 @@ def image(ident: str) -> bytes:
 
 def edit(ident: str, table: int, row: int, col: int, text: str) -> dict:
     """A participant's correction of one cell (row -1 is the header)."""
-    doc = load(ident)
-    t = doc["tables"][table]
-    if row < 0:
-        t["columns"][col] = text
-    else:
-        t["rows"][row][col] = {"t": text, "c": EDITED, "edited": True}
-    _path(ident, "json").write_text(json.dumps(doc, ensure_ascii=False))
+    with _lock:
+        doc = load(ident)
+        t = doc["tables"][table]
+        if row < 0:
+            t["columns"][col] = text
+        else:
+            t["rows"][row][col] = {"t": text, "c": EDITED, "edited": True}
+        _write(ident, doc)
     return doc
 
 
@@ -296,13 +397,14 @@ HUES = {3: 120, 2: 90, 1: 58, 0: 30, -1: 0}
 
 def set_match(ident: str, table: int, row: int, op_key: str | None) -> dict:
     """A participant's own match for one row (None clears it)."""
-    doc = load(ident)
-    manual = doc["tables"][table].setdefault("manual", {})
-    if op_key:
-        manual[str(row)] = op_key
-    else:
-        manual.pop(str(row), None)
-    _path(ident, "json").write_text(json.dumps(doc, ensure_ascii=False))
+    with _lock:
+        doc = load(ident)
+        manual = doc["tables"][table].setdefault("manual", {})
+        if op_key:
+            manual[str(row)] = op_key
+        else:
+            manual.pop(str(row), None)
+        _write(ident, doc)
     return doc
 
 
@@ -342,6 +444,8 @@ def xlsx(idents: list[str]) -> bytes:
     bold = Font(bold=True)
     for ident in idents:
         doc = load(ident)
+        if doc.get("status") != "done":
+            continue
         for k, t in enumerate(doc["tables"]):
             ws = wb.create_sheet(_sheet_title(t.get("title") or f"{doc['name']} {k + 1}", used))
             ws.append(t["columns"])

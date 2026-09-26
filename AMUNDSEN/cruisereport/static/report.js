@@ -278,39 +278,124 @@ function openPhoto(src, title, rotate = 0) {
   dlg.showModal();
 }
 
-function renderQueue() {
-  $("#dig-queue").replaceChildren(...digQueue.map((q, i) => h("div", { class: "dig-thumb" },
-    h("img", { src: q.url, alt: q.file.name, style: `transform: rotate(${q.rotate}deg)`, title: "Click to preview",
-      onclick: () => openPhoto(q.url, q.file.name, q.rotate) }),
-    h("div", {}, q.file.name.slice(0, 22)),
-    h("div", { class: "row" },
-      h("button", { class: "ghost small", title: "Rotate a quarter turn", onclick: () => { q.rotate = (q.rotate + 90) % 360; renderQueue(); } }, "↻"),
-      h("button", { class: "danger small", title: "Remove", onclick: () => { URL.revokeObjectURL(q.url); digQueue.splice(i, 1); renderQueue(); } }, "×")))));
-  $("#dig-actions").hidden = !digQueue.length;
+// Collapsed or open, per transcribed page; a convenience kept in this browser.
+const DIG_OPEN_KEY = "cr:dig-open";
+let digOpen = {};
+try { digOpen = JSON.parse(localStorage.getItem(DIG_OPEN_KEY)) || {}; } catch (e) { digOpen = {}; }
+function saveDigOpen() { try { localStorage.setItem(DIG_OPEN_KEY, JSON.stringify(digOpen)); } catch (e) { /* private mode */ } }
+
+const clock = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+function pageStats(doc) {
+  const rows = doc.tables.reduce((a, t) => a + t.rows.length, 0);
+  const check = doc.tables.reduce((a, t) => a + t.rows.flat().filter((c) => !c.edited && c.c <= 1).length, 0);
+  return { rows, check };
 }
 
-async function transcribeQueue(btn) {
-  btn.disabled = true;
-  const total = digQueue.length;
-  let n = 0;
-  while (digQueue.length) {
-    const q = digQueue[0];
-    n += 1;
-    $("#dig-status").textContent = `Transcribing ${n} of ${total}: ${q.file.name} … (about 30 s to 2 min a page)`;
+// Every photo, with its state: those not yet sent first, then the pages on the
+// server (queued, transcribing, failed or done) in the order of the results below.
+function renderStrip() {
+  const local = digQueue.map((q, i) => {
+    const label = q.status === "uploading" ? h("span", { class: "st st-working" }, "sending…")
+      : q.status === "failed" ? h("span", { class: "st st-failed", title: q.error || "" }, "not sent")
+      : h("span", { class: "st st-queued" }, "ready");
+    const tools = q.status === "uploading" ? [] : [
+      q.status === "failed" ? h("button", { class: "ghost small", title: "Send this photo again", onclick: () => { q.status = "ready"; q.error = ""; renderStrip(); transcribeQueue(); } }, "retry")
+        : h("button", { class: "ghost small", title: "Rotate a quarter turn", onclick: () => { q.rotate = (q.rotate + 90) % 360; renderStrip(); } }, "↻"),
+      h("button", { class: "danger small", title: "Remove", onclick: () => { URL.revokeObjectURL(q.url); digQueue.splice(i, 1); renderStrip(); } }, "×")];
+    return h("div", { class: `dig-thumb ${q.status}` },
+      h("img", { src: q.url, alt: q.file.name, style: `transform: rotate(${q.rotate}deg)`, title: "Click to preview",
+        onclick: () => openPhoto(q.url, q.file.name, q.rotate) }),
+      h("div", { class: "name" }, q.file.name), label,
+      q.status === "failed" && q.error ? h("div", { class: "err" }, q.error) : null,
+      h("div", { class: "row" }, ...tools));
+  });
+  const server = R.digitized.filter((id) => DIG[id]).map((id) => {
+    const doc = DIG[id], img = `api/digitized/${id}/image`;
+    const preview = h("button", { class: "ghost small", title: "Preview the photo", onclick: () => openPhoto(img, doc.name) }, "🔍");
+    const remove = h("button", { class: "danger small", title: "Remove from this report", onclick: () => { R.digitized = R.digitized.filter((x) => x !== id); persist(); renderDigitized(); } }, "×");
+    if (doc.status === "done") {
+      const st = pageStats(doc);
+      return h("div", { class: "dig-thumb done", title: "Show this page's tables" },
+        h("img", { src: img, alt: doc.name, loading: "lazy", onclick: () => goToPage(id) }),
+        h("div", { class: "name" }, doc.name),
+        h("span", { class: "st st-done", onclick: () => goToPage(id) }, `done · ${st.rows} rows${st.check ? ` · ${st.check} to check` : ""}`),
+        h("div", { class: "row" }, h("button", { class: "ghost small", title: "Show the tables", onclick: () => goToPage(id) }, "results ↓"), preview));
+    }
+    const label = doc.status === "working"
+      ? h("span", { class: "st st-working", "data-started": Math.round((doc.started || Date.now() / 1000) * 1000) }, "transcribing")
+      : doc.status === "failed" ? h("span", { class: "st st-failed", title: doc.error || "" }, "failed")
+      : h("span", { class: "st st-queued" }, "queued");
+    return h("div", { class: `dig-thumb ${doc.status}` },
+      h("img", { src: img, alt: doc.name, loading: "lazy", onclick: () => openPhoto(img, doc.name) }),
+      h("div", { class: "name" }, doc.name), label,
+      doc.status === "failed" && doc.error ? h("div", { class: "err" }, doc.error) : null,
+      h("div", { class: "row" },
+        doc.status === "failed" ? h("button", { class: "ghost small", title: "Transcribe this photo again",
+          onclick: async () => { try { DIG[id] = await api(`api/digitized/${id}/again`, {}); renderStrip(); pollDigitized(); } catch (e) { toast(e.message, true); } } }, "retry") : null,
+        preview, remove));
+  });
+  $("#dig-queue").replaceChildren(...local, ...server);
+  $("#dig-actions").hidden = !digQueue.some((q) => q.status === "ready");
+  tickClocks();
+}
+function tickClocks() {
+  for (const el of document.querySelectorAll("#dig-queue [data-started]")) el.textContent = `transcribing ${clock(Date.now() - +el.dataset.started)}`;
+}
+setInterval(tickClocks, 1000);
+
+function goToPage(id) {
+  const el = document.getElementById(`dig-${id}`);
+  if (!el) return;
+  el.open = true;
+  digOpen[id] = true; saveDigOpen();
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Sending is quick; the server transcribes in the background, two pages at a time.
+let digSending = false;
+async function transcribeQueue() {
+  if (digSending) return;
+  digSending = true;
+  $("#dig-go").disabled = true;
+  let q;
+  while ((q = digQueue.find((x) => x.status === "ready"))) {
+    q.status = "uploading"; renderStrip();
     try {
       const doc = await api(`api/digitize?rotate=${q.rotate}`, await q.file.arrayBuffer(),
         { raw: true, headers: { "X-Filename": q.file.name, "Content-Type": "application/octet-stream" } });
       DIG[doc.id] = doc;
       R.digitized.unshift(doc.id);                // newest page on top
+      digOpen[doc.id] = true; saveDigOpen();
+      URL.revokeObjectURL(q.url);
+      digQueue.splice(digQueue.indexOf(q), 1);
       persist();
-      renderDigitized();
-    } catch (e) { toast(`${q.file.name}: ${e.message}`, true); }
-    URL.revokeObjectURL(q.url);
-    digQueue.shift();
-    renderQueue();
+    } catch (e) {
+      q.status = "failed"; q.error = e.message;
+    }
+    renderStrip();
   }
-  $("#dig-status").textContent = "";
-  btn.disabled = false;
+  $("#dig-go").disabled = false;
+  digSending = false;
+  pollDigitized();
+}
+
+// While any page is queued or being transcribed, ask the server every few seconds.
+let digPoll = null;
+function pollDigitized() {
+  if (digPoll) return;
+  digPoll = setInterval(async () => {
+    const pending = R.digitized.filter((id) => ["queued", "working"].includes(DIG[id]?.status));
+    if (!pending.length) { clearInterval(digPoll); digPoll = null; return; }
+    let finished = false;
+    for (const id of pending) {
+      try {
+        const doc = await api(`api/digitized/${id}`);
+        if (doc.status === "done" && DIG[id]?.status !== "done") finished = true;
+        DIG[id] = doc;
+      } catch (e) { /* ask again next time */ }
+    }
+    if (finished) renderDigitized(); else renderStrip();
+  }, 3000);
 }
 
 function digTable(doc, k) {
@@ -330,6 +415,7 @@ function digTable(doc, k) {
         c.t = text; c.c = 3; c.edited = true;
         el.style.background = tag === "td" ? confColour(3) : ""; el.classList.add("edited"); el.title = "corrected by hand";
         refreshMatches(doc.id, k);
+        renderStrip();
         // A logsheet made from this table was rewritten on the server: match it again.
         for (const lg of R.selection.logsheets.filter((x) => (linked || []).includes(x.id))) await matchLog(lg);
       } catch (e) { toast(`Not saved: ${e.message}`, true); el.textContent = c.t; }
@@ -401,24 +487,25 @@ async function refreshMatches(id, k) {
 
 function renderDigitized() {
   const box = $("#dig-results");
-  const ids = R.digitized.filter((id) => DIG[id]);
+  const ids = R.digitized.filter((id) => DIG[id]?.status === "done");
   box.replaceChildren(...ids.map((id) => {
     const doc = DIG[id];
     const cells = doc.tables.reduce((a, t) => a + t.rows.length * t.columns.length, 0);
     const low = doc.tables.reduce((a, t) => a + t.rows.flat().filter((c) => !c.edited && c.c <= 1).length, 0);
     const photo = h("img", { class: "page-thumb", src: `api/digitized/${id}/image`, alt: doc.name, loading: "lazy",
       title: "Click to preview the photo", onclick: () => openPhoto(`api/digitized/${id}/image`, doc.name) });
-    return h("div", { class: "dig-page" },
-      h("div", { class: "row" },
+    const stop = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(e); };   // buttons in the header do not fold it
+    const page = h("details", { class: "dig-page", id: `dig-${id}`, open: digOpen[id] === true },
+      h("summary", { class: "row" },
         h("b", {}, doc.name),
         h("span", { class: "hint" }, `${doc.tables.length} table${doc.tables.length === 1 ? "" : "s"}, ${cells} cells, ${low} to check (likely or less) · ${doc.model}${doc.fallback_reason ? " (fallback)" : ""} · ${doc.seconds}s${doc.usage?.cost != null ? ` · US$${doc.usage.cost.toFixed(3)}` : ""}`),
-        h("button", { class: "ghost small", title: "Send the same photo to the model again; replaces this page's tables and corrections",
-          onclick: async (e) => {
-            const b = e.target; b.disabled = true; b.textContent = "Transcribing… (30 s to 2 min)";
-            try { DIG[id] = await api(`api/digitized/${id}/again`, {}); renderDigitized(); }
-            catch (err) { toast(`Could not transcribe again: ${err.message}`, true); b.disabled = false; b.textContent = "Transcribe again"; }
-          } }, "Transcribe again"),
-        h("button", { class: "danger small", onclick: () => { R.digitized = R.digitized.filter((x) => x !== id); persist(); renderDigitized(); } }, "Remove")),
+        h("span", { class: "row" },
+          h("button", { class: "ghost small", title: "Send the same photo to the model again; replaces this page's tables and corrections",
+            onclick: stop(async () => {
+              try { DIG[id] = await api(`api/digitized/${id}/again`, {}); renderDigitized(); pollDigitized(); }
+              catch (err) { toast(`Could not transcribe again: ${err.message}`, true); }
+            }) }, "Transcribe again"),
+          h("button", { class: "danger small", onclick: stop(() => { R.digitized = R.digitized.filter((x) => x !== id); persist(); renderDigitized(); }) }, "Remove"))),
       h("div", { class: "dig-tools" }, photo,
         h("a", { class: "button ghost small xlsx-all", href: `api/digitized.xlsx?ids=${ids.join(",")}`, download: "logbook_transcription.xlsx",
           title: `Every table from all ${ids.length} transcribed page${ids.length === 1 ? "" : "s"}, a sheet each, coloured by confidence` }, "Download all sheets (.xlsx)")),
@@ -436,6 +523,8 @@ function renderDigitized() {
       }),
       doc.notes?.length ? h("div", {}, h("span", { class: "hint" }, "Notes outside the tables:"),
         h("ul", { class: "dig-notes" }, ...doc.notes.map((n) => h("li", { style: `background:${confColour(n.c)}`, title: confText(n.c) }, n.t)))) : null);
+    page.addEventListener("toggle", () => { digOpen[id] = page.open; saveDigOpen(); });
+    return page;
   }));
   for (const id of ids) DIG[id].tables.forEach((_, k) => refreshMatches(id, k));
   const x = $("#dig-xlsx");
@@ -443,6 +532,7 @@ function renderDigitized() {
   x.href = `api/digitized.xlsx?ids=${ids.join(",")}`;
   x.setAttribute("download", "logbook_transcription.xlsx");
   $("#dig-count").textContent = ids.length ? `${ids.length} page${ids.length === 1 ? "" : "s"}` : "";
+  renderStrip();
 }
 
 async function useAsLogsheet(id, k, fillDown) {
@@ -464,6 +554,7 @@ async function loadDigitized() {
     try { DIG[id] = await api(`api/digitized/${id}`); } catch (e) { /* removed on the server */ }
   }
   renderDigitized();
+  pollDigitized();
 }
 
 // --- 3 · conditions ---------------------------------------------------------------
@@ -719,10 +810,10 @@ async function init() {
   $("#ops-none").addEventListener("click", () => { const off = new Set($$("#ops input[data-key]").map((i) => i.dataset.key)); R.selection.ops = R.selection.ops.filter((k) => !off.has(k)); renderOps(); persist(); selectionChanged(); });
   $("#log-file").addEventListener("change", (e) => { for (const f of e.target.files) uploadLog(f); e.target.value = ""; });
   $("#dig-file").addEventListener("change", (e) => {
-    for (const f of e.target.files) digQueue.push({ file: f, rotate: 0, url: URL.createObjectURL(f) });
-    e.target.value = ""; renderQueue();
+    for (const f of e.target.files) digQueue.push({ file: f, rotate: 0, url: URL.createObjectURL(f), status: "ready" });
+    e.target.value = ""; renderStrip();
   });
-  $("#dig-go").addEventListener("click", (e) => transcribeQueue(e.target));
+  $("#dig-go").addEventListener("click", () => transcribeQueue());
   const lb = $("#lightbox");
   $("#lb-close").addEventListener("click", () => lb.close());
   lb.addEventListener("click", (e) => { if (e.target === lb) lb.close(); });          // the backdrop
