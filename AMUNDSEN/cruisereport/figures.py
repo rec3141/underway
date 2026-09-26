@@ -404,12 +404,12 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
     chosen = data["panels"]
     if not chosen:
         return _empty("None of the chosen panels is available.")
-    fig, axes = plt.subplots(len(chosen), 1, figsize=(6.3, 1.05 * len(chosen) + 0.5), sharex=True,
-                             squeeze=False)
+    ice_legend = any(pn["id"] == "Camera · ice composition" for pn in chosen)
+    height = 1.2 * len(chosen) + 0.5 + (0.35 if ice_legend else 0)
+    fig, axes = plt.subplots(len(chosen), 1, figsize=(6.3, height), sharex=True, squeeze=False)
     axes = axes[:, 0]
     starts = sorted({pd.Timestamp(r["start_utc"]) for r in rows})
     cam = data["camera"]
-    last_group = None
     for ax, pn in zip(axes, chosen):
         src = data[pn["source"]] if pn["source"] != "camera" else None
         if pn["id"] == "Camera · concentration":
@@ -431,8 +431,6 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
                 ax.stackplot(hourly.index, *[hourly[k].fillna(0) for k in UP.ICE_TYPES],
                              colors=ICE_PALETTE, labels=UP.ICE_TYPES, linewidth=0)
                 ax.set_ylim(0, 100)
-                ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=6, frameon=False,
-                          handlelength=1.0)
         elif src is None or src.empty or pn["id"] not in src:
             ax.text(0.5, 0.5, "not recorded over this period", transform=ax.transAxes, ha="center",
                     va="center", color=INK2, fontsize=7)
@@ -449,20 +447,32 @@ def underway_series(leg: str, rows: list[dict], panels: list[str] | None = None)
                 ax.invert_yaxis()
         for s in starts:
             ax.axvline(s, color=GRID, lw=0.6, zorder=0)
-        label = pn["label"] + (" · hourly" if pn["source"] == "hourly" else "")
-        ax.set_ylabel(label, rotation=0, ha="right", va="center", fontsize=7)
+        # The panel's name goes in its title after the group; the y axis keeps only the unit.
+        # Words the group already says ("Surprise · 1 h", "(camera)") are dropped from the name.
+        unit = pn["unit"] or ("−log10 p" if pn["group"] == "Surprise" else "")
+        name = pn["label"].removesuffix(f" ({unit})").removesuffix(" (camera)")
+        name = name.removeprefix(pn["group"]).removeprefix(" · ").strip()
+        name += (" · hourly" if name else "hourly") if pn["source"] == "hourly" else ""
+        ax.set_title(f"{pn['group']} – {name}" if name else pn["group"], loc="left", fontsize=7.5,
+                     fontweight="bold", color=INK, pad=3)
+        ax.set_ylabel(unit, rotation=0, ha="right", va="center", fontsize=7)
         ax.grid(True, axis="y", color=GRID, lw=0.4)
         ax.tick_params(labelsize=6.5)
-        if pn["group"] != last_group:
-            ax.set_title(pn["group"], loc="left", fontsize=7.5, fontweight="bold", color=INK, pad=3)
-            last_group = pn["group"]
     axes[-1].set_xlim(t0, t1)
     loc = matplotlib.dates.AutoDateLocator(minticks=4, maxticks=8)
     axes[-1].xaxis.set_major_locator(loc)
     axes[-1].xaxis.set_major_formatter(matplotlib.dates.ConciseDateFormatter(loc))
     axes[-1].set_xlabel("UTC", fontsize=7, color=INK2)
     fig.align_ylabels(axes)
-    fig.tight_layout(h_pad=0.4)
+    if ice_legend:
+        # Below the panels, so the ice types do not narrow every axis.
+        fig.legend(*next(ax for ax, pn in zip(axes, chosen)
+                         if pn["id"] == "Camera · ice composition").get_legend_handles_labels(),
+                   loc="lower center", ncol=len(UP.ICE_TYPES), fontsize=6, frameon=False,
+                   handlelength=1.0, columnspacing=1.2)
+        fig.tight_layout(h_pad=0.4, rect=(0, 0.22 / height, 1, 1))
+    else:
+        fig.tight_layout(h_pad=0.4)
     return _png(fig)
 
 

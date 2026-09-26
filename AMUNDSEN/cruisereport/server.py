@@ -51,7 +51,6 @@ from .config import STATE_DIR, WORD_LIMIT
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).resolve().parent / "static"
 MAX_UPLOAD = 25 * 1024 * 1024
-PREVIEW_ROWS = 60
 
 
 def _drafts() -> Path:
@@ -314,7 +313,7 @@ class Handler(SimpleHTTPRequestHandler):
         tab = tables.build(rep["leg"], spec, sel.get("ops", []), sel.get("teams", []), logs,
                            report.logged_bottles(rep, logs))
         body = [[tables.fmt(v, c) for v, c in zip(r, tab["columns"])]
-                for r in tab["body"][:PREVIEW_ROWS]]
+                for r in tab["body"]]
         self._json(200, {"columns": tab["columns"], "body": body, "total": len(tab["body"])})
 
     def _figure(self):

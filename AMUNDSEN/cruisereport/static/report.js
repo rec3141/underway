@@ -678,7 +678,7 @@ function colGroups(t) {
     groups.push(["Drawn by team (L)", R.selection.teams.map((x) => ({ id: `draw.${x}`, label: x }))]);
   }
   if (t.rows === "logs") {
-    groups.push(["Your logs · by role", c.logrole || []]);
+    groups.push(["Your logs · inferred", c.logrole || []]);
     groups.push(["Your logs · columns (rows with it)", logHeaders().map(([key, name, n]) => ({ id: `log.${name}`, label: `${name} (${n})` }))]);
   }
   return groups;
@@ -752,8 +752,8 @@ async function previewTable(i, card) {
   out.replaceChildren(h("p", { class: "hint" }, "Building…"));
   try {
     const t = await api("api/table", { report: R, index: i });
-    out.replaceChildren(h("p", { class: "hint" }, `${t.total} rows${t.total > t.body.length ? `, first ${t.body.length} shown` : ""}.`),
-      h("div", { class: "scroll", style: "max-height:320px" }, h("table", { class: "data" },
+    out.replaceChildren(h("p", { class: "hint" }, `${t.total} rows.`),
+      h("div", { class: "scroll", style: "max-height:70vh" }, h("table", { class: "data" },
         h("thead", {}, h("tr", {}, ...t.columns.map((c) => h("th", {}, c.label + (c.unit ? ` (${c.unit})` : ""))))),
         h("tbody", {}, ...t.body.map((r) => h("tr", {}, ...r.map((v) => h("td", {}, v))))))));
   } catch (e) { out.replaceChildren(h("p", { class: "hint" }, e.message)); }
