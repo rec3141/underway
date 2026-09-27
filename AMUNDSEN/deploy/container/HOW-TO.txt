@@ -5,20 +5,31 @@ What it is: the web page that shows the ship's underway data, CTD casts, map,
 cameras, schedule, wiki and games. One computer on the ship runs it; everyone
 else just opens it in a browser.
 
+WHERE TO FIND IT: this folder is on the ship's file server at
+\\10.0.0.10\Share\Software\underway-<version>  (a copy may also be on a USB drive).
+
 1. ONCE: INSTALL DOCKER on the computer that will run it
+   - Windows or Mac: install "Docker Desktop" and start it. The Windows
+     installer is next to this folder: \\10.0.0.10\Share\Software\Docker Desktop Installer.exe
    - Linux:   ask for "docker" and "docker compose" to be installed
               (Ubuntu: sudo apt install docker.io docker-compose-v2)
-   - Windows or Mac: install "Docker Desktop" from docker.com and start it.
-   The computer must be on the ship's wired network (10.0.0.x).
+   The computer must be on the ship's wired network (10.0.0.x) and stay on.
 
-2. START IT
-   - Linux/Mac: open this folder and run   ./start.sh
+2. ONCE: COPY THIS WHOLE FOLDER ONTO THE COMPUTER
+   Copy the folder (about 40 GB, it takes a while) onto the computer's own disk,
+   for example C:\underway on Windows or your home folder on Linux/Mac.
+   It must run from that copy, not from the file server or a USB drive: it
+   writes to its "data" folder all the time. The start scripts refuse to run
+   from a drive or share and say so.
+
+3. START IT  (from the copy on the computer)
+   - Linux/Mac: open the folder in a terminal and run   bash start.sh
    - Windows:   double-click   start.bat
    The first start takes a few minutes. It prints the web address and the
    PASSWORD FOR THE SETTINGS PAGE (also saved in ADMIN-PASSWORD.txt).
    After that it starts by itself whenever the computer restarts.
 
-3. FILL IN THE SETTINGS  (open  http://<address>/settings  and log in)
+4. FILL IN THE SETTINGS  (open  http://<address>/settings  and log in)
    - Ship shares: the user name and password for the ship's file server
      (the same ones used to open \\10.0.0.10\Data). Without them the page
      has no data.
@@ -27,15 +38,15 @@ else just opens it in a browser.
      Anything left empty is simply switched off.
    Press Save. It takes about a minute for the page to show new data.
 
-4. TELL PEOPLE THE ADDRESS
+5. TELL PEOPLE THE ADDRESS
    http://<this computer's address>/    for example http://10.0.0.58/
    Tip (Linux): name the computer "underway" and it also answers at
    http://underway.local/ on most laptops and iPhones (not Android).
 
 EVERYDAY
-   Stop:            ./stop.sh    or  stop.bat      (nothing is lost)
-   Start again:     ./start.sh   or  start.bat
-   Is it working?   ./status.sh, or open http://<address>/status.html
+   Stop:            bash stop.sh   or  stop.bat      (nothing is lost)
+   Start again:     bash start.sh  or  start.bat
+   Is it working?   bash status.sh, or open http://<address>/status.html
 
 IF SOMETHING IS WRONG
    - Page does not open: is the computer on and Docker running? Run start again.
@@ -44,7 +55,10 @@ IF SOMETHING IS WRONG
      server may have restarted (it reconnects by itself within a minute).
    - Still stuck: restart the computer, then run start again.
    - Everything the dashboard keeps is in the "data" folder beside this file.
-     Back that folder up at the end of the leg; do not delete it.
+     Back that folder up at the end of the leg; do not delete it. Stop the
+     dashboard first. On Linux the files belong to root: copy them with sudo.
+   - Forgot the settings password: delete data/config/admin-password and run
+     start again; it makes a new one.
 
 NEW LEG
    On the settings page change the camera leg name and timelapse folder.

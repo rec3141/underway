@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 # Start the underway dashboard (Linux or macOS). Double-click or run: ./start.sh
 # The first time it loads the image from this folder and makes the settings password.
+# Run it from a copy on the computer's own disk, never from the drive it came on.
 set -euo pipefail
 cd "$(dirname "$0")"
 say() { printf '\n== %s\n' "$*"; }
+
+# The dashboard writes its database and site into data/ all the time: it must run
+# from the computer's own disk, not from the drive or share the kit came on.
+fs=$(stat -f -c %T . 2>/dev/null || echo unknown)
+case "$PWD:$fs" in
+  /media/*|/run/media/*|/Volumes/*|*:smb*|*:cifs|*:exfat|*:vfat|*:msdos|*:fuseblk|*:nfs*)
+    say "This folder is on a USB drive or a network share ($PWD)."
+    echo "   Copy the whole folder onto this computer first (for example into your home"
+    echo "   folder), then run "bash start.sh" in the copy. See HOW-TO.txt, step 2."
+    exit 1 ;;
+esac
 
 command -v docker >/dev/null || { say "Docker is not installed. See HOW-TO.txt, step 1."; exit 1; }
 docker info >/dev/null 2>&1 || { say "Docker is installed but not running (or needs sudo). See HOW-TO.txt."; exit 1; }

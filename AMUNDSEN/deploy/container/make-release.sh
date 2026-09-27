@@ -10,6 +10,11 @@
 # the map tiles, the Wiki snapshot, the game's boards and the ingest stores instead of rebuilding
 # them: tiles, arctic-history (no .git), db, cache and report. Secrets are never
 # copied; they go in again on the /settings page.
+#
+# OUTDIR may be an SMB share or an exFAT drive: files are copied without owner
+# or permission bits, and symbolic links are replaced by the files they point to.
+# The kit on it is only carried: the start scripts refuse to run from a drive or
+# share, and the HOW-TO has the keeper copy the folder onto the computer first.
 set -euo pipefail
 version=${1:?usage: make-release.sh VERSION OUTDIR [--with-data]}
 out=${2:?usage: make-release.sh VERSION OUTDIR [--with-data]}
@@ -31,13 +36,14 @@ docker build --build-context game="$game" -t "underway:$version" "$app"
 echo "saving the image…"
 docker save "underway:$version" | gzip -1 > "$out/underway-$version.tar.gz.tmp"
 mv "$out/underway-$version.tar.gz.tmp" "$out/underway-$version.tar.gz"
+# cp, not cp -p: the destination may not keep modes; the start scripts are run with bash
 
 cp "$here"/{compose.yaml,start.sh,stop.sh,status.sh,start.bat,stop.bat,HOW-TO.txt} "$out/"
 printf 'UNDERWAY_VERSION=%s\n' "$version" > "$out/.env"
 mkdir -p "$out/data/config"
 
 if [[ ${3:-} == --with-data ]]; then
-  cp_tree() { [[ -d $1 ]] && { echo "copying $1"; rsync -a --info=progress2 "${@:3}" "$1/" "$out/data/$2/"; } || echo "skipping $1: not here"; }
+  cp_tree() { [[ -d $1 ]] && { echo "copying $1"; rsync -rtL --info=progress2 "${@:3}" "$1/" "$out/data/$2/"; } || echo "skipping $1: not here"; }
   cp_tree "${UNDERWAY_TILES_DIR:-/data/gis/tiles}" tiles
   cp_tree "${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}" arctic-history --exclude=.git
   cp_tree "$home/db" db
