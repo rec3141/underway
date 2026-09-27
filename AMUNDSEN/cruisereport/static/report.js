@@ -1110,7 +1110,13 @@ function renderFigures() {
     const refresh = () => { clearTimeout(wait); wait = setTimeout(() => drawFigure(f, img), 700); };
     if (f.kind === "map") {
       opts.append(
-        h("label", {}, h("input", { type: "checkbox", checked: f.options.label_stations !== false, onchange: (e) => { f.options.label_stations = e.target.checked; persist(); refresh(); } }), " station names"));
+        h("label", {}, h("input", { type: "checkbox", checked: f.options.label_stations !== false, onchange: (e) => { f.options.label_stations = e.target.checked; persist(); refresh(); } }), " station names"),
+        h("label", {}, "Colour track by ", h("select", { onchange: (e) => { f.options.track_colour = e.target.value; persist(); refresh(); } },
+          h("option", { value: "time", selected: (f.options.track_colour || "time") === "time" }, "Date"),
+          // Every underway panel with one value at a time (not the camera's ice composition), in its group.
+          ...[...new Set(INFO.underway_panels.map((p) => p.group))].map((g) => h("optgroup", { label: g },
+            ...INFO.underway_panels.filter((p) => p.group === g && p.id !== "Camera · ice composition").map((p) =>
+              h("option", { value: p.id, selected: f.options.track_colour === p.id }, p.label + (p.source === "hourly" ? " (hourly)" : ""))))))));
     } else if (f.kind === "profiles") {
       const vars = f.options.variables || ["Temperature", "Salinity", "Fluorescence", "Oxygen"];
       opts.append(...PROFILE_VARS.map((v) => h("label", {}, h("input", { type: "checkbox", checked: vars.includes(v), onchange: (e) => {
