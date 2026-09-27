@@ -27,6 +27,15 @@ if ! docker image inspect "underway:$UNDERWAY_VERSION" >/dev/null 2>&1; then
 fi
 
 mkdir -p data/config
+if compgen -G "seed/*.tar" >/dev/null && [[ ! -e data/.seeded ]]; then
+  say "Unpacking the starting data (once; it can take half an hour)…"
+  for t in seed/*.tar; do
+    n=$(basename "$t" .tar); echo "   $n"
+    mkdir -p "data/$n" && tar -xf "$t" -C "data/$n" --no-same-owner
+  done
+  touch data/.seeded
+  echo "   done. The seed folder is no longer needed and may be deleted to free space."
+fi
 docker compose up -d
 
 if [[ ! -s data/config/admin-password ]]; then
