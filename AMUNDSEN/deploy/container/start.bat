@@ -1,6 +1,10 @@
 @echo off
 rem Start the underway dashboard on Windows (Docker Desktop). Double-click this file.
-cd /d "%~dp0"
+cd /d "%~dp0" 2>nul || goto :copyfirst
+rem The dashboard writes its database and site into data\ all the time: it must run
+rem from the computer's own disk, not from the USB drive or share the kit came on.
+if "%~d0"=="\\" goto :copyfirst
+fsutil fsinfo drivetype %~d0 2>nul | findstr /i /c:"Removable" /c:"Remote" /c:"Network" >nul && goto :copyfirst
 docker info >nul 2>&1 || (echo Docker Desktop is not running. Start it from the Start menu, wait for the whale icon, then try again. & pause & exit /b 1)
 for /f "tokens=1,* delims==" %%a in (.env) do if "%%a"=="UNDERWAY_VERSION" set UNDERWAY_VERSION=%%b
 docker image inspect underway:%UNDERWAY_VERSION% >nul 2>&1 || (echo Loading the dashboard image, a few minutes, once... & docker load -i underway-%UNDERWAY_VERSION%.tar.gz)
@@ -19,3 +23,11 @@ echo.
 echo The dashboard is starting. On this computer open http://localhost/
 echo From other computers use this computer's address (ipconfig lists it), e.g. http://10.0.0.x/
 pause
+exit /b 0
+
+:copyfirst
+echo This folder is on a USB drive or a network share.
+echo Copy the whole folder onto this computer first (for example C:\underway),
+echo then double-click start.bat in the copy. See HOW-TO.txt, step 2.
+pause
+exit /b 1
