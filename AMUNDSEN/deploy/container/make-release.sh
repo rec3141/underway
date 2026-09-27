@@ -6,15 +6,20 @@
 # Builds the image from the current checkout (which must be clean and at the
 # tag VERSION) and the game checkout (AMUNDSEN_GAME, default /data/dev/amundsen-game), saves it as OUTDIR/underway-VERSION.tar.gz, and copies the
 # start/stop scripts, compose file and HOW-TO beside it. With --with-data it
-# also seeds OUTDIR/data from this installation so the next machine starts with
-# the map tiles, the Wiki snapshot, the game's boards and the ingest stores instead of rebuilding
-# them: tiles, arctic-history (no .git), db, cache and report. Secrets are never
-# copied; they go in again on the /settings page.
+# also packs a seed of this installation into OUTDIR/seed/, one tar per part
+# (tiles, arctic-history, db, cache, report, game), so the next machine starts
+# where this one is instead of rebuilding for hours; the start scripts unpack
+# it into data/ on the first start. Secrets are never packed; they go in again
+# on the /settings page.
 #
-# OUTDIR may be an SMB share or an exFAT drive: files are copied without owner
-# or permission bits, and symbolic links are replaced by the files they point to.
-# The kit on it is only carried: the start scripts refuse to run from a drive or
-# share, and the HOW-TO has the keeper copy the folder onto the computer first.
+# The seed is a few large archives rather than the half-million small files of
+# the tile pyramids: an SMB share or a USB drive pays for every file, both when
+# this writes the release and when the keeper copies it onto the computer.
+# Each part is staged under STAGE (default /data/underway-release-stage, on the
+# same filesystem as the sources, so staging is hard links and costs no space);
+# SQLite databases are replaced there by consistent snapshots, since the build
+# writes them every minute, and symbolic links are packed as the files they
+# point to.
 set -euo pipefail
 version=${1:?usage: make-release.sh VERSION OUTDIR [--with-data]}
 out=${2:?usage: make-release.sh VERSION OUTDIR [--with-data]}
@@ -43,34 +48,40 @@ printf 'UNDERWAY_VERSION=%s\n' "$version" > "$out/.env"
 mkdir -p "$out/data/config"
 
 if [[ ${3:-} == --with-data ]]; then
-  cp_tree() { [[ -d $1 ]] && { echo "copying $1"; rsync -rtL --info=progress2 "${@:3}" "$1/" "$out/data/$2/"; } || echo "skipping $1: not here"; }
-  cp_tree "${UNDERWAY_TILES_DIR:-/data/gis/tiles}" tiles
-  cp_tree "${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}" arctic-history --exclude=.git
-  cp_tree "$home/db" db --exclude=codex_bot*
-  cp_tree "$home/cache" cache
-  cp_tree "$home/report" report
-  cp_tree "$game/runtime" game --exclude=crew-routing --exclude=caddy-before-game.json
-  # the stores are written while this runs (the build every minute): a file copy of a
-  # SQLite database caught mid-write is corrupt, so each one is copied again through
-  # SQLite's online backup, into local scratch first (SQLite locking is unreliable on SMB)
-  echo "taking consistent copies of the databases…"
-  "${UNDERWAY_PYTHON:-python3}" - "$out/data" "$home/db" "${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}" "$home/report" "$game/runtime" <<'PY'
-import shutil, sqlite3, sys, tempfile
+  stage=${STAGE:-/data/underway-release-stage}
+  rm -rf "$stage"; mkdir -p "$stage" "$out/seed"
+  pack() {    # pack NAME SRC [rsync excludes...]
+    local name=$1 src=$2; shift 2
+    [[ -d $src ]] || { echo "skipping $name: no $src"; return; }
+    echo "staging $name from $src"
+    rsync -a --link-dest="$src/" "$@" "$src/" "$stage/$name/"
+    # a file copy of a SQLite database caught mid-write is corrupt: snapshot each one
+    "${UNDERWAY_PYTHON:-python3}" - "$src" "$stage/$name" <<'PY'
+import sqlite3, sys
 from pathlib import Path
-out = Path(sys.argv[1])
-for src_root, dst_root in zip(map(Path, sys.argv[2:]), ("db", "arctic-history", "report", "game")):
-    for src in [*src_root.rglob("*.db"), *src_root.rglob("*.sqlite")]:
-        dst = out / dst_root / src.relative_to(src_root)
-        if not dst.exists() or ".git" in src.parts:
-            continue
-        with tempfile.TemporaryDirectory() as tmp:
-            snap = Path(tmp) / src.name
-            with sqlite3.connect(f"file:{src}?mode=ro", uri=True) as a, sqlite3.connect(snap) as b:
-                a.backup(b)
-            shutil.copyfile(snap, dst)
-        for side in ("-wal", "-shm", "-journal"):
-            dst.with_name(dst.name + side).unlink(missing_ok=True)
-        print("  ", dst.relative_to(out))
+src, dst = map(Path, sys.argv[1:])
+for d in [*dst.rglob("*.db"), *dst.rglob("*.sqlite")]:
+    s = src / d.relative_to(dst)
+    d.unlink()
+    with sqlite3.connect(f"file:{s}?mode=ro", uri=True) as a, sqlite3.connect(d) as b:
+        a.backup(b)
+    for side in ("-wal", "-shm", "-journal"):
+        d.with_name(d.name + side).unlink(missing_ok=True)
 PY
+    echo "packing $name"
+    tar -chf - -C "$stage/$name" --owner=0 --group=0 --numeric-owner . > "$out/seed/$name.tar.tmp"
+    mv "$out/seed/$name.tar.tmp" "$out/seed/$name.tar"
+    rm -rf "$stage/$name"
+  }
+  pack tiles "${UNDERWAY_TILES_DIR:-/data/gis/tiles}" --exclude='*.old' --exclude='*.new'
+  # the Wiki needs the arctic_history package and db/; www.canada.ca is a scrape
+  # whose file names Windows cannot hold
+  pack arctic-history "${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}" --exclude=.git --exclude=www.canada.ca --exclude=tests
+  pack db "$home/db" --exclude='codex_bot*'
+  pack cache "$home/cache"
+  pack report "$home/report"
+  pack game "$game/runtime" --exclude=crew-routing --exclude=caddy-before-game.json
+  rmdir "$stage" 2>/dev/null || true
+  ( cd "$out/seed" && ls -l *.tar | awk '{printf "%8.1f GB  %s\n", $5/1e9, $9}' )
 fi
 echo "release $version is in $out"

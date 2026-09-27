@@ -9,6 +9,16 @@ docker info >nul 2>&1 || (echo Docker Desktop is not running. Start it from the 
 for /f "tokens=1,* delims==" %%a in (.env) do if "%%a"=="UNDERWAY_VERSION" set UNDERWAY_VERSION=%%b
 docker image inspect underway:%UNDERWAY_VERSION% >nul 2>&1 || (echo Loading the dashboard image, a few minutes, once... & docker load -i underway-%UNDERWAY_VERSION%.tar.gz)
 if not exist data\config mkdir data\config
+if exist seed\*.tar if not exist data\.seeded (
+  echo Unpacking the starting data, once; it can take half an hour...
+  for %%t in (seed\*.tar) do (
+    echo    %%~nt
+    if not exist data\%%~nt mkdir data\%%~nt
+    tar -xf %%t -C data\%%~nt || (echo Unpacking %%~nt failed. & pause & exit /b 1)
+  )
+  echo.> data\.seeded
+  echo    Done. The seed folder is no longer needed and may be deleted to free space.
+)
 docker compose up -d
 if not exist data\config\admin-password (
   echo Making the password for the settings page...

@@ -16,8 +16,9 @@ WHERE TO FIND IT: this folder is on the ship's file server at
    The computer must be on the ship's wired network (10.0.0.x) and stay on.
 
 2. ONCE: COPY THIS WHOLE FOLDER ONTO THE COMPUTER
-   Copy the folder (about 40 GB, it takes a while) onto the computer's own disk,
-   for example C:\underway on Windows or your home folder on Linux/Mac.
+   Copy the folder (about 40 GB) onto the computer's own disk, for example
+   C:\underway on Windows or your home folder on Linux/Mac. Keep another
+   40 GB free: the first start unpacks it.
    It must run from that copy, not from the file server or a USB drive: it
    writes to its "data" folder all the time. The start scripts refuse to run
    from a drive or share and say so.
@@ -25,7 +26,8 @@ WHERE TO FIND IT: this folder is on the ship's file server at
 3. START IT  (from the copy on the computer)
    - Linux/Mac: open the folder in a terminal and run   bash start.sh
    - Windows:   double-click   start.bat
-   The first start takes a few minutes. It prints the web address and the
+   The first start unpacks the starting data (up to half an hour) and loads
+   the program; afterwards the "seed" folder can be deleted. It prints the web address and the
    PASSWORD FOR THE SETTINGS PAGE (also saved in ADMIN-PASSWORD.txt).
    After that it starts by itself whenever the computer restarts.
 
