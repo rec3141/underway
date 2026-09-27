@@ -46,9 +46,31 @@ if [[ ${3:-} == --with-data ]]; then
   cp_tree() { [[ -d $1 ]] && { echo "copying $1"; rsync -rtL --info=progress2 "${@:3}" "$1/" "$out/data/$2/"; } || echo "skipping $1: not here"; }
   cp_tree "${UNDERWAY_TILES_DIR:-/data/gis/tiles}" tiles
   cp_tree "${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}" arctic-history --exclude=.git
-  cp_tree "$home/db" db
+  cp_tree "$home/db" db --exclude=codex_bot*
   cp_tree "$home/cache" cache
   cp_tree "$home/report" report
   cp_tree "$game/runtime" game --exclude=crew-routing --exclude=caddy-before-game.json
+  # the stores are written while this runs (the build every minute): a file copy of a
+  # SQLite database caught mid-write is corrupt, so each one is copied again through
+  # SQLite's online backup, into local scratch first (SQLite locking is unreliable on SMB)
+  echo "taking consistent copies of the databases…"
+  "${UNDERWAY_PYTHON:-python3}" - "$out/data" "$home/db" "${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}" "$home/report" "$game/runtime" <<'PY'
+import shutil, sqlite3, sys, tempfile
+from pathlib import Path
+out = Path(sys.argv[1])
+for src_root, dst_root in zip(map(Path, sys.argv[2:]), ("db", "arctic-history", "report", "game")):
+    for src in [*src_root.rglob("*.db"), *src_root.rglob("*.sqlite")]:
+        dst = out / dst_root / src.relative_to(src_root)
+        if not dst.exists() or ".git" in src.parts:
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            snap = Path(tmp) / src.name
+            with sqlite3.connect(f"file:{src}?mode=ro", uri=True) as a, sqlite3.connect(snap) as b:
+                a.backup(b)
+            shutil.copyfile(snap, dst)
+        for side in ("-wal", "-shm", "-journal"):
+            dst.with_name(dst.name + side).unlink(missing_ok=True)
+        print("  ", dst.relative_to(out))
+PY
 fi
 echo "release $version is in $out"
