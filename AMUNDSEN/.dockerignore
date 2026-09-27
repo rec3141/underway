@@ -1,0 +1,9 @@
+# the image holds the code; state, caches and bulky notes stay out
+cache/
+db/
+deprecated/
+tests/
+**/__pycache__/
+**/node_modules/
+*.md
+!README.md

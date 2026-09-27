@@ -1,0 +1,27 @@
+# The container's front door on port 80: the dashboard at / and at /underway/
+# (the address people already have), the cruise report builder at /report/,
+# the game at /game/.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+	redir /underway /underway/ 302
+	redir /report /report/ 302
+	redir /report.html /report/ 302
+	redir /game /game/ 302
+	handle_path /game/* {
+		reverse_proxy 127.0.0.1:8050
+	}
+	handle_path /report/* {
+		reverse_proxy 127.0.0.1:8044
+	}
+	handle_path /underway/* {
+		reverse_proxy 127.0.0.1:8042
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8042
+	}
+}
