@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Settings · Underway</title>
+<script>/* the theme chosen on the dashboard, before the first paint (the same keys app.js keeps) */
+(function () { try {
+  var t = JSON.parse(localStorage.getItem("uw:theme")) || "auto";
+  if (t === "auto") t = matchMedia("(prefers-color-scheme: light)").matches ? "claude-light" : "claude-dark";
+  document.documentElement.dataset.theme = t;
+  var s = JSON.parse(localStorage.getItem("uw:textsize")); if (s && s !== "auto") document.documentElement.dataset.size = s;
+} catch (e) {} })();</script>
+<link rel="stylesheet" href="static/style.css">
+<style>
+/* the dashboard's sheet pins the page for its own layout; this page scrolls */
+html, body { height: auto; overflow: auto; }
+body { display: block; max-width: 900px; margin: 0 auto; padding: 16px; }
+h1 { font-size: var(--t-xl); margin: 0 0 4px; }
+h2 { font-size: var(--t-lg); margin: 0 0 8px; }
+.lead { color: var(--muted); margin: 0 0 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 16px; }
+.msg { border-radius: var(--radius); padding: 10px 14px; margin: 0 0 16px; border: 1px solid var(--line); background: var(--card); }
+.msg.ok { border-color: var(--ok); }
+.msg.bad { border-color: var(--bad); }
+.msg ul { margin: 6px 0 0; padding-left: 20px; }
+.states { list-style: none; margin: 0; padding: 0; }
+.states li { padding: 4px 0; }
+.dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; margin-right: 8px; background: var(--muted); }
+.dot.on { background: var(--ok); }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 10px 8px 10px 0; border-top: 1px solid var(--line); vertical-align: top; }
+tr:first-child td { border-top: 0; }
+td.label { width: 42%; }
+td.label b { display: block; font-weight: 600; }
+.help { color: var(--muted); font-size: var(--t-sm); }
+input[type=text], input[type=password], input[type=file], select {
+  width: 100%; background: var(--card-2); color: var(--fg); border: 1px solid var(--line);
+  padding: 8px 10px; font: inherit; border-radius: 7px;
+}
+.shown { font-size: var(--t-sm); color: var(--muted); margin-top: 4px; }
+.shown label { margin-left: 10px; color: var(--fg); white-space: nowrap; }
+button { background: var(--card-2); color: var(--fg); border: 1px solid var(--line); border-radius: 7px;
+  padding: 8px 16px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.save { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0; border-top: 1px solid var(--line); margin-bottom: 16px; }
+code { font-family: var(--mono); font-size: var(--t-sm); background: var(--card-2); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+pre { font-family: var(--mono); font-size: var(--t-sm); background: var(--card-2); padding: 10px; border-radius: 7px; white-space: pre-wrap; word-break: break-all; }
+.bar { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.bar form { margin: 0; }
+@media (max-width: 640px) {
+  body { padding: 12px; }
+  td { display: block; padding: 4px 0; border-top: 0; }
+  td.label { width: auto; padding-top: 12px; }
+  tr { display: block; border-top: 1px solid var(--line); }
+  tr:first-child { border-top: 0; }
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Settings</h1>
+  <span><a href="./">← Back to the dashboard</a></span>
+</div>
+<p class="lead">Keys and accounts the dashboard uses to send alerts, reach the ship's files and fetch satellite pictures.</p>
+
+{% if message %}
+<div class="msg {{ message[0] }}" role="status">{{ message[1] }}
+  {% if errors %}<ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+
+{% if not password_set %}
+<div class="card">
+  <h2>No admin password yet</h2>
+  <p>This page needs an admin password, and for safety it can only be set on the computer running the dashboard,
+     not from here. Ask whoever installed it to run this there:</p>
+  <pre>docker exec -it underway python -m dashboard set-admin-password --random</pre>
+  <p class="help">Without Docker: <code>python -m dashboard set-admin-password --random</code>.
+     It prints a new password; then come back here and log in.</p>
+</div>
+
+{% elif not logged_in %}
+<div class="card">
+  <h2>Log in</h2>
+  <form method="post" action="settings/login">
+    <label for="pw">Admin password</label>
+    <input type="password" id="pw" name="password" autocomplete="current-password" required autofocus>
+    <div class="row"><button class="primary" type="submit">Log in</button></div>
+  </form>
+  <p class="help">Forgotten it? On the dashboard's computer, delete the file
+     <code>data/config/admin-password</code> and run start again: it makes a new password.
+     (Without the container: <code>python -m dashboard set-admin-password --random</code>.)</p>
+</div>
+
+{% else %}
+<div class="card">
+  <h2>What is on</h2>
+  <ul class="states">
+  {% for name, on, words in status %}
+    <li><span class="dot{{ ' on' if on }}"></span><b>{{ name }}:</b> {{ words }}</li>
+  {% endfor %}
+  </ul>
+  <div class="row">
+    <form method="post" action="settings/test-telegram"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit">Send a test Telegram message</button></form>
+    <form method="post" action="settings/test-email"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit">Send a test email</button></form>
+  </div>
+  <p class="help">The tests use the saved settings: save first, then test.</p>
+</div>
+
+<form method="post" action="settings" id="settings" autocomplete="off">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% for group, rows in groups %}
+<div class="card" id="{{ group|lower|replace(' ', '-') }}">
+  <h2>{{ group }}</h2>
+  {% if group == "Google Calendar" %}
+  <p>{% if gcal and gcal != "unreadable" %}A key is saved, for <code>{{ gcal }}</code>.{% else %}No key saved yet.{% endif %}
+     The key is a <code>.json</code> file from the Google Cloud console (Service accounts, Keys, Add key, JSON).
+     Share the ship's calendar with the account's email address so it can add events.</p>
+  <p class="help">Upload the key with the form below the Save button.</p>
+  {% else %}
+  <table>
+  {% for r in rows %}{% set f = r.f %}
+    <tr>
+      <td class="label"><label for="f_{{ f.key }}"><b>{{ f.label }}</b></label>
+        <span class="help">{{ f.help }}</span></td>
+      <td>
+      {% if f.secret %}
+        <input type="password" id="f_{{ f.key }}" name="f_{{ f.key }}" value="" autocomplete="new-password"
+               placeholder="{{ 'leave empty to keep it' if r.shown != 'not set' else 'paste it here' }}">
+        <div class="shown">{{ r.shown }}{% if r.shown != "not set" %}
+          <label><input type="checkbox" name="clear_{{ f.key }}" value="1"> remove it</label>{% endif %}</div>
+      {% elif f.kind == "choice" %}
+        <select id="f_{{ f.key }}" name="f_{{ f.key }}">
+        {% for val, words in f.choices %}
+          <option value="{{ val }}"{{ ' selected' if (r.value or f.default) == val }}>{{ words }}</option>
+        {% endfor %}
+        </select>
+      {% else %}
+        <input type="text" id="f_{{ f.key }}" name="f_{{ f.key }}" value="{{ r.value }}"
+               placeholder="{{ f.default }}"{{ ' inputmode=numeric' if f.kind == 'int' }}{{ ' inputmode=email' if f.kind == 'email' }}>
+      {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endfor %}
+<div class="save">
+  <button class="primary" type="submit">Save settings</button>
+  <span class="help">&nbsp;The dashboard restarts for a few seconds after a save.</span>
+</div>
+</form>
+
+<div class="card">
+  <h2>Google Calendar key</h2>
+  <form method="post" action="settings/gcal-key" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="gkey">Key file (.json)</label>
+    <input type="file" id="gkey" name="key" accept=".json,application/json">
+    <div class="row"><button class="primary" type="submit">Upload the key</button></div>
+  </form>
+  {% if gcal %}
+  <form method="post" action="settings/gcal-key" onsubmit="return confirm('Remove the Google Calendar key?')">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="remove" value="1">
+    <div class="row"><button type="submit">Remove the saved key</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Admin password</h2>
+  <form method="post" action="settings/password">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <table>
+      <tr><td class="label"><label for="cur"><b>Current password</b></label></td>
+          <td><input type="password" id="cur" name="current" autocomplete="current-password" required></td></tr>
+      <tr><td class="label"><label for="new"><b>New password</b></label>
+          <span class="help">At least 8 characters. A few words together are easy to remember.</span></td>
+          <td><input type="password" id="new" name="new" autocomplete="new-password" minlength="8" required></td></tr>
+      <tr><td class="label"><label for="again"><b>New password again</b></label></td>
+          <td><input type="password" id="again" name="again" autocomplete="new-password" minlength="8" required></td></tr>
+    </table>
+    <div class="row"><button type="submit">Change the password</button></div>
+  </form>
+</div>
+
+<div class="bar">
+  <p class="help">Saved in <code>{{ config_dir }}</code>.</p>
+  <form method="post" action="settings/logout"><input type="hidden" name="csrf" value="{{ csrf }}">
+    <button type="submit">Log out</button></form>
+</div>
+{% endif %}
+</body>
+</html>

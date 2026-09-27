@@ -155,6 +155,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path == "/settings" or u.path.startswith("/settings/"):
+            from .settings import handle_get
+            return handle_get(self, u.path)
         if u.path == '/status.html':
             if parse_qs(u.query).get('format') == ['json']:
                 from .status import report
@@ -344,6 +347,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         u = urlsplit(self.path)
+        if u.path == "/settings" or u.path.startswith("/settings/"):
+            from .settings import handle_post
+            return handle_post(self, u.path)
         if u.path == '/api/usage':
             from . import usage
             try:

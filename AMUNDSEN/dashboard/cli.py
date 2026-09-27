@@ -6,6 +6,7 @@
     python -m dashboard gcal-push                 push queued calendar items, refresh the feeds
     python -m dashboard alerts                    send due schedule and underway alerts
     python -m dashboard telegram-bot              answer the Telegram bot's commands as they arrive
+    python -m dashboard set-admin-password [--random]   set the /settings page's password
 """
 
 from __future__ import annotations
@@ -45,6 +46,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("alerts", help="send due schedule and underway alerts (email and Telegram)")
     sub.add_parser("telegram-bot", help="answer the Telegram bot's commands as they arrive (runs until stopped)")
     sub.add_parser("codex-bot", help="run the dedicated single-session Codex Telegram bot")
+    sub.add_parser("supervise", help="run the servers and the periodic jobs in one process (the container's init)")
+    ap = sub.add_parser("set-admin-password", help="set the password of the /settings page (read from stdin)")
+    ap.add_argument("--random", action="store_true", help="make up an easy-to-read password and print it")
     st = sub.add_parser("satellite", help="render recent Sentinel imagery around the ship when due")
     st.add_argument("--force", action="store_true", help="render now regardless of age and distance")
     st.add_argument("--backfill", metavar="YYYY-MM-DD", help="fill the archive from this day on: a picture a day per sensor of the box round the ship")
@@ -112,6 +116,30 @@ def main(argv: list[str] | None = None) -> int:
         run()
         return 0
 
+    if a.cmd == "set-admin-password":
+        from .settings import CONFIG_DIR, friendly_password, set_password
+        if a.random:
+            pw = friendly_password()
+        elif sys.stdin.isatty():
+            import getpass
+            pw = getpass.getpass("New admin password: ")
+            if getpass.getpass("Again: ") != pw:
+                logging.error("the two passwords differ; nothing changed")
+                return 2
+        else:
+            pw = sys.stdin.readline().rstrip("\r\n")
+        try:
+            set_password(pw)
+        except ValueError as e:
+            logging.error("%s; nothing changed", e)
+            return 2
+        print(f"The /settings password is now: {pw}" if a.random else "Password saved.")
+        print(f"(stored as a hash in {CONFIG_DIR / 'admin-password'})")
+        return 0
+
+    if a.cmd == "supervise":
+        from .supervise import main as supervise
+        return supervise()
     if a.cmd == "telegram-bot":
         from .alerts import bot_loop
         bot_loop()

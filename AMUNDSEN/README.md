@@ -341,6 +341,71 @@ idle unmount stops every unit with `RequiresMountsFor` on that path, and a
 build that reads its inputs in the first seconds and plots for minutes gets
 killed part-way.
 
+## Running in a container
+
+For a machine that runs only Docker (Linux, Windows or macOS), the whole
+dashboard is one image: the page server, the build, alerts, calendar,
+satellite, cameras, ice charts, the cruise report builder (`/report/`) and the
+game (`/game/`, from github.com/rec3141/amundsen-game), behind Caddy on port 80.
+`python -m dashboard supervise` is its init: it keeps the servers up, runs the
+jobs on the timers' schedules (never two runs of one job at once) and mounts the
+ship's SMB shares from the settings. The chat crew's model and the other GPU
+work are off (`UNDERWAY_LLM=0`); publishing to the web, the Wiki pull from grid,
+the Codex bot and the VPN routes are not in the image. The Wiki is whatever
+snapshot the data folder holds.
+
+Everything the container keeps is one host folder mounted at `/underway`:
+`config/` (the settings and secrets), `db/`, `cache/`, `www/`, `mirror/`,
+`tiles/`, `arctic-history/`, `camera360/`, `report/` and `game/`.
+`supervisor.json` there records each server's state and each job's last run.
+
+`deploy/container/` is the kit for the people who run it:
+
+| file | what it is |
+|---|---|
+| `HOW-TO.txt` | one page for a non-technical keeper: install Docker, start, settings, everyday use, trouble |
+| `start.sh`, `start.bat` | load the image if needed, start it, make the settings password on the first run and print the addresses |
+| `stop.sh`, `stop.bat`, `status.sh` | stop it (nothing is lost); show its state and recent log |
+| `compose.yaml` | the container: port 80, the data folder, and the capabilities that mounting SMB from inside needs |
+| `make-release.sh` | pack a frozen release onto a drive |
+
+A release is a tag and a drive:
+
+```sh
+git tag 2026.09 && git push origin 2026.09
+deploy/container/make-release.sh 2026.09 /media/usb/underway --with-data
+```
+
+`make-release.sh` builds the image from the tagged checkout and the game
+checkout (`AMUNDSEN_GAME`, default `/data/dev/amundsen-game`), saves it as
+`underway-2026.09.tar.gz`, and copies the kit beside it. `--with-data` also
+seeds `data/` from this installation (tiles, the Wiki snapshot without its
+`.git`, db, cache, report and the game's boards) so the next machine starts
+where this one is instead of rebuilding for hours. Secrets are never copied;
+they go in again on the settings page. The image does not update itself: a new
+release is a new drive.
+
+A host that mounts the shares itself, or a Windows machine with mapped drives,
+can bind them at `/mnt/ship/Data` and `/mnt/ship/Share` (commented in
+`compose.yaml`); the supervisor leaves a share the host provides alone. To build
+by hand: `docker build --build-context game=/data/dev/amundsen-game -t underway:dev .`
+
+### Settings page
+
+`/settings` is a table of the keys and account settings: the ship shares,
+Telegram, email alerts, Copernicus, the Google Calendar key (an upload), the
+cameras, the CTD source and the time zone. It is behind one admin password,
+stored as a scrypt hash in `config/admin-password` and set only from the
+machine (`python -m dashboard set-admin-password [--random]`, which the start
+scripts run on the first start), never from the web. Secrets are written to
+`config/underway.env` (mode 600), everything else to `config/site.env`; secrets
+are never sent back to the browser, and an empty box leaves a value as it is.
+A save touches `config/.reload`, and the supervisor restarts the servers and
+remounts the shares with the new values; the jobs read both files at each
+start. Sessions are signed cookies (12 h), forms carry a CSRF token, and wrong
+passwords from one address are slowed down. The site is plain HTTP on the
+ship's network, so the password crosses it unencrypted.
+
 ## When headers change between legs
 
 Nothing is bound to a column name. `config.VARIABLES` gives each panel an
