@@ -964,14 +964,18 @@ function colGroups(t) {
   }
   if (isLogRows(t)) {
     const one = t.rows.startsWith("log:") ? t.rows.slice(4) : null;
-    groups.push([one ? "This log · matched" : "Your logs · matched", c.logrole || []]);
+    groups.push(["Rosette bottle · matched from the log's cast and bottle", (c.bottle || []).filter((x) => x.id !== "bottle.in_log")
+      .map((x) => ({ ...x, label: `${x.label} (Rosette)` }))]);
+    groups.push([one ? "This log · what each column holds" : "Your logs · what each column holds", c.logrole || []]);
     groups.push([one ? "This log · columns" : "Your logs · columns (rows with it)",
       logHeaders(one).map(([key, name, n]) => ({ id: `log.${name}`, label: one ? name : `${name} (${n})` }))]);
   }
   return groups;
 }
-const colLabel = (id) => {
-  for (const list of Object.values(INFO?.columns || {})) { const c = list.find((x) => x.id === id); if (c) return c.label; }
+// In a table of log rows a bottle column is the matched rosette bottle's: "Depth (Rosette)".
+const colLabel = (id, t = null) => {
+  const rosette = t && isLogRows(t) && id.startsWith("bottle.") ? " (Rosette)" : "";
+  for (const list of Object.values(INFO?.columns || {})) { const c = list.find((x) => x.id === id); if (c) return c.label + rosette; }
   return id.split(".").slice(1).join(".");
 };
 // Every header across the ticked logs, merged across case and spacing, most
@@ -1065,7 +1069,7 @@ function renderTables() {
             onclick: () => { [R.tables[i + 1], R.tables[i]] = [R.tables[i], R.tables[i + 1]]; renderTables(); persist(); } }, "↓"),
           h("button", { class: "danger small", onclick: () => { R.tables.splice(i, 1); renderTables(); persist(); } }, "Remove"))),
       h("div", { class: "order" }, h("span", { class: "hint" }, "Columns in order (drag to reorder, × to remove): "),
-        ...t.columns.map((c) => draggablePill(c, colLabel(c), () => { t.columns = t.columns.filter((x) => x !== c); renderTables(); persist(); },
+        ...t.columns.map((c) => draggablePill(c, colLabel(c, t), () => { t.columns = t.columns.filter((x) => x !== c); renderTables(); persist(); },
           (order) => { t.columns = order; renderTables(); persist(); }))),
       h("div", { class: "cols" }, ...colGroups(t).map(([name, cols]) => h("fieldset", {}, h("legend", {}, name),
         ...(cols.length ? cols.map((c) => h("label", {}, h("input", { type: "checkbox", checked: t.columns.includes(c.id), onchange: (e) => {

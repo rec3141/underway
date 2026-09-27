@@ -8,6 +8,11 @@ and a logsheet table the bottom depth, without the participant joining
 anything. Links run from the finer row to the coarser one only; an
 operation row shows bottles as counts and volumes, not as a list.
 
+In a table of log rows, ``bottle.*`` is the rosette bottle the row names
+(its operation, matched from the event log, and its bottle number) with the
+rosette sheet's and bottle file's values: "Depth (Rosette)"; ``logrole.*``
+is the log's own column that holds that kind of value: "Depth (log)".
+
 Column ids are ``<table>.<field>``: ``op.*`` (conditions), ``bottle.*``,
 ``draw.<team>`` (what that team drew from the bottle, under the merged team
 name from ``rosette.canonical``) and ``log.<column>``.
@@ -54,10 +59,12 @@ BOTTLE_COLS = [
     Col("bottle.comment", "Bottle comment"),
 ]
 
-# Columns that take, from each log, whichever of its columns plays the role.
-LOG_ROLES = {"station": "Station (matched)", "cast": "Cast (matched)", "bottle": "Bottle (matched)",
-             "depth": "Depth (matched)", "datetime": "Date and time (matched)", "date": "Date (matched)",
-             "sample_id": "Sample ID (matched)", "label": "Event label (matched)"}
+# Columns that take, from each log, whichever of its own columns holds that
+# kind of value (its header row says which), so logs with differently named
+# columns stack into one column.
+LOG_ROLES = {"station": "Station (log)", "cast": "Cast (log)", "bottle": "Bottle (log)",
+             "depth": "Depth (log)", "datetime": "Date and time (log)", "date": "Date (log)",
+             "sample_id": "Sample ID (log)", "label": "Event label (log)"}
 
 OP_EXTRA = [
     Col("op.n_bottles_team", "Bottles sampled (team)"),
@@ -133,6 +140,13 @@ def _team_volume(draws: dict, teams: list[str]) -> float | None:
     return sum(vals) if vals else None
 
 
+def _bottle_no(row: dict, roles: dict) -> int | None:
+    """The bottle number a log row names in its Bottle column."""
+    col = (roles or {}).get("bottle")
+    n = re.fullmatch(r"\s*(\d{1,2})\s*", str(row.get(col) or "")) if col else None
+    return int(n[1]) if n else None
+
+
 def logged_bottles(logs: dict[str, dict], used: list[dict]) -> dict[tuple[str, int], str]:
     """(operation, bottle number) -> the log that lists it, from the logs ticked
     as bottle sources (``bottles``, apart from their tick for operations) whose
@@ -142,13 +156,12 @@ def logged_bottles(logs: dict[str, dict], used: list[dict]) -> dict[tuple[str, i
         if lg.get("bottles") is False:
             continue
         m = logs.get(f"log:{lg['id']}:{lg['sheet']}")
-        col = (m or {}).get("roles", {}).get("bottle")
-        if not col:
+        if not (m or {}).get("roles", {}).get("bottle"):
             continue
         for r in m["rows"]:
-            n = re.fullmatch(r"\s*(\d{1,2})\s*", str(r.get(col) or ""))
-            if r.get("_op") and n:
-                out.setdefault((r["_op"], int(n[1])), m.get("name") or lg.get("name") or "log")
+            n = _bottle_no(r, m["roles"])
+            if r.get("_op") and n is not None:
+                out.setdefault((r["_op"], n), m.get("name") or lg.get("name") or "log")
     return out
 
 
@@ -258,13 +271,18 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
         # whether or not it is ticked to select operations.
         chosen = [logs[source]] if source in logs else [] if source != "logs" else \
             [lg for lg in logs.values() if lg.get("use") is not False]
-        base = [{"op": op_rows.get(x["_op"]) or {}, "log": x, "lg": lg}
+        # Each row's rosette bottle: its operation and the bottle number it names.
+        by_bottle = {(b["label"], b["bottle"]): b for b in bottles}
+        base = [{"op": op_rows.get(x["_op"]) or {}, "log": x, "lg": lg,
+                 "bottle": by_bottle.get((x["_op"], _bottle_no(x, lg.get("roles")))) or {}}
                 for lg in chosen
                 for x in lg["rows"] if x["_op"] is None or x["_op"] in keys or not keys]
     else:
         raise ValueError(f"unknown row source {source}")
 
     cols = [_col_meta(c, teams) for c in spec.get("columns", [])]
+    if source == "logs" or source.startswith("log:"):
+        cols = [{**c, "label": f"{c['label']} (Rosette)"} if c["id"].startswith("bottle.") else c for c in cols]
     body = [[_value(b, c["id"]) for c in cols] for b in base]
     return {"title": spec.get("title") or "", "rows": source, "columns": cols, "body": body}
 
