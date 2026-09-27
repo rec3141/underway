@@ -39,7 +39,10 @@ from .config import UNDERWAY_DB_DIR
 AGG = UNDERWAY_DB_DIR.parent / "www" / "data" / "agg-1h.json"
 ICE_DB = UNDERWAY_DB_DIR.parent / "ice" / "ice.sqlite"
 
-GROUPS = ["Surprise", "Lab", "Met Station", "Bridge", "Winches", "Ice camera", "Other"]
+GROUPS = ["Surprise", "Lab", "Met Station", "Bridge", "Ice camera", "Other"]
+# The rosette's and the cable's panels say how an instrument was lowered, not
+# what the sea was like; the report leaves them out. Bottom depth is the Bridge's.
+LEFT_OUT = {"Winches"}
 SKIP = {"Time elapsed (h)", "Distance travelled (km)"}
 ICE_TYPES = ["grease ice", "nilas", "thin ice floe", "icy bits", "brash ice", "thick ice floe"]
 CAMERA = [("Camera · concentration", "Ice concentration (camera)", "%"),
@@ -58,7 +61,9 @@ def group_of(v) -> str:
     name = v.name
     if name.startswith("Surprise"):
         return "Surprise"
-    if re.match(r"^(Bottom depth|Rosette |Cable )", name):
+    if name.startswith("Bottom depth"):
+        return "Bridge"
+    if re.match(r"^(Rosette |Cable )", name):
         return "Winches"
     if re.match(r"^(Air temperature|Relative humidity|Atmospheric pressure|True wind direction|"
                 r"Relative wind speed|Short-wave radiation)", name):
@@ -71,10 +76,10 @@ def group_of(v) -> str:
 
 
 def catalog() -> list[dict]:
-    """Every panel, in the dashboard's group order."""
+    """Every panel the report offers, in the dashboard's group order."""
     out = []
     for v in _config().VARIABLES:
-        if v.name in SKIP:
+        if v.name in SKIP or group_of(v) in LEFT_OUT:
             continue
         out.append({"id": v.name, "label": v.name, "unit": v.unit, "group": group_of(v),
                     "source": "hourly" if v.derived else "record",
@@ -83,6 +88,22 @@ def catalog() -> list[dict]:
              "circular": False, "tsg": False, "reverse": False} for i, label, unit in CAMERA]
     order = {g: n for n, g in enumerate(GROUPS)}
     return sorted(out, key=lambda p: order.get(p["group"], 99))
+
+
+def series(leg: str, panel_id: str, t0: pd.Timestamp, t1: pd.Timestamp) -> pd.Series:
+    """One panel's values between t0 and t1 (naive UTC), as the underway
+    figure plots them: 10-minute medians, the hourly derived values, or the ice
+    camera's concentration in 10-minute means. Empty when there are none."""
+    data = read(leg, t0, t1, [panel_id])
+    pn = next(iter(data["panels"]), None)
+    if pn is None:
+        return pd.Series(dtype=float)
+    if pn["source"] == "camera":
+        cam = data["camera"]
+        return cam["ice"].resample("10min").mean() if not cam.empty and pn["id"] == "Camera · concentration" \
+            else pd.Series(dtype=float)
+    frame = data[pn["source"]]
+    return frame[pn["id"]].dropna() if pn["id"] in frame else pd.Series(dtype=float)
 
 
 def catalog_group(panel_id: str) -> str | None:

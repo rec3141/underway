@@ -70,7 +70,8 @@ def _figure(report: dict, spec: dict) -> bytes:
     kind = spec["kind"]
     if kind == "map":
         return figures.station_map(leg, conditions.table(leg, keys),
-                                   label_stations=opts.get("label_stations", True))
+                                   label_stations=opts.get("label_stations", True),
+                                   colour=opts.get("track_colour") or "time")
     rosette_keys = [r["key"] for r in conditions.table(leg, keys)
                     if r["group"] in ("rosette", "tm_rosette")]
     if kind == "profiles":

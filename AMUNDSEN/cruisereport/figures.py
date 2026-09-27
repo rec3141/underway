@@ -115,9 +115,10 @@ def _track(leg: str, t0: str | None = None, t1: str | None = None, step: int = 3
     return arr[np.isfinite(arr).all(axis=1)] if len(arr) else np.empty((0, 3))
 
 
-def station_map(leg: str, rows: list[dict], *, label_stations: bool = True) -> bytes:
-    """The selected operations over the leg's whole ship track, coloured by
-    time; the view takes in both."""
+def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colour: str = "time") -> bytes:
+    """The selected operations over the leg's whole ship track; the view takes
+    in both. The track is coloured by date, or by ``colour``, an underway
+    panel's values along it (grey where it has none)."""
     pts = [(r["lon"], r["lat"]) for r in rows if r.get("lat") is not None]
     if not pts:
         return _empty("No positions for the selected operations.")
@@ -168,14 +169,38 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True) -> b
     ax.add_collection(PolyCollection(land, facecolors=LAND, edgecolors=LAND_EDGE,
                                      linewidths=0.4, zorder=1))
 
-    track_line = None
+    track_line, track_label, circular = None, "Ship track (UTC date)", False
     if len(trk) > 1:
         seg = np.stack([txy[:-1], txy[1:]], axis=1)
         keep = np.hypot(*(txy[1:] - txy[:-1]).T) <= 50        # no line over data gaps
-        when = matplotlib.dates.date2num(pd.to_datetime(trk[:, 2], unit="s"))
-        track_line = LineCollection(seg[keep], cmap=TRACK_CMAP, linewidths=1.0, zorder=2)
-        track_line.set_array((when[:-1] + when[1:])[keep] / 2)
-        ax.add_collection(track_line)
+        times = pd.to_datetime(trk[:, 2], unit="s")
+        cmap = TRACK_CMAP
+        if colour == "time":
+            vals = matplotlib.dates.date2num(times)
+        else:
+            from . import underway_panels as UP
+            pn = next((p for p in UP.catalog() if p["id"] == colour), None)
+            s = UP.series(leg, colour, times.min(), times.max()) if pn else pd.Series(dtype=float)
+            reach = pd.Timedelta(minutes=90 if (pn or {}).get("source") == "hourly" else 20)
+            vals = s.sort_index().reindex(times, method="nearest", tolerance=reach).to_numpy(dtype=float) \
+                if len(s) else np.full(len(times), np.nan)
+            circular = bool((pn or {}).get("circular"))
+            # A circular scale with no pale ends (twilight's vanish near north on the water).
+            cmap = plt.cm.hsv if circular else plt.cm.viridis
+            track_label = f"{(pn or {}).get('label', colour)}" + (" · hourly" if (pn or {}).get("source") == "hourly" else "")
+        mid = (vals[:-1] + vals[1:]) / 2
+        if circular:                                          # no mean across north: take the start's
+            mid = vals[:-1]
+        have = keep & np.isfinite(mid)
+        if (keep & ~have).any():
+            ax.add_collection(LineCollection(seg[keep & ~have], colors=INK2, alpha=0.35, linewidths=0.8,
+                                             linestyles=(0, (2, 1.5)), zorder=2))
+        if have.any():
+            track_line = LineCollection(seg[have], cmap=cmap, linewidths=1.0, zorder=2)
+            track_line.set_array(mid[have])
+            if circular:
+                track_line.set_clim(0, 360)
+            ax.add_collection(track_line)
 
     groups = list(dict.fromkeys(r["group"] for r in rows if r.get("lat") is not None))
     for i, g in enumerate(groups):
@@ -240,9 +265,12 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True) -> b
               fontsize=7, handletextpad=0.3, columnspacing=1.0)
     if track_line is not None:
         cb = fig.colorbar(track_line, ax=ax, fraction=0.035, pad=0.02)
-        cb.set_label("Ship track (UTC date)", fontsize=7, color=INK2)
-        cb.ax.yaxis.set_major_locator(matplotlib.dates.AutoDateLocator(maxticks=6))
-        cb.ax.yaxis.set_major_formatter(matplotlib.dates.DateFormatter("%d %b"))
+        cb.set_label(track_label + ("" if colour == "time" else "; dashed grey: not recorded"), fontsize=7, color=INK2)
+        if colour == "time":
+            cb.ax.yaxis.set_major_locator(matplotlib.dates.AutoDateLocator(maxticks=6))
+            cb.ax.yaxis.set_major_formatter(matplotlib.dates.DateFormatter("%d %b"))
+        elif circular:
+            cb.set_ticks([0, 90, 180, 270, 360])
         cb.ax.tick_params(labelsize=6.5)
         cb.outline.set_visible(False)
     return _png(fig)
