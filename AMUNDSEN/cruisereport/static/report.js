@@ -962,9 +962,11 @@ function colGroups(t) {
     groups.push(["Bottle", c.bottle]);
     groups.push(["Drawn by team (L)", R.selection.teams.map((x) => ({ id: `draw.${x}`, label: x }))]);
   }
-  if (t.rows === "logs") {
-    groups.push(["Your logs · matched", c.logrole || []]);
-    groups.push(["Your logs · columns (rows with it)", logHeaders().map(([key, name, n]) => ({ id: `log.${name}`, label: `${name} (${n})` }))]);
+  if (isLogRows(t)) {
+    const one = t.rows.startsWith("log:") ? t.rows.slice(4) : null;
+    groups.push([one ? "This log · matched" : "Your logs · matched", c.logrole || []]);
+    groups.push([one ? "This log · columns" : "Your logs · columns (rows with it)",
+      logHeaders(one).map(([key, name, n]) => ({ id: `log.${name}`, label: one ? name : `${name} (${n})` }))]);
   }
   return groups;
 }
@@ -975,10 +977,12 @@ const colLabel = (id) => {
 // Every header across the ticked logs, merged across case and spacing, most
 // rows first: [key, the spelling most rows use, rows whose log has it].
 const HAND_COLUMN = "Event label (matched by hand)";
-function logHeaders() {
+// A table's rows come from all the ticked logs ("logs") or one ("log:<logKey>").
+const isLogRows = (t) => t.rows === "logs" || t.rows.startsWith("log:");
+function logHeaders(only = null) {
   const seen = new Map();
   for (const lg of R.selection.logsheets) {
-    if (lg.use === false) continue;
+    if (only ? logKey(lg) !== only : lg.use === false) continue;
     const m = LOGS[logKey(lg)]?.match;
     if (!m) continue;
     for (const col of m.columns || []) {
@@ -1030,20 +1034,25 @@ function draggablePill(id, label, remove, done) {
 }
 function renderTables() {
   if (!INFO) return;
-  for (const t of R.tables) if (t.rows.startsWith("log:")) t.rows = "logs";   // one log's rows: now all of them
   const box = $("#tables");
   box.replaceChildren(...R.tables.map((t, i) => {
     const logRows = R.selection.logsheets.filter((lg) => lg.use !== false).reduce((a, lg) => a + (LOGS[logKey(lg)]?.match?.total || 0), 0);
-    const nLogs = new Set(R.selection.logsheets.filter((lg) => lg.use !== false).map((lg) => lg.id)).size;
+    const nLogs = R.selection.logsheets.filter((lg) => lg.use !== false).length;          // each sheet is a log
     const sources = [["operations", "One row per operation"], ["bottles", "One row per rosette bottle"],
-      ["logs", nLogs ? `One row per row of your logs (${nLogs} log${nLogs === 1 ? "" : "s"}, ${logRows} rows)` : "One row per row of your logs (tick logs in step 2)"]];
+      ["logs", nLogs ? `All logs (${nLogs} log${nLogs === 1 ? "" : "s"}, ${logRows} rows)` : "All logs (tick logs in step 2)"],
+      ...R.selection.logsheets.map((lg) => [`log:${logKey(lg)}`,
+        `Log · ${lg.name} (${LOGS[logKey(lg)]?.match?.total ?? "…"} rows${lg.use === false ? ", not ticked" : ""})`])];
+    if (t.rows.startsWith("log:") && !sources.some(([v]) => v === t.rows)) sources.push([t.rows, "A log no longer imported"]);
     const card = h("div", { class: "tbl" },
       h("div", { class: "tbl-head" },
         h("label", {}, "Caption", h("input", { value: t.title || "", placeholder: "Table caption", oninput: (e) => { t.title = e.target.value; persist(); } })),
         h("label", {}, "Rows", h("select", { onchange: (e) => {
             t.rows = e.target.value;
-            if (t.rows === "logs" && !t.columns.some((c) => /^log(role|meta)?\./.test(c))) t.columns = ["logmeta.log", "logrole.station", "logrole.cast", "logrole.bottle", ...t.columns.filter((c) => c.startsWith("op."))];
-            else t.columns = t.columns.filter((c) => c.startsWith("op.") || (t.rows === "logs" && /^log(role|meta)?\./.test(c)));
+            const fromLogs = isLogRows(t), logCols = t.columns.some((c) => /^log(role|meta)?\./.test(c));
+            const one = t.rows.startsWith("log:") ? LOGS[t.rows.slice(4)]?.match : null;
+            if (one && !logCols) t.columns = [...t.columns.filter((c) => c.startsWith("op.")), ...one.columns.filter((c) => c !== HAND_COLUMN).map((c) => `log.${c}`)];
+            else if (fromLogs && !logCols) t.columns = ["logmeta.log", "logrole.station", "logrole.cast", "logrole.bottle", ...t.columns.filter((c) => c.startsWith("op."))];
+            else t.columns = t.columns.filter((c) => c.startsWith("op.") || (fromLogs && /^log(role|meta)?\./.test(c)));
             renderTables(); persist(); } },
           ...sources.map(([v, l]) => h("option", { value: v, selected: t.rows === v }, l)))),
         h("label", {}, "Section", h("select", { onchange: (e) => { t.section = e.target.value; persist(); } },

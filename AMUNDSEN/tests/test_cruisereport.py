@@ -322,3 +322,17 @@ def test_conditions_are_taken_on_arrival_as_a_two_minute_mean(tmp_path, monkeypa
     assert got["n"] == 13 and got["air_c"] == -5.0 and got["true_wind_kn"] is None
     assert min(got["true_wind_dir_deg"], 360 - got["true_wind_dir_deg"]) < 1      # the mean of 350° and 10° is north
     underway._columns.cache_clear()
+
+
+def test_a_table_takes_all_ticked_logs_or_one(monkeypatch):
+    from cruisereport import tables
+
+    monkeypatch.setattr(tables.conditions, "table", lambda leg, keys: [])
+    monkeypatch.setattr(tables, "_bottles", lambda leg, keys: [])
+    logs = {"log:a:s1": {"name": "s1 · f", "use": True, "roles": {}, "rows": [{"X": 1, "_op": None}, {"X": 2, "_op": None}]},
+            "log:a:s2": {"name": "s2 · f", "use": False, "roles": {}, "rows": [{"X": 3, "_op": None}]}}
+    spec = lambda rows: {"rows": rows, "columns": ["log.X"]}  # noqa: E731
+    body = lambda rows: [r[0] for r in tables.build("leg", spec(rows), [], [], logs)["body"]]  # noqa: E731
+    assert body("logs") == [1, 2]                     # the ticked logs
+    assert body("log:a:s2") == [3]                    # one log, ticked or not
+    assert body("log:gone:x") == []                   # a log no longer imported

@@ -254,10 +254,12 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
         base = [{"op": op_rows.get(b["label"], {}), "bottle": b} for b in rows]
         base.sort(key=lambda x: (x["op"].get("start_utc") or "", x["bottle"]["bottle"]))
     elif source == "logs" or source.startswith("log:"):
-        # Every ticked log's rows, stacked (a table from before the combined
-        # source, "log:<id>:<sheet>", shows them all too).
+        # Every ticked log's rows, stacked, or one log's ("log:<id>:<sheet>"),
+        # whether or not it is ticked to select operations.
+        chosen = [logs[source]] if source in logs else [] if source != "logs" else \
+            [lg for lg in logs.values() if lg.get("use") is not False]
         base = [{"op": op_rows.get(x["_op"]) or {}, "log": x, "lg": lg}
-                for lg in logs.values() if lg.get("use") is not False
+                for lg in chosen
                 for x in lg["rows"] if x["_op"] is None or x["_op"] in keys or not keys]
     else:
         raise ValueError(f"unknown row source {source}")
