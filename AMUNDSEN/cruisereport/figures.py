@@ -29,7 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-from matplotlib.collections import PolyCollection  # noqa: E402
+from matplotlib.collections import LineCollection, PolyCollection  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 from pyproj import Transformer  # noqa: E402
 
@@ -44,6 +44,9 @@ BLUES = LinearSegmentedColormap.from_list(
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 LAND, LAND_EDGE, WATER = "#e9e7e1", "#b9b7af", "#fcfcfb"
 DPI = 200
+# The ship track by time: dark purple (start of the leg) to orange (now), stopping
+# short of plasma's pale yellow, which vanishes against the water.
+TRACK_CMAP = LinearSegmentedColormap.from_list("track", plt.cm.plasma(np.linspace(0.0, 0.82, 64)))
 
 plt.rcParams.update({
     "font.family": "DejaVu Sans", "font.size": 8.5, "axes.edgecolor": INK2,
@@ -89,17 +92,18 @@ def _geo(name: str) -> list[tuple[list, dict]]:
     return out
 
 
-def _track(leg: str, t0: str | None, t1: str | None, step: int = 30) -> np.ndarray:
+def _track(leg: str, t0: str | None = None, t1: str | None = None, step: int = 30) -> np.ndarray:
+    """Ship positions, every ``step``-th record (5 min): rows of lon, lat, epoch seconds."""
     p = underway.db_path(leg)
     if not p.is_file():
-        return np.empty((0, 2))
+        return np.empty((0, 3))
     con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
     try:
         cols = dict(con.execute("SELECT key, col FROM columns").fetchall())
         la, lo = cols.get("posmv — latitude (deg n)"), cols.get("posmv — longitude (deg e)")
         if not la or not lo:
-            return np.empty((0, 2))
-        q = f"SELECT {lo}, {la} FROM obs WHERE rowid % {step} = 0"
+            return np.empty((0, 3))
+        q = f"SELECT {lo}, {la}, t FROM obs WHERE rowid % {step} = 0"
         args: list = []
         if t0 and t1:
             q += " AND t BETWEEN ? AND ?"
@@ -108,11 +112,12 @@ def _track(leg: str, t0: str | None, t1: str | None, step: int = 30) -> np.ndarr
         arr = np.array(con.execute(q + " ORDER BY t", args).fetchall(), dtype=float)
     finally:
         con.close()
-    return arr[np.isfinite(arr).all(axis=1)] if len(arr) else np.empty((0, 2))
+    return arr[np.isfinite(arr).all(axis=1)] if len(arr) else np.empty((0, 3))
 
 
-def station_map(leg: str, rows: list[dict], *, whole_leg_track: bool = True,
-                label_stations: bool = True) -> bytes:
+def station_map(leg: str, rows: list[dict], *, label_stations: bool = True) -> bytes:
+    """The selected operations over the leg's whole ship track, coloured by
+    time; the view takes in both."""
     pts = [(r["lon"], r["lat"]) for r in rows if r.get("lat") is not None]
     if not pts:
         return _empty("No positions for the selected operations.")
@@ -120,7 +125,9 @@ def station_map(leg: str, rows: list[dict], *, whole_leg_track: bool = True,
     lat0 = float(np.median([p[1] for p in pts]))
     tr = Transformer.from_crs("EPSG:4326",
                               f"+proj=laea +lat_0={lat0} +lon_0={lon0} +units=km", always_xy=True)
-    xy = np.array([tr.transform(*p) for p in pts])
+    trk = _track(leg)
+    txy = np.column_stack(tr.transform(trk[:, 0], trk[:, 1])) if len(trk) else np.empty((0, 2))
+    xy = np.vstack([np.array([tr.transform(*p) for p in pts]), txy])
     span = max(np.ptp(xy[:, 0]), np.ptp(xy[:, 1]), 40.0)
     pad = span * 0.12 + 10
     x0, x1 = xy[:, 0].min() - pad, xy[:, 0].max() + pad
@@ -161,14 +168,14 @@ def station_map(leg: str, rows: list[dict], *, whole_leg_track: bool = True,
     ax.add_collection(PolyCollection(land, facecolors=LAND, edgecolors=LAND_EDGE,
                                      linewidths=0.4, zorder=1))
 
-    t0 = None if whole_leg_track else min(r["start_utc"] for r in rows)
-    t1 = None if whole_leg_track else max(r["end_utc"] for r in rows)
-    trk = _track(leg, t0, t1)
-    if len(trk):
-        tx, ty = tr.transform(trk[:, 0], trk[:, 1])
-        jump = np.hypot(np.diff(tx), np.diff(ty)) > 50        # break the line over data gaps
-        tx, ty = np.insert(tx, np.where(jump)[0] + 1, np.nan), np.insert(ty, np.where(jump)[0] + 1, np.nan)
-        ax.plot(tx, ty, color=INK2, lw=0.7, alpha=0.7, zorder=2, label="Ship track")
+    track_line = None
+    if len(trk) > 1:
+        seg = np.stack([txy[:-1], txy[1:]], axis=1)
+        keep = np.hypot(*(txy[1:] - txy[:-1]).T) <= 50        # no line over data gaps
+        when = matplotlib.dates.date2num(pd.to_datetime(trk[:, 2], unit="s"))
+        track_line = LineCollection(seg[keep], cmap=TRACK_CMAP, linewidths=1.0, zorder=2)
+        track_line.set_array((when[:-1] + when[1:])[keep] / 2)
+        ax.add_collection(track_line)
 
     groups = list(dict.fromkeys(r["group"] for r in rows if r.get("lat") is not None))
     for i, g in enumerate(groups):
@@ -231,6 +238,13 @@ def station_map(leg: str, rows: list[dict], *, whole_leg_track: bool = True,
             fontsize=7, color=INK, zorder=7)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=min(4, len(groups) + 1),
               fontsize=7, handletextpad=0.3, columnspacing=1.0)
+    if track_line is not None:
+        cb = fig.colorbar(track_line, ax=ax, fraction=0.035, pad=0.02)
+        cb.set_label("Ship track (UTC date)", fontsize=7, color=INK2)
+        cb.ax.yaxis.set_major_locator(matplotlib.dates.AutoDateLocator(maxticks=6))
+        cb.ax.yaxis.set_major_formatter(matplotlib.dates.DateFormatter("%d %b"))
+        cb.ax.tick_params(labelsize=6.5)
+        cb.outline.set_visible(False)
     return _png(fig)
 
 
@@ -296,7 +310,10 @@ def _casts(leg: str, keys: list[str]) -> list[dict]:
 
 
 def profiles(leg: str, keys: list[str], variables: list[str] | None = None,
-             max_depth: float | None = None) -> bytes:
+             max_depth: float | None = None, compressed: bool = False) -> bytes:
+    """One panel per variable against pressure; ``compressed`` puts pressure on
+    a square-root scale (the dashboard's compressed depth), which opens up the
+    upper water column, still labelled in dbar."""
     casts = _casts(leg, keys)
     if not casts:
         return _empty("No processed CTD profiles for the selected casts.")
@@ -323,10 +340,20 @@ def profiles(leg: str, keys: list[str], variables: list[str] | None = None,
         ax.spines["top"].set_visible(True)
         ax.spines["bottom"].set_visible(False)
         ax.grid(True, color=GRID, lw=0.4)
-    axes[0].set_ylabel("Pressure (dbar)")
+    axes[0].set_ylabel("Pressure (dbar, square-root scale)" if compressed else "Pressure (dbar)")
+    if compressed:
+        axes[0].set_yscale("function", functions=(lambda v: np.sqrt(np.clip(v, 0, None)),
+                                                  lambda v: np.square(v)))
     axes[0].invert_yaxis()
     if max_depth:
         axes[0].set_ylim(max_depth, 0)
+    elif compressed:
+        axes[0].set_ylim(axes[0].get_ylim()[0], 0)
+    if compressed:
+        # Ticks spread evenly on a square-root axis, not the linear 50s crowded at depth.
+        bottom = axes[0].get_ylim()[0]
+        axes[0].set_yticks([v for v in (0, 10, 25, 50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000)
+                            if v <= bottom])
     if len(casts) > 1:
         sm = plt.cm.ScalarMappable(cmap=BLUES, norm=plt.Normalize(0, 1))
         cb = fig.colorbar(sm, ax=list(axes), orientation="horizontal", fraction=0.04, pad=0.04,
@@ -341,26 +368,76 @@ def profiles(leg: str, keys: list[str], variables: list[str] | None = None,
     return _png(fig)
 
 
+# What the T–S points can be coloured by, besides a profile variable ("var:<name>").
+TS_COLOURS = {"pressure": "Pressure (dbar)", "time": "Cast time", "lat": "Latitude (°N)", "station": "Station"}
+
+
+def ts_colour_options(leg: str) -> list[list[str]]:
+    """[value, label] for the T–S colour choice: the fixed ones, then every
+    profile variable other than temperature and salinity the leg's casts have."""
+    seen: dict[str, str] = {}
+    for per in ctd.cast_cache(leg).values():
+        for kind in ("CTD", "TM"):
+            c = per.get(kind)
+            for v, vals in ((c or {}).get("vars") or {}).items():
+                if vals and v not in ("Temperature", "Salinity") and v not in seen:
+                    unit = (c.get("units") or {}).get(v)
+                    seen[v] = f"{v} ({unit})" if unit else v
+    return [[k, v] for k, v in TS_COLOURS.items()] + [[f"var:{v}", label] for v, label in sorted(seen.items())]
+
+
 def ts_diagram(leg: str, keys: list[str], bottles: list[tuple[float, float]] | None = None,
-               bottle_label: str = "Bottles sampled") -> bytes:
-    """Profiles coloured by pressure; ``bottles`` (salinity, temperature) as small ×."""
+               bottle_label: str = "Bottles sampled", colour: str = "pressure") -> bytes:
+    """Profile points coloured by ``colour`` (TS_COLOURS, or "var:<name>" for a
+    profile variable; points without it are grey); ``bottles`` (salinity,
+    temperature) as small ×."""
     casts = _casts(leg, keys)
-    t, s, p = [], [], []
+    var = colour[4:] if colour.startswith("var:") else None
+    t, s, p, cv = [], [], [], []
+    stations = list(dict.fromkeys(c.get("station") or c.get("label") or "?" for c in casts))
     for c in casts:
         tv, sv = c["vars"].get("Temperature"), c["vars"].get("Salinity")
         if not tv or not sv:
             continue
-        for ti, si, pi in zip(tv, sv, c["p"]):
-            if ti is not None and si is not None:
-                t.append(ti)
-                s.append(si)
-                p.append(pi)
+        other = c["vars"].get(var) if var else None
+        when = matplotlib.dates.date2num(pd.Timestamp(c["time"])) if c.get("time") else np.nan
+        for i, (ti, si, pi) in enumerate(zip(tv, sv, c["p"])):
+            if ti is None or si is None:
+                continue
+            t.append(ti)
+            s.append(si)
+            p.append(pi)
+            if var:
+                x = other[i] if other and i < len(other) else None
+                cv.append(np.nan if x is None else x)
+            elif colour == "time":
+                cv.append(when)
+            elif colour == "lat":
+                cv.append(np.nan if c.get("lat") is None else c["lat"])
+            elif colour == "station":
+                cv.append(stations.index(c.get("station") or c.get("label") or "?"))
+            else:
+                cv.append(np.nan if pi is None else pi)
     if not t:
         return _empty("No temperature and salinity profiles for the selected casts.")
     fig, ax = plt.subplots(figsize=(4.8, 4.0))
-    order = np.argsort(p)
-    sc = ax.scatter(np.asarray(s)[order], np.asarray(t)[order], c=np.asarray(p)[order],
-                    cmap=BLUES, s=4, linewidths=0)
+    s_, t_, p_, c_ = (np.asarray(x, dtype=float) for x in (s, t, p, cv))
+    order = np.argsort(p_)                        # deep points drawn first, the surface on top
+    s_, t_, c_ = s_[order], t_[order], c_[order]
+    have = np.isfinite(c_)
+    if (~have).any():
+        ax.scatter(s_[~have], t_[~have], color=GRID, s=4, linewidths=0, label="not measured")
+    sc = None
+    if colour == "station":
+        # Past the palette's eight, 20 distinct colours (they repeat only beyond 20 stations).
+        palette = CATEGORICAL if len(stations) <= len(CATEGORICAL) else list(plt.cm.tab20.colors)
+        for k, name in enumerate(stations):
+            m = have & (c_ == k)
+            if m.any():
+                ax.scatter(s_[m], t_[m], color=palette[k % len(palette)], s=4, linewidths=0, label=name)
+    elif have.any():
+        cmap = BLUES if colour == "pressure" else plt.cm.viridis
+        sc = ax.scatter(s_[have], t_[have], c=c_[have], cmap=cmap, s=4, linewidths=0)
     # Freezing line at the surface (TEOS-10 approximation, -0.0575 S).
     ss = np.linspace(min(s), max(s), 50)
     ax.plot(ss, -0.0575 * ss, color=INK2, lw=0.7, ls="--")
@@ -370,14 +447,26 @@ def ts_diagram(leg: str, keys: list[str], bottles: list[tuple[float, float]] | N
         bs, bt = zip(*bottles)
         ax.scatter(bs, bt, marker="x", s=14, linewidths=0.8, color=INK, zorder=5,
                    label=f"{bottle_label} (n = {len(bottles)})")
-        ax.legend(loc="upper left", fontsize=7, frameon=True, framealpha=0.85, edgecolor=GRID)
+    if colour == "station":
+        # One entry per station, beside the plot rather than over the points.
+        fig.set_size_inches(4.8 + (1.3 if len(stations) <= 14 else 2.4), 4.0)
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=6, frameon=False, markerscale=3,
+                  ncol=1 if len(stations) <= 14 else 2, handletextpad=0.2, columnspacing=0.8)
+    elif bottles or (~have).any():
+        ax.legend(loc="upper left", fontsize=6.5, frameon=True, framealpha=0.85, edgecolor=GRID)
     ax.set_xlabel("Practical salinity")
     ax.set_ylabel("Temperature (°C)")
     ax.grid(True, color=GRID, lw=0.4)
-    cb = fig.colorbar(sc, ax=ax, fraction=0.05, pad=0.02)
-    cb.set_label("Pressure (dbar)")
-    cb.ax.invert_yaxis()
-    cb.outline.set_visible(False)
+    if sc is not None:
+        cb = fig.colorbar(sc, ax=ax, fraction=0.05, pad=0.02)
+        unit = next((c["units"].get(var) for c in casts if var and c.get("units", {}).get(var)), "")
+        label = TS_COLOURS.get(colour) or (f"{var} ({unit})" if unit else var) or colour
+        cb.set_label(label)
+        if colour == "pressure":
+            cb.ax.invert_yaxis()
+        if colour == "time":
+            cb.ax.yaxis.set_major_formatter(matplotlib.dates.DateFormatter("%d %b"))
+        cb.outline.set_visible(False)
     return _png(fig)
 
 

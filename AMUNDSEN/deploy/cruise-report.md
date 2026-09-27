@@ -60,8 +60,11 @@ links to it (`shell.reportBanner`), and the status page counts its views as
 4. **Tables.** One row per operation, per rosette bottle, or per logsheet
    row. Columns can come from any linked table, all joined through the
    event label.
-5. **Figures.** Station map, CTD profiles, T–S diagram (optionally with the
-   team's bottles marked ×), and the underway record: any of the Underway
+5. **Figures.** Station map (the operations over the leg's whole ship
+   track, coloured by date), CTD profiles (optionally on the dashboard's
+   compressed, square-root depth scale), T–S diagram (coloured by
+   pressure, cast time, latitude, station or any profile variable, optionally
+   with the team's bottles marked ×), and the underway record: any of the Underway
    tab's panels, in its groups (Surprise, Lab, Met Station, Bridge, Winches,
    Ice camera), with grey lines at the selected operations only. Figures
    redraw when the selection changes; the underway record's time axis is UTC or

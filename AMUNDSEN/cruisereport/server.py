@@ -56,7 +56,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import pandas as pd
 
-from . import activities, digitize, eventlog, logsheets, report, rosette, tables, underway_panels
+from . import activities, digitize, eventlog, figures, logsheets, report, rosette, tables, underway_panels
 from .config import SHIP_TZ, STATE_DIR, WORD_LIMIT
 
 log = logging.getLogger(__name__)
@@ -90,6 +90,7 @@ def leg_info(leg: str) -> dict:
                    for g in order if g in counts],
         "operations": ops,
         "teams": rosette.teams(leg),
+        "ts_colours": figures.ts_colour_options(leg),
         "columns": tables.catalog(leg, [], []),
         "figures": [{"kind": k, "caption": v} for k, v in report.FIGURE_CAPTIONS.items()],
         "underway_panels": underway_panels.catalog(),

@@ -1110,13 +1110,14 @@ function renderFigures() {
     const refresh = () => { clearTimeout(wait); wait = setTimeout(() => drawFigure(f, img), 700); };
     if (f.kind === "map") {
       opts.append(
-        h("label", {}, h("input", { type: "checkbox", checked: f.options.whole_leg_track !== false, onchange: (e) => { f.options.whole_leg_track = e.target.checked; persist(); refresh(); } }), " whole-leg track"),
         h("label", {}, h("input", { type: "checkbox", checked: f.options.label_stations !== false, onchange: (e) => { f.options.label_stations = e.target.checked; persist(); refresh(); } }), " station names"));
     } else if (f.kind === "profiles") {
       const vars = f.options.variables || ["Temperature", "Salinity", "Fluorescence", "Oxygen"];
       opts.append(...PROFILE_VARS.map((v) => h("label", {}, h("input", { type: "checkbox", checked: vars.includes(v), onchange: (e) => {
         f.options.variables = e.target.checked ? [...vars, v] : vars.filter((x) => x !== v); persist(); refresh(); renderFigures(); } }), " " + v)),
-        h("label", {}, "max depth ", h("input", { type: "number", min: 10, step: 10, value: f.options.max_depth || "", style: "width:90px", onchange: (e) => { f.options.max_depth = +e.target.value || null; persist(); refresh(); } })));
+        h("label", {}, "max depth ", h("input", { type: "number", min: 10, step: 10, value: f.options.max_depth || "", style: "width:90px", onchange: (e) => { f.options.max_depth = +e.target.value || null; persist(); refresh(); } })),
+        h("label", { title: "Square-root depth scale, as on the dashboard: the upper water column opened up" },
+          h("input", { type: "checkbox", checked: !!f.options.compressed_depth, onchange: (e) => { f.options.compressed_depth = e.target.checked; persist(); refresh(); } }), " compressed depth scale"));
     } else if (f.kind === "underway") {
       const all = INFO.underway_panels, ids = new Set(all.map((p) => p.id));
       let panels = (f.options.panels || []).filter((p) => ids.has(p));
@@ -1137,6 +1138,8 @@ function renderFigures() {
       updateNote();
     } else if (f.kind === "ts") {
       const nTeams = R.selection.teams.length;
+      opts.append(h("label", {}, "Colour by ", h("select", { onchange: (e) => { f.options.colour = e.target.value; persist(); refresh(); } },
+        ...(INFO.ts_colours || [["pressure", "Pressure (dbar)"]]).map(([v, l]) => h("option", { value: v, selected: (f.options.colour || "pressure") === v }, l)))));
       opts.append(h("label", {}, h("input", { type: "checkbox", checked: !!f.options.team_bottles, onchange: (e) => { f.options.team_bottles = e.target.checked; persist(); refresh(); } }),
         nTeams ? ` mark the bottles your team sampled (×) — ${R.selection.teams.join(", ")}` : " mark the bottles sampled (×) — tick your team's names in step 2 to show only yours"));
     }

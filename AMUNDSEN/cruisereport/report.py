@@ -70,12 +70,12 @@ def _figure(report: dict, spec: dict) -> bytes:
     kind = spec["kind"]
     if kind == "map":
         return figures.station_map(leg, conditions.table(leg, keys),
-                                   whole_leg_track=opts.get("whole_leg_track", True),
                                    label_stations=opts.get("label_stations", True))
     rosette_keys = [r["key"] for r in conditions.table(leg, keys)
                     if r["group"] in ("rosette", "tm_rosette")]
     if kind == "profiles":
-        return figures.profiles(leg, rosette_keys, opts.get("variables"), opts.get("max_depth"))
+        return figures.profiles(leg, rosette_keys, opts.get("variables"), opts.get("max_depth"),
+                                bool(opts.get("compressed_depth")))
     if kind == "ts":
         bottles, label = None, "Bottles sampled"
         teams = report.get("selection", {}).get("teams", [])
@@ -89,7 +89,7 @@ def _figure(report: dict, spec: dict) -> bytes:
             if teams or logged or (picked or {}).get("added"):
                 label = "Bottles sampled by " + ", ".join(
                     teams + (["your logs"] if logged else []) + (["your picks"] if (picked or {}).get("added") else []))
-        return figures.ts_diagram(leg, rosette_keys, bottles, label)
+        return figures.ts_diagram(leg, rosette_keys, bottles, label, opts.get("colour") or "pressure")
     raise ValueError(f"unknown figure kind {kind}")
 
 
