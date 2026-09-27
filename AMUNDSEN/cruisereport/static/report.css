@@ -122,7 +122,9 @@ table.data td.num { text-align: right; }
 .cols legend { font-size: var(--t-xs); color: var(--muted); padding: 0 4px; text-transform: uppercase; letter-spacing: .04em; }
 .cols label { display: flex; gap: 6px; margin: 2px 0; color: var(--fg); font-size: var(--t-sm); }
 .order { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-.order .pill { cursor: grab; padding: 2px 8px; }
+.order .pill { cursor: grab; padding: 2px 8px; touch-action: none; user-select: none; }
+.order .pill.dragging { cursor: grabbing; opacity: .6; outline: 1px dashed var(--accent); }
+.order .pill .link { padding: 0 2px; }
 
 .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
 .fig { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--bg); }

@@ -995,6 +995,39 @@ function logHeaders() {
     .sort((a, b) => b[2] - a[2] || a[1].localeCompare(b[1]));
 }
 
+// A column pill that can be dragged along its row to reorder (mouse or touch);
+// done(order) gets the row's column ids in their new order.
+function draggablePill(id, label, remove, done) {
+  const pill = h("span", { class: "pill", "data-col": id, title: "Drag to move" }, label + " ",
+    h("button", { class: "link", title: "Remove this column", onclick: remove }, "×"));
+  pill.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest("button")) return;
+    e.preventDefault();
+    pill.classList.add("dragging");
+    const row = pill.parentElement, before = [...row.querySelectorAll("[data-col]")].map((p) => p.dataset.col).join("|");
+    // Listened for on the document: moving the pill in the page drops any pointer capture.
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const over = document.elementsFromPoint(ev.clientX, ev.clientY).find((el) => el !== pill && el.parentElement === row && el.dataset.col);
+      if (!over) return;
+      const r = over.getBoundingClientRect();
+      row.insertBefore(pill, ev.clientX < r.left + r.width / 2 ? over : over.nextSibling);
+    };
+    const up = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      pill.classList.remove("dragging");
+      const order = [...row.querySelectorAll("[data-col]")].map((p) => p.dataset.col);
+      if (order.join("|") !== before) done(order);
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+  });
+  return pill;
+}
 function renderTables() {
   if (!INFO) return;
   for (const t of R.tables) if (t.rows.startsWith("log:")) t.rows = "logs";   // one log's rows: now all of them
@@ -1022,8 +1055,9 @@ function renderTables() {
           h("button", { class: "ghost small", title: "Move down (later in the report)", disabled: i === R.tables.length - 1,
             onclick: () => { [R.tables[i + 1], R.tables[i]] = [R.tables[i], R.tables[i + 1]]; renderTables(); persist(); } }, "↓"),
           h("button", { class: "danger small", onclick: () => { R.tables.splice(i, 1); renderTables(); persist(); } }, "Remove"))),
-      h("div", { class: "order" }, h("span", { class: "hint" }, "Columns in order (click to remove): "),
-        ...t.columns.map((c) => h("span", { class: "pill", title: "Remove", onclick: () => { t.columns = t.columns.filter((x) => x !== c); renderTables(); persist(); } }, colLabel(c) + " ×"))),
+      h("div", { class: "order" }, h("span", { class: "hint" }, "Columns in order (drag to reorder, × to remove): "),
+        ...t.columns.map((c) => draggablePill(c, colLabel(c), () => { t.columns = t.columns.filter((x) => x !== c); renderTables(); persist(); },
+          (order) => { t.columns = order; renderTables(); persist(); }))),
       h("div", { class: "cols" }, ...colGroups(t).map(([name, cols]) => h("fieldset", {}, h("legend", {}, name),
         ...(cols.length ? cols.map((c) => h("label", {}, h("input", { type: "checkbox", checked: t.columns.includes(c.id), onchange: (e) => {
           t.columns = e.target.checked ? [...t.columns, c.id] : t.columns.filter((x) => x !== c.id); renderTables(); persist(); } }),
