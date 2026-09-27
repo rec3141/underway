@@ -55,9 +55,9 @@ BOTTLE_COLS = [
 ]
 
 # Columns that take, from each log, whichever of its columns plays the role.
-LOG_ROLES = {"station": "Station (inferred)", "cast": "Cast (inferred)", "bottle": "Bottle (inferred)",
-             "depth": "Depth (inferred)", "datetime": "Date and time (inferred)", "date": "Date (inferred)",
-             "sample_id": "Sample ID (inferred)", "label": "Event label (inferred)"}
+LOG_ROLES = {"station": "Station (matched)", "cast": "Cast (matched)", "bottle": "Bottle (matched)",
+             "depth": "Depth (matched)", "datetime": "Date and time (matched)", "date": "Date (matched)",
+             "sample_id": "Sample ID (matched)", "label": "Event label (matched)"}
 
 OP_EXTRA = [
     Col("op.n_bottles_team", "Bottles sampled (team)"),

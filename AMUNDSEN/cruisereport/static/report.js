@@ -963,7 +963,7 @@ function colGroups(t) {
     groups.push(["Drawn by team (L)", R.selection.teams.map((x) => ({ id: `draw.${x}`, label: x }))]);
   }
   if (t.rows === "logs") {
-    groups.push(["Your logs · inferred", c.logrole || []]);
+    groups.push(["Your logs · matched", c.logrole || []]);
     groups.push(["Your logs · columns (rows with it)", logHeaders().map(([key, name, n]) => ({ id: `log.${name}`, label: `${name} (${n})` }))]);
   }
   return groups;
