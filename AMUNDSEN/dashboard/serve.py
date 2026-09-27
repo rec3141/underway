@@ -103,6 +103,22 @@ from .config import CAMERA_OUTPUT
 from .nature import IMG_DIR as JOURNAL_IMG
 
 
+WAITING_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="30"><title>Underway dashboard: starting</title>
+<style>:root{color-scheme:light dark}body{font:17px/1.5 system-ui,sans-serif;max-width:34em;margin:3em auto;padding:0 16px}
+a{font-weight:600}</style></head><body>
+<h1>The dashboard is starting</h1>
+<p>It builds its page from the ship's file server (\\\\10.0.0.10). Until it can read it, there is nothing to show.</p>
+<ol><li>Open <a href="settings">Settings</a> and log in (the password was shown when the dashboard was started,
+and is in <code>ADMIN-PASSWORD.txt</code> beside it).</li>
+<li>Under <b>Ship shares</b>, enter the file server's user name and password, and press Save.</li>
+<li>Wait a few minutes: this page turns into the dashboard by itself.</li></ol>
+<p>Already done that? The <a href="status.html">status page</a> shows what it is doing.</p>
+</body></html>
+"""
+
+
 class Handler(SimpleHTTPRequestHandler):
     # Use application/json for GeoJSON so proxy compression also recognizes it.
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".geojson": "application/json", ".pbf": "application/x-protobuf"}
@@ -125,6 +141,18 @@ class Handler(SimpleHTTPRequestHandler):
                         quality = 0.0
             qualities[coding] = quality
         return 0 < qualities.get("gzip", qualities.get("*", 0)) <= 1
+
+    def _waiting(self) -> None:
+        """The page shown until the first build has published one: a fresh installation
+        has no site until it can read the ship's shares, and an empty directory listing
+        tells the person who just started it nothing."""
+        data = WAITING_PAGE.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload).encode()
@@ -155,6 +183,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urlsplit(self.path)
+        if u.path in ("/", "/index.html") and not (Path(self.directory) / "index.html").is_file():
+            return self._waiting()
         if u.path == "/settings" or u.path.startswith("/settings/"):
             from .settings import handle_get
             return handle_get(self, u.path)

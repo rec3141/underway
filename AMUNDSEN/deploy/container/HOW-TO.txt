@@ -16,7 +16,8 @@ WHERE TO FIND IT: this folder is on the ship's file server at
    The computer must be on the ship's wired network (10.0.0.x) and stay on.
 
 2. ONCE: COPY THIS WHOLE FOLDER ONTO THE COMPUTER
-   Copy the folder (about 40 GB) onto the computer's own disk, for example
+   Copy the folder (about 40 GB; about an hour from the file server) onto the
+   computer's own disk, for example
    C:\underway on Windows or your home folder on Linux/Mac. Keep another
    40 GB free: the first start unpacks it.
    It must run from that copy, not from the file server or a USB drive: it
