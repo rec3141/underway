@@ -67,7 +67,7 @@ COLUMNS = [
     Column("depth_m", "Bottom depth", "m", 0, default=True),
     Column("depth_source", "Depth source"),
     Column("air_c", "Air temperature", "°C", 1, default=True),
-    Column("wind_dir_deg", "Wind from", "°", 0, default=True),
+    Column("wind_dir_deg", "Wind from", default=True),         # shown as a compass point (tables._value)
     Column("wind_kn", "Wind speed", "kn", 1, default=True),
     Column("pressure_hpa", "Pressure", "hPa", 1),
     Column("humidity_pct", "Humidity", "%", 0),

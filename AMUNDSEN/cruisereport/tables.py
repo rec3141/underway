@@ -284,7 +284,9 @@ def _col_meta(cid: str, teams: list[str]) -> dict:
 def _value(base: dict, cid: str):
     table, _, field = cid.partition(".")
     if table == "op":
-        return (base.get("op") or {}).get(field)
+        v = (base.get("op") or {}).get(field)
+        # The row keeps degrees (the narrative averages them); a table says NNW.
+        return conditions.compass(v) if field == "wind_dir_deg" and v is not None else v
     if table == "bottle":
         return (base.get("bottle") or {}).get(field)
     if table == "draw":
