@@ -173,11 +173,15 @@ def _ollama_loaded(url: str, model: str) -> bool:
     return model in names or f"{model}:latest" in names or any(n.split(":")[0] == model.split(":")[0] for n in names)
 
 
-def model_status(fresh: bool = False) -> dict:
-    """Where a request can go right now, without loading anything: the
-    configured server if it answers, else the resident Ollama model if it is
-    already loaded, else nowhere. Cached briefly."""
+def model_status(fresh: bool = False, use: str = "chat") -> dict:
+    """Where a request from this part (llm.USES) can go right now, without
+    loading anything: OpenRouter when the part has a key, else the configured
+    local server if it answers, else the resident Ollama model if it is already
+    loaded, else nowhere. The local answer is cached briefly."""
     import requests
+    from . import llm
+    if (route := llm.remote(use)):
+        return route
     now = time.time()
     if not fresh and _status_cache["value"] and now - _status_cache["at"] < STATUS_TTL:
         return _status_cache["value"]
@@ -237,24 +241,26 @@ def alert_offline(status: dict, what: str = "the chat crew") -> None:
 
 def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: float = 1.0,
              num_ctx: int = NUM_CTX, timeout: int = TIMEOUT, think: bool = False,
-             history: list[dict] | None = None) -> str:
+             history: list[dict] | None = None, use: str = "chat") -> str:
     """One answer from the local model. The chat crew and the historian both
     come through here, so the backend choice (the shared OpenAI-style server
     the camera pipeline runs, or the resident Ollama model) is made in one
     place, and the rule that the chat never loads a model is kept here: a
     request goes only to a server that is up or a model that is already in
     memory, and ``keep_alive`` -1 leaves a resident model resident (unload it
-    with ``ollama stop``). ``think`` lets the model reason before it answers;
+    with ``ollama stop``). A part with an OpenRouter key (``use``, see llm.py)
+    goes there instead. ``think`` lets the model reason before it answers;
     ``max_tokens`` then covers the reasoning and the answer together."""
     import requests
-    status = model_status()
+    from . import llm
+    status = model_status(use=use)
     if not status["online"]:
         raise ModelOffline(status["why"])
     backend, url, model = status["backend"], status["url"], status["model"]
     messages = [{"role": "system", "content": system}, *(history or []), {"role": "user", "content": user}]
-    if backend == 'openai':
-        body = dict(model=model, messages=messages, stream=False, max_tokens=max_tokens, temperature=temperature,
-                    chat_template_kwargs={'enable_thinking': think})
+    if backend in ('openai', 'openrouter'):
+        body = llm.body(status, dict(model=model, messages=messages, stream=False, max_tokens=max_tokens,
+                                     temperature=temperature, chat_template_kwargs={'enable_thinking': think}))
         endpoint = '/v1/chat/completions'
     else:
         body = {"model": model, "stream": False, "think": think, "keep_alive": -1,
@@ -262,13 +268,15 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
                 "messages": messages}
         endpoint = '/api/chat'
     try:
-        r = requests.post(url + endpoint, json=body, timeout=timeout)
+        r = requests.post(url + endpoint, json=body, headers=llm.headers(status), timeout=timeout)
     except requests.ConnectionError as e:
         _status_cache["at"] = 0.0               # the picture has changed; the next call looks again
         raise ModelOffline(f"{url} refused mid-conversation") from e
+    if backend == 'openrouter' and r.status_code in (401, 402, 403):
+        raise ModelOffline(f"OpenRouter refused the {use} key ({r.status_code}): check it on the settings page")
     r.raise_for_status()
     result = r.json()
-    message = result['choices'][0]['message'] if backend == 'openai' else result.get('message') or {}
+    message = result['choices'][0]['message'] if backend in ('openai', 'openrouter') else result.get('message') or {}
     content = (message.get('content') or '').strip()
     if think:
         thought = message.get('thinking') or message.get('reasoning') or ''
@@ -278,7 +286,7 @@ def complete(system: str, user: str, max_tokens: int = MAX_TOKENS, temperature: 
             # the thinking used the whole budget and no answer followed: say
             # so, and answer again without it rather than fall silent
             log.warning("the model thought for %d chars and gave no answer within %d tokens; answering again without thinking", len(thought), max_tokens)
-            return complete(system, user, max_tokens, temperature, num_ctx, timeout, think=False, history=history)
+            return complete(system, user, max_tokens, temperature, num_ctx, timeout, think=False, history=history, use=use)
     return content
 
 
@@ -727,7 +735,9 @@ class Crew:
         self.seen_update = None
         self.seen_surprise = None
         self.pause_file = CONFIG_DIR / 'chat-paused'
-        self.enabled = os.environ.get("UNDERWAY_LLM", "1") == "1" and not self.pause_file.exists()
+        # the local GPU (UNDERWAY_LLM) or an OpenRouter key for the crew
+        from .llm import key
+        self.enabled = (os.environ.get("UNDERWAY_LLM", "1") == "1" or bool(key("chat"))) and not self.pause_file.exists()
 
     # ------------------------------------------------------------ context
     def _last(self, d: dict, name: str, nd=2) -> str:

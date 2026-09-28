@@ -211,11 +211,13 @@ def _lab_summary(data: dict) -> str:
 
 
 def ai_recommendation(image: bytes, data: dict) -> dict:
-    """Ask the configured local multimodal model for a machine-readable decision."""
+    """Ask the alerts' multimodal model (OpenRouter when they have a key, see llm.py,
+    else the configured local one) for a machine-readable decision."""
     import requests
+    from . import llm
     from .chatbot import ModelOffline, model_status
 
-    status = model_status(fresh=True)
+    status = model_status(fresh=True, use="alerts")
     if not status.get("online"):
         raise ModelOffline(status.get("why") or "no model loaded")
     prompt = ("The image is one aligned six-hour panel of every flow-through Lab parameter and its matching ship track. "
@@ -228,10 +230,10 @@ def ai_recommendation(image: bytes, data: dict) -> dict:
     uri = "data:image/png;base64," + base64.b64encode(image).decode()
     messages = [{"role": "system", "content": "You are a marine scientist advising the CCGS Amundsen sampling team."},
                 {"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": uri}}]}]
-    if status["backend"] == "openai":
-        body = {"model": status["model"], "messages": messages, "stream": False, "temperature": .3, "max_tokens": 400,
-                "chat_template_kwargs": {"enable_thinking": False}}
-        response = requests.post(status["url"] + "/v1/chat/completions", json=body, timeout=180)
+    if status["backend"] in ("openai", "openrouter"):
+        body = llm.body(status, {"model": status["model"], "messages": messages, "stream": False, "temperature": .3, "max_tokens": 400,
+                                 "chat_template_kwargs": {"enable_thinking": False}})
+        response = requests.post(status["url"] + "/v1/chat/completions", json=body, headers=llm.headers(status), timeout=180)
         response.raise_for_status(); text = response.json()["choices"][0]["message"]["content"]
     else:
         messages = [{"role": "system", "content": messages[0]["content"]},

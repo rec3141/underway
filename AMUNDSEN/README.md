@@ -349,9 +349,10 @@ satellite, cameras, ice charts, the cruise report builder (`/report/`) and the
 game (`/game/`, from github.com/rec3141/amundsen-game), behind Caddy on port 80.
 `python -m dashboard supervise` is its init: it keeps the servers up, runs the
 jobs on the timers' schedules (never two runs of one job at once) and mounts the
-ship's SMB shares from the settings. The chat crew's model and the other GPU
-work are off (`UNDERWAY_LLM=0`); publishing to the web, the Wiki pull from grid,
-the Codex bot and the VPN routes are not in the image. The Wiki is whatever
+ship's SMB shares from the settings. There is no local GPU (`UNDERWAY_LLM=0`):
+each part that uses a language model runs on OpenRouter once it has a key (see
+*AI models* below) and is off until then. Publishing to the web, the Wiki pull
+from grid, the Codex bot and the VPN routes are not in the image. The Wiki is whatever
 snapshot the data folder holds.
 
 Everything the container keeps is one host folder mounted at `/underway`:
@@ -405,6 +406,23 @@ remounts the shares with the new values; the jobs read both files at each
 start. Sessions are signed cookies (12 h), forms carry a CSRF token, and wrong
 passwords from one address are slowed down. The site is plain HTTP on the
 ship's network, so the password crosses it unencrypted.
+
+### AI models
+
+Seven parts use a language model (`dashboard/llm.py`): the chat crew, the
+Wiki's answers, the photo tags, the underway-water alert advice, the ice
+camera, the Hearts crew in the game and the cruise report's sheet digitizing.
+Each has a key and a model on the settings page. A part with a key
+(`OPENROUTER_<PART>_KEY`, or the shared `OPENROUTER_API_KEY`) sends its
+requests to OpenRouter with its model (`OPENROUTER_<PART>_MODEL`, shown
+pre-filled with the default, `google/gemma-4-26b-a4b-it`, the Gemma 4 the ship
+runs locally; the cruise report's is `google/gemini-3.8-flash`). A model left at
+its default is not written, so a later default still applies. The ice camera
+sends pictures all day and never uses the shared key, only its own. A part with
+no key keeps the local arrangement (the resident Ollama model or the shared
+server), which on the workstation is unchanged and in the container is off.
+"Check the AI keys" asks OpenRouter about each saved key, at no cost, and checks
+that each model exists and, where the part sends pictures, reads them.
 
 ## When headers change between legs
 

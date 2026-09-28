@@ -428,20 +428,21 @@ PROMPT = ("This is a contact sheet of {n} numbered photographs taken by scientis
 
 
 def tag_sheet(data_url: str, n: int) -> list[dict]:
-    """One sheet through the local vision model; a dict per tile, by number.
-    The model is the chat's (chatbot.model_status): the shared server the
-    camera pipeline runs, or a resident Ollama model, never one loaded here."""
+    """One sheet through the photo tagger's vision model; a dict per tile, by
+    number. That is OpenRouter when the photo tags have a key (llm.py), else the
+    chat's local model (chatbot.model_status): the shared server the camera
+    pipeline runs, or a resident Ollama model, never one loaded here."""
     import requests
-    from . import chatbot
-    status = chatbot.model_status()
+    from . import chatbot, llm
+    status = chatbot.model_status(use="photos")
     if not status["online"]:
         raise chatbot.ModelOffline(status["why"])
     text = PROMPT.format(n=n)
     url, model = status["url"], status["model"]
-    if status["backend"] == "openai":
-        body = {"model": model, "stream": False, "temperature": 0.7, "max_tokens": 2400, "chat_template_kwargs": {"enable_thinking": False},
-                "messages": [{"role": "user", "content": [{"type": "text", "text": text}, {"type": "image_url", "image_url": {"url": data_url}}]}]}
-        r = requests.post(url + "/v1/chat/completions", json=body, timeout=600)
+    if status["backend"] in ("openai", "openrouter"):
+        body = llm.body(status, {"model": model, "stream": False, "temperature": 0.7, "max_tokens": 2400, "chat_template_kwargs": {"enable_thinking": False},
+                                 "messages": [{"role": "user", "content": [{"type": "text", "text": text}, {"type": "image_url", "image_url": {"url": data_url}}]}]})
+        r = requests.post(url + "/v1/chat/completions", json=body, headers=llm.headers(status), timeout=600)
         r.raise_for_status()
         content = r.json()["choices"][0]["message"].get("content") or ""
     else:

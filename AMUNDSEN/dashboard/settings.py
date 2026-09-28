@@ -77,7 +77,7 @@ class Field:
     choices: tuple[tuple[str, str], ...] = ()
 
 
-GROUPS = ("Ship shares", "Telegram", "Email alerts", "Satellite", "Google Calendar", "Cameras", "General")
+GROUPS = ("Ship shares", "Telegram", "Email alerts", "Satellite", "Google Calendar", "AI models", "Cameras", "General")
 
 FIELDS: tuple[Field, ...] = (
     Field("SHIP_SMB_HOST", "Share server address", "Ship shares",
@@ -141,6 +141,28 @@ FIELDS: tuple[Field, ...] = (
           "Only if the live CTD cast does not show up: the SeaSave computer and ports, like "
           "10.0.0.22:49161. Leave blank to search the usual ports.", SITE_FILE),
 )
+
+
+def _ai_fields() -> tuple[Field, ...]:
+    """A key and a model for each part that uses a language model (llm.USES), after
+    the shared key those parts fall back on. A model box shows the default, and a
+    model left at the default is not written, so a later default still applies."""
+    from .llm import OWN_KEY_ONLY, SHARED_KEY, USES
+    out = [Field(SHARED_KEY, "Shared OpenRouter key", "AI models",
+                 "From openrouter.ai (Keys). Every part below whose own key is empty uses this one, "
+                 "except the ice camera. "
+                 "Without any key those parts are off.", secret=True)]
+    for u in USES:
+        out.append(Field(u.key_var, f"{u.label}: key", "AI models",
+                         u.help if u.name in OWN_KEY_ONLY else f"{u.help} Leave empty to use the shared key.",
+                         secret=True))
+        out.append(Field(u.model_var, f"{u.label}: model", "AI models",
+                         "The OpenRouter model name. Leave it as it is unless you have a reason to change it.",
+                         SITE_FILE, default=u.default, kind="model-images" if u.images else "model-text"))
+    return tuple(out)
+
+
+FIELDS = FIELDS + _ai_fields()
 BY_KEY = {f.key: f for f in FIELDS}
 
 # site.env is sourced by the shell tools, so its values must mean the same
@@ -275,6 +297,8 @@ def save(form: dict[str, str], clear: set[str]) -> dict[str, dict[str, str | Non
             continue
         if f.secret and not v:
             continue
+        if f.kind.startswith("model") and v == f.default:
+            v = ""
         if v != now[f.key]:
             changes[f.file][f.key] = v or None
     if problems:
@@ -348,6 +372,11 @@ def status(v: dict[str, str]) -> list[tuple[str, bool, str]]:
     out.append(("Email alerts", not missing, "on" if not missing else "off: add " + ", ".join(missing)))
     missing = [w for k, w in (("COPERNICUS_ID", "the client id"), ("COPERNICUS_SECRET", "the client secret")) if not v[k]]
     out.append(("Satellite pictures", not missing, "on" if not missing else "off: add " + " and ".join(missing)))
+    from .llm import OWN_KEY_ONLY, SHARED_KEY, USES
+    on = [u.label for u in USES if v[u.key_var] or (v[SHARED_KEY] and u.name not in OWN_KEY_ONLY)]
+    out.append(("AI models", bool(on), "off: add an OpenRouter key" if not on else
+                "on: " + ", ".join(on) + ("" if len(on) == len(USES) else
+                                          "; off: " + ", ".join(u.label for u in USES if u.label not in on))))
     acct = gcal_account()
     out.append(("Google Calendar", bool(acct) and acct != "unreadable",
                 f"on: {acct}" if acct and acct != "unreadable" else
@@ -534,7 +563,7 @@ def render(sid: str | None, message: tuple[str, str] | None = None, typed: dict[
                              "shown": mask(v[f.key]) if f.secret else ""})
             groups.append((g, rows))
         ctx.update(groups=groups, status=status(v), csrf=csrf_token(sid), gcal=gcal_account(),
-                   config_dir=str(_dir()))
+                   config_dir=str(_dir()), models={"images": openrouter_models(True), "text": openrouter_models(False)})
     return _env().get_template("settings.html.j2").render(**ctx)
 
 
@@ -704,16 +733,90 @@ def handle_post(h, path: str) -> None:
                 return _send(h, 303, location=back, cookie=_cookie(fresh))
         return _send(h, 303, location=back)
 
-    if path in ("/settings/test-telegram", "/settings/test-email"):
+    if path in ("/settings/test-telegram", "/settings/test-email", "/settings/test-ai"):
         _flash[sid] = send_test(path.rsplit("-", 1)[1])
         return _send(h, 303, location=back)
 
     _send(h, 404, "<p>Not found.</p>")
 
 
+MODELS_FILE = ".openrouter-models.json"
+MODELS_TTL = 86400
+
+
+def _models_list() -> list[dict]:
+    """OpenRouter's public model list, cached for a day beside the settings; [] offline."""
+    import urllib.request
+    p = _dir() / MODELS_FILE
+    try:
+        if time.time() - p.stat().st_mtime < MODELS_TTL:
+            return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    try:
+        with urllib.request.urlopen("https://openrouter.ai/api/v1/models", timeout=6) as r:
+            data = [{"id": m["id"], "in": m.get("architecture", {}).get("input_modalities", [])}
+                    for m in json.load(r).get("data", [])]
+        _atomic_write(p, json.dumps(data).encode(), 0o644)
+        return data
+    except Exception:                       # noqa: BLE001 — no list only means no suggestions
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return []
+
+
+def openrouter_models(images: bool) -> list[str]:
+    """The model names to suggest: those that read images, for the parts that send them."""
+    return sorted(m["id"] for m in _models_list() if not images or "image" in m["in"])
+
+
+def check_ai() -> tuple[str, str]:
+    """Ask OpenRouter about each saved key (which costs nothing) and check each model name."""
+    import urllib.error
+    import urllib.request
+    from .llm import OWN_KEY_ONLY, SHARED_KEY, USES
+    v = current()
+    keys: dict[str, list[str]] = {}
+    for u in USES:
+        k = v[u.key_var] or ("" if u.name in OWN_KEY_ONLY else v[SHARED_KEY])
+        if k:
+            keys.setdefault(k, []).append(u.label)
+    if not keys:
+        return "bad", "Save an OpenRouter key first."
+    known = {m["id"]: m["in"] for m in _models_list()}
+    lines, bad = [], False
+    for k, labels in keys.items():
+        req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={"Authorization": f"Bearer {k}"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                d = json.load(r).get("data", {})
+            left = d.get("limit_remaining")
+            lines.append(f"key {mask(k)} works ({', '.join(labels)})"
+                         + (f", {left:.2f} credit left" if isinstance(left, (int, float)) else ""))
+        except urllib.error.HTTPError as e:
+            bad = True
+            lines.append(f"key {mask(k)} was refused ({e.code}) for {', '.join(labels)}")
+        except OSError as e:
+            bad = True
+            lines.append(f"could not reach OpenRouter: {getattr(e, 'reason', e)}")
+            break
+    for u in USES:
+        m = v[u.model_var] or u.default
+        if known and m not in known:
+            bad = True
+            lines.append(f"{u.label}: OpenRouter has no model called {m}")
+        elif known and u.images and "image" not in known[m]:
+            bad = True
+            lines.append(f"{u.label}: {m} does not read images, and this part sends them")
+    return ("bad" if bad else "ok"), "; ".join(lines) + "."
+
+
 def send_test(channel: str) -> tuple[str, str]:
     """Send a test message with the saved settings (not the running servers',
     which may predate the save)."""
+    if channel == "ai":
+        return check_ai()
     v = current()
     text = "Test message from the underway dashboard's settings page. Alerts will arrive like this."
     try:

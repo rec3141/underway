@@ -4,7 +4,8 @@
 on a workstation install, for a machine that runs only Docker:
 
 - keeps the long-running servers up (the page server, the cruise report
-  builder, the game, Caddy on port 80, and the Telegram bot while it has a token),
+  builder, the game, Caddy on port 80, the Telegram bot while it has a token,
+  and the ice camera while it has its own OpenRouter key),
   restarting any that exits;
 - runs the periodic jobs on the timers' schedules (the build every minute,
   alerts, calendar, satellite, cameras, ice charts), never two runs of one job
@@ -179,6 +180,11 @@ def _camera_source(env):
     return bool(src) and Path(src).is_dir()
 
 
+def _ice_camera(env):
+    # the ice camera runs only on its own OpenRouter key (llm.OWN_KEY_ONLY): it sends pictures all day
+    return _camera_source(env) and bool(env.get("OPENROUTER_ICE_KEY"))
+
+
 def servers() -> list[Server]:
     port = os.environ.get("UNDERWAY_PORT", "8042")
     home = os.environ.get("UNDERWAY_HOME", "/underway")
@@ -188,6 +194,7 @@ def servers() -> list[Server]:
         Server("game", [PY, "/game/server.py", "--host", "127.0.0.1", "--port", "8050"]),
         Server("caddy", ["caddy", "run", "--config", str(APP / "deploy/container/Caddyfile"), "--adapter", "caddyfile"]),
         Server("telegram", [PY, "-m", "dashboard", "telegram-bot"], wanted=_has("TELEGRAM_KEY")),
+        Server("ice-camera", [PY, "-m", "dashboard.ice_worker"], wanted=_ice_camera),
     ]
 
 
@@ -322,7 +329,7 @@ class Supervisor:
         signal.signal(signal.SIGTERM, lambda *_: setattr(self, "stopping", True))
         signal.signal(signal.SIGINT, lambda *_: setattr(self, "stopping", True))
         env = environment()
-        for d in ("db", "cache", "www", "chat", "camera360", "report", "game"):
+        for d in ("db", "cache", "www", "chat", "camera360", "report", "game", "ice"):
             (Path(os.environ.get("UNDERWAY_HOME", "/underway")) / d).mkdir(parents=True, exist_ok=True)
         config_dir().mkdir(parents=True, exist_ok=True)
         mount_shares(env)
