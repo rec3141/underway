@@ -144,18 +144,15 @@ FIELDS: tuple[Field, ...] = (
 
 
 def _ai_fields() -> tuple[Field, ...]:
-    """A key and a model for each part that uses a language model (llm.USES), after
-    the shared key those parts fall back on. A model box shows the default, and a
-    model left at the default is not written, so a later default still applies."""
-    from .llm import OWN_KEY_ONLY, SHARED_KEY, USES
-    out = [Field(SHARED_KEY, "Shared OpenRouter key", "AI models",
-                 "From openrouter.ai (Keys). Every part below whose own key is empty uses this one, "
-                 "except the ice camera. "
-                 "Without any key those parts are off.", secret=True)]
+    """A key and a model for each of the three AI settings (llm.USES). A model box
+    shows the default, and a model left at the default is not written, so a later
+    default still applies."""
+    from .llm import USES
+    out = []
     for u in USES:
-        out.append(Field(u.key_var, f"{u.label}: key", "AI models",
-                         u.help if u.name in OWN_KEY_ONLY else f"{u.help} Leave empty to use the shared key.",
-                         secret=True))
+        out.append(Field(u.key_var, f"{u.label}: OpenRouter key", "AI models",
+                         u.help + (" From openrouter.ai (Keys). Without a key these are off."
+                                   if u.name == "dashboard" else ""), secret=True))
         out.append(Field(u.model_var, f"{u.label}: model", "AI models",
                          "The OpenRouter model name. Leave it as it is unless you have a reason to change it.",
                          SITE_FILE, default=u.default, kind="model-images" if u.images else "model-text"))

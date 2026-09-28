@@ -1,25 +1,25 @@
 """Which model each part of the dashboard talks to: OpenRouter when it has a key.
 
-Seven parts use a language model, each with its own key and model setting (the
-/settings page lists them, from USES):
+The parts that use a language model share three settings (the /settings page
+lists them, from USES):
 
-    chat      the crew in the Chat tab                        text
-    wiki      the Wiki's "ask" answers                          text
-    photos    tags for the Photos tab                           images
-    alerts    the recommendation on an underway-water alert     images
-    ice       the ice camera's frame classifications            images
-    game      the crew at the Hearts table (amundsen-game)      text
-    report    the cruise report builder's sheet digitizing      images
+    dashboard  the chat crew, the Wiki's answers, the photo tags, the
+               underway-water alert advice and the crew at the Hearts table
+               (amundsen-game)                                   text and images
+    ice        the ice camera's frame classifications            images
+    report     the cruise report builder's sheet digitizing      images
 
-A part whose key is set (``OPENROUTER_<PART>_KEY``, or failing that the shared
-``OPENROUTER_API_KEY``; the ice camera takes only its own) sends its requests to OpenRouter with the model in
-``OPENROUTER_<PART>_MODEL``, whose default is the model the ship runs locally.
-A part with no key keeps the local arrangement: the resident Ollama model or
-the shared server (chatbot.model_status), which never loads a model itself.
+A call names its part (chat, wiki, photos, alerts, game, ice, report); PART maps
+it to one of the three. The dashboard's key, ``OPENROUTER_API_KEY``, also serves
+the cruise report when it has none of its own (``OPENROUTER_REPORT_KEY``); the ice
+camera sends pictures all day and runs only on its own, ``OPENROUTER_ICE_KEY``.
+A part with a key sends its requests to OpenRouter with its model
+(``OPENROUTER_MODEL``, ``OPENROUTER_ICE_MODEL``, ``CRUISE_DIGITIZE_MODEL``). A
+part with no key keeps the local arrangement: the resident Ollama model or the
+shared server (chatbot.model_status), which never loads a model itself.
 
-The game reads its two variables itself (crew_chat.py in amundsen-game).
-The cruise report builder keeps its own names, ``OPENROUTER_REPORT_KEY`` and
-``CRUISE_DIGITIZE_MODEL`` (cruisereport/digitize.py).
+The game reads the dashboard's two variables itself (crew_chat.py in
+amundsen-game); the cruise report builder reads its own (cruisereport/digitize.py).
 """
 from __future__ import annotations
 
@@ -27,8 +27,9 @@ import os
 from dataclasses import dataclass
 
 OPENROUTER = "https://openrouter.ai/api"      # + /v1/chat/completions, like the local OpenAI-style server
-SHARED_KEY = "OPENROUTER_API_KEY"
-# the model the ship runs locally (gemma4-local, gemma-camera), as OpenRouter names it
+SHARED_KEY = "OPENROUTER_API_KEY"               # the dashboard's key, also the report's fallback
+FLASH = "google/gemini-3.8-flash"
+# the model the ship runs locally for the ice camera (gemma-camera), as OpenRouter names it
 GEMMA = "google/gemma-4-26b-a4b-it"
 
 
@@ -44,37 +45,33 @@ class Use:
 
 
 USES: tuple[Use, ...] = (
-    Use("chat", "Chat crew", False, GEMMA, "OPENROUTER_CHAT_KEY", "OPENROUTER_CHAT_MODEL",
-        "The crew who answer in the Chat tab."),
-    Use("wiki", "Wiki answers", False, GEMMA, "OPENROUTER_WIKI_KEY", "OPENROUTER_WIKI_MODEL",
-        "Answers to questions asked in the Wiki."),
-    Use("photos", "Photo tags", True, GEMMA, "OPENROUTER_PHOTOS_KEY", "OPENROUTER_PHOTOS_MODEL",
-        "Describes and tags the pictures in the Photos tab. Needs a model that reads images."),
-    Use("alerts", "Water alert advice", True, GEMMA, "OPENROUTER_ALERTS_KEY", "OPENROUTER_ALERTS_MODEL",
-        "Looks at an underway-water alert's chart and says whether it matters. Needs a model that reads images."),
+    Use("dashboard", "Dashboard AI", True, FLASH, SHARED_KEY, "OPENROUTER_MODEL",
+        "The chat crew, answers in the Wiki, tags for the Photos tab, advice on underway-water alerts, "
+        "and the crew at the Hearts table in Games. Needs a model that reads images."),
     Use("ice", "Ice camera", True, GEMMA, "OPENROUTER_ICE_KEY", "OPENROUTER_ICE_MODEL",
         "Classifies the ice in the 360° camera's pictures. Needs a model that reads images. "
-        "It sends pictures all day and costs the most, so it never uses the shared key: it runs only with a key here."),
-    Use("game", "Card-table crew", False, GEMMA, "OPENROUTER_GAME_KEY", "OPENROUTER_GAME_MODEL",
-        "The crew who play and chat at the Hearts table in Games."),
-    Use("report", "Cruise report sheets", True, "google/gemini-3.8-flash", "OPENROUTER_REPORT_KEY",
-        "CRUISE_DIGITIZE_MODEL", "Reads scanned log sheets in the cruise report builder. Needs a model that reads images."),
+        "It sends pictures all day and costs the most, so it runs only with a key of its own here."),
+    Use("report", "Cruise report sheets", True, FLASH, "OPENROUTER_REPORT_KEY", "CRUISE_DIGITIZE_MODEL",
+        "Reads scanned log sheets in the cruise report builder. Needs a model that reads images. "
+        "Leave the key empty to use the Dashboard AI key."),
 )
 BY_NAME = {u.name: u for u in USES}
-
+# the part a call names -> the setting it uses
+PART = {"chat": "dashboard", "wiki": "dashboard", "photos": "dashboard", "alerts": "dashboard", "game": "dashboard",
+        "dashboard": "dashboard", "ice": "ice", "report": "report"}
 
 # the ice camera sends pictures all day, so it runs only on a key given to it alone
 OWN_KEY_ONLY = {"ice"}
 
 
 def key(use: str) -> str:
-    u = BY_NAME[use]
-    shared = "" if use in OWN_KEY_ONLY else os.environ.get(SHARED_KEY)
+    u = BY_NAME[PART[use]]
+    shared = "" if u.name in OWN_KEY_ONLY else os.environ.get(SHARED_KEY)
     return (os.environ.get(u.key_var) or shared or "").strip()
 
 
 def model(use: str) -> str:
-    u = BY_NAME[use]
+    u = BY_NAME[PART[use]]
     return (os.environ.get(u.model_var) or u.default).strip()
 
 
