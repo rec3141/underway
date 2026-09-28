@@ -737,30 +737,10 @@ def handle_post(h, path: str) -> None:
     _send(h, 404, "<p>Not found.</p>")
 
 
-MODELS_FILE = ".openrouter-models.json"
-MODELS_TTL = 86400
-
-
 def _models_list() -> list[dict]:
-    """OpenRouter's public model list, cached for a day beside the settings; [] offline."""
-    import urllib.request
-    p = _dir() / MODELS_FILE
-    try:
-        if time.time() - p.stat().st_mtime < MODELS_TTL:
-            return json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        pass
-    try:
-        with urllib.request.urlopen("https://openrouter.ai/api/v1/models", timeout=6) as r:
-            data = [{"id": m["id"], "in": m.get("architecture", {}).get("input_modalities", [])}
-                    for m in json.load(r).get("data", [])]
-        _atomic_write(p, json.dumps(data).encode(), 0o644)
-        return data
-    except Exception:                       # noqa: BLE001 — no list only means no suggestions
-        try:
-            return json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return []
+    """OpenRouter's public model list (llm.models), cached beside the settings."""
+    from .llm import models
+    return models(_dir())
 
 
 def openrouter_models(images: bool) -> list[str]:

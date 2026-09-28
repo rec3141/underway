@@ -23,8 +23,11 @@ amundsen-game); the cruise report builder reads its own (cruisereport/digitize.p
 """
 from __future__ import annotations
 
+import json
 import os
+import time
 from dataclasses import dataclass
+from pathlib import Path
 
 OPENROUTER = "https://openrouter.ai/api"      # + /v1/chat/completions, like the local OpenAI-style server
 SHARED_KEY = "OPENROUTER_API_KEY"               # the dashboard's key, also the report's fallback
@@ -94,6 +97,53 @@ def headers(status: dict) -> dict:
     return h
 
 
+MODELS_FILE = ".openrouter-models-v2.json"
+MODELS_TTL = 86400
+
+
+def models(cache_dir: Path | None = None) -> list[dict]:
+    """OpenRouter's public model list, cached for a day in the config directory: for each
+    model its id, what it takes in, and whether reasoning is mandatory and at what efforts.
+    [] offline with no cache."""
+    import urllib.request
+    if cache_dir is None:
+        from .config import CONFIG_DIR as cache_dir
+    p = Path(cache_dir) / MODELS_FILE
+    try:
+        if time.time() - p.stat().st_mtime < MODELS_TTL:
+            return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    try:
+        with urllib.request.urlopen("https://openrouter.ai/api/v1/models", timeout=6) as r:
+            data = [{"id": m["id"], "in": m.get("architecture", {}).get("input_modalities", []),
+                     "reasoning": m.get("reasoning") or {}} for m in json.load(r).get("data", [])]
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data), encoding="utf-8")
+        os.replace(tmp, p)
+        return data
+    except Exception:                       # noqa: BLE001 — no list only means the safe defaults
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return []
+
+
+def reasoning(model_id: str, think: bool) -> dict:
+    """OpenRouter's reasoning setting for one request. Thinking off is ``enabled: false``,
+    except on a model whose reasoning is mandatory (Gemini 3), which refuses that: it gets
+    its lowest effort instead, which reasons little or not at all."""
+    if think:
+        return {"enabled": True}
+    info = next((m.get("reasoning") or {} for m in models() if m["id"] == model_id), {})
+    if info.get("mandatory"):
+        efforts = info.get("supported_efforts") or ["low"]
+        order = ["minimal", "low", "medium", "high", "xhigh"]
+        return {"effort": min(efforts, key=lambda e: order.index(e) if e in order else len(order))}
+    return {"enabled": False}
+
+
 def body(status: dict, payload: dict) -> dict:
     """An OpenAI-style request body fitted to the route: the local server's template switch
     becomes OpenRouter's reasoning setting, and the model is the route's."""
@@ -102,7 +152,7 @@ def body(status: dict, payload: dict) -> dict:
         kwargs = out.pop("chat_template_kwargs", None) or {}
         out.pop("keep_alive", None)
         if "enable_thinking" in kwargs:
-            out["reasoning"] = {"enabled": bool(kwargs["enable_thinking"])}
+            out["reasoning"] = reasoning(status["model"], bool(kwargs["enable_thinking"]))
     return out
 
 
