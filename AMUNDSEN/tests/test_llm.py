@@ -18,6 +18,11 @@ def clean_env(monkeypatch, tmp_path):
     d = tmp_path / "conf"
     d.mkdir()
     monkeypatch.setattr(S, "CONFIG_DIR", d)
+    listing = [{"id": llm.GEMMA, "in": ["image", "text"], "reasoning": {"mandatory": False}},
+               {"id": llm.FLASH, "in": ["image", "text"],
+                "reasoning": {"mandatory": True, "supported_efforts": ["high", "medium", "low"]}},
+               {"id": "some/text-only", "in": ["text"]}]
+    monkeypatch.setattr(llm, "models", lambda cache_dir=None: listing)
     monkeypatch.setattr(S, "_models_list", lambda: [{"id": llm.GEMMA, "in": ["image", "text"]},
                                                     {"id": llm.FLASH, "in": ["image", "text"]},
                                                     {"id": "some/text-only", "in": ["text"]}])
@@ -46,9 +51,15 @@ def test_three_settings_serve_every_part(monkeypatch):
 
 
 def test_body_turns_the_template_switch_into_reasoning():
-    st = {"backend": "openrouter", "model": "m", "key": "k"}
+    st = {"backend": "openrouter", "model": llm.GEMMA, "key": "k"}
     b = llm.body(st, {"model": "local", "keep_alive": -1, "chat_template_kwargs": {"enable_thinking": False}, "messages": []})
-    assert b == {"model": "m", "messages": [], "reasoning": {"enabled": False}}
+    assert b == {"model": llm.GEMMA, "messages": [], "reasoning": {"enabled": False}}
+    flash = dict(st, model=llm.FLASH)
+    off = llm.body(flash, {"chat_template_kwargs": {"enable_thinking": False}})
+    assert off["reasoning"] == {"effort": "low"}, "Gemini refuses enabled:false; it gets its lowest effort"
+    assert llm.body(flash, {"chat_template_kwargs": {"enable_thinking": True}})["reasoning"] == {"enabled": True}
+    unknown = dict(st, model="not/listed")
+    assert llm.body(unknown, {"chat_template_kwargs": {"enable_thinking": False}})["reasoning"] == {"enabled": False}
     assert llm.headers(st)["Authorization"] == "Bearer k"
     local = {"backend": "openai", "model": "gemma-camera"}
     assert "chat_template_kwargs" in llm.body(local, {"chat_template_kwargs": {"enable_thinking": False}})

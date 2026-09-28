@@ -17,6 +17,8 @@ PAYLOAD = dict(messages=[dict(role="user", content="hi")], temperature=0, stream
 def no_keys(monkeypatch):
     for k in ("OPENROUTER_ICE_KEY", "OPENROUTER_API_KEY", "OPENROUTER_ICE_MODEL"):
         monkeypatch.delenv(k, raising=False)
+    # the model list is fetched with the same urlopen these tests fake
+    monkeypatch.setattr(ice_worker.llm, "models", lambda cache_dir=None: [])
 
 
 @pytest.fixture
