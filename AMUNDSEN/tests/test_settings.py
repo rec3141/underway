@@ -21,6 +21,8 @@ def conf(tmp_path, monkeypatch):
     d.mkdir()
     monkeypatch.setattr(S, "CONFIG_DIR", d)
     monkeypatch.setattr(S, "LIMITER", S.Limiter())
+    monkeypatch.setattr(S, "_models_list", lambda: [{"id": "google/gemma-4-26b-a4b-it", "in": ["image", "text"]},
+                                                    {"id": "some/text-only", "in": ["text"]}])
     S._flash.clear()
     S._logged_out.clear()
     return d

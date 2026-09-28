@@ -38,6 +38,11 @@ WHERE TO FIND IT: this folder is on the ship's file server at
      has no data.
    - Cameras: the leg name and the leg's Pictures/Timelapse folder.
    - Optional: Telegram bot, email for alerts, satellite, Google Calendar.
+   - Optional, AI models: the chat crew, Wiki answers, photo tags, alert
+     advice, ice camera, game crew and cruise report use an OpenRouter key
+     (openrouter.ai, pay as you go). Paste one key in "Shared OpenRouter key"
+     to turn most of them on; the ice camera needs a key of its own. Leave
+     the model names as they are, then press "Check the AI keys".
      Anything left empty is simply switched off.
    Press Save. It takes about a minute for the page to show new data.
 

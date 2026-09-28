@@ -1,4 +1,9 @@
-"""New-arrival-only Gemma camera worker. Backfill belongs in the dev repository."""
+"""New-arrival-only Gemma camera worker. Backfill belongs in the dev repository.
+
+With an OpenRouter key for the ice camera (llm.remote('ice')) the frames go to OpenRouter and none of
+the owned-GPU care applies (temperatures, nvidia-smi, systemctl); without one they go to the local
+llama-server named in --config. Without --config the root is ice_store.ROOT (UNDERWAY_ICE_ROOT, else
+UNDERWAY_HOME/ice) and the source UNDERWAY_CAMERA_SOURCE, which is all the OpenRouter route needs."""
 import argparse
 import base64
 from collections import deque
@@ -14,9 +19,10 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from PIL import Image,ImageDraw
-from . import camera_batch,ice_store
+from . import camera_batch,ice_store,llm
 from .camera_features import crop_region
 from .camera_seawater import Filter,audit_contradiction
 
@@ -58,7 +64,10 @@ def validate(raw):
     return [surface[k] for k in ice_store.TYPES],record
 
 class Client:
-    def __init__(self,config,db):self.config=config;self.db=db;self.samples=deque()
+    def __init__(self,config,db):self.config=config;self.db=db;self.samples=deque();self.remote=llm.remote('ice');self.refused=None;self.pause_until=0;self.backoff=0
+    def ready(self):
+        """False while OpenRouter has refused the key (until a restart with a new one) or asked us to wait."""
+        return not self.refused and time.time()>=self.pause_until
     def temperature(self):
         values=[]
         for d in Path('/sys/class/hwmon').glob('hwmon*'):
@@ -71,10 +80,39 @@ class Client:
         self.db.execute('INSERT INTO telemetry VALUES (?,?,?,?)',(time.time(),cpu,gpu,avg));self.db.execute('DELETE FROM telemetry WHERE t<?',(time.time()-604800,));self.db.commit()
         return cpu,gpu,avg
     def request(self,payload):
+        if self.remote:
+            req=urllib.request.Request(self.remote['url']+'/v1/chat/completions',json.dumps(llm.body(self.remote,payload)).encode(),llm.headers(self.remote))
+            with urllib.request.urlopen(req,timeout=300) as response:return json.load(response)
         payload['model']=self.config.get('model','gemma-camera')
         req=urllib.request.Request(self.config['url'].rstrip('/')+'/v1/chat/completions',json.dumps(payload).encode(),{'Content-Type':'application/json'})
         with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req,timeout=300) as response:return json.load(response)
+    def refuse(self,code,why):
+        self.refused=code;print(f'OpenRouter refused the ice camera\'s key (HTTP {code}: {why}); the ice camera stops until the key is changed in Settings',flush=True)
+        raise RuntimeError(f'OpenRouter refused the key (HTTP {code})')
+    def wait(self,why,seconds=None):
+        self.backoff=min(1800,max(60,self.backoff*2));self.pause_until=time.time()+(seconds or self.backoff)
+        raise RuntimeError(f'OpenRouter unavailable ({why}); retrying in {round(self.pause_until-time.time())} s')
+    def openrouter(self,payload):
+        if self.refused:raise RuntimeError(f'OpenRouter refused the key (HTTP {self.refused})')
+        if not self.ready():raise RuntimeError('OpenRouter asked us to wait')
+        try:raw=self.request(payload)
+        except urllib.error.HTTPError as e:
+            if e.code in (401,402):self.refuse(e.code,'no credit left' if e.code==402 else 'invalid key')
+            if e.code==429 or e.code>=500:
+                try:after=float(e.headers.get('Retry-After') or 0)
+                except ValueError:after=0
+                self.wait(f'HTTP {e.code}',after or None)
+            raise
+        except (urllib.error.URLError,OSError) as e:self.wait(str(getattr(e,'reason',e)))
+        # OpenRouter reports some failures (a provider down, out of credit) as a 200 whose body is an error
+        if 'choices' not in raw and isinstance(raw.get('error'),dict):
+            code=raw['error'].get('code');why=raw['error'].get('message','error')
+            if code in (401,402):self.refuse(code,why)
+            if code==429 or (isinstance(code,int) and code>=500):self.wait(f'{code}: {why}')
+            raise RuntimeError(f'OpenRouter error {code}: {why}')
+        self.backoff=0;return raw
     def __call__(self,payload):
+        if self.remote:return self.openrouter(payload)
         cpu,gpu,avg=self.temperature()
         while avg>=95 or gpu>=78:time.sleep(2);cpu,gpu,avg=self.temperature()
         # The owned server must be stoppable: canceling HTTP alone does not stop GPU inference.
@@ -145,8 +183,12 @@ def process(db,config,root,client=None):
             db.execute('UPDATE photos SET attempts=attempts+1,retry_after=?,detail=? WHERE id=?',(time.time()+300,json.dumps(dict(error=str(e))),row['id']));db.commit();print('Retry later:',row['file'],e,flush=True)
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--config',type=Path,required=True);parser.add_argument('--once',action='store_true');args=parser.parse_args()
-    config=json.loads(args.config.read_text());root=Path(config['root']);root.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter);parser.add_argument('--config',type=Path,help='ice.json (root, source, and the local server: url, model, server_unit)');parser.add_argument('--once',action='store_true');args=parser.parse_args()
+    config=json.loads(args.config.read_text()) if args.config else {}
+    config.setdefault('root',str(ice_store.ROOT));config.setdefault('source',os.environ.get('UNDERWAY_CAMERA_SOURCE',''))
+    if not config['source']:parser.error('no camera source: set source in --config or UNDERWAY_CAMERA_SOURCE')
+    if not llm.remote('ice') and not ('url' in config and 'server_unit' in config):parser.error('no OpenRouter key for the ice camera (OPENROUTER_ICE_KEY) and no local server (url, server_unit) in --config')
+    root=Path(config['root']);root.mkdir(parents=True,exist_ok=True)
     with (root/'worker.lock').open('w') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         db=ice_store.connect(root)
@@ -154,7 +196,9 @@ def main():
         if not (root/'seawater-filter.json').exists():
             (root/'seawater-filter.json').write_text(json.dumps(dict(enabled=True,model=str(ASSETS/'seawater-v2.json'),threshold=.995,disabled_flag=str(root/'filter-disabled'))))
         while True:
-            try:discover(db,Path(config['source']));process(db,config,root,client)
+            try:
+                discover(db,Path(config['source']))
+                if client.ready():process(db,config,root,client)
             except Exception as e:print('Worker waiting:',e,flush=True)
             if args.once:break
             time.sleep(30)

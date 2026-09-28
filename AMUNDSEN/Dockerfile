@@ -46,6 +46,7 @@ ENV UNDERWAY_HOME=/underway \
     UNDERWAY_PORT=8042 \
     UNDERWAY_PYTHON=/usr/local/bin/python3 \
     UNDERWAY_LLM=0 \
+    UNDERWAY_UPTIME_URLS="http://127.0.0.1:8042/api/health http://127.0.0.1/api/health" \
     AMUNDSEN_GAME_DB=/underway/game/suggestions.sqlite \
     AMUNDSEN_HEARTS_DB=/underway/game/hearts.json \
     OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \

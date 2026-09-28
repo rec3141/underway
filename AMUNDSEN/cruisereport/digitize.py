@@ -111,7 +111,8 @@ class Refused(RuntimeError):
 
 
 def api_key() -> str:
-    key = os.environ.get("OPENROUTER_REPORT_KEY")
+    # the report's own key, else the dashboard's shared OpenRouter key (dashboard/llm.py)
+    key = os.environ.get("OPENROUTER_REPORT_KEY") or os.environ.get("OPENROUTER_API_KEY")
     if key:
         return key.strip()
     if ENV_FILE.is_file():

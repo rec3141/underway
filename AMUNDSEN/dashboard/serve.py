@@ -794,7 +794,7 @@ def history_ask(root: Path, question: str, slug: str = "") -> dict:
               "listing dates. At most about 350 words.\n\nSHIP\n" + ("\n".join(ship) or "The ship's position is not known to this build.")
               + "\n\nWIKI EXCERPTS\n\n" + (excerpt_block(excerpts) or "(no page in the wiki bears on this question)"))
     with _ask_lock:
-        answer = complete(system, question, max_tokens=700, temperature=0.3, num_ctx=16384, timeout=240)
+        answer = complete(system, question, max_tokens=700, temperature=0.3, num_ctx=16384, timeout=240, use="wiki")
     return {"answer": answer, "pages": [{"slug": e["slug"], "title": e["title"], "kind": e["kind"]} for e in excerpts]}
 
 

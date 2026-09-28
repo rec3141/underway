@@ -109,12 +109,16 @@ pre { font-family: var(--mono); font-size: var(--t-sm); background: var(--card-2
       <button type="submit">Send a test Telegram message</button></form>
     <form method="post" action="settings/test-email"><input type="hidden" name="csrf" value="{{ csrf }}">
       <button type="submit">Send a test email</button></form>
+    <form method="post" action="settings/test-ai"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button type="submit">Check the AI keys</button></form>
   </div>
   <p class="help">The tests use the saved settings: save first, then test.</p>
 </div>
 
 <form method="post" action="settings" id="settings" autocomplete="off">
 <input type="hidden" name="csrf" value="{{ csrf }}">
+{% for kind, names in models.items() %}<datalist id="models-{{ kind }}">{% for m in names %}<option value="{{ m }}">{% endfor %}</datalist>
+{% endfor %}
 {% for group, rows in groups %}
 <div class="card" id="{{ group|lower|replace(' ', '-') }}">
   <h2>{{ group }}</h2>
@@ -141,6 +145,9 @@ pre { font-family: var(--mono); font-size: var(--t-sm); background: var(--card-2
           <option value="{{ val }}"{{ ' selected' if (r.value or f.default) == val }}>{{ words }}</option>
         {% endfor %}
         </select>
+      {% elif f.kind.startswith("model") %}
+        <input type="text" id="f_{{ f.key }}" name="f_{{ f.key }}" value="{{ r.value or f.default }}"
+               list="models-{{ f.kind[6:] }}" spellcheck="false" autocomplete="off">
       {% else %}
         <input type="text" id="f_{{ f.key }}" name="f_{{ f.key }}" value="{{ r.value }}"
                placeholder="{{ f.default }}"{{ ' inputmode=numeric' if f.kind == 'int' }}{{ ' inputmode=email' if f.kind == 'email' }}>

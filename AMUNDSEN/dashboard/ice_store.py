@@ -5,7 +5,8 @@ from pathlib import Path
 import sqlite3
 import time
 
-ROOT=Path(os.environ.get('UNDERWAY_ICE_ROOT','/data/underway_server/ice'))
+# UNDERWAY_ICE_ROOT, else ice/ in the installation (UNDERWAY_HOME: /underway in the container)
+ROOT=Path(os.environ.get('UNDERWAY_ICE_ROOT') or os.path.join(os.environ.get('UNDERWAY_HOME') or '/data/underway_server','ice'))
 TYPES=['grease ice','nilas','thin ice floe','icy bits','brash ice','thick ice floe']
 SURFACE_TYPES=TYPES+['whitecap','small waves','calm water','unknown','water (unspecified)']
 
