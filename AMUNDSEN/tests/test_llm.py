@@ -19,6 +19,7 @@ def clean_env(monkeypatch, tmp_path):
     d.mkdir()
     monkeypatch.setattr(S, "CONFIG_DIR", d)
     monkeypatch.setattr(S, "_models_list", lambda: [{"id": llm.GEMMA, "in": ["image", "text"]},
+                                                    {"id": llm.FLASH, "in": ["image", "text"]},
                                                     {"id": "some/text-only", "in": ["text"]}])
     return d
 
@@ -28,15 +29,18 @@ def test_no_key_stays_local():
     assert not llm.uses_remote()
 
 
-def test_own_key_beats_shared_and_model_defaults(monkeypatch):
-    monkeypatch.setenv(llm.SHARED_KEY, "shared")
+def test_three_settings_serve_every_part(monkeypatch):
+    monkeypatch.setenv(llm.SHARED_KEY, "dash")
     monkeypatch.setenv("OPENROUTER_ICE_KEY", "ice-only")
-    assert llm.remote("ice")["key"] == "ice-only"
-    assert llm.remote("chat")["key"] == "shared"
-    assert llm.remote("chat")["model"] == llm.GEMMA
-    monkeypatch.setenv("OPENROUTER_CHAT_MODEL", "some/other")
-    assert llm.remote("chat")["model"] == "some/other"
-    assert llm.model("report") == "google/gemini-3.8-flash"
+    for part in ("chat", "wiki", "photos", "alerts", "game"):
+        assert llm.remote(part)["key"] == "dash" and llm.remote(part)["model"] == llm.FLASH
+    assert llm.remote("ice")["key"] == "ice-only" and llm.remote("ice")["model"] == llm.GEMMA
+    assert llm.remote("report")["key"] == "dash", "the report falls back on the dashboard key"
+    monkeypatch.setenv("OPENROUTER_REPORT_KEY", "rep")
+    assert llm.remote("report")["key"] == "rep"
+    monkeypatch.setenv("OPENROUTER_MODEL", "some/other")
+    assert llm.remote("wiki")["model"] == "some/other"
+    assert llm.model("report") == llm.FLASH
     monkeypatch.delenv("OPENROUTER_ICE_KEY")
     assert llm.remote("ice") is None, "the ice camera never runs on the shared key"
 
@@ -72,8 +76,8 @@ def test_complete_goes_to_openrouter_with_the_parts_model(monkeypatch):
         return FakeResponse()
 
     monkeypatch.setattr(requests, "post", post)
-    monkeypatch.setenv("OPENROUTER_WIKI_KEY", "wk")
-    monkeypatch.setenv("OPENROUTER_WIKI_MODEL", "some/wiki-model")
+    monkeypatch.setenv(llm.SHARED_KEY, "wk")
+    monkeypatch.setenv("OPENROUTER_MODEL", "some/wiki-model")
     assert chatbot.complete("sys", "q", use="wiki") == "hello"
     assert sent["url"] == "https://openrouter.ai/api/v1/chat/completions"
     assert sent["headers"]["Authorization"] == "Bearer wk"
@@ -94,33 +98,34 @@ def test_crew_wakes_with_a_key_even_without_the_local_gpu(monkeypatch, tmp_path)
     monkeypatch.setattr(chatbot, "CONFIG_DIR", tmp_path)
     crew = lambda: chatbot.Crew(tmp_path, lambda *a, **k: None, lambda *a, **k: [])   # noqa: E731
     assert not crew().enabled
-    monkeypatch.setenv("OPENROUTER_CHAT_KEY", "ck")
+    monkeypatch.setenv(llm.SHARED_KEY, "ck")
     assert crew().enabled
 
 
 def test_model_box_left_at_the_default_is_not_written(clean_env):
-    S.save({"OPENROUTER_CHAT_MODEL": llm.GEMMA, "OPENROUTER_ICE_MODEL": "some/other"}, set())
+    S.save({"OPENROUTER_MODEL": llm.FLASH, "OPENROUTER_ICE_MODEL": "some/other"}, set())
     site = S.read_env(clean_env / "site.env")
-    assert "OPENROUTER_CHAT_MODEL" not in site
+    assert "OPENROUTER_MODEL" not in site
     assert site["OPENROUTER_ICE_MODEL"] == "some/other"
 
 
 def test_page_prefills_defaults_and_lists_models(clean_env):
     S.set_password("correct horse")
     html = S.render(S.check_session(S.make_session()))
-    assert f'name="f_OPENROUTER_CHAT_MODEL" value="{llm.GEMMA}"' in html
+    assert f'name="f_OPENROUTER_MODEL" value="{llm.FLASH}"' in html
+    assert f'name="f_OPENROUTER_ICE_MODEL" value="{llm.GEMMA}"' in html
     assert 'list="models-images"' in html and '<datalist id="models-text">' in html
     assert "AI models:</b> off: add an OpenRouter key" in html
 
 
 def test_check_flags_unknown_and_text_only_models(clean_env, monkeypatch):
-    S.save({llm.SHARED_KEY: "sk-or-abc12345", "OPENROUTER_PHOTOS_MODEL": "some/text-only",
-            "OPENROUTER_WIKI_MODEL": "no/such"}, set())
+    S.save({llm.SHARED_KEY: "sk-or-abc12345", "OPENROUTER_MODEL": "some/text-only",
+            "CRUISE_DIGITIZE_MODEL": "no/such"}, set())
     import urllib.request
     monkeypatch.setattr(urllib.request, "urlopen",
                         lambda req, timeout=None: io.BytesIO(json.dumps({"data": {"limit_remaining": 4.5}}).encode()))
     state, words = S.check_ai()
     assert state == "bad"
     assert "works" in words and "4.50 credit left" in words
-    assert "Wiki answers: OpenRouter has no model called no/such" in words
-    assert "Photo tags: some/text-only does not read images" in words
+    assert "Cruise report sheets: OpenRouter has no model called no/such" in words
+    assert "Dashboard AI: some/text-only does not read images" in words

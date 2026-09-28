@@ -409,18 +409,21 @@ ship's network, so the password crosses it unencrypted.
 
 ### AI models
 
-Seven parts use a language model (`dashboard/llm.py`): the chat crew, the
-Wiki's answers, the photo tags, the underway-water alert advice, the ice
-camera, the Hearts crew in the game and the cruise report's sheet digitizing.
-Each has a key and a model on the settings page. A part with a key
-(`OPENROUTER_<PART>_KEY`, or the shared `OPENROUTER_API_KEY`) sends its
-requests to OpenRouter with its model (`OPENROUTER_<PART>_MODEL`, shown
-pre-filled with the default, `google/gemma-4-26b-a4b-it`, the Gemma 4 the ship
-runs locally; the cruise report's is `google/gemini-3.8-flash`). A model left at
-its default is not written, so a later default still applies. The ice camera
-sends pictures all day and never uses the shared key, only its own. A part with
-no key keeps the local arrangement (the resident Ollama model or the shared
-server), which on the workstation is unchanged and in the container is off.
+The parts that use a language model share three settings on the settings page
+(`dashboard/llm.py`), each an OpenRouter key and a model, the model shown
+pre-filled with its default:
+
+| setting | covers | default model |
+|---|---|---|
+| Dashboard AI (`OPENROUTER_API_KEY`, `OPENROUTER_MODEL`) | the chat crew, the Wiki's answers, the photo tags, the underway-water alert advice, the Hearts crew in the game | `google/gemini-3.8-flash` |
+| Ice camera (`OPENROUTER_ICE_KEY`, `OPENROUTER_ICE_MODEL`) | the ice camera's classifications | `google/gemma-4-26b-a4b-it`, the Gemma 4 the ship runs locally |
+| Cruise report sheets (`OPENROUTER_REPORT_KEY`, `CRUISE_DIGITIZE_MODEL`) | the cruise report's sheet digitizing | `google/gemini-3.8-flash` |
+
+A model left at its default is not written, so a later default still applies.
+The cruise report uses the Dashboard AI key when it has none of its own; the ice
+camera sends pictures all day and runs only on its own key. A part with no key
+keeps the local arrangement (the resident Ollama model or the shared server),
+which in the container is off.
 "Check the AI keys" asks OpenRouter about each saved key, at no cost, and checks
 that each model exists and, where the part sends pictures, reads them.
 
