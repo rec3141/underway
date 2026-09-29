@@ -14,7 +14,10 @@
 # coastline, the geographic names): `tiles` copies them to the web server
 # once, and deploy keeps them current after that. The page the web server
 # gets is rebuilt from that same directory, so it offers the seabed only in
-# the ramps that are there.
+# the ramps that are there. Only what Amundsen Science has itself released
+# goes out (dashboard/public.py): grid's rebuild thins the record to their
+# cadence (--public), and public_manifest withholds the whiteboard and the
+# casts that are not in their catalogue.
 #
 #   tools/publish-web.sh push      on the ship: www -> grid, then grid deploys
 #   tools/publish-web.sh deploy    on grid: the history layer, the assets, then mirror -> web server
@@ -80,7 +83,7 @@ rebuild_tracks() {
   if ! UNDERWAY_DATA_ROOT="$SOURCE/Data" UNDERWAY_SHARE_ROOT="$SOURCE/Share" \
     UNDERWAY_DB_DIR="$GRID_HOME/db" UNDERWAY_CACHE_DIR="$GRID_HOME/cache" \
     PYTHONPATH="$HERE" OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
-    "$TRACK_PY" -m dashboard build --tracks-only --root "$stage"; then
+    "$TRACK_PY" -m dashboard build --tracks-only --public --root "$stage"; then
     echo "Track rebuild failed; web deployment skipped. Stage retained at $stage" >&2
     return 1
   fi
@@ -196,6 +199,10 @@ import hashlib, json, sys, re
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 p, index = Path(sys.argv[1]), Path(sys.argv[2])
+# only what Amundsen Science has released (dashboard/public.py): the
+# whiteboard, casts not in the catalogue and windows finer than theirs stay
+from dashboard.public import restrict
+print("public release:", json.dumps(restrict(p.parent.parent)))
 m = json.loads(p.read_text())
 m['cameras'] = []
 m['public'] = True
@@ -270,7 +277,7 @@ case "${1:-}" in
     # what grid makes for itself stays: the history layer is not sent, and
     # nothing under data/ that the ship does not send is deleted there, so
     # the track files generated on grid survive every push
-    $RSYNC --delete --exclude 'data/history/' --exclude 'data/w-*.json' --exclude 'data/track/' --exclude '.htaccess' --exclude 'api-off.json' --exclude '.published' \
+    $RSYNC --delete --exclude 'data/history/' --exclude 'data/w-*.json' --exclude 'data/track/' --exclude '.htaccess' --exclude 'api-off.json' --exclude '.published' --exclude '.public-filter' \
       --filter='P data/**' --exclude '*.tmp' --exclude '*.part' "$WEBROOT/" "$REMOTE/" | stats
     if [[ ${#DRY_ARGS[@]} -gt 0 ]]; then echo "Dry run complete; grid rebuild/deploy skipped"; exit 0; fi
     echo "== grid pulls master, rebuilds and deploys"
@@ -301,7 +308,10 @@ case "${1:-}" in
     echo "== $MIRROR -> $TARGET (no cameras, journal photographs or tiles)"
     # two passes: the page and its data, then the history's files (whole unless
     # a cap is set: an index of ten thousand artifacts is bigger than a picture)
-    $RSYNC --delete \
+    # .public-filter hides what public_manifest withheld, and --delete takes
+    # any copy of it off the web server
+    [[ -f $MIRROR/.public-filter ]] || : > "$MIRROR/.public-filter"
+    $RSYNC --delete --filter=". $MIRROR/.public-filter" --exclude '.public-filter' \
       --exclude 'camera/' --exclude 'journal/' --exclude 'static/tiles/' --exclude 'data/history/files/' --exclude 'data/history/locales/' \
       --exclude '*.tmp' --exclude '*.part' "$MIRROR/" "$TARGET/" | stats
     if [[ ${MAX_MB} != 0 ]]; then

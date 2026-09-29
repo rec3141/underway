@@ -489,7 +489,7 @@ def _limits(vals: list) -> list | None:
 
 # ---------------------------------------------------------------- build
 
-def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = False) -> dict:
+def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = False, public: bool = False) -> dict:
     started = datetime.now(timezone.utc)
     incoming = None
     if tracks_only:
@@ -599,6 +599,12 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     leg_codes = leg_codes[~leg_codes.index.duplicated(keep="last")]
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
     a.frame["provisional"] = (a.frame.index >= prov_from).astype(float) if prov_from is not None else 0.0
+    windows = WINDOWS
+    if public:
+        # the web copy: only the resolution Amundsen Science has released
+        from .public import public_frame, public_windows
+        a.frame = public_frame(a.frame)
+        windows = public_windows()
     end = a.frame.index.max()
 
     root.mkdir(parents=True, exist_ok=True)
@@ -618,16 +624,16 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
                 "start": payload.get("start"), "end": payload.get("end")}
         log.info("window %-4s %6d chart points", w.label, payload["n"])
         return meta
-    for w in WINDOWS:
+    for w in windows:
         windows_meta.append(write_window(w))
     remember_windows(windows_meta)
     # "leg": the whole of the live leg, sized afresh each build; it is the
     # default view, so the browser opens on the current leg
     in_leg = a.frame.index[a.frame["leg"] == live_i] if live_i is not None else []
-    default_window = DEFAULT_WINDOW
+    default_window = DEFAULT_WINDOW if any(w.label == DEFAULT_WINDOW for w in windows) else windows[0].label
     if len(in_leg):
         hours = max(1.0, float(math.ceil((end - in_leg.min()).total_seconds() / 3600) + 1))
-        w = Window("leg", hours, next((x.step_s for x in WINDOWS if x.hours >= hours), WINDOWS[-1].step_s))
+        w = Window("leg", hours, next((x.step_s for x in windows if x.hours >= hours), windows[-1].step_s))
         windows_meta.append(write_window(w))
         windows_meta.sort(key=lambda m: m["hours"])
         default_window = "leg"
