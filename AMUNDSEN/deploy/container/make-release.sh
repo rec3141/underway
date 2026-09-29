@@ -7,7 +7,7 @@
 # tag VERSION) and the game checkout (AMUNDSEN_GAME, default /data/dev/amundsen-game), saves it as OUTDIR/underway-VERSION.tar.gz, and copies the
 # start/stop scripts, compose file and HOW-TO beside it. With --with-data it
 # also packs a seed of this installation into OUTDIR/seed/, one tar per part
-# (tiles, arctic-history, db, cache, report, game), so the next machine starts
+# (tiles, arctic-history, db, cache, report, game, ice), so the next machine starts
 # where this one is instead of rebuilding for hours; the start scripts unpack
 # it into data/ on the first start. Secrets are never packed; they go in again
 # on the /settings page.
@@ -81,6 +81,8 @@ PY
   pack cache "$home/cache"
   pack report "$home/report"
   pack game "$game/runtime" --exclude=crew-routing --exclude=caddy-before-game.json
+  # the ice camera's results (ice.sqlite and the batches' JSON), not its pictures (33 GB)
+  pack ice "${UNDERWAY_ICE_ROOT:-$home/ice}" --exclude=/images --exclude='*.jpg' --exclude=worker.lock
   rmdir "$stage" 2>/dev/null || true
   ( cd "$out/seed" && ls -l *.tar | awk '{printf "%8.1f GB  %s\n", $5/1e9, $9}' )
 fi

@@ -34,6 +34,9 @@
   const panelColour=i=>i===0?concentrationColour:i>=3?sliceColour:colour;
   let photos=[],chosen=null,lastKey='',busy=false,matchedData=null,matched=[],error='';
   const image=(p,kind)=>`api/ice/image?id=${encodeURIComponent(p.id)}&kind=${kind}`;
+  // a record whose pictures were not kept (a release carries the results, not the 33 GB of images)
+  // shows a note in the picture's place rather than a broken image
+  document.addEventListener('error',e=>{const im=e.target;if(im?.tagName!=='IMG'||!im.src.includes('api/ice/image'))return;const n=document.createElement('span');n.className='ice-missing';n.textContent=ui("Picture not kept");n.title=im.alt||'';im.replaceWith(n)},true);
   const visible=()=>photos.filter(p=>U.inFilter(p.leg,p.time,U.currentFilter()));
   const dominant=p=>p.types?.indexOf(Math.max(...p.types));
   const labels=['Concentration','Ice composition','Surface types','ROI','Slices'];
