@@ -17,8 +17,9 @@ What it fetches, and how:
   are averaged per minute here. Only position and speed are kept: heading and
   track are circular, a mean of them is wrong at north, and the course
   follows from the positions.
-* weather, AVOS (amundsen12518) and ATS (amundsen13391): whole, one month per
-  request. AVOS is hourly or sparser, so a per-minute mean would change
+* weather, AVOS (amundsen12518) and ATS (amundsen13391): whole, AVOS one
+  month per request and ATS one voyage per request (the server finds none of
+  its rows by time). AVOS is hourly or sparser, so a per-minute mean would change
   nothing; ATS's wind direction is circular.
 * rosette CTD: amundsen12713 (2014 on) one voyage per request, and the older
   one-dataset-per-leg sets whole; then binned here to 1 dbar. The Bioness and
@@ -35,7 +36,7 @@ fetches the rest; an empty month (HTTP 404) leaves an empty ``.none`` marker.
 
 Layout under ``--root`` (default /data/amundsen-archive):
 
-    raw/<kind>/<YYYY-MM>.csv        a month of a time series
+    raw/<kind>/<YYYY-MM>.csv        a month of a time series (ATS: <voyage>.csv)
     raw/nav-nc/<file>.csv.nc        a day of navigation as published
     raw/nav/<file>.csv              that day, averaged per minute
     raw/ctd/<dataset>[_<cruise>].csv
@@ -74,6 +75,8 @@ SERIES = {
             "air_humidity,air_pressure,surface_temperature,photosynthetically_active_radiation,"
             "shortwave_radiation,longwave_radiation", False, "2023-01"),
 }
+# no time index on the server: a month's query finds nothing, a voyage's works
+PER_CRUISE = {"ats"}
 CTD_VARS = ("cruise_name,cruise_number,cast_number,station,time,latitude,longitude,PRES,depth,"
             "TE90,PSAL,OXYM,pH,NTRA,FLOR,CDOM,TRAN,TURB,PSAR,SPAR,SIGT")
 CTD_MODERN = "amundsen12713"
@@ -87,7 +90,8 @@ CTD_LEGACY = (
     "amundsen11153 amundsen11154 amundsen11155 amundsen11156 amundsen11943 amundsen11919 amundsen11920 "
     "amundsen11921 amundsen11922 amundsen11923 amundsen11924 amundsen11926 amundsen11927"
 ).split()
-CTD_TEXT = {"cruise_name", "cruise_number", "cast_number", "station", "time"}
+CTD_TEXT = {"platform_name", "platform_id", "filename", "cruise_name", "cruise_number", "cast_number", "station", "time"}
+PRESSURE = ("PRES", "Pres")
 
 
 def log(root: Path, msg: str) -> None:
@@ -149,6 +153,16 @@ def fetch(root: Path, until: dt.date, only: set[str]) -> int:
     for kind, (ds, variables, mean, first) in SERIES.items():
         if only and kind not in only:
             continue
+        if kind in PER_CRUISE:
+            for cruise in distinct(ds, "cruise_number"):
+                if (y := year_of(cruise)) and y >= until.year:
+                    continue
+                status = get(root, query(ds, variables, f'cruise_number="{cruise}"'),
+                             root / "raw" / kind / f"{re.sub(r'[^\w.-]', '_', cruise)}.csv")
+                failed += status == "failed"
+                if status != "skip":
+                    time.sleep(PAUSE_S)
+            continue
         for label, a, b in months(first, until):
             cons = [f"time>={a}T00:00:00Z", f"time<{b}T00:00:00Z"]
             if mean:
@@ -168,7 +182,9 @@ def fetch(root: Path, until: dt.date, only: set[str]) -> int:
             if status != "skip":
                 time.sleep(PAUSE_S)
         for ds in CTD_LEGACY:
-            status = get(root, query(ds, CTD_VARS), root / "raw/ctd" / f"{ds}.csv")
+            # the older sets name their columns in more than one way (PRES or
+            # Pres, TE90 or Temp), so each comes with all of its own
+            status = get(root, f"{ERDDAP}/{ds}.csv", root / "raw/ctd" / f"{ds}.csv")
             failed += status == "failed"
             if status != "skip":
                 time.sleep(PAUSE_S)
@@ -278,9 +294,10 @@ def bin_dbar(rs: list[dict]) -> list[dict]:
     text columns and the cast's time and position keep their first value."""
     bins: dict[tuple, list[dict]] = defaultdict(list)
     for r in rs:
+        key = next((k for k in PRESSURE if r.get(k) not in (None, "")), None)
         try:
-            p = float(r["PRES"])
-        except (KeyError, ValueError):
+            p = float(r[key])
+        except (KeyError, TypeError, ValueError):
             continue
         bins[(r.get("cruise_number"), r.get("cast_number"), r.get("time"), round(p))].append(r)
     out = []
@@ -291,7 +308,9 @@ def bin_dbar(rs: list[dict]) -> list[dict]:
                 continue
             vals = [float(g[k]) for g in group if _num(g.get(k))]
             row[k] = f"{sum(vals) / len(vals):.4f}" if vals else ""
-        row["PRES"] = str(p)
+        for k in PRESSURE:
+            if k in row:
+                row[k] = str(p)
         out.append(row)
     return out
 
@@ -310,7 +329,7 @@ def write(path: Path, rs: list[dict]) -> None:
     with open(tmp, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
-        w.writerows(sorted(rs, key=lambda r: r.get("time", "")) if "PRES" not in fields else rs)
+        w.writerows(rs if set(PRESSURE) & set(fields) else sorted(rs, key=lambda r: r.get("time", "")))
     tmp.replace(path)
 
 
