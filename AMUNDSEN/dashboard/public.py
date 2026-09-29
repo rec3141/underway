@@ -10,7 +10,9 @@ the web root in place before it goes to the web server:
   Science's catalogue (ERDDAP ``amundsen12713``, which ends with 2024); the
   station markers stay, since the public event log carries their times and
   places;
-* window files the public manifest does not list are withheld.
+* window files and track chunks the public manifest does not list are
+  withheld: grid keeps unreferenced chunks a week for reuse, and those from
+  a build before this thinning carry the full record.
 
 What is withheld is listed in ``.public-filter`` as rsync hide rules
 (``H /path``): hidden from the sender only, so the upload's ``--delete``
@@ -181,6 +183,12 @@ def stale_windows(root: Path, manifest: dict) -> list[str]:
     return sorted(f"data/{p.name}" for p in (root / "data").glob("w-*.json") if f"data/{p.name}" not in listed)
 
 
+def stale_track(root: Path, manifest: dict) -> list[str]:
+    """Track chunks in the web root that the manifest does not reference."""
+    listed = {c.get("file") for level in (manifest.get("track") or {}).get("levels", []) for c in level.get("chunks", [])}
+    return sorted(f"data/track/{p.name}" for p in (root / "data/track").glob("*.json") if f"data/track/{p.name}" not in listed)
+
+
 def restrict(root: Path) -> dict:
     """Apply every rule to the web root at ``root`` in place, and write its
     ``.public-filter``."""
@@ -188,7 +196,7 @@ def restrict(root: Path) -> dict:
     manifest_path = root / "data/manifest.json"
     manifest = json.loads(manifest_path.read_text())
     strip_whiteboard(root, manifest)
-    withheld = restrict_casts(root, manifest) + stale_windows(root, manifest)
+    withheld = restrict_casts(root, manifest) + stale_windows(root, manifest) + stale_track(root, manifest)
     if manifest.get("default_window") not in {w.get("label") for w in manifest.get("windows", [])} and manifest.get("windows"):
         manifest["default_window"] = manifest["windows"][0]["label"]
     _write(manifest_path, manifest)

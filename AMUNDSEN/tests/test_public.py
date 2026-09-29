@@ -73,8 +73,12 @@ class RestrictTests(unittest.TestCase):
         (root / "data/calendar.json").write_text(json.dumps({"schedule": {"rows": [], "whiteboard": "science meeting at 8"}}))
         for label in ("1h", "12h", "leg"):
             (root / f"data/w-{label}.json").write_text("{}")
+        (root / "data/track").mkdir()
+        for chunk in ("aaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbb"):
+            (root / f"data/track/{chunk}.json").write_text("{}")
         (root / "data/manifest.json").write_text(json.dumps({
             "default_window": "leg", "casts": {"n": 2},
+            "track": {"levels": [{"chunks": [{"file": "data/track/aaaaaaaaaaaaaaaaaaaaaaaa.json"}]}]},
             "windows": [{"label": "12h", "file": "data/w-12h.json"}, {"label": "leg", "file": "data/w-leg.json"}],
             "calendar": {"update": {"kind": "whiteboard", "text": "Whiteboard: science meeting at 8"}}}))
 
@@ -92,7 +96,8 @@ class RestrictTests(unittest.TestCase):
         ladcp = json.loads((self.root / "data/casts/ladcp.json").read_text())
         self.assertEqual([c["parent_cast_id"] for c in ladcp["casts"]], ["2024_LEG_02:CTD_001"])
         rules = (self.root / ".public-filter").read_text().splitlines()
-        self.assertEqual(sorted(rules), ["H /data/casts/2026_LEG_03/CTD_001.json", "H /data/w-1h.json"])
+        self.assertEqual(sorted(rules), ["H /data/casts/2026_LEG_03/CTD_001.json",
+                                        "H /data/track/bbbbbbbbbbbbbbbbbbbbbbbb.json", "H /data/w-1h.json"])
 
     def test_a_second_run_changes_nothing(self):
         public.restrict(self.root)
