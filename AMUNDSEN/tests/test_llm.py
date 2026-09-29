@@ -140,3 +140,15 @@ def test_check_flags_unknown_and_text_only_models(clean_env, monkeypatch):
     assert "works" in words and "4.50 credit left" in words
     assert "Cruise report sheets: OpenRouter has no model called no/such" in words
     assert "Dashboard AI: some/text-only does not read images" in words
+
+
+def test_an_empty_model_list_is_never_cached(tmp_path, monkeypatch):
+    import os
+    import urllib.request
+    monkeypatch.undo()                      # the real llm.models, not the fixture's listing
+    good = [{"id": "a/b", "in": ["text"], "reasoning": {}}]
+    (tmp_path / llm.MODELS_FILE).write_text(json.dumps(good))
+    os.utime(tmp_path / llm.MODELS_FILE, (0, 0))      # stale: a fetch is due
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: io.BytesIO(b'{"error": "busy"}'))
+    assert llm.models(tmp_path) == good, "falls back on the stale list"
+    assert json.loads((tmp_path / llm.MODELS_FILE).read_text()) == good, "and never overwrites it with []"
