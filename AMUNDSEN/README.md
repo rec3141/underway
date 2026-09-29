@@ -745,6 +745,23 @@ Each transfer logs `Total bytes sent` and `Total bytes received` in
 counts (before SSH/network overhead), unlike `Total transferred file size`,
 which counts whole changed files even when only their deltas cross the link.
 
+The web copy releases only what Amundsen Science has released itself
+(`dashboard/public.py`):
+
+| | Released by Amundsen Science | Web copy |
+|---|---|---|
+| Underway, from 2026 | a position every 5 min and a reading every 15 min (data.amundsen.ulaval.ca) | positions every 5 min, every variable every 15 min; no window under 12 h |
+| Underway, 2025 | TSG per minute and navigation per second (ERDDAP `amundsen12715`, `amundsen12447`) | TSG and navigation per minute, the rest every 15 min |
+| CTD, LADCP, trace-metal and MVP profiles | ERDDAP `amundsen12713`, through 2024 | casts of 2024 and before; later station markers stay, as the public event log has them |
+| Schedule whiteboard | not published | withheld |
+
+Grid's rebuild thins the record (`build --tracks-only --public`), so the
+windows and the track agree. The deploy then withholds the rest and lists
+what it withheld in `www/.public-filter` as rsync hide rules, which also
+delete any copy already on the web server. When Amundsen Science releases
+more, move `PER_MINUTE_UNTIL` or `CASTS_PUBLISHED_THROUGH` in
+`dashboard/public.py`.
+
 What stays aboard: the shipboard cameras (`/camera/`), the nature journal's
 photographs and the `/Share` gallery (`/journal/`), and the GEBCO raster
 pyramid. The page's services do not run on the web server: every `api/`
