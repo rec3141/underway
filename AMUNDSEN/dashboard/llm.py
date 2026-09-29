@@ -118,6 +118,9 @@ def models(cache_dir: Path | None = None) -> list[dict]:
         with urllib.request.urlopen("https://openrouter.ai/api/v1/models", timeout=6) as r:
             data = [{"id": m["id"], "in": m.get("architecture", {}).get("input_modalities", []),
                      "reasoning": m.get("reasoning") or {}} for m in json.load(r).get("data", [])]
+        if not data:
+            # an answer with no models is a fault somewhere, not a list worth a day in the cache
+            raise ValueError("OpenRouter listed no models")
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(".tmp")
         tmp.write_text(json.dumps(data), encoding="utf-8")
