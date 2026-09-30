@@ -157,6 +157,14 @@ class Handler(SimpleHTTPRequestHandler):
         span = logsheets.leg_span(q["leg"]) if out is not None and q.get("leg") else None
         return out, span
 
+    @staticmethod
+    def _match_q(q):
+        """An export's "Matched to" column: {leg, groups, fill} from the query, None without a leg."""
+        if not q.get("leg"):
+            return None
+        return {"leg": q["leg"], "groups": [g for g in q.get("groups", "").split(",") if g],
+                "fill": json.loads(q.get("fill") or "{}")}
+
     def do_GET(self):
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
@@ -184,31 +192,35 @@ class Handler(SimpleHTTPRequestHandler):
                 doc = digitize.load(m[1])
                 name = re.sub(r"[^\w\-]+", "_", doc["tables"][int(m[2])].get("title") or doc["name"])
                 self._send(200, "text/tab-separated-values; charset=utf-8",
-                           digitize.tsv(m[1], int(m[2]), *self._out(q)).encode(),
+                           digitize.tsv(m[1], int(m[2]), *self._out(q), self._match_q(q)).encode(),
                            {"Content-Disposition": f'attachment; filename="{name}.tsv"'})
             return self._guard(tsv)
         if u.path == "/api/digitized.xlsx":
             ids = [i for i in q.get("ids", "").split(",") if re.fullmatch(r"[0-9a-f]{12}", i)]
             return self._guard(lambda: self._send(
                 200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                digitize.xlsx(ids, *self._out(q)), {"Content-Disposition": 'attachment; filename="logbook_transcription.xlsx"'}))
+                digitize.xlsx(ids, *self._out(q), self._match_q(q)), {"Content-Disposition": 'attachment; filename="logbook_transcription.xlsx"'}))
         m = re.fullmatch(r"/api/logsheet/([0-9a-f]{12})\.(tsv|xlsx)", u.path)
         if m:
             def export():
                 meta = logsheets.load(m[1])
                 out, span = self._out(q)
-                per = json.loads(q.get("times") or "{}") if out is not None else {}
+                sheets = json.loads(q.get("times") or "{}")
+                per = sheets if out is not None else {}
+                match = self._match_q(q)
                 stem = re.sub(r"[^\w\-]+", "_", Path(meta["name"]).stem) or "logsheet"
                 if m[2] == "xlsx":
                     return self._send(200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                       logsheets.xlsx(m[1], {"out": out, "span": span, "sheets": per}
-                                                     if out is not None else None),
+                                                     if out is not None else None,
+                                                     match and {**match, "sheets": sheets}),
                                       {"Content-Disposition": f'attachment; filename="{stem}.xlsx"'})
                 sheet = q.get("sheet") or next(iter(meta["sheets"]))
                 name = stem if len(meta["sheets"]) == 1 else f"{stem}_{re.sub(r'[^\w\-]+', '_', sheet)}"
                 self._send(200, "text/tab-separated-values; charset=utf-8",
                            logsheets.tsv(m[1], sheet, {**per.get(sheet, {}), "out": out, "span": span}
-                                         if out is not None and sheet in per else None).encode(),
+                                         if out is not None and sheet in per else None,
+                                         match and {**match, **sheets.get(sheet, {})}).encode(),
                            {"Content-Disposition": f'attachment; filename="{name}.tsv"'})
             return self._guard(export)
         m = re.fullmatch(r"/api/draft/([\w\-]+)", u.path)
@@ -318,18 +330,10 @@ class Handler(SimpleHTTPRequestHandler):
         """Which operation each row of a digitized table matches, as it stands now."""
         a = self._obj()
         k = int(a.get("table", 0))
-        cols, rows = digitize.rows_for_logsheet(ident, k, bool(a.get("fill_down", True)))
-        t = digitize.load(ident)["tables"][k]
-        roles = t.get("roles") or logsheets.guess_roles(
-            pd.DataFrame([{c: v for c, v in r.items() if c != logsheets.HAND_COLUMN} for r in rows]))
-        local = bool(t.get("local"))
-        matched = logsheets.match(rows, roles, a["leg"], a.get("groups"), local)
-        ops = {o.key: o.summary() for o in eventlog.operations(a["leg"])}
-        self._json(200, {"roles": roles, "local": local, "columns": [c for c in cols if c != logsheets.HAND_COLUMN], "rows": [
-            {"op": r["_op"], "how": r["_how"],
-             "label": " ".join(x for x in (ops.get(r["_op"], {}).get("station"),
-                                           ops.get(r["_op"], {}).get("label")) if x) or None}
-            for r in matched]})
+        m = digitize.matched(ident, k, a["leg"], a.get("groups"), bool(a.get("fill_down", True)))
+        labels = logsheets.op_labels([r["_op"] for r in m["rows"]], a["leg"])
+        self._json(200, {**m, "rows": [{"op": r["_op"], "how": r["_how"], "label": label or None}
+                                       for r, label in zip(m["rows"], labels)]})
 
     def _dig_logsheet(self, ident):
         a = self._obj()

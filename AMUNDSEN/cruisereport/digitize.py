@@ -470,6 +470,35 @@ def colour(c: int | None, scheme: str = "light") -> str:
     return f"{round(r * 255):02X}{round(g * 255):02X}{round(b * 255):02X}"
 
 
+def matched(ident: str, table: int, leg: str, groups=None, fill_down: bool = True) -> dict:
+    """Which operation each row of a table matches, as it stands now: its
+    logsheet columns, roles, whether its times are ship time, and the rows
+    with ``_op`` and ``_how`` (logsheets.match)."""
+    import pandas as pd
+
+    from .logsheets import guess_roles, match
+
+    cols, rows = rows_for_logsheet(ident, table, fill_down)
+    t = load(ident)["tables"][table]
+    roles = t.get("roles") or guess_roles(
+        pd.DataFrame([{c: v for c, v in r.items() if c != HAND_COLUMN} for r in rows]))
+    local = bool(t.get("local"))
+    return {"columns": [c for c in cols if c != HAND_COLUMN], "roles": roles, "local": local,
+            "rows": match(rows, roles, leg, groups, local)}
+
+
+def _match_labels(ident: str, table: int, match: dict | None) -> list[str] | None:
+    """A table's "Matched to" column for ``match`` ({leg, groups, fill:
+    {"<id>:<table>": fill_down}}), or None without one."""
+    if not match:
+        return None
+    from .logsheets import op_labels
+
+    fill = (match.get("fill") or {}).get(f"{ident}:{table}", True)
+    m = matched(ident, table, match["leg"], match.get("groups"), bool(fill))
+    return op_labels([r["_op"] for r in m["rows"]], match["leg"])
+
+
 def _texts(ident: str, table: int, out: bool | None, span) -> list[list[str]]:
     """A table's cell texts, its dates and times rewritten into ship time
     (``out`` true) or UTC (false) from what the table says it is in."""
@@ -488,12 +517,17 @@ def _texts(ident: str, table: int, out: bool | None, span) -> list[list[str]]:
             for r in shift_times(rows, roles, bool(t.get("local")), bool(out), span)]
 
 
-def tsv(ident: str, table: int, out: bool | None = None, span=None) -> str:
-    """One table as TSV; ``out`` rewrites its times into ship time or UTC."""
+def tsv(ident: str, table: int, out: bool | None = None, span=None, match: dict | None = None) -> str:
+    """One table as TSV; ``out`` rewrites its times into ship time or UTC, and
+    with ``match`` (_match_labels) it leads with the "Matched to" column."""
+    from .logsheets import MATCH_COLUMN
+
     t = load(ident)["tables"][table]
     clean = lambda s: re.sub(r"[\t\r\n]+", " ", s or "")  # noqa: E731
-    lines = ["\t".join(clean(c) for c in t["columns"])]
-    lines += ["\t".join(clean(c) for c in r) for r in _texts(ident, table, out, span)]
+    lead = _match_labels(ident, table, match)
+    lines = ["\t".join(clean(c) for c in ([MATCH_COLUMN] if lead is not None else []) + t["columns"])]
+    lines += ["\t".join(clean(c) for c in ([lead[i]] if lead is not None else []) + r)
+              for i, r in enumerate(_texts(ident, table, out, span))]
     return "\n".join(lines) + "\n"
 
 
@@ -506,10 +540,13 @@ def _sheet_title(title: str, used: set[str]) -> str:
     return name
 
 
-def xlsx(idents: list[str], out: bool | None = None, span=None) -> bytes:
+def xlsx(idents: list[str], out: bool | None = None, span=None, match: dict | None = None) -> bytes:
     """Every table of the given pages as its own sheet, confidence as cell fill;
     a Notes sheet with the text outside the tables and a Legend. ``out``
-    rewrites the times into ship time or UTC."""
+    rewrites the times into ship time or UTC; with ``match`` (_match_labels)
+    each table leads with the "Matched to" column."""
+    from .logsheets import MATCH_COLUMN
+
     wb = Workbook()
     wb.remove(wb.active)
     used: set[str] = set()
@@ -521,14 +558,16 @@ def xlsx(idents: list[str], out: bool | None = None, span=None) -> bytes:
             continue
         for k, t in enumerate(doc["tables"]):
             ws = wb.create_sheet(_sheet_title(t.get("title") or f"{doc['name']} {k + 1}", used))
-            ws.append(t["columns"])
+            lead = _match_labels(ident, k, match)
+            skip = 0 if lead is None else 1
+            ws.append(([MATCH_COLUMN] if skip else []) + t["columns"])
             for cell in ws[1]:
                 cell.font = bold
-            for r, texts in zip(t["rows"], _texts(ident, k, out, span)):
-                ws.append(texts)
-                for j, c in enumerate(r, start=1):
+            for i, (r, texts) in enumerate(zip(t["rows"], _texts(ident, k, out, span))):
+                ws.append(([lead[i]] if skip else []) + texts)
+                for j, c in enumerate(r, start=1 + skip):
                     ws.cell(ws.max_row, j).fill = PatternFill("solid", fgColor=colour(c["c"]))
-            for j in range(1, len(t["columns"]) + 1):
+            for j in range(1, len(t["columns"]) + 1 + skip):
                 width = max(len(str(ws.cell(i, j).value or "")) for i in range(1, ws.max_row + 1))
                 ws.column_dimensions[get_column_letter(j)].width = min(40, max(8, width + 2))
             ws.freeze_panes = "A2"
