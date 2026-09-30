@@ -24,14 +24,15 @@ def write_leg(root: Path, leg="2016_LEG_01"):
         "GreenEdge,2016001,1,G1,2016-06-05T20:37:47Z,50.3,-58.5,1,6.6,31.4,296\n"
         "GreenEdge,2016001,1,G1,2016-06-05T20:37:47Z,50.3,-58.5,2,6.5,31.5,297\n"
         "GreenEdge,2016001,2,G2,2016-06-06T03:10:00Z,51.0,-59.1,1,5.0,32.0,300\n"
-        ",,NaN,,,NaN,NaN,1,3.0,30,\n")
+        ",,NaN,,,NaN,NaN,1,3.0,30,\n"
+        "CASES,2016001,3,W1,2080-01-01T00:00:00Z,126.3,-13.0,1,-1.6,30.3,\n")      # a placeholder time and place
     return d
 
 
 def test_a_leg_becomes_acsd_files_the_ingest_reads_into_the_right_variables(tmp_path):
     d = write_leg(tmp_path)
     out = tmp_path / "acsd"
-    assert archive.write_acsd(d, out) == 2                                   # two days
+    assert archive.write_acsd(d, out) == 2                                   # two days, and no 2080
     frame, names = ingest.parse_file(out / "ACSD_20160605.csv")
     first = frame.iloc[0]
     by_var = {r.variable.name: r.key for r in resolve_variables(list(frame.columns), names) if r.key}
@@ -51,7 +52,8 @@ def test_casts_group_by_cast_and_skip_rows_without_one(tmp_path, monkeypatch):
     write_leg(tmp_path)
     monkeypatch.setattr(archive, "ARCHIVE_ROOT", tmp_path)
     casts = archive.casts("2016_LEG_01")
-    assert [c.id for c in casts] == ["2016_LEG_01:CTD_001", "2016_LEG_01:CTD_002"]
+    assert [c.id for c in casts] == ["2016_LEG_01:CTD_001", "2016_LEG_01:CTD_002", "2016_LEG_01:CTD_003"]
+    assert (casts[2].time, casts[2].lat, casts[2].lon) == (None, None, None)       # the profile, without them
     c = casts[0]
     assert (c.p, c.vars["Temperature"], c.units["Oxygen"], c.station) == ([1.0, 2.0], [6.6, 6.5], "µM", "G1")
     assert c.meta()["file"] == "data/casts/2016_LEG_01/CTD_001.json"

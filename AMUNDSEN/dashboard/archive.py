@@ -121,6 +121,20 @@ def _minute(iso: str) -> str | None:
     return f"{m[1]}/{m[2]}/{m[3]} {m[4]}:{m[5]}:00" if m else None
 
 
+def _in_leg(t: str | None, leg_id: str) -> str | None:
+    """``t`` when it falls in the leg's year or the next (a leg may winter
+    over), else None: the archive has placeholder times (one CASES cast is
+    dated 2080-01-01)."""
+    return t if t and int(t[:4]) - int(leg_id[:4]) in (0, 1) else None
+
+
+def _place(lat: float | None, lon: float | None) -> tuple[float | None, float | None]:
+    """A real latitude and longitude, or (None, None)."""
+    if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 360):
+        return None, None
+    return lat, lon
+
+
 def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
     """A leg's archive files merged per minute: the (instrument, column)
     list and {time: {(instrument, column): value}}. Where two files give the
@@ -133,10 +147,12 @@ def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
             continue
         with open(path, newline="") as f:
             for r in csv.DictReader(f):
-                t = _minute(r.get("time", ""))
+                t = _in_leg(_minute(r.get("time", "")), leg_dir.name)
                 if not t:
                     continue
                 row = rows[t]
+                r = {**r}
+                r["latitude"], r["longitude"] = _place(_num(r.get("latitude")), _num(r.get("longitude")))
                 for src, key in mapping.items():
                     v = _num(r.get(src))
                     if v is not None and key not in row:
@@ -154,11 +170,11 @@ def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
         seen = set()
         with open(path, newline="") as f:
             for r in csv.DictReader(f):
-                t = _minute(r.get("time", ""))
+                t = _in_leg(_minute(r.get("time", "")), leg_dir.name)
                 if not t or t in seen:
                     continue
                 seen.add(t)
-                lat, lon = _num(r.get("latitude")), _num(r.get("longitude"))
+                lat, lon = _place(_num(r.get("latitude")), _num(r.get("longitude")))
                 row = rows[t]
                 if lat is not None and lon is not None and TSG["latitude"] not in row:
                     row[TSG["latitude"]], row[TSG["longitude"]] = lat, lon
@@ -249,9 +265,11 @@ def casts(leg_id: str) -> list:
                     variables[name] = vals
                     units[name] = unit
         first = rs[0]
+        lat, lon = _place(_num(first.get("latitude")), _num(first.get("longitude")))
+        good_time = _in_leg(_minute(when or ""), leg_id)
         out.append(Cast(id=f"{leg_id}:{ident}", leg=leg_id, kind="CTD", cast=f"{n:03d}",
-                        time=(when or "").rstrip("Z") or None, lat=_num(first.get("latitude")),
-                        lon=_num(first.get("longitude")), station=(first.get("station") or "").strip(),
+                        time=(when or "").rstrip("Z") if good_time else None, lat=lat,
+                        lon=lon, station=(first.get("station") or "").strip(),
                         p=[_num(r[pkey]) for r in rs], vars=variables, units=units,
                         source={"archive": "Amundsen Science ERDDAP", "file": str(path.name)}))
     return out
