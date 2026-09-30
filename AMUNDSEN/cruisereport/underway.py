@@ -46,6 +46,8 @@ class Var:
 
 
 VARS = [
+    Var("lat", "posmv — latitude (deg n)", "Latitude", "°N"),
+    Var("lon", "posmv — longitude (deg e)", "Longitude", "°E"),
     Var("mb_depth_m", "multibeam — bottom depth (m)", "Bottom depth (multibeam)", "m"),
     Var("ek60_depth_m", "ek60 — bottom depth (m)", "Bottom depth (EK60)", "m"),
     Var("sog_kn", "posmv — speed (knt)", "Ship speed over ground", "kn"),

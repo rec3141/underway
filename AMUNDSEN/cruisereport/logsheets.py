@@ -253,6 +253,21 @@ def _when(row: dict, roles: dict, span=None) -> tuple[pd.Timestamp | None, tuple
     return (day.normalize() if day is not None else None), clock
 
 
+def row_time(row: dict, roles: dict, local: bool, span=None) -> str | None:
+    """A row's date and time as ISO UTC (the row in ship time with ``local``),
+    or None unless it has both a day and a clock."""
+    day, clock = _when(row, roles, span)
+    if day is None or clock is None:
+        return None
+    t = day + pd.Timedelta(hours=clock[0], minutes=clock[1])
+    if local:
+        t = t.tz_localize(SHIP_TZ, ambiguous="NaT", nonexistent="shift_forward")
+        if pd.isna(t):
+            return None
+        t = t.tz_convert("UTC").tz_localize(None)
+    return t.isoformat()
+
+
 def leg_span(leg: str) -> tuple[pd.Timestamp, pd.Timestamp] | None:
     """First and last operation start of the leg, UTC."""
     starts = [pd.Timestamp(o.summary()["start_utc"]) for o in eventlog.operations(leg) if o.group != "void"]

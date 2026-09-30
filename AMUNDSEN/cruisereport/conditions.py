@@ -156,7 +156,7 @@ def _code(v):
     return None if v in (None, "-99") else v
 
 
-@lru_cache(maxsize=512)
+@lru_cache(maxsize=4096)
 def _at_arrival(leg: str, when: str, _bucket: int) -> tuple[dict, dict | None]:
     """The record and the ice camera at an arrival, shared by the visit's
     operations; ``_bucket`` renews it every CACHE_S (the record grows)."""
@@ -239,6 +239,49 @@ def for_operation(op: eventlog.Operation, sheets: list[dict], arrival: tuple[str
         "sun_elev_deg": sun_elevation(arr, s["lat"], s["lon"]),
         "notes": "; ".join(notes) or None,
         "note_list": notes,
+    }
+
+
+# The conditions a row of a log can take from its own date and time: only the
+# ship's record (and what follows from its position) knows about any moment.
+AT_TIME = ["lat", "lon", "depth_m", "depth_source", "air_c", "wind_dir_deg", "wind_kn", "pressure_hpa",
+           "humidity_pct", "visibility_km", "sst_c", "sss", "sea_state_m", "fluo_ugl", "o2_mll",
+           "ice", "ice_source", "ice_camera_pct", "ice_camera_types", "sun_elev_deg", "notes"]
+
+
+def at_time(leg: str, when: str) -> dict:
+    """The conditions at ``when`` (ISO, UTC) from the underway record alone:
+    the AT_TIME keys, each None where the record has nothing then. The ice is
+    the CIS chart's at the ship's position."""
+    uw, cam = _at_arrival(leg, when, int(time.monotonic() // CACHE_S))
+    notes = []
+    mb, ek = uw.get("mb_depth_m"), uw.get("ek60_depth_m")
+    depth, depth_src = _first((mb, "multibeam"), (ek, "EK60"))
+    if depth_src == "multibeam" and ek is not None and abs(ek - mb) > DEPTH_DISAGREE * mb:
+        notes.append(f"depth sources disagree (multibeam {mb:.0f} m, EK60 {ek:.0f} m)")
+    if cam and cam["offset_s"]:
+        notes.append(f"ice camera photo {abs(cam['offset_s']) // 60} min "
+                     f"{'after' if cam['offset_s'] > 0 else 'before'} this time")
+    if uw.get("tsg_pump_off"):
+        notes.append("TSG intake pump off or restricted: surface-water values are unreliable")
+    lat, lon = uw.get("lat"), uw.get("lon")
+    chart = ice.at(lat, lon, when)
+    vis = uw.get("visibility_m")
+    return {
+        "lat": lat, "lon": lon,
+        "depth_m": depth, "depth_source": depth_src,
+        "air_c": uw.get("air_c"), "wind_dir_deg": uw.get("true_wind_dir_deg"), "wind_kn": uw.get("true_wind_kn"),
+        "pressure_hpa": uw.get("pressure_hpa"), "humidity_pct": uw.get("humidity_pct"),
+        "visibility_km": vis / 1000 if vis is not None else None,
+        "sst_c": uw.get("sst_c"), "sss": uw.get("sss"), "sea_state_m": uw.get("sea_state_m"),
+        "fluo_ugl": uw.get("fluo_ugl"), "o2_mll": uw.get("o2_mll"),
+        "ice": chart["concentration"] + (f" ({chart['stage']})" if chart.get("stage")
+                                         and chart["stage"] != "Not reported" else "") if chart else None,
+        "ice_source": f"CIS chart {chart['chart_date']}" if chart else None,
+        "ice_camera_pct": cam["pct"] if cam else None,
+        "ice_camera_types": ", ".join(f"{k} {v:.0f}%" for k, v in cam["types"] if v >= 1) or None if cam else None,
+        "sun_elev_deg": sun_elevation(when, lat, lon),
+        "notes": "; ".join(notes) or None,
     }
 
 

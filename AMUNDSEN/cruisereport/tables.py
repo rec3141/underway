@@ -11,11 +11,13 @@ operation row shows bottles as counts and volumes, not as a list.
 In a table of log rows, ``bottle.*`` is the rosette bottle the row names
 (its operation, matched from the event log, and its bottle number) with the
 rosette sheet's and bottle file's values: "Depth (Rosette)"; ``logrole.*``
-is the log's own column that holds that kind of value: "Depth (log)".
+is the log's own column that holds that kind of value: "Depth (log)";
+``uw.*`` is the conditions column's value from the underway record at the
+row's own date and time (conditions.at_time), for rows that give both.
 
 Column ids are ``<table>.<field>``: ``op.*`` (conditions), ``bottle.*``,
 ``draw.<team>`` (what that team drew from the bottle, under the merged team
-name from ``rosette.canonical``) and ``log.<column>``.
+name from ``rosette.canonical``), ``log.<column>`` and ``uw.*``.
 """
 
 from __future__ import annotations
@@ -77,12 +79,20 @@ def op_columns() -> list[Col]:
     return [Col(f"op.{c.key}", c.label, c.unit, c.digits) for c in conditions.COLUMNS] + OP_EXTRA
 
 
+def uw_columns() -> list[Col]:
+    """The conditions a log row takes at its own time, labelled "(at row time)"."""
+    return [Col("uw.time_utc", "Row time (UTC)")] + [
+        Col(f"uw.{c.key}", f"{c.label} (at row time)", c.unit, c.digits)
+        for c in conditions.COLUMNS if c.key in conditions.AT_TIME]
+
+
 def catalog(leg: str, teams: list[str], logs: list[dict]) -> dict:
     """What the column picker offers, grouped by table."""
     out = {
         "op": [c.__dict__ for c in op_columns()],
         "bottle": [c.__dict__ for c in BOTTLE_COLS],
         "draw": [Col(f"draw.{t}", f"{t} (drawn)", "L").__dict__ for t in teams],
+        "uw": [c.__dict__ for c in uw_columns()],
         "logrole": [Col("logmeta.log", "Log").__dict__]
                    + [Col(f"logrole.{k}", v).__dict__ for k, v in LOG_ROLES.items()],
     }
@@ -277,6 +287,11 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
                  "bottle": by_bottle.get((x["_op"], _bottle_no(x, lg.get("roles")))) or {}}
                 for lg in chosen
                 for x in lg["rows"] if x["_op"] is None or x["_op"] in keys or not keys]
+        if any(c.startswith("uw.") for c in spec.get("columns", [])):
+            span = logsheets.leg_span(leg)
+            for b in base:
+                when = logsheets.row_time(b["log"], b["lg"].get("roles") or {}, bool(b["lg"].get("local")), span)
+                b["uw"] = {**conditions.at_time(leg, when), "time_utc": when} if when else {}
     else:
         raise ValueError(f"unknown row source {source}")
 
@@ -288,7 +303,7 @@ def build(leg: str, spec: dict, op_keys: list[str], teams: list[str],
 
 
 def _col_meta(cid: str, teams: list[str]) -> dict:
-    known = {c.id: c for c in op_columns() + BOTTLE_COLS}
+    known = {c.id: c for c in op_columns() + uw_columns() + BOTTLE_COLS}
     if cid in known:
         return known[cid].__dict__
     table, _, field = cid.partition(".")
@@ -303,8 +318,8 @@ def _col_meta(cid: str, teams: list[str]) -> dict:
 
 def _value(base: dict, cid: str):
     table, _, field = cid.partition(".")
-    if table == "op":
-        v = (base.get("op") or {}).get(field)
+    if table in ("op", "uw"):
+        v = (base.get(table) or {}).get(field)
         # The row keeps degrees (the narrative averages them); a table says NNW.
         return conditions.compass(v) if field == "wind_dir_deg" and v is not None else v
     if table == "bottle":
