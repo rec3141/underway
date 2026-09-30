@@ -84,7 +84,7 @@ def log_layers(report: dict, wanted: dict) -> list[dict]:
                 continue
             sid = r.get(id_col) if id_col else None
             points.append((lon, lat, None if logsheets._is_blank(sid) else str(sid).strip()))
-        layers.append({"label": _sheet_label(key), "points": points})
+        layers.append({"label": _sheet_label(key, m), "points": points})
     # Two workbooks' "Sheet1" stay apart in the legend.
     seen: dict[str, int] = {}
     for lg in layers:
@@ -94,11 +94,12 @@ def log_layers(report: dict, wanted: dict) -> list[dict]:
     return layers
 
 
-def _sheet_label(key: str) -> str:
+def _sheet_label(key: str, m: dict) -> str:
     """A log's name on the map: its sheet's name, or for a log made from a
-    transcribed photo the transcribed table's title, never the workbook's."""
-    ident, sheet = key.removeprefix("log:").split(":", 1)
-    src = logsheets.load(ident).get("source") or {}
+    transcribed photo (``m["source"]``) the transcribed table's title, never
+    the workbook's."""
+    sheet = m.get("sheet") or key.split(":", 2)[-1]
+    src = m.get("source") or {}
     if src.get("digitized"):
         from . import digitize
         try:
@@ -106,6 +107,7 @@ def _sheet_label(key: str) -> str:
             return t.get("title") or f"table {int(src.get('table', 0)) + 1}"
         except (OSError, ValueError, IndexError, KeyError):
             return sheet
+    return sheet
     return sheet
 
 
