@@ -1114,7 +1114,22 @@ function renderFigures() {
     let wait;
     const refresh = () => { clearTimeout(wait); wait = setTimeout(() => drawFigure(f, img), 700); };
     if (f.kind === "map") {
-      opts.append(
+      // What goes on the map: the ticked operations, and each ticked log's
+      // rows, with the log's sample ids when it has a sample-id column.
+      const logs = f.options.logs = f.options.logs || {};
+      const layers = h("div", { class: "row map-layers" },
+        h("label", {}, h("input", { type: "checkbox", checked: f.options.ops !== false, onchange: (e) => { f.options.ops = e.target.checked; persist(); refresh(); } }), " my operations"),
+        ...R.selection.logsheets.filter((lg) => lg.use !== false).map((lg) => {
+          const k = logKey(lg), o = logs[k] = logs[k] || {};
+          const hasIds = !!(lg.roles || {}).sample_id;
+          const ids = h("input", { type: "checkbox", checked: !!o.ids, disabled: !o.show || !hasIds,
+            onchange: (e) => { o.ids = e.target.checked; persist(); refresh(); } });
+          return h("span", { class: "map-log" },
+            h("label", {}, h("input", { type: "checkbox", checked: !!o.show, onchange: (e) => { o.show = e.target.checked; ids.disabled = !o.show || !hasIds; persist(); refresh(); } }), " " + lg.name),
+            h("label", { class: "hint", title: hasIds ? "Label the log's points with their sample ids" : "Mark a column as Sample ID under Your logs to label the points" },
+              ids, " sample IDs"));
+        }));
+      opts.append(layers,
         h("label", {}, h("input", { type: "checkbox", checked: f.options.label_stations !== false, onchange: (e) => { f.options.label_stations = e.target.checked; persist(); refresh(); } }), " station names"),
         h("label", {}, "Colour track by ", h("select", { onchange: (e) => { f.options.track_colour = e.target.value; persist(); refresh(); } },
           h("option", { value: "time", selected: (f.options.track_colour || "time") === "time" }, "Date"),
@@ -1167,7 +1182,8 @@ function renderFigures() {
   }));
 }
 async function drawFigure(f, box) {
-  if (!R.selection.ops.length) { box.replaceChildren(h("p", { class: "hint" }, "Tick some operations first.")); return; }
+  const logsShown = f.kind === "map" && Object.values(f.options?.logs || {}).some((o) => o.show);
+  if (!R.selection.ops.length && !logsShown) { box.replaceChildren(h("p", { class: "hint" }, "Tick some operations first.")); return; }
   box.style.opacity = .4;
   const ticket = (box.dataset.ticket = String(+(box.dataset.ticket || 0) + 1));   // only the latest request draws
   try {

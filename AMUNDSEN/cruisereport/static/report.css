@@ -208,3 +208,7 @@ details.dig-page:not([open]) { padding-bottom: 8px; }
 @media (max-width: 700px) { .source-row { grid-template-columns: 1fr; } .source-row .source-label { padding-top: 0; } }
 .chip.log.pending { opacity: .7; }
 .chip .how.none { margin-left: 2px; }
+
+/* a map figure: the operations and each ticked log, with its sample ids */
+.map-layers { flex-basis: 100%; }
+.map-log { display: inline-flex; gap: 8px; align-items: center; }
