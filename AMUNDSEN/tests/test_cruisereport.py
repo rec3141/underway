@@ -336,3 +336,55 @@ def test_a_table_takes_all_ticked_logs_or_one(monkeypatch):
     assert body("logs") == [1, 2]                     # the ticked logs
     assert body("log:a:s2") == [3]                    # one log, ticked or not
     assert body("log:gone:x") == []                   # a log no longer imported
+
+
+def test_map_log_layers_place_rows_and_carry_sample_ids(monkeypatch):
+    from types import SimpleNamespace
+    from cruisereport import report
+    roles = {"lat": "Lat", "lon": "Lon", "sample_id": "Sample"}
+    rows = [{"Lat": "71.5", "Lon": "-96.2", "Sample": "S-01", "_op": None},        # its own position
+            {"Lat": "", "Lon": "", "Sample": "S-02", "_op": "AMD2603-001"},       # its operation's
+            {"Lat": "", "Lon": "", "Sample": "", "_op": None}]                    # neither: left off
+    logs = {"log:a:Sheet1": {"use": True, "roles": roles, "rows": rows, "name": "Sediment log",
+                             "sheet": "Sheet1", "sheets": {"Sheet1": {}}},
+            "log:b:Sheet1": {"use": False, "roles": roles, "rows": rows, "name": "Unticked",
+                             "sheet": "Sheet1", "sheets": {"Sheet1": {}}}}
+    monkeypatch.setattr(report, "_logs", lambda rep: logs)
+    op = SimpleNamespace(start=SimpleNamespace(lat=70.0, lon=-100.0))
+    monkeypatch.setattr(report.eventlog, "by_key", lambda leg: {"AMD2603-001": op})
+    rep = {"leg": "2026_LEG_03"}
+    both = {"a:Sheet1": {"show": True, "ids": True}, "b:Sheet1": {"show": True, "ids": True}}
+    [layer] = report.log_layers(rep, both)
+    assert layer["label"] == "Sediment log"
+    assert layer["points"] == [(-96.2, 71.5, "S-01"), (-100.0, 70.0, "S-02")]
+    [layer] = report.log_layers(rep, {"a:Sheet1": {"show": True}})
+    assert [p[2] for p in layer["points"]] == [None, None]                          # ids not asked for
+    assert report.log_layers(rep, {"a:Sheet1": {"show": False, "ids": True}}) == []
+
+
+def test_station_map_draws_logs_alone(monkeypatch):
+    from cruisereport import figures
+    monkeypatch.setattr(figures, "_track", lambda leg, *a, **k: __import__("numpy").empty((0, 3)))
+    monkeypatch.setattr(figures, "_station_rank", lambda leg: {})
+    logs = [{"label": "Sediment log", "points": [(-96.2, 71.5, "S-01"), (-96.2, 71.5, "S-02"), (-95.0, 71.0, None)]}]
+    png = figures.station_map("2026_LEG_03", [], logs=logs)
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    empty = figures.station_map("2026_LEG_03", [], logs=[{"label": "x", "points": []}])
+    assert empty[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_map_log_rows_without_a_place_or_operation_take_the_ship_position(monkeypatch):
+    import numpy as np
+    from cruisereport import report
+    roles = {"date": "Date", "time": "Time", "sample_id": "FTID"}
+    rows = [{"Date": "2026-09-10", "Time": "12:00", "FTID": "FT-1", "_op": None},
+            {"Date": "2026-09-10", "Time": "18:00", "FTID": "FT-2", "_op": None}]     # no fix within 30 min
+    monkeypatch.setattr(report, "_logs", lambda rep: {"log:c:FLOWTHRU": {
+        "use": True, "roles": roles, "rows": rows, "name": "FLOWTHRU · logbook.xlsx", "local": False}})
+    noon = 1789041600.0                                   # 2026-09-10T12:00Z
+    monkeypatch.setattr(report.figures, "ship_track", lambda leg: np.array([[-95.0, 75.0, noon - 60], [-95.1, 75.1, noon + 60]]))
+    monkeypatch.setattr(report.logsheets, "leg_span", lambda leg: None)
+    monkeypatch.setattr(report.logsheets, "row_time", lambda r, roles, local, span: f"{r['Date']}T{r['Time']}:00")
+    [layer] = report.log_layers({"leg": "2026_LEG_03"}, {"c:FLOWTHRU": {"show": True, "ids": True}})
+    assert layer["label"] == "FLOWTHRU · logbook.xlsx"
+    assert layer["points"] == [(-95.0, 75.0, "FT-1")]

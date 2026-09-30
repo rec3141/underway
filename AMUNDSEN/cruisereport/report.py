@@ -14,6 +14,9 @@ The page sends one JSON document (saved as the participant's draft):
       "conditions": {"narrative": "summary" | "stations" | null},
       "tables": [{"title", "rows", "columns": [...], "section"}],
       "figures": [{"kind": "map"|"profiles"|"ts"|"underway", "caption", "section", "options"}],
+                  (a map's options: "ops" false leaves out the ticked operations;
+                   "logs": {"<id>:<sheet>": {"show", "ids"}} plots a ticked log's
+                   rows, with their sample ids when "ids" is set)
       "figure_times": "utc" | "ship"      (the underway record's time axis)
     }
 
@@ -24,7 +27,7 @@ untick any of them.
 
 from __future__ import annotations
 
-from . import conditions, docxbuild, figures, logsheets, tables
+from . import conditions, docxbuild, eventlog, figures, logsheets, tables
 
 FIGURE_CAPTIONS = {
     "map": "Ship track and the stations sampled, by instrument.",
@@ -44,6 +47,58 @@ def _logs(report: dict) -> dict[str, dict]:
         m["name"] = lg.get("name") or m.get("name")
         out[f"log:{lg['id']}:{lg['sheet']}"] = m
     return out
+
+
+def log_layers(report: dict, wanted: dict) -> list[dict]:
+    """The rows of each ticked log that ``wanted`` ({"<id>:<sheet>": {"show",
+    "ids"}}) asks for, as map points. A row is placed by its own latitude and
+    longitude when its sheet has them, else at the operation it matches, else
+    where the ship was at its date and time (a flow-through sample, taken
+    under way, matches no operation); a row with none of these is left off.
+    Each point carries the row's sample id when ``ids`` is set and the sheet
+    has a sample-id column."""
+    leg = report["leg"]
+    ops = track = span = None
+    layers = []
+    for key, m in _logs(report).items():
+        want = wanted.get(key.removeprefix("log:")) or {}
+        if not m["use"] or not want.get("show"):
+            continue
+        roles = m.get("roles") or {}
+        id_col = roles.get("sample_id") if want.get("ids") else None
+        points = []
+        for r in m["rows"]:
+            lat = logsheets._float(r.get(roles["lat"])) if roles.get("lat") else None
+            lon = logsheets._float(r.get(roles["lon"])) if roles.get("lon") else None
+            if (lat is None or lon is None) and r.get("_op"):
+                ops = eventlog.by_key(leg) if ops is None else ops
+                op = ops.get(r["_op"])
+                lat, lon = (op.start.lat, op.start.lon) if op else (None, None)
+            if lat is None or lon is None:
+                span = logsheets.leg_span(leg) if span is None else span
+                when = logsheets.row_time(r, roles, bool(m.get("local")), span)
+                if when:
+                    track = figures.ship_track(leg) if track is None else track
+                    lon, lat = _ship_at(track, when)
+            if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 360):
+                continue
+            sid = r.get(id_col) if id_col else None
+            points.append((lon, lat, None if logsheets._is_blank(sid) else str(sid).strip()))
+        layers.append({"label": m["name"], "points": points})
+    return layers
+
+
+def _ship_at(track, when: str, reach_s: float = 1800) -> tuple[float | None, float | None]:
+    """The ship's position (lon, lat) closest to ``when`` (ISO UTC) in
+    ``track`` (rows of lon, lat, epoch seconds), if one is within ``reach_s``."""
+    if track is None or not len(track):
+        return None, None
+    import numpy as np
+    import pandas as pd
+    t = pd.Timestamp(when).tz_localize("UTC").timestamp() if pd.Timestamp(when).tzinfo is None \
+        else pd.Timestamp(when).timestamp()
+    i = int(np.abs(track[:, 2] - t).argmin())
+    return (float(track[i, 0]), float(track[i, 1])) if abs(track[i, 2] - t) <= reach_s else (None, None)
 
 
 def logged_bottles(report: dict, logs: dict | None = None) -> dict:
@@ -69,9 +124,10 @@ def _figure(report: dict, spec: dict) -> bytes:
     opts = spec.get("options") or {}
     kind = spec["kind"]
     if kind == "map":
-        return figures.station_map(leg, conditions.table(leg, keys),
+        return figures.station_map(leg, conditions.table(leg, keys) if opts.get("ops", True) else [],
                                    label_stations=opts.get("label_stations", True),
-                                   colour=opts.get("track_colour") or "time")
+                                   colour=opts.get("track_colour") or "time",
+                                   logs=log_layers(report, opts.get("logs") or {}))
     rosette_keys = [r["key"] for r in conditions.table(leg, keys)
                     if r["group"] in ("rosette", "tm_rosette")]
     if kind == "profiles":

@@ -39,6 +39,8 @@ from .config import GEO_DIR, SHIP_TZ  # noqa: E402
 CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7",
                "#e34948"]
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "h"]
+# a log's points: open shapes, apart from the operations' filled ones
+LOG_MARKERS = ["o", "s", "D", "^", "v", "P"]
 BLUES = LinearSegmentedColormap.from_list(
     "blues", ["#b7d3f6", "#6da7ec", "#2a78d6", "#1c5cab", "#0d366b"])
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
@@ -115,13 +117,23 @@ def _track(leg: str, t0: str | None = None, t1: str | None = None, step: int = 3
     return arr[np.isfinite(arr).all(axis=1)] if len(arr) else np.empty((0, 3))
 
 
-def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colour: str = "time") -> bytes:
-    """The selected operations over the leg's whole ship track; the view takes
-    in both. The track is coloured by date, or by ``colour``, an underway
-    panel's values along it (grey where it has none)."""
-    pts = [(r["lon"], r["lat"]) for r in rows if r.get("lat") is not None]
+def ship_track(leg: str) -> np.ndarray:
+    """The leg's ship positions every minute or so: rows of lon, lat, epoch seconds."""
+    return _track(leg, step=6)
+
+
+def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colour: str = "time",
+                logs: list[dict] | None = None) -> bytes:
+    """The selected operations and the points of any ``logs`` ({"label",
+    "points": [(lon, lat, sample id or None)]}) over the leg's whole ship
+    track; the view takes in all of them. The track is coloured by date, or by
+    ``colour``, an underway panel's values along it (grey where it has none).
+    A log's sample ids label its points, one label per place."""
+    logs = [lg for lg in logs or [] if lg["points"]]
+    pts = [(r["lon"], r["lat"]) for r in rows if r.get("lat") is not None] + \
+        [(x, y) for lg in logs for x, y, _ in lg["points"]]
     if not pts:
-        return _empty("No positions for the selected operations.")
+        return _empty("No positions for the selected operations or logs.")
     lon0 = float(np.median([p[0] for p in pts]))
     lat0 = float(np.median([p[1] for p in pts]))
     tr = Transformer.from_crs("EPSG:4326",
@@ -210,30 +222,57 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colo
                    color=CATEGORICAL[i % len(CATEGORICAL)], edgecolors="white", linewidths=0.8,
                    zorder=4 + i * 0.01, label=activities.LABELS.get(g, g))
 
+    for j, lg in enumerate(logs):
+        k = len(groups) + j
+        lx, ly = tr.transform(np.array([p[0] for p in lg["points"]]), np.array([p[1] for p in lg["points"]]))
+        ax.scatter(lx, ly, s=26, marker=LOG_MARKERS[j % len(LOG_MARKERS)], facecolors="none",
+                   edgecolors=CATEGORICAL[k % len(CATEGORICAL)], linewidths=1.2,
+                   zorder=5 + j * 0.01, label=lg["label"])
+
+    # Labels, station names first: each is skipped when its box would touch
+    # one already placed, in map units from the axes' drawn width.
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
+    ax.set_aspect("equal")
+    fig.canvas.draw()
+    km_per_pt = (x1 - x0) / (ax.get_window_extent().width * 72 / fig.dpi)
+    char_w, line_h, lpad = 6.5 * 0.6 * km_per_pt, 6.5 * 1.3 * km_per_pt, 4 * km_per_pt
+    boxes: list[tuple[float, float, float, float]] = []
+
+    def place(text: str, sx: float, sy: float, size: float = 6.5, color: str = INK, below: bool = False) -> None:
+        """A label up and to the right of its point (``below``: down and to the
+        right, where a station's name does not sit)."""
+        h_ = line_h * size / 6.5
+        bx0 = sx + lpad
+        by0 = sy - lpad * 0.75 - h_ if below else sy + lpad * 0.75
+        box = (bx0, by0, bx0 + len(text) * char_w * size / 6.5, by0 + h_)
+        if any(box[0] < b[2] and b[0] < box[2] and box[1] < b[3] and b[1] < box[3] for b in boxes):
+            return
+        boxes.append(box)
+        ax.annotate(text, (sx, sy), xytext=(4, -3 if below else 3), textcoords="offset points",
+                    va="top" if below else "baseline", fontsize=size, color=color, zorder=6)
+
     if label_stations:
         seen: dict[str, tuple[float, float]] = {}
         for r in rows:
             if r.get("station") and r.get("lat") is not None and r["station"] not in seen:
                 seen[r["station"]] = tr.transform(r["lon"], r["lat"])
-        # Label boxes in map units, from the axes' drawn width: a name is
-        # skipped when its box would touch a placed one.
-        ax.set_xlim(x0, x1)
-        ax.set_ylim(y0, y1)
-        ax.set_aspect("equal")
-        fig.canvas.draw()
-        km_per_pt = (x1 - x0) / (ax.get_window_extent().width * 72 / fig.dpi)
-        char_w, line_h, pad = 6.5 * 0.6 * km_per_pt, 6.5 * 1.3 * km_per_pt, 4 * km_per_pt
-        boxes: list[tuple[float, float, float, float]] = []
         rank = _station_rank(leg)
-        for name, (sx, sy) in sorted(seen.items(), key=lambda kv: rank.get(kv[0], (0, 0)),
-                                     reverse=True):
-            bx0, by0 = sx + pad, sy + pad * 0.75
-            box = (bx0, by0, bx0 + len(name) * char_w, by0 + line_h)
-            if any(box[0] < b[2] and b[0] < box[2] and box[1] < b[3] and b[1] < box[3] for b in boxes):
-                continue           # crowded: the station table carries every name
-            boxes.append(box)
-            ax.annotate(name, (sx, sy), xytext=(4, 3), textcoords="offset points",
-                        fontsize=6.5, color=INK, zorder=6)
+        # crowded: the station table carries every name
+        for name, (sx, sy) in sorted(seen.items(), key=lambda kv: rank.get(kv[0], (0, 0)), reverse=True):
+            place(name, sx, sy)
+    # Sample ids: a place's ids in one label (a station's many samples
+    # otherwise pile up), the first few and a count of the rest.
+    for j, lg in enumerate(logs):
+        at: dict[tuple[float, float], list[str]] = {}
+        for x, y, sid in lg["points"]:
+            if sid:
+                at.setdefault((round(x, 3), round(y, 3)), []).append(sid)
+        ink = CATEGORICAL[(len(groups) + j) % len(CATEGORICAL)]
+        for (x, y), ids in at.items():
+            ids = list(dict.fromkeys(ids))
+            text = ", ".join(ids[:3]) + (f" +{len(ids) - 3}" if len(ids) > 3 else "")
+            place(text, *tr.transform(x, y), size=5.5, color=ink, below=True)
 
     # Graticule.
     for lat in range(int(blat[0]) - 1, int(blat[1]) + 2):
@@ -261,7 +300,7 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colo
     ax.plot([bx, bx + bar], [by, by], color=INK, lw=2, solid_capstyle="butt", zorder=7)
     ax.text(bx + bar / 2, by + (y1 - y0) * 0.015, f"{bar:g} km", ha="center", va="bottom",
             fontsize=7, color=INK, zorder=7)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=min(4, len(groups) + 1),
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=min(4, len(groups) + len(logs) + 1),
               fontsize=7, handletextpad=0.3, columnspacing=1.0)
     if track_line is not None:
         cb = fig.colorbar(track_line, ax=ax, fraction=0.035, pad=0.02)
