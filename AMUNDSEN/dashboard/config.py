@@ -160,6 +160,8 @@ WINDOWS: tuple[Window, ...] = (
     Window("1y", 24 * 365, 3600),
     Window("2y", 24 * 730, 7200),
     Window("4y", 24 * 1461, 7200),
+    # back to the archive's first years (dashboard/archive.py), in 6-hour steps
+    Window("all", 24 * 365 * 30, 21600),
 )
 DEFAULT_WINDOW = "6h"
 

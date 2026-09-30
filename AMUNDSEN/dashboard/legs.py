@@ -43,6 +43,7 @@ class Leg:
     last_date: str | None = None
     newest_mtime: float = 0.0
     live: bool = False
+    archive: bool = False                   # from Amundsen Science's archive (dashboard/archive.py)
 
     @property
     def label(self) -> str:
@@ -54,7 +55,7 @@ class Leg:
 
     def meta(self) -> dict:
         return {"id": self.id, "label": self.label, "year": self.year, "number": self.number,
-                "live": self.live, "files": self.files, "mb": round(self.bytes / 1e6),
+                "live": self.live, "archive": self.archive, "files": self.files, "mb": round(self.bytes / 1e6),
                 "first_date": self.first_date, "last_date": self.last_date,
                 "has_stations": self.stations is not None, "inputs": [str(p) for p in self.indirs]}
 
@@ -116,6 +117,19 @@ def discover() -> list[Leg]:
                 for d in sorted(ydir.iterdir()):
                     add(d)
 
+    # Amundsen Science's archive, written as ACSD files by archive-import: the
+    # years before the ship's record; a leg the ship has is the ship's
+    from .archive import acsd_root
+    ship_legs = set(legs)
+    if acsd_root().is_dir():
+        for ydir in sorted(acsd_root().iterdir()):
+            if ydir.is_dir() and re.fullmatch(r"\d{4}", ydir.name):
+                for d in sorted(ydir.iterdir()):
+                    if d.name not in ship_legs:
+                        add(d)
+                        if d.name in legs:
+                            legs[d.name].archive = True
+
     for leg in legs.values():
         cand = DATA_ROOT / "Rosette" / leg.id / "Logs" / f"{leg.year}_{leg.number:02d}_CTD_logbook.csv"
         if cand.is_file():
@@ -131,5 +145,5 @@ def discover() -> list[Leg]:
 
     # Observation dates, not copy/reprocessing times, identify the latest leg.
     # A shared boundary day belongs to the later leg for this display marker.
-    max(out, key=lambda l: (l.last_date or "", l.year, l.number)).live = True
+    max((l for l in out if not l.archive), key=lambda l: (l.last_date or "", l.year, l.number), default=out[-1]).live = True
     return out
