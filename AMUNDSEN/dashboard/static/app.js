@@ -58,6 +58,13 @@
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
   const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
+  // a leg this browser has not seen before starts hidden, so a year of the
+  // archive arriving does not switch itself on; a browser that has never
+  // recorded what it has seen counts every leg but the archive's as seen
+  const known = new Set(store.get("knownLegs", M.legs.filter((l) => !l.archive).map((l) => l.id)));
+  const unseen = M.legs.filter((l) => !known.has(l.id) && l.id !== newestLeg?.id).map((l) => l.id);
+  if (unseen.length) store.set("hiddenLegs", [...new Set([...store.get("hiddenLegs", otherLegs), ...unseen])]);
+  store.set("knownLegs", M.legs.map((l) => l.id));
   const newViewer = store.get('panel',null) === null;
   const state = {
     hidden: new Set(store.get("hiddenLegs", otherLegs)),   // leg ids switched off; default: all but the current leg
@@ -398,28 +405,68 @@
     return [lo, hi];
   }
 
-  function renderLegMenu() {
-    const ul = $("#leglist");
-    ul.innerHTML = "";
-    for (const l of [...M.legs].sort((a, b) => (b.year * 100 + b.number) - (a.year * 100 + a.number))) {
-      const li = document.createElement("li");
-      const span = l.first_date && l.last_date
-        ? `${l.first_date.slice(4, 6)}/${l.first_date.slice(6)} – ${l.last_date.slice(4, 6)}/${l.last_date.slice(6)}` : "";
-      li.innerHTML = `<label><input type="checkbox" ${state.hidden.has(l.id) ? "" : "checked"}>
-        <span class="name">${l.label}</span>${l.live ? '<span class="live">live</span>' : ""}
-        <span class="span">${span}</span><span class="n">${l.files} d</span></label>`;
-      li.querySelector("input").onchange = (e) => {
-        e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
-        store.set("hiddenLegs", [...state.hidden]);
-        requestFit();
-        loadWindow();                                                // the loaded window reaches every shown leg
-      };
-      ul.appendChild(li);
+  // Legs grouped by year, newest first: a year's box shows or hides all of its
+  // legs (and reads "some" when they differ), and its arrow opens its legs.
+  // The live leg's year starts open; the years opened are remembered. A click
+  // updates the menu in place: the page closes the menu on a click whose
+  // target is outside it, and a redrawn menu's target no longer is.
+  function syncLegMenu() {
+    for (const li of $("#leglist").children) {
+      const legs = li._legs, shown = legs.filter((l) => !state.hidden.has(l.id)).length;
+      const box = li.querySelector(".yearrow input");
+      box.checked = shown === legs.length;
+      box.indeterminate = shown > 0 && shown < legs.length;
+      li.querySelector(".yearrow .n").textContent = `${shown}/${legs.length}`;
+      li.querySelectorAll(".yearlegs input").forEach((input, i) => { input.checked = !state.hidden.has(legs[i].id); });
     }
     $("#legsummary").textContent = t("underway.legs.summary", {shown:shownLegs().length,total:M.legs.length});
     $("#legfoot").textContent = t("underway.legs.loaded", {shown:shownLegs().length,total:M.legs.length,span:spanLabel(coverWindowOf(M).label)});
-    $("#legall").onclick = (e) => { e.preventDefault(); showAllLegs(); };
-    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); loadWindow(); };
+  }
+  function renderLegMenu() {
+    const ul = $("#leglist");
+    ul.innerHTML = "";
+    const open = new Set(store.get("legYearsOpen", newestLeg ? [newestLeg.year] : []));
+    const years = new Map();
+    for (const l of [...M.legs].sort((a, b) => (b.year * 100 + b.number) - (a.year * 100 + a.number))) {
+      if (!years.has(l.year)) years.set(l.year, []);
+      years.get(l.year).push(l);
+    }
+    const changed = () => { store.set("hiddenLegs", [...state.hidden]); requestFit(); loadWindow(); syncLegMenu(); };
+    for (const [year, legs] of years) {
+      const li = document.createElement("li");
+      li.className = "legyear";
+      li._legs = legs;
+      li.innerHTML = `<div class="yearrow"><button type="button" class="twisty" aria-label="${year}"></button>
+        <label><input type="checkbox"><span class="name">${year}</span>${legs.some((l) => l.live) ? '<span class="live">live</span>' : ""}
+        <span class="n"></span></label></div><ul class="yearlegs"></ul>`;
+      const twisty = li.querySelector(".twisty"), inner = li.querySelector(".yearlegs");
+      const setOpen = (on) => { inner.hidden = !on; twisty.textContent = on ? "▾" : "▸"; twisty.setAttribute("aria-expanded", on); };
+      setOpen(open.has(year));
+      twisty.onclick = () => {
+        open.has(year) ? open.delete(year) : open.add(year);
+        store.set("legYearsOpen", [...open]);
+        setOpen(open.has(year));
+      };
+      const box = li.querySelector(".yearrow input");
+      box.onchange = () => { for (const l of legs) box.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id); changed(); };
+      for (const l of legs) {
+        const leg = document.createElement("li");
+        const span = l.first_date && l.last_date
+          ? `${l.first_date.slice(4, 6)}/${l.first_date.slice(6)} – ${l.last_date.slice(4, 6)}/${l.last_date.slice(6)}` : "";
+        leg.innerHTML = `<label><input type="checkbox">
+          <span class="name">${l.label}</span>${l.live ? '<span class="live">live</span>' : ""}
+          <span class="span">${span}</span><span class="n">${l.files} d</span></label>`;
+        leg.querySelector("input").onchange = (e) => {
+          e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
+          changed();                                                   // the loaded window reaches every shown leg
+        };
+        inner.appendChild(leg);
+      }
+      ul.appendChild(li);
+    }
+    syncLegMenu();
+    $("#legall").onclick = (e) => { e.preventDefault(); showAllLegs(); syncLegMenu(); };
+    $("#legnone").onclick = (e) => { e.preventDefault(); state.hidden = new Set(M.legs.map((l) => l.id)); store.set("hiddenLegs", [...state.hidden]); loadWindow(); syncLegMenu(); };
   }
 
   // ------------------------------------------------------------ header
@@ -2095,6 +2142,16 @@
     window.UW?.onFilter?.();
   }
 
+  // a newer manifest's legs this browser has not seen start hidden, as at
+  // load; a new live leg is the exception
+  function hideUnseenLegs(m) {
+    const seen = new Set(store.get("knownLegs", []));
+    const unseen = m.legs.filter((l) => !seen.has(l.id) && l.id !== m.live).map((l) => l.id);
+    for (const id of unseen) state.hidden.add(id);
+    if (unseen.length) store.set("hiddenLegs", [...state.hidden]);
+    store.set("knownLegs", [...new Set([...seen, ...m.legs.map((l) => l.id)])]);
+  }
+
   let loadSeq = 0;
   let windowLoading = false;
   // the files a build's window set asks for: the cover window's, and the
@@ -2118,6 +2175,7 @@
       // Commit the header/leg metadata and observations together only after
       // a successful download. A failed update keeps the last good pair.
       M = manifest; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
+      hideUnseenLegs(M);
       state.raw = mergeWindows(cover, span); state.rawFile = key;
       setLoadError("Underway", false);
       renderControls(); renderProvenance();
