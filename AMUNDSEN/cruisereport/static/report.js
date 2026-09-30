@@ -970,6 +970,7 @@ function colGroups(t) {
     const one = t.rows.startsWith("log:") ? t.rows.slice(4) : null;
     groups.push(["Rosette bottle · matched from the log's cast and bottle", (c.bottle || []).filter((x) => x.id !== "bottle.in_log")
       .map((x) => ({ ...x, label: `${x.label} (Rosette)` }))]);
+    groups.push(["Underway · at the row's own date and time", c.uw || []]);
     groups.push([one ? "This log · what each column holds" : "Your logs · what each column holds", c.logrole || []]);
     groups.push([one ? "This log · columns" : "Your logs · columns (rows with it)",
       logHeaders(one).map(([key, name, n]) => ({ id: `log.${name}`, label: one ? name : `${name} (${n})` }))]);
@@ -1060,7 +1061,7 @@ function renderTables() {
             const one = t.rows.startsWith("log:") ? LOGS[t.rows.slice(4)]?.match : null;
             if (one && !logCols) t.columns = [...t.columns.filter((c) => c.startsWith("op.")), ...one.columns.filter((c) => c !== HAND_COLUMN).map((c) => `log.${c}`)];
             else if (fromLogs && !logCols) t.columns = ["logmeta.log", "logrole.station", "logrole.cast", "logrole.bottle", ...t.columns.filter((c) => c.startsWith("op."))];
-            else t.columns = t.columns.filter((c) => c.startsWith("op.") || (fromLogs && /^log(role|meta)?\./.test(c)));
+            else t.columns = t.columns.filter((c) => c.startsWith("op.") || (fromLogs && /^(log(role|meta)?|uw)\./.test(c)));
             renderTables(); persist(); } },
           ...sources.map(([v, l]) => h("option", { value: v, selected: t.rows === v }, l)))),
         h("label", {}, "Section", h("select", { onchange: (e) => { t.section = e.target.value; persist(); } },
