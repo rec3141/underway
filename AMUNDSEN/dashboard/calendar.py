@@ -46,7 +46,10 @@ def eventlog_path(leg: Leg) -> Path | None:
     """The leg's event log: ``Data/EventLog/<leg>/`` for the current season;
     earlier seasons only survive as copies scattered through people's folders
     on the Share (``Share/<year>/<any leg>/**/Eventlog_<leg>.xls[x]``), so the
-    largest of those stands in."""
+    largest of those stands in. The archive's legs (dashboard/archive.py) have
+    none, and are not searched for: that is a walk of a year of the Share."""
+    if getattr(leg, "archive", False):
+        return None
     p = DATA_ROOT / "EventLog" / leg.id / f"Eventlog_{leg.id}.xls"
     if p.is_file():
         return p
