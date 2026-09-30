@@ -355,7 +355,7 @@ def test_map_log_layers_place_rows_and_carry_sample_ids(monkeypatch):
     rep = {"leg": "2026_LEG_03"}
     both = {"a:Sheet1": {"show": True, "ids": True}, "b:Sheet1": {"show": True, "ids": True}}
     [layer] = report.log_layers(rep, both)
-    assert layer["label"] == "Sediment log"
+    assert layer["label"] == "Sheet1"                  # the sheet, not the workbook
     assert layer["points"] == [(-96.2, 71.5, "S-01"), (-100.0, 70.0, "S-02")]
     [layer] = report.log_layers(rep, {"a:Sheet1": {"show": True}})
     assert [p[2] for p in layer["points"]] == [None, None]                          # ids not asked for
@@ -386,5 +386,5 @@ def test_map_log_rows_without_a_place_or_operation_take_the_ship_position(monkey
     monkeypatch.setattr(report.logsheets, "leg_span", lambda leg: None)
     monkeypatch.setattr(report.logsheets, "row_time", lambda r, roles, local, span: f"{r['Date']}T{r['Time']}:00")
     [layer] = report.log_layers({"leg": "2026_LEG_03"}, {"c:FLOWTHRU": {"show": True, "ids": True}})
-    assert layer["label"] == "FLOWTHRU · logbook.xlsx"
+    assert layer["label"] == "FLOWTHRU"                # the sheet, not the workbook
     assert layer["points"] == [(-95.0, 75.0, "FT-1")]

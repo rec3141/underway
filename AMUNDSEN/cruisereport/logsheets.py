@@ -462,7 +462,7 @@ def matched(ident: str, sheet: str, roles: dict, leg: str, groups=None, local: b
     return {"id": ident, "local": local, "name": meta["name"], "sheet": sheet, "columns": sh["columns"],
             "roles": roles, "rows": rows, "edited": sh.get("edited") or [],
             "sheets": {k: {"roles": v["roles"], "n": len(v["rows"])} for k, v in meta["sheets"].items()},
-            "editable": not meta.get("source"),
+            "editable": not meta.get("source"), "source": meta.get("source"),
             "matched": sum(1 for r in rows if r["_op"]), "total": len(rows)}
 
 
