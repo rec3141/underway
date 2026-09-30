@@ -84,8 +84,29 @@ def log_layers(report: dict, wanted: dict) -> list[dict]:
                 continue
             sid = r.get(id_col) if id_col else None
             points.append((lon, lat, None if logsheets._is_blank(sid) else str(sid).strip()))
-        layers.append({"label": m["name"], "points": points})
+        layers.append({"label": _sheet_label(key), "points": points})
+    # Two workbooks' "Sheet1" stay apart in the legend.
+    seen: dict[str, int] = {}
+    for lg in layers:
+        seen[lg["label"]] = seen.get(lg["label"], 0) + 1
+        if seen[lg["label"]] > 1:
+            lg["label"] = f"{lg['label']} ({seen[lg['label']]})"
     return layers
+
+
+def _sheet_label(key: str) -> str:
+    """A log's name on the map: its sheet's name, or for a log made from a
+    transcribed photo the transcribed table's title, never the workbook's."""
+    ident, sheet = key.removeprefix("log:").split(":", 1)
+    src = logsheets.load(ident).get("source") or {}
+    if src.get("digitized"):
+        from . import digitize
+        try:
+            t = digitize.load(src["digitized"])["tables"][int(src.get("table", 0))]
+            return t.get("title") or f"table {int(src.get('table', 0)) + 1}"
+        except (OSError, ValueError, IndexError, KeyError):
+            return sheet
+    return sheet
 
 
 def _ship_at(track, when: str, reach_s: float = 1800) -> tuple[float | None, float | None]:

@@ -39,8 +39,9 @@ from .config import GEO_DIR, SHIP_TZ  # noqa: E402
 CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7",
                "#e34948"]
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "h"]
-# a log's points: open shapes, apart from the operations' filled ones
-LOG_MARKERS = ["o", "s", "D", "^", "v", "P"]
+# A log's points: open ink shapes, one shape per log, so they never take an
+# instrument's colour; a white ring keeps them readable over the track.
+LOG_MARKERS = ["o", "s", "D", "^", "v", "p"]
 BLUES = LinearSegmentedColormap.from_list(
     "blues", ["#b7d3f6", "#6da7ec", "#2a78d6", "#1c5cab", "#0d366b"])
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
@@ -223,10 +224,11 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colo
                    zorder=4 + i * 0.01, label=activities.LABELS.get(g, g))
 
     for j, lg in enumerate(logs):
-        k = len(groups) + j
         lx, ly = tr.transform(np.array([p[0] for p in lg["points"]]), np.array([p[1] for p in lg["points"]]))
-        ax.scatter(lx, ly, s=26, marker=LOG_MARKERS[j % len(LOG_MARKERS)], facecolors="none",
-                   edgecolors=CATEGORICAL[k % len(CATEGORICAL)], linewidths=1.2,
+        m = LOG_MARKERS[j % len(LOG_MARKERS)]
+        ax.scatter(lx, ly, s=40, marker=m, facecolors="none", edgecolors="white", linewidths=2.6,
+                   zorder=5 + j * 0.01)
+        ax.scatter(lx, ly, s=40, marker=m, facecolors="none", edgecolors=INK, linewidths=1.0,
                    zorder=5 + j * 0.01, label=lg["label"])
 
     # Labels, station names first: each is skipped when its box would touch
@@ -268,11 +270,10 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colo
         for x, y, sid in lg["points"]:
             if sid:
                 at.setdefault((round(x, 3), round(y, 3)), []).append(sid)
-        ink = CATEGORICAL[(len(groups) + j) % len(CATEGORICAL)]
         for (x, y), ids in at.items():
             ids = list(dict.fromkeys(ids))
             text = ", ".join(ids[:3]) + (f" +{len(ids) - 3}" if len(ids) > 3 else "")
-            place(text, *tr.transform(x, y), size=5.5, color=ink, below=True)
+            place(text, *tr.transform(x, y), size=5.5, color=INK2, below=True)
 
     # Graticule.
     for lat in range(int(blat[0]) - 1, int(blat[1]) + 2):

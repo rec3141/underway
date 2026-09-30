@@ -1190,7 +1190,8 @@ async function drawFigure(f, box) {
     const { images } = await api("api/figure", { report: R, spec: f });
     if (box.dataset.ticket !== ticket || !box.isConnected) return;
     box.replaceChildren(...images.map((src, i) => h("figure", {},
-      h("img", { src, alt: `${f.caption || f.kind}${images.length > 1 ? ` (${i + 1} of ${images.length})` : ""}` }),
+      h("img", { src, alt: `${f.caption || f.kind}${images.length > 1 ? ` (${i + 1} of ${images.length})` : ""}`,
+        title: "Click to see it large", onclick: () => openPhoto(src, f.caption || INFO?.figures.find((x) => x.kind === f.kind)?.caption || "Figure") }),
       images.length > 1 ? h("figcaption", { class: "hint" }, `Image ${i + 1} of ${images.length}`) : null)));
   } catch (e) { toast(`Figure: ${e.message}`, true); }
   box.style.opacity = 1;
