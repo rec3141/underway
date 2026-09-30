@@ -339,24 +339,60 @@ def _nice(v: float) -> float:
     return min((1, 2, 5, 10), key=lambda m: abs(m * e - v)) * e
 
 
+def _crossings(gx, gy, at: float, lo: float, hi: float, along_x: bool) -> list[float]:
+    """Where the line (gx, gy) crosses the edge ``x = at`` (``along_x``: ``y =
+    at``) between ``lo`` and ``hi``, as the coordinate along that edge."""
+    u, v = (gy, gx) if along_x else (gx, gy)
+    out = []
+    for k in np.nonzero(np.diff(np.sign(u - at)) != 0)[0]:
+        f = (at - u[k]) / (u[k + 1] - u[k])
+        w = v[k] + f * (v[k + 1] - v[k])
+        if lo <= w <= hi:
+            out.append(float(w))
+    return out
+
+
 def _graticule_labels(ax, tr, box, blon, blat, lon_step):
+    """Parallels labelled where they cross the left edge, meridians where they
+    cross the top, every ``lon_step`` or a multiple of it wide enough that no
+    two labels touch (a meridian leaving through a side is not labelled)."""
     x0, x1, y0, y1 = box
+    fs = 6.5
+    px = lambda x, y: ax.transData.transform((x, y))  # noqa: E731
+    char_px, line_px, gap_px = fs * 0.6 * ax.figure.dpi / 72, fs * 1.3 * ax.figure.dpi / 72, 4 * ax.figure.dpi / 72
+
+    lats = []
     for lat in range(int(blat[0]), int(blat[1]) + 1):
         lons = np.linspace(blon[0], blon[1], 400)
         gx, gy = tr.transform(lons, np.full_like(lons, lat))
-        inside = (gx > x0) & (gx < x1) & (gy > y0) & (gy < y1)
-        if inside.any():
-            i = np.where(inside)[0][0]
-            ax.text(x0, gy[i], f"{lat}°N ", ha="right", va="center", fontsize=6.5, color=INK2,
-                    clip_on=False)
-    for lon in range(int(blon[0]) // lon_step * lon_step, int(blon[1]) + lon_step, lon_step):
-        lats = np.linspace(blat[0], blat[1], 400)
-        gx, gy = tr.transform(np.full_like(lats, lon), lats)
-        inside = (gx > x0) & (gx < x1) & (gy > y0) & (gy < y1)
-        if inside.any():
-            i = np.where(inside)[0][-1]
-            ax.text(gx[i], y1, f"{abs(lon)}°{'W' if lon < 0 else 'E'}", ha="center",
-                    va="bottom", fontsize=6.5, color=INK2, clip_on=False)
+        lats += [(lat, y) for y in _crossings(gx, gy, x0, y0, y1, False)]
+    placed: list[float] = []
+    for lat, y in lats:
+        py = px(x0, y)[1]
+        if all(abs(py - q) >= line_px for q in placed):
+            placed.append(py)
+            ax.text(x0, y, f"{lat}°N ", ha="right", va="center", fontsize=fs, color=INK2, clip_on=False)
+
+    first = int(blon[0]) // lon_step * lon_step
+    lons = []
+    for lon in range(first, int(blon[1]) + lon_step, lon_step):
+        la = np.linspace(blat[0], blat[1], 400)
+        gx, gy = tr.transform(np.full_like(la, lon), la)
+        lons += [(lon, x, f"{abs(lon)}°{'W' if lon < 0 else 'E'}")
+                 for x in _crossings(gx, gy, y1, x0, x1, True)]
+    lons.sort(key=lambda c: c[1])
+
+    def fits(chosen):
+        edges = [(px(x, y1)[0], len(t) * char_px) for _, x, t in chosen]
+        return all(b[0] - a[0] >= (a[1] + b[1]) / 2 + gap_px for a, b in zip(edges, edges[1:]))
+
+    for mult in (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 45, 90):
+        step = lon_step * mult
+        chosen = [c for c in lons if c[0] % step == 0]
+        if fits(chosen):
+            break
+    for _, x, t in chosen:
+        ax.text(x, y1, t, ha="center", va="bottom", fontsize=fs, color=INK2, clip_on=False)
 
 
 # --- profiles -----------------------------------------------------------------
