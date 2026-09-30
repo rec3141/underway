@@ -267,7 +267,9 @@ def rows(path: Path):
 
 
 def leg_dir(root: Path, cruise: str, when: str) -> Path:
-    year = year_of(cruise) or int(when[:4])
+    """by-leg/<year>/<cruise>: the year from the cruise's name, else from the
+    row's time; a row with neither goes under ``unknown``."""
+    year = year_of(cruise) or (int(when[:4]) if (when or "")[:4].isdigit() else "unknown")
     return root / "by-leg" / str(year) / re.sub(r"[^\w.-]", "_", cruise or "unknown")
 
 
