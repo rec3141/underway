@@ -11,8 +11,9 @@
   the selected period, with the operations marked.
 
 Colours are the dataviz reference palette's light-mode steps: categorical slots
-in fixed order for instruments (marker shape doubles the encoding), the blue
-ramp for anything ordered.
+for instruments, each instrument always in its own slot (SERIES, INSTRUMENT_ORDER)
+with a colour and marker shape no other slot shares, the blue ramp for anything
+ordered.
 """
 
 from __future__ import annotations
@@ -39,6 +40,31 @@ from .config import GEO_DIR, SHIP_TZ  # noqa: E402
 CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7",
                "#e34948"]
 MARKERS = ["o", "s", "^", "D", "v", "P", "X", "h"]
+# The eight hues again, one ramp step deeper: sixteen colours, validated in
+# this order (adjacent pairs pass, the closest in the 6–8 CVD band, so the
+# shape always differs too: see slot()).
+CATEGORICAL_DEEP = ["#184f95", "#a8431c", "#0d7a55", "#9c6a00", "#b0456f", "#006300", "#9085e9",
+                    "#a52b2b"]
+SERIES = CATEGORICAL + CATEGORICAL_DEEP
+# Instruments in slot order, the most used first, so an instrument keeps its
+# colour and shape whatever else is on the map; one not listed follows them.
+INSTRUMENT_ORDER = ["rosette", "tm_rosette", "plankton_nets", "box_core", "multicorer", "mooring", "ice",
+                    "ikmt_beam", "gravity_piston", "grab", "drop_cam", "baited_cam", "rov", "optics",
+                    "pumps", "mvp", "mapping", "small_craft", "helicopter", "transit", "ship", "other"]
+
+
+def slot(i: int) -> tuple[str, str]:
+    """Series ``i``'s (colour, marker). A deep tone never shares its light
+    twin's shape, and past sixteen the colours repeat with other shapes, so
+    no two of the first 64 slots look alike."""
+    return SERIES[i % len(SERIES)], MARKERS[(i + 3 * (i // len(CATEGORICAL))) % len(MARKERS)]
+
+
+def _instrument_slot(group: str) -> int:
+    if group in INSTRUMENT_ORDER:
+        return INSTRUMENT_ORDER.index(group)
+    return len(INSTRUMENT_ORDER) + sorted(activities.LABELS).index(group) if group in activities.LABELS \
+        else len(INSTRUMENT_ORDER) + len(activities.LABELS)
 # A log's points: open ink shapes, one shape per log, so they never take an
 # instrument's colour; a white ring keeps them readable over the track.
 LOG_MARKERS = ["o", "s", "D", "^", "v", "p"]
@@ -215,12 +241,12 @@ def station_map(leg: str, rows: list[dict], *, label_stations: bool = True, colo
                 track_line.set_clim(0, 360)
             ax.add_collection(track_line)
 
-    groups = list(dict.fromkeys(r["group"] for r in rows if r.get("lat") is not None))
+    groups = sorted(dict.fromkeys(r["group"] for r in rows if r.get("lat") is not None), key=_instrument_slot)
     for i, g in enumerate(groups):
         sel = np.array([(r["lon"], r["lat"]) for r in rows if r["group"] == g and r.get("lat") is not None])
         gx, gy = tr.transform(sel[:, 0], sel[:, 1])
-        ax.scatter(gx, gy, s=34, marker=MARKERS[i % len(MARKERS)],
-                   color=CATEGORICAL[i % len(CATEGORICAL)], edgecolors="white", linewidths=0.8,
+        hue, marker = slot(_instrument_slot(g))
+        ax.scatter(gx, gy, s=34, marker=marker, color=hue, edgecolors="white", linewidths=0.8,
                    zorder=4 + i * 0.01, label=activities.LABELS.get(g, g))
 
     for j, lg in enumerate(logs):
@@ -534,11 +560,11 @@ def ts_diagram(leg: str, keys: list[str], bottles: list[tuple[float, float]] | N
     sc = None
     if colour == "station":
         # Past the palette's eight, 20 distinct colours (they repeat only beyond 20 stations).
-        palette = CATEGORICAL if len(stations) <= len(CATEGORICAL) else list(plt.cm.tab20.colors)
         for k, name in enumerate(stations):
             m = have & (c_ == k)
             if m.any():
-                ax.scatter(s_[m], t_[m], color=palette[k % len(palette)], s=4, linewidths=0, label=name)
+                hue, marker = slot(k)
+                ax.scatter(s_[m], t_[m], color=hue, marker=marker, s=5, linewidths=0, label=name)
     elif have.any():
         cmap = BLUES if colour == "pressure" else plt.cm.viridis
         sc = ax.scatter(s_[have], t_[have], c=c_[have], cmap=cmap, s=4, linewidths=0)
