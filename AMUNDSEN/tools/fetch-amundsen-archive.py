@@ -31,7 +31,7 @@ its target and renamed when complete, so a rerun skips what is done and
 fetches the rest; an empty month (HTTP 404) leaves an empty ``.none`` marker.
 
     fetch-amundsen-archive.py fetch [--until 2025-01-01] [--only tsg,avos,ats,ctd,nav]
-    fetch-amundsen-archive.py split       raw/ -> by-leg/<year>/<cruise>/<kind>.csv
+    fetch-amundsen-archive.py split       raw/ -> by-leg/<year>/<YYYY_LEG_NN>/<kind>.csv
     fetch-amundsen-archive.py status
 
 Layout under ``--root`` (default /data/amundsen-archive):
@@ -40,7 +40,7 @@ Layout under ``--root`` (default /data/amundsen-archive):
     raw/nav-nc/<file>.csv.nc        a day of navigation as published
     raw/nav/<file>.csv              that day, averaged per minute
     raw/ctd/<dataset>[_<cruise>].csv
-    by-leg/<year>/<cruise>/{nav,tsg,avos,ats}.csv, ctd_1dbar.csv
+    by-leg/<year>/<YYYY_LEG_NN>/{nav,tsg,avos,ats}.csv, ctd_1dbar.csv
     fetch.log
 """
 
@@ -51,6 +51,7 @@ import csv
 import datetime as dt
 import math
 import re
+import shutil
 import sys
 import time
 import urllib.error
@@ -266,29 +267,46 @@ def rows(path: Path):
             yield dict(zip(header, row))
 
 
-def leg_dir(root: Path, cruise: str, when: str) -> Path:
-    """by-leg/<year>/<cruise>: the year from the cruise's name, else from the
+def leg_name(cruise: str) -> str | None:
+    """The dashboard's name for a voyage (``2016_LEG_01``) from any of the
+    server's spellings: ``Amundsen_2016001``, ``2016001``, ``201601``, ``2016_01``."""
+    m = re.fullmatch(r"(?:Amundsen_)?((?:19|20)\d\d)_?(\d{2,3})", (cruise or "").strip())
+    return f"{m.group(1)}_LEG_{int(m.group(2)):02d}" if m else None
+
+
+def leg_dir(out: Path, cruise: str, when: str) -> Path:
+    """<out>/<year>/<leg>: the year from the voyage's name, else from the
     row's time; a row with neither goes under ``unknown``."""
     year = year_of(cruise) or (int(when[:4]) if (when or "")[:4].isdigit() else "unknown")
-    return root / "by-leg" / str(year) / re.sub(r"[^\w.-]", "_", cruise or "unknown")
+    return out / str(year) / (leg_name(cruise) or re.sub(r"[^\w.-]", "_", cruise or "unknown"))
 
 
 def split(root: Path) -> None:
-    out = root / "by-leg"
+    """Rebuild by-leg/ from raw/, whole: it is written beside the old one and
+    swapped in, so a voyage renamed or dropped leaves no folder behind."""
+    final = root / "by-leg"
+    out = root / "by-leg.new"
+    shutil.rmtree(out, ignore_errors=True)
     for kind in (*SERIES, "nav"):
         per: dict[Path, list[dict]] = defaultdict(list)
         for path in sorted((root / "raw" / kind).glob("*.csv")):
             for r in (csv.DictReader(open(path, newline="")) if kind == "nav" else rows(path)):
-                per[leg_dir(root, r.get("cruise_number", ""), r["time"])].append(r)
+                per[leg_dir(out, r.get("cruise_number", ""), r.get("time", ""))].append(r)
         for d, rs in per.items():
             write(d / f"{kind}.csv", rs)
     per = defaultdict(list)
     for path in sorted((root / "raw/ctd").glob("*.csv")):
         for r in rows(path):
-            per[leg_dir(root, r.get("cruise_number", ""), r["time"])].append(r)
+            per[leg_dir(out, r.get("cruise_number", ""), r.get("time", ""))].append(r)
     for d, rs in per.items():
         write(d / "ctd_1dbar.csv", bin_dbar(rs))
-    log(root, f"split into {sum(1 for _ in out.glob('*/*'))} legs under {out}")
+    old = root / "by-leg.old"
+    shutil.rmtree(old, ignore_errors=True)
+    if final.exists():
+        final.rename(old)
+    out.rename(final)
+    shutil.rmtree(old, ignore_errors=True)
+    log(root, f"split into {sum(1 for _ in final.glob('*/*'))} legs under {final}")
 
 
 def bin_dbar(rs: list[dict]) -> list[dict]:
