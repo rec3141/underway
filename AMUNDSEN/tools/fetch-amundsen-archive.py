@@ -301,6 +301,8 @@ def bin_dbar(rs: list[dict]) -> list[dict]:
             p = float(r[key])
         except (KeyError, TypeError, ValueError):
             continue
+        if not math.isfinite(p):
+            continue
         bins[(r.get("cruise_number"), r.get("cast_number"), r.get("time"), round(p))].append(r)
     out = []
     for (_, _, _, p), group in sorted(bins.items(), key=lambda kv: (kv[0][0] or "", kv[0][2] or "", kv[0][1] or "", kv[0][3])):
