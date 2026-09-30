@@ -427,6 +427,37 @@ which in the container is off.
 "Check the AI keys" asks OpenRouter about each saved key, at no cost, and checks
 that each model exists and, where the part sends pictures, reads them.
 
+## Amundsen Science's archive (2002–2024)
+
+The years before the ship's own record come from Amundsen Science's published
+data (https://erddap.amundsenscience.com/erddap; catalogue at
+https://catalogue.amundsenscience.com), CC BY 4.0: cite Amundsen Science /
+ArcticNet and each dataset's DOI. The page credits them in the footer, the
+Sources notes and the map attribution.
+
+It lives in `$UNDERWAY_HOME/archive` (`UNDERWAY_ARCHIVE_DIR` overrides it;
+the container's is `data/archive`, from the release seed):
+
+- `by-leg/<year>/<YYYY_LEG_NN>/`: TSG per-minute means, AVOS and ATS weather,
+  rosette CTD in 1 dbar bins, as `tools/fetch-amundsen-archive.py` fetches
+  them (on grid, one request at a time: the server is slow)
+- `acsd/<year>/<YYYY_LEG_NN>/`: the same underway record as the ship's own
+  daily `ACSD_*.csv` files, written by `python -m dashboard archive-import`
+
+The build takes the `acsd/` legs like any other, marked `archive` (hidden in
+the leg menu until someone ticks them, grouped by year in the Sources
+table); their casts come from `ctd_1dbar.csv`, and the time-span slider's
+*all* reaches back to them. A leg the ship has itself is never replaced by
+the archive's. After fetching again, run `archive-import`; it rewrites each
+leg whole. What is not there: the 1 Hz navigation (the server resets every
+transfer of it), so an archive leg's track comes from its TSG and weather
+positions and its casts' places; and true wind speed, which the dashboard has
+no variable for. See `dashboard/archive.py` for the column mapping.
+
+Grid rebuilds the public copy from the same legs, so it needs the archive
+too: there `archive` is a link to `/data/amundsen-archive`, where the fetch
+script keeps it, and `archive-import` is run after each fetch.
+
 ## When headers change between legs
 
 Nothing is bound to a column name. `config.VARIABLES` gives each panel an

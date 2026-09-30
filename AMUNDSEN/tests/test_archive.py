@@ -89,3 +89,11 @@ def test_import_replaces_a_leg_whole(tmp_path, monkeypatch):
     assert archive.import_all() == {"2016_LEG_01": 2}
     assert not stale.exists()
     assert sorted(p.name for p in stale.parent.iterdir()) == ["ACSD_20160605.csv", "ACSD_20160606.csv"]
+    # a leg whose rows all turn out unusable leaves nothing behind
+    empty = tmp_path / "by-leg/2010/2010_LEG_20"
+    empty.mkdir(parents=True)
+    (empty / "ctd_1dbar.csv").write_text("cruise_number,cast_number,time,latitude,longitude,PRES\n2010020,1,2021-08-02T10:00:00Z,70,-60,1\n")
+    (tmp_path / "acsd/2010/2010_LEG_20").mkdir(parents=True)
+    (tmp_path / "acsd/2010/2010_LEG_20/ACSD_20210802.csv").write_text("old")
+    assert "2010_LEG_20" not in archive.import_all()
+    assert not (tmp_path / "acsd/2010/2010_LEG_20").exists()

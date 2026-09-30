@@ -209,7 +209,8 @@ def write_acsd(leg_dir: Path, out: Path) -> int:
 
 def import_all() -> dict:
     """Write every archive leg's ACSD files; a leg's folder is replaced whole
-    so a day no longer in the archive leaves no file behind."""
+    so a day no longer in the archive leaves no file behind, and a leg with
+    nothing left loses its folder."""
     import shutil
     done = {}
     for d in leg_dirs():
@@ -217,8 +218,8 @@ def import_all() -> dict:
         stage = target.with_name(target.name + ".new")
         shutil.rmtree(stage, ignore_errors=True)
         n = write_acsd(d, stage)
+        shutil.rmtree(target, ignore_errors=True)       # a leg left with nothing leaves no folder
         if n:
-            shutil.rmtree(target, ignore_errors=True)
             stage.rename(target)
             done[d.name] = n
         else:
