@@ -289,6 +289,11 @@ select {
 .legmenu .name { flex: 1; font-weight: 600; }
 .legmenu .span, .legmenu .n { color: var(--muted); font-family: var(--mono); font-size: var(--t-sm); }
 .legmenu .pend { color: var(--muted); font-size: var(--t-xs); }
+.legmenu .yearrow { display: flex; align-items: center; }
+.legmenu .yearrow label { flex: 1; }
+.legmenu .twisty { width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: var(--t-md); }
+.legmenu .twisty:hover { color: var(--fg); }
+.legmenu .yearlegs { max-height: none; overflow: visible; padding-left: 26px; }
 
 /* schedule bar: the operations around now in three columns, with the
    calendar links */
