@@ -754,7 +754,11 @@ function exportTz(key) {
       ...[["", "as written"], ["utc", "UTC"], ["ship", `ship time (${INFO?.ship_tz || "local"})`]]
         .map(([v, l]) => h("option", { value: v, selected: (EXPORT_TZ[key] || "") === v }, l))));
 }
-const outQuery = (key) => EXPORT_TZ[key] ? `&out=${EXPORT_TZ[key]}&leg=${encodeURIComponent(R.leg)}` : "";
+// Every download also carries the leg, the ticked instruments and each transcribed
+// table's carry-down choice, so it leads with the rows' "Matched to" column.
+const outQuery = (key) => `${EXPORT_TZ[key] ? `&out=${EXPORT_TZ[key]}` : ""}${R.leg ? `&leg=${encodeURIComponent(R.leg)}` : ""}`
+  + `&groups=${encodeURIComponent((R.selection.groups || []).join(","))}`
+  + `&fill=${encodeURIComponent(JSON.stringify(Object.fromEntries(Object.entries(digFill).filter(([, v]) => v === false))))}`;
 // A download link whose address is made when it is clicked, so it follows the time choice.
 const dlLink = (label, build, attrs = {}) => h("a", { class: "button ghost small", download: "", href: build(), ...attrs,
   onclick: (e) => { e.currentTarget.href = build(); } }, label);

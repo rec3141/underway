@@ -55,6 +55,8 @@ HAND_COLUMN = "Event label (matched by hand)"
 # A row the participant unmatched by hand carries this instead of an event label:
 # it stays unmatched however well it would match automatically.
 NO_MATCH = "none"
+# The column an export leads with: the operation each row matches, as the page shows it.
+MATCH_COLUMN = "Matched to"
 TIME_WINDOW_H = 3
 ONE_VISIT_H = 12
 MAX_KM = 5
@@ -531,23 +533,44 @@ def _text(v) -> str:
     return "" if v is None else re.sub(r"[\t\r\n]+", " ", str(v))
 
 
-def tsv(ident: str, sheet: str, times: dict | None = None) -> str:
+def op_labels(keys: list[str | None], leg: str) -> list[str]:
+    """Each operation key as its station and event label ("" for no match)."""
+    ops = {o.key: o.summary() for o in eventlog.operations(leg)}
+    return ["" if not k else " ".join(x for x in (ops.get(k, {}).get("station"), ops.get(k, {}).get("label")) if x) or k
+            for k in keys]
+
+
+def _match_labels(ident: str, sheet: str, match: dict, per: dict | None) -> list[str]:
+    """A sheet's "Matched to" column; ``match`` is {leg, groups} and ``per`` the
+    sheet's {roles, local} on the page (its guessed roles when absent)."""
+    per = per or {}
+    roles = per.get("roles") or load(ident)["sheets"][sheet]["roles"]
+    m = matched(ident, sheet, roles, match["leg"], match.get("groups"), bool(per.get("local")))
+    return op_labels([r["_op"] for r in m["rows"]], match["leg"])
+
+
+def tsv(ident: str, sheet: str, times: dict | None = None, match: dict | None = None) -> str:
     """One sheet as TSV. ``times`` ({roles, local, out, span}) rewrites its
-    dates and times into UTC or ship time (shift_times)."""
+    dates and times into UTC or ship time (shift_times). With ``match``
+    ({leg, groups, roles, local}) it leads with the "Matched to" column."""
     sh = load(ident)["sheets"][sheet]
     rows = sh["rows"]
     if times:
         rows = shift_times(rows, times.get("roles") or {}, bool(times.get("local")), bool(times.get("out")),
                            times.get("span"))
-    lines = ["\t".join(_text(c) for c in sh["columns"])]
-    lines += ["\t".join(_text(r.get(c)) for c in sh["columns"]) for r in rows]
+    lead = _match_labels(ident, sheet, match, match) if match else None
+    lines = ["\t".join(_text(c) for c in ([MATCH_COLUMN] if lead else []) + sh["columns"])]
+    lines += ["\t".join(_text(c) for c in ([lead[i]] if lead else []) + [r.get(c) for c in sh["columns"]])
+              for i, r in enumerate(rows)]
     return "\n".join(lines) + "\n"
 
 
-def xlsx(ident: str, times: dict | None = None) -> bytes:
+def xlsx(ident: str, times: dict | None = None, match: dict | None = None) -> bytes:
     """Every sheet of a logsheet as it stands, cells corrected on the page filled
     as a transcription's corrected cells are. ``times`` ({out, span, sheets:
-    {sheet: {roles, local}}}) rewrites the dates and times into UTC or ship time."""
+    {sheet: {roles, local}}}) rewrites the dates and times into UTC or ship time.
+    With ``match`` ({leg, groups, sheets: {sheet: {roles, local}}}) each sheet
+    leads with the "Matched to" column."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -560,7 +583,8 @@ def xlsx(ident: str, times: dict | None = None) -> bytes:
     fill = PatternFill("solid", fgColor=colour(EDITED))
     for name, sh in meta["sheets"].items():
         ws = wb.create_sheet(re.sub(r"[\[\]:*?/\\]", " ", name)[:31] or "Sheet")
-        ws.append(sh["columns"])
+        lead = _match_labels(ident, name, match, (match.get("sheets") or {}).get(name)) if match else None
+        ws.append(([MATCH_COLUMN] if lead else []) + sh["columns"])
         for cell in ws[1]:
             cell.font = Font(bold=True)
         rows = sh["rows"]
@@ -568,11 +592,12 @@ def xlsx(ident: str, times: dict | None = None) -> bytes:
         if per:
             rows = shift_times(rows, per.get("roles") or {}, bool(per.get("local")), bool(times.get("out")),
                                times.get("span"))
-        for r in rows:
-            ws.append([r.get(c) for c in sh["columns"]])
+        for i, r in enumerate(rows):
+            ws.append(([lead[i]] if lead else []) + [r.get(c) for c in sh["columns"]])
+        skip = 1 if lead else 0
         for i, j in sh.get("edited") or []:
-            ws.cell(i + 2, j + 1).fill = fill
-        for j in range(1, len(sh["columns"]) + 1):
+            ws.cell(i + 2, j + 1 + skip).fill = fill
+        for j in range(1, len(sh["columns"]) + 1 + skip):
             width = max(len(str(ws.cell(i, j).value or "")) for i in range(1, ws.max_row + 1))
             ws.column_dimensions[get_column_letter(j)].width = min(40, max(8, width + 2))
         ws.freeze_panes = "A2"
