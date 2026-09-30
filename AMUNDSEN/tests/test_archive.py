@@ -97,3 +97,16 @@ def test_import_replaces_a_leg_whole(tmp_path, monkeypatch):
     (tmp_path / "acsd/2010/2010_LEG_20/ACSD_20210802.csv").write_text("old")
     assert "2010_LEG_20" not in archive.import_all()
     assert not (tmp_path / "acsd/2010/2010_LEG_20").exists()
+
+
+def test_archive_tables_are_kept_for_the_same_archive_while_their_files_are_there(tmp_path, monkeypatch):
+    from dashboard import buildcache
+    monkeypatch.setattr(buildcache, "CACHE_DIR", tmp_path / "cache")
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data/agg-1h-archive-2016.json").write_text("{}")
+    files = {"1h": {"2016": "data/agg-1h-archive-2016.json"}, "1d": {}}
+    buildcache.remember_archive_aggregates("sig-a", files)
+    assert buildcache.kept_archive_aggregates("sig-a", tmp_path) == files
+    assert buildcache.kept_archive_aggregates("sig-b", tmp_path) is None            # the archive changed
+    (tmp_path / "data/agg-1h-archive-2016.json").unlink()
+    assert buildcache.kept_archive_aggregates("sig-a", tmp_path) is None            # a file went missing

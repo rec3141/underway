@@ -110,6 +110,36 @@ def kept_window(label: str, step_s: int, path: Path, now: datetime) -> dict | No
     return m if m and m.get("file") == f"data/{path.name}" else None
 
 
+# the archive's hourly and daily tables: made again when the archive's ACSD
+# files change, or this does (a change to how they are aggregated)
+AGG_ARCHIVE_VERSION = 1
+
+
+def kept_archive_aggregates(sig: str, root: Path) -> dict | None:
+    """The archive's table files ({rule: {year: file}}) from the last build
+    with the same archive, when every one of them is still there."""
+    try:
+        kept = json.loads((CACHE_DIR / "agg-archive.json").read_text())
+    except (OSError, ValueError):
+        return None
+    if kept.get("sig") != sig:
+        return None
+    files = kept.get("files") or {}
+    if not all((root / f).is_file() for years in files.values() for f in years.values()):
+        return None
+    return files
+
+
+def remember_archive_aggregates(sig: str, files: dict) -> None:
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE_DIR / "agg-archive.json.tmp"
+        tmp.write_text(json.dumps({"sig": sig, "files": files}))
+        os.replace(tmp, CACHE_DIR / "agg-archive.json")
+    except OSError as e:
+        log.warning("archive table cache not written: %s", e)
+
+
 def remember_windows(metas: list[dict]) -> None:
     try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
