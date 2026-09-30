@@ -294,6 +294,7 @@ select {
 .legmenu .twisty { width: 26px; height: 26px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: var(--t-md); }
 .legmenu .twisty:hover { color: var(--fg); }
 .legmenu .yearlegs { max-height: none; overflow: visible; padding-left: 26px; }
+.legmenu .arch { color: var(--muted); font-size: var(--t-xs); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 
 /* schedule bar: the operations around now in three columns, with the
    calendar links */
@@ -975,6 +976,8 @@ table#sources { border-collapse: collapse; width: 100%; font-size: var(--t-md); 
 #sources th { color: var(--muted); font-weight: 600; white-space: nowrap; }
 #sources .src { font-family: var(--mono); font-size: var(--t-sm); color: var(--fg); }
 #sources .cov { text-align: center; font-family: var(--mono); color: var(--ok); }
+#sources .cov .part { color: var(--muted); font-size: var(--t-xs); }
+#sources th.arch { color: var(--muted); font-weight: 500; }
 #sources .bad { color: var(--warn); font-weight: 600; }
 
 /* Keep phone layouts within the viewport without hiding inaccessible controls. */

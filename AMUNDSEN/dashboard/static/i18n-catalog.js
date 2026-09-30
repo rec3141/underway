@@ -1032,6 +1032,7 @@ window.UW_UI_CATALOG = {
           "one": "{count} new photo",
           "other": "{count} new photos"
         },
+        "provenance.archive": "Archive ({first}–{last}, {legs} legs): Amundsen Science's published data, from their ERDDAP (https://erddap.amundsenscience.com/erddap): TSG, AVOS and ATS weather, and rosette CTD casts; the datasets are listed in their catalogue (https://catalogue.amundsenscience.com). Licensed CC BY 4.0: cite Amundsen Science / ArcticNet and each dataset's DOI from the catalogue. The ship's navigation is not included; archive positions come from the TSG and weather records.",
         "provenance.basemap": "Basemap: {layers}; places (settlements) from GeoNames (CC BY 4.0; Nunavut, NWT, Labrador, northern Québec/Ontario/Manitoba and Greenland); all served locally.",
         "provenance.basemap.depth": "depth bands",
         "provenance.basemap.natural": "Natural Earth 10 m coastline, land and glaciers",
@@ -1090,6 +1091,7 @@ window.UW_UI_CATALOG = {
         "shell.xAxis": "X-axis",
         "shell.xAxisAria": "X axis",
         "shell.xAxisHint": "switch the graphs between time and distance along track",
+        "sources.archive": " · Archive: Amundsen Science / ArcticNet (CC BY 4.0)",
         "sources.built": " · built ",
         "sources.by": "Dashboard by Eric Collins · ",
         "sources.calendars": "Calendars: ",
@@ -1171,6 +1173,7 @@ window.UW_UI_CATALOG = {
         "underway.group.Surprise": "Surprise",
         "underway.group.Winches": "Winches",
         "underway.hideSchedule": "click to hide the schedule",
+        "underway.legs.archive": "archive",
         "underway.legs.loaded": "{shown} of {total} legs shown · the {span} window loaded",
         "underway.legs.summary": "Legs · {shown}/{total}",
         "underway.live": "LIVE",
@@ -2324,6 +2327,7 @@ window.UW_UI_CATALOG = {
           "one": "{count} nouvelle photo",
           "other": "{count} nouvelles photos"
         },
+        "provenance.archive": "Archives ({first}–{last}, {legs} tronçons) : données publiées par Amundsen Science, tirées de leur serveur ERDDAP (https://erddap.amundsenscience.com/erddap) : TSG, météo AVOS et ATS, et profils CTD de la rosette; les jeux de données figurent dans leur catalogue (https://catalogue.amundsenscience.com). Sous licence CC BY 4.0 : citez Amundsen Science / ArcticNet et le DOI de chaque jeu de données indiqué au catalogue. La navigation du navire n'est pas incluse; les positions des archives proviennent des relevés du TSG et de la météo.",
         "provenance.basemap": "Fond de carte : {layers}; lieux habités provenant de GeoNames (CC BY 4.0; Nunavut, T.N.-O., Labrador, nord du Québec, de l’Ontario et du Manitoba, et Groenland); toutes les données sont servies localement.",
         "provenance.basemap.depth": "bandes de profondeur",
         "provenance.basemap.natural": "littoral, terres et glaciers de Natural Earth 10 m",
@@ -2382,6 +2386,7 @@ window.UW_UI_CATALOG = {
         "shell.xAxis": "Axe X",
         "shell.xAxisAria": "Axe X",
         "shell.xAxisHint": "basculer l’axe des graphiques entre le temps et la distance parcourue",
+        "sources.archive": " · Archives : Amundsen Science / ArcticNet (CC BY 4.0)",
         "sources.built": " · généré le ",
         "sources.by": "Tableau de bord par Eric Collins · ",
         "sources.calendars": "Calendriers : ",
@@ -2463,6 +2468,7 @@ window.UW_UI_CATALOG = {
         "underway.group.Surprise": "Surprise",
         "underway.group.Winches": "Treuils",
         "underway.hideSchedule": "cliquer pour masquer l’horaire",
+        "underway.legs.archive": "archives",
         "underway.legs.loaded": "{shown} tronçons sur {total} affichés · période chargée : {span}",
         "underway.legs.summary": "Tronçons · {shown}/{total}",
         "underway.live": "EN DIRECT",
@@ -6685,6 +6691,10 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "afb2b0e8e821cc6225d46b9989003144452f39fe35eed9bbb931b9ed7d26a013"
         },
+        "provenance.archive": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "668e59a07c02f89765d048aa30fed38d7d9295139d8d78b783d078d94031035c"
+        },
         "provenance.basemap": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "6c80043fc4da87c5be7648b359c7c62832b07a5a16f6a61dbb4d9eef6f4acb66"
@@ -6916,6 +6926,10 @@ window.UW_UI_CATALOG = {
         "shell.xAxisHint": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "38d47031333118fc51ae0ff69977090ea4450bb7547aa4ce402f3012a63577f5"
+        },
+        "sources.archive": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "5408a2439bd467233f7efde0e6673df46db7070e1609890647b765e813697fa7"
         },
         "sources.built": {
           "profile": "editorial-fr-ca-v4",
@@ -7240,6 +7254,10 @@ window.UW_UI_CATALOG = {
         "underway.hideSchedule": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "7cb35d26397cae32ee034dd54cc9f739669e3474f1d0dceb58fad57405fb9fcd"
+        },
+        "underway.legs.archive": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d32d6d5eeb28879723113a09a04aac8ec79466cce4e534ee3cf9a29cbf43da24"
         },
         "underway.legs.loaded": {
           "profile": "editorial-fr-ca-v4",

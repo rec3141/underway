@@ -24,8 +24,12 @@ The columns carried over, and why some are not:
   that follows from the air and dew-point temperatures. Its wind speed is
   the true wind speed, which the dashboard has no variable for (its wind
   speed is the relative one), so it is left out rather than mislabelled.
-* ATS: air temperature, humidity, pressure, true wind direction, short-wave
-  radiation; its wind speed is left out for the same reason.
+* ATS (2023-2024): air temperature, humidity, pressure and true wind
+  direction in the AVOS columns and short-wave radiation in the port-side
+  one, the columns the dashboard reads; its wind speed is left out for the
+  same reason as AVOS's.
+* Each CTD cast's time and place is a position as well: a leg with casts and
+  no underway record (most of 2002-2004) is then a leg with its stations.
 * Navigation (1 Hz, amundsen12447) could not be fetched: the server resets
   every transfer of it.
 """
@@ -55,12 +59,15 @@ TSG = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longit
 AVOS = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longitude (deg E)"),
         "Wind_dir": ("AVOS", "True wind direction (deg)"), "Air_temp": ("AVOS", "Air temperature (deg C)"),
         "Pressure": ("AVOS", "Atmospheric pressure (HPa)")}
+# The dashboard reads one column per variable across every leg (the first
+# its patterns find: AVOS before ATS, the port-side radiometer before the
+# starboard one), so the 2023-2024 ATS readings go in those columns.
 ATS = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longitude (deg E)"),
-       "wind_direction": ("ATS_MetTower", "True wind direction (deg)"),
-       "air_temperature": ("ATS_MetTower", "Air temperature (deg C)"),
-       "air_humidity": ("ATS_MetTower", "Air humidity (%)"),
-       "air_pressure": ("ATS_MetTower", "Atmospheric pressure (HPa)"),
-       "shortwave_radiation": ("ATS_Starboard", "Short wave radiation (W/m²)")}
+       "wind_direction": ("AVOS", "True wind direction (deg)"),
+       "air_temperature": ("AVOS", "Air temperature (deg C)"),
+       "air_humidity": ("AVOS", "Air humidity (%)"),
+       "air_pressure": ("AVOS", "Atmospheric pressure (HPa)"),
+       "shortwave_radiation": ("ATS_Portside", "Short wave radiation (W/m²)")}
 HUMIDITY = ("AVOS", "Air humidity (%)")
 SOURCES = (("tsg.csv", TSG), ("avos.csv", AVOS), ("ats.csv", ATS))
 
@@ -140,6 +147,23 @@ def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
                     if rh is not None and HUMIDITY not in row:
                         row[HUMIDITY] = rh
                         columns[HUMIDITY] = None
+    # each CTD cast's time and place: the only positions of a leg with casts
+    # and no underway record, which then still comes in, with its casts
+    path = leg_dir / "ctd_1dbar.csv"
+    if path.is_file():
+        seen = set()
+        with open(path, newline="") as f:
+            for r in csv.DictReader(f):
+                t = _minute(r.get("time", ""))
+                if not t or t in seen:
+                    continue
+                seen.add(t)
+                lat, lon = _num(r.get("latitude")), _num(r.get("longitude"))
+                row = rows[t]
+                if lat is not None and lon is not None and TSG["latitude"] not in row:
+                    row[TSG["latitude"]], row[TSG["longitude"]] = lat, lon
+                    columns[TSG["latitude"]] = columns[TSG["longitude"]] = None
+    rows = {t: r for t, r in rows.items() if r}
     return list(columns), rows
 
 

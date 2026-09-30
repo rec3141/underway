@@ -665,12 +665,23 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
                 "legs": len(stores), "windows": {w["label"]: w["n"] for w in windows_meta}}
 
     # time-aggregated tables for the data tab
+    # the archive's rows (two decades of them) in a file of their own, which
+    # the page fetches only when one of its legs is shown
     agg_meta = {}
+    archive_legs = {i for i, (leg, _) in enumerate(stores) if leg.archive}
     for label, rule in (("1h", "1h"), ("1d", "1D")):
         payload = aggregate(a, rule)
-        atomic_write(root / "data" / f"agg-{label}.json", json.dumps(payload, separators=(",", ":")))
-        agg_meta[label] = {"file": f"data/agg-{label}.json", "n": len(payload["rows"])}
-        log.info("aggregate %-3s %6d rows", label, len(payload["rows"]))
+        ship = [r for r in payload["rows"] if r["leg"] not in archive_legs]
+        older = [r for r in payload["rows"] if r["leg"] in archive_legs]
+        atomic_write(root / "data" / f"agg-{label}.json", json.dumps({**payload, "rows": ship}, separators=(",", ":")))
+        agg_meta[label] = {"file": f"data/agg-{label}.json", "n": len(ship)}
+        archive_file = root / "data" / f"agg-{label}-archive.json"
+        if older:
+            atomic_write(archive_file, json.dumps({**payload, "rows": older}, separators=(",", ":")))
+            agg_meta[label].update(archive_file=f"data/agg-{label}-archive.json", archive_n=len(older))
+        else:
+            archive_file.unlink(missing_ok=True)
+        log.info("aggregate %-3s %6d rows (+%d archive)", label, len(ship), len(older))
 
     # casts and calendar are independent of the underway record; a failure in
     # either must not take the dashboard down

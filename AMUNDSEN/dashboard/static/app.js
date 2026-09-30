@@ -437,7 +437,7 @@
       li.className = "legyear";
       li._legs = legs;
       li.innerHTML = `<div class="yearrow"><button type="button" class="twisty" aria-label="${year}"></button>
-        <label><input type="checkbox"><span class="name">${year}</span>${legs.some((l) => l.live) ? '<span class="live">live</span>' : ""}
+        <label><input type="checkbox"><span class="name">${year}</span>${legs.some((l) => l.live) ? '<span class="live">live</span>' : ""}${legs.every((l) => l.archive) ? `<span class="arch">${esc(t("underway.legs.archive"))}</span>` : ""}
         <span class="n"></span></label></div><ul class="yearlegs"></ul>`;
       const twisty = li.querySelector(".twisty"), inner = li.querySelector(".yearlegs");
       const setOpen = (on) => { inner.hidden = !on; twisty.textContent = on ? "▾" : "▸"; twisty.setAttribute("aria-expanded", on); };
@@ -454,7 +454,7 @@
         const span = l.first_date && l.last_date
           ? `${l.first_date.slice(4, 6)}/${l.first_date.slice(6)} – ${l.last_date.slice(4, 6)}/${l.last_date.slice(6)}` : "";
         leg.innerHTML = `<label><input type="checkbox">
-          <span class="name">${l.label}</span>${l.live ? '<span class="live">live</span>' : ""}
+          <span class="name">${l.label}</span>${l.live ? '<span class="live">live</span>' : ""}${l.archive ? `<span class="arch">${esc(t("underway.legs.archive"))}</span>` : ""}
           <span class="span">${span}</span><span class="n">${l.files} d</span></label>`;
         leg.querySelector("input").onchange = (e) => {
           e.target.checked ? state.hidden.delete(l.id) : state.hidden.add(l.id);
@@ -562,7 +562,9 @@
       b.onclick = () => { state[layer] = !state[layer]; store.set(layer, state[layer]); b.classList.toggle("on", state[layer]); b.setAttribute("aria-pressed", String(state[layer])); if (layer === "photos") closeCamera(); if (layer === "track") resetTrack(); renderMap(); };
     }
     renderSatPill();
-    $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)", "© MapLibre"].filter(Boolean).join(" · ");
+    // the archive's legs are Amundsen Science's published data: an exported map carries this line
+    $("#mapattrib").innerHTML = [SITE.raster?.attribution, SITE.vector?.attribution, "Natural Earth 10 m", "GeoNames (CC BY 4.0)",
+      M.legs.some((l) => l.archive) ? "Amundsen Science / ArcticNet (CC BY 4.0)" : "", "© MapLibre"].filter(Boolean).join(" · ");
     $('#mapdetailsopen').onclick=()=>$('#mapdetails').showModal();
     $('#mapdetailsclose').onclick=()=>$('#mapdetails').close();
     $("#mapreset").onclick = () => { requestFit(); state.focus = null; renderMap(); };
@@ -2105,10 +2107,24 @@
 
   // ------------------------------------------------------------ provenance
   function renderProvenance() {
-    const legCols = M.legs.map((l) => `<th title="${esc(l.label)}">${l.year % 100}·${l.number}</th>`).join("");
+    // a column per leg of the ship's own record; the archive's legs (two
+    // decades of them) one column per year: ✓ every leg, n/m some, – none
+    const cols = [];
+    for (const l of M.legs) {
+      if (!l.archive) { cols.push({ label: `${l.year % 100}·${l.number}`, title: l.label, legs: [l] }); continue; }
+      const last = cols[cols.length - 1];
+      if (last?.year === l.year) { last.legs.push(l); last.title += `, ${l.label}`; }
+      else cols.push({ label: String(l.year), title: l.label, legs: [l], year: l.year, archive: true });
+    }
+    const legCols = cols.map((c) => `<th class="${c.archive ? "arch" : ""}" title="${esc(c.title)}">${c.label}</th>`).join("");
+    const mark = (v, c) => {
+      if (v.derived) return "·";
+      const n = c.legs.filter((l) => v.coverage?.[l.id]).length;
+      return n === c.legs.length ? "✓" : n ? `<span class="part">${n}/${c.legs.length}</span>` : '<span class="bad">–</span>';
+    };
     const rows = M.variables.map((v) =>
       `<tr><td>${esc(variableLabel(v.name))}</td><td class="src ${v.resolved ? "" : "bad"}">${v.derived ? `<i>${esc(t("provenance.derived"))}</i>` : v.source ? `<span lang="en">${esc(v.source)}</span>` : esc(t("provenance.notFound"))}</td>` +
-      M.legs.map((l) => `<td class="cov">${v.derived ? "·" : (v.coverage?.[l.id] ? "✓" : '<span class="bad">–</span>')}</td>`).join("") + "</tr>");
+      cols.map((c) => `<td class="cov">${mark(v, c)}</td>`).join("") + "</tr>");
     $("#sources").innerHTML = `<tr><th>${esc(t("provenance.panel"))}</th><th>${esc(t("provenance.column"))}</th>${legCols}</tr>${rows.join("")}`;
     const paragraph = (key, values) => `<p>${esc(t("provenance." + key, values))}</p>`;
     const layers = [
@@ -2116,6 +2132,8 @@
       t(SITE.vector ? "provenance.basemap.vector" : "provenance.basemap.natural"),
       SITE.raster ? "" : t("provenance.basemap.depth")
     ].filter(Boolean).join(" · ");
+    const archiveLegs = M.legs.filter((l) => l.archive);
+    $("#archivecredit").hidden = !archiveLegs.length;
     $("#sources").lang = $("#notes").lang = window.UWI18n.locale;
     $("#notes").innerHTML =
       `<p><b>Surprise</b>: ${M.surprise.note ? `<span lang="en">${esc(M.surprise.note)}</span>` : esc(t("provenance.notComputed"))}. ${esc(t("provenance.surprise"))}</p>` +
@@ -2123,6 +2141,7 @@
       `<p lang="en">LADCP profiles retain native bins without smoothing. Transect sections interpolate onto the same depth and time/distance grid as other casts; values between stations are interpolated estimates. Map arrows use the nearest measured bin within half the typical bin spacing, omit unavailable depths, and do not extrapolate. Source headers and parent cast identifiers are retained in the downloadable cast JSON.</p>` +
       paragraph("zoom") + paragraph("heat") +
       paragraph("inputs", {files:M.files.total,legs:M.legs.length,latest:M.files.latest}) +
+      (archiveLegs.length ? paragraph("archive", {first:archiveLegs[0].year,last:archiveLegs[archiveLegs.length - 1].year,legs:archiveLegs.length}) : "") +
       paragraph("record", {start:fmtTs(Date.parse(M.data_range.start)),end:fmtTs(Date.parse(M.data_range.end)),zone:tzAbbr(),columns:M.columns_seen.length}) +
       paragraph("times", {zone:SITE.local_tz}) + paragraph("basemap", {layers}) +
       (SITE.names ? paragraph("names") : "") + paragraph("globe");

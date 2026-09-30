@@ -1809,12 +1809,18 @@
   // hourly or daily aggregates of the underway record
   const tbl = { rule: store.get("tbl.rule", "1h"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
   if (!["1h", "1d"].includes(tbl.rule)) tbl.rule = "1h";
+  // the archive's rows come from their own file, and only while one of its
+  // legs is shown
   async function ensureAgg() {
     const stamp = UW.M.generated_utc;
-    const rule = tbl.rule;
-    const data = await cachedJSON(`aggregate:${rule}`, UW.M.aggregates[rule].file);
+    const rule = tbl.rule, meta = UW.M.aggregates[rule];
+    const f = UW.currentFilter();
+    const withArchive = !!meta.archive_file && UW.M.legs.some((l) => l.archive && f.legs.has(l.id));
+    const data = await cachedJSON(`aggregate:${rule}`, meta.file);
+    const older = withArchive ? await cachedJSON(`aggregate:${rule}:archive`, meta.archive_file) : null;
     if (tbl.loadedFor !== stamp) tbl.data = {};
-    tbl.data[rule] = data; tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
+    tbl.data[rule] = older ? { ...data, rows: older.rows.concat(data.rows) } : data;
+    tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
   }
   function currentRows() {
     const d = tbl.data[tbl.rule]; if (!d) return [];
