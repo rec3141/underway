@@ -30,6 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("legs", help="list discovered legs")
+    sub.add_parser("archive-import", help="write Amundsen Science's archive (by-leg CSVs) as ACSD files for the build")
 
     b = sub.add_parser("build", help="ingest new files and regenerate the dashboard")
     b.add_argument("--root", required=True, type=Path, help="web root to write into")
@@ -92,6 +93,12 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return 0
 
+    if a.cmd == "archive-import":
+        from .archive import ARCHIVE_ROOT, import_all
+        done = import_all()
+        print(f"{len(done)} archive legs written under {ARCHIVE_ROOT / 'acsd'}")
+        return 0 if done else 1
+
     if a.cmd == "legs":
         try:
             found = discover()
@@ -99,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             logging.error("%s", e)
             return 2
         for l in found:
-            print(f"{'*' if l.live else ' '} {l.id:<13} {l.files:3d} files {l.bytes/1e6:6.0f} MB "
+            print(f"{'*' if l.live else 'a' if l.archive else ' '} {l.id:<13} {l.files:3d} files {l.bytes/1e6:6.0f} MB "
                   f"{l.first_date}..{l.last_date}  stations={'yes' if l.stations else 'no'}")
         return 0
 

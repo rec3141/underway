@@ -10,6 +10,7 @@ half-written file.
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import logging
 import math
@@ -27,7 +28,8 @@ from . import history
 from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from . import plan, satellite, ice_charts
-from .buildcache import cached_frame, file_signature, kept_window, remember_windows, surprise_cached
+from .buildcache import (AGG_ARCHIVE_VERSION, cached_frame, file_signature, kept_archive_aggregates, kept_window,
+                         remember_archive_aggregates, remember_windows, surprise_cached)
 from .derive import Analysis, build_analysis, needed_keys
 from .ingest import Store, sync
 from .legs import Leg, discover
@@ -250,8 +252,10 @@ def slice_window(a: Analysis, w: Window, end: pd.Timestamp) -> dict:
         # However coarse the time step, the track keeps at least one point every
         # MAP_KM_STEP km along the way: the first raw record in each distance
         # bucket joins the time bins, so a transit does not thin to a dotted line
-        # at the long spans.
-        if w.step_s >= 600 and "dist_km" in df.columns:
+        # at the long spans. Not in the daily "all" window: over two decades of
+        # the archive that is a hundred thousand points, and the map draws its
+        # track from the track chunks.
+        if 600 <= w.step_s < 86400 and "dist_km" in df.columns:
             bucket = np.floor(df["dist_km"].ffill() / MAP_KM_STEP)
             extra = df.loc[bucket.diff().fillna(1) != 0, list(agg.keys())]
             extra = extra[~extra.index.isin(g.index)]
@@ -343,11 +347,11 @@ def _break_discontinuities(g: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def aggregate(a: Analysis, rule: str) -> dict:
+def aggregate(a: Analysis, rule: str, frame: pd.DataFrame | None = None) -> dict:
     """Mean/min/max/count of every panel variable per time bin, with the mean
-    position and the leg, over the whole record. Bins with no data are
-    dropped, so the table is only as long as the data."""
-    df = a.frame
+    position and the leg, over the whole record (or ``frame``, a part of it).
+    Bins with no data are dropped, so the table is only as long as the data."""
+    df = a.frame if frame is None else frame
     names = [v.name for v in VARIABLES if v.name in df.columns and v.name not in WINDOW_FILLED]
     names = [n for n in names if n in df.columns]
     g = df[names + ["lat", "lon", "leg"]].resample(rule)
@@ -665,12 +669,44 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
                 "legs": len(stores), "windows": {w["label"]: w["n"] for w in windows_meta}}
 
     # time-aggregated tables for the data tab
+    # the archive's rows (two decades of them) in files of their own, one per
+    # year of its legs, which the page fetches only for the years shown; the
+    # archive does not change between builds, so its files are made again only
+    # when its ACSD files do (a few minutes over four million rows)
     agg_meta = {}
+    archive_year = {i: leg.year for i, (leg, _) in enumerate(stores) if leg.archive}
+    is_archive = a.frame["leg"].isin(list(archive_year))
+    ship_frame = a.frame[~is_archive]
+    archive_sig = hashlib.sha1(json.dumps([AGG_ARCHIVE_VERSION] + [[i, leg.id, leg.files, leg.bytes, leg.newest_mtime]
+                                                                    for i, (leg, _) in enumerate(stores) if leg.archive]).encode()).hexdigest()
+    cached_files = kept_archive_aggregates(archive_sig, root)
+    if cached_files is None:
+        for stale in (root / "data").glob("agg-*-archive*.json"):
+            stale.unlink()
     for label, rule in (("1h", "1h"), ("1d", "1D")):
-        payload = aggregate(a, rule)
+        payload = aggregate(a, rule, ship_frame)
         atomic_write(root / "data" / f"agg-{label}.json", json.dumps(payload, separators=(",", ":")))
         agg_meta[label] = {"file": f"data/agg-{label}.json", "n": len(payload["rows"])}
-        log.info("aggregate %-3s %6d rows", label, len(payload["rows"]))
+        if cached_files is not None:
+            if cached_files.get(label):
+                agg_meta[label]["archive_files"] = cached_files[label]
+            log.info("aggregate %-3s %6d rows (archive kept)", label, len(payload["rows"]))
+            continue
+        by_year: dict[int, list] = {}
+        if archive_year:
+            older = aggregate(a, rule, a.frame[is_archive])
+            for r in older["rows"]:
+                by_year.setdefault(archive_year[r["leg"]], []).append(r)
+        if by_year:
+            agg_meta[label]["archive_files"] = {}
+            for year, rows in sorted(by_year.items()):
+                name = f"agg-{label}-archive-{year}.json"
+                atomic_write(root / "data" / name, json.dumps({**older, "rows": rows}, separators=(",", ":")))
+                agg_meta[label]["archive_files"][str(year)] = f"data/{name}"
+        log.info("aggregate %-3s %6d rows (+%d archive in %d years)", label, len(payload["rows"]),
+                 sum(map(len, by_year.values())), len(by_year))
+    if cached_files is None:
+        remember_archive_aggregates(archive_sig, {k: v.get("archive_files", {}) for k, v in agg_meta.items()})
 
     # casts and calendar are independent of the underway record; a failure in
     # either must not take the dashboard down
@@ -759,7 +795,6 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     # .json/.png/@2x, so it cannot carry a query string: versioned copies of the
     # four files carry a content hash in their name instead (a browser must never
     # pair a week-cached sprite image with a fresh index)
-    import hashlib
     sprite_src = sorted((PKG / "static" / "geo").glob("sprite*.*"))
     sprite_version = hashlib.sha1(b"".join(f.read_bytes() for f in sprite_src)).hexdigest()[:8] if sprite_src else ""
     for f in sprite_src:
@@ -768,7 +803,6 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
             shutil.copy2(f, dest)
     # asset URLs carry a content hash so browsers pick up a new app.js/style.css
     # immediately instead of serving a heuristically cached one
-    import hashlib
     h = hashlib.sha1()
     for name in ("plot-export.js", "map-legend.js", "ice-charts.js", "i18n.js", "i18n-catalog.js", "responsive-header.js", "data.js", "track-data.js", "map.js", "map-kmz.js", "app.js", "tabs.js", "chat.js", "ice.js", "ice.css", "camera-track.js", "photo-gallery.js", "history.js", "nature.js", "feedback.js", "style.css"):
         h.update((PKG / "static" / name).read_bytes())

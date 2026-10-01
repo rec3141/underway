@@ -765,7 +765,11 @@ def build_casts(legs: list[Leg], root: Path) -> dict:
     index = []
     currents = []
     for leg in legs:
-        casts = rosette_casts(leg) + mvp_casts(leg) + ladcp_casts(leg, DATA_ROOT, DB_DIR)
+        if getattr(leg, "archive", False):
+            from .archive import casts as archive_casts
+            casts = archive_casts(leg.id)
+        else:
+            casts = rosette_casts(leg) + mvp_casts(leg) + ladcp_casts(leg, DATA_ROOT, DB_DIR)
         if not casts:
             continue
         out = root / "data" / "casts" / leg.id

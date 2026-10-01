@@ -5094,6 +5094,18 @@
         "other": "{count} new photos"
       },
       "context": "Accessible label and tooltip for the unread Photos tab count badge."
+    },
+    "provenance.archive": {
+      "text": "Archive ({first}–{last}, {legs} legs): Amundsen Science's published data, from their ERDDAP (https://erddap.amundsenscience.com/erddap): TSG, AVOS and ATS weather, and rosette CTD casts; the datasets are listed in their catalogue (https://catalogue.amundsenscience.com). Licensed CC BY 4.0: cite Amundsen Science / ArcticNet and each dataset's DOI from the catalogue. The ship's navigation is not included; archive positions come from the TSG and weather records.",
+      "context": "Main Underway UI/provenance. Preserve all scientific values, units, source names and attribution licences."
+    },
+    "sources.archive": {
+      "text": " · Archive: Amundsen Science / ArcticNet (CC BY 4.0)",
+      "context": "Footer data credit, shown when the archive's legs are present. Preserve source names and the licence."
+    },
+    "underway.legs.archive": {
+      "text": "archive",
+      "context": "Leg menu tag for a leg from Amundsen Science's published archive rather than this ship's own record."
     }
   }
 }

@@ -16,8 +16,8 @@ def pump_events(frame, legs, min_minutes: int = MIN_MINUTES):
     events = []
     # Flow is available at minute resolution, even when underway data are faster.
     for code, part in frame.groupby("leg"):
-        if not 0 <= int(code) < len(legs):
-            continue
+        if not 0 <= int(code) < len(legs) or getattr(legs[int(code)], "archive", False):
+            continue                                   # the archive has no intake flow (dashboard/archive.py)
         flow = part[FLOW].sort_index().resample("1min").mean()
         low = flow.notna() & (flow < LOW_FLOW_V)
         starts = low & ~low.shift(fill_value=False)

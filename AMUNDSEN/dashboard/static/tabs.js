@@ -1809,12 +1809,19 @@
   // hourly or daily aggregates of the underway record
   const tbl = { rule: store.get("tbl.rule", "1h"), stat: +store.get("tbl.stat", 0), sort: store.get("tbl.sort", { key: "t", dir: -1 }), search: "", data: {}, loadedFor: null };
   if (!["1h", "1d"].includes(tbl.rule)) tbl.rule = "1h";
+  // the archive's rows come from a file per year, fetched only for the years
+  // of its legs that are shown
   async function ensureAgg() {
     const stamp = UW.M.generated_utc;
-    const rule = tbl.rule;
-    const data = await cachedJSON(`aggregate:${rule}`, UW.M.aggregates[rule].file);
+    const rule = tbl.rule, meta = UW.M.aggregates[rule];
+    const f = UW.currentFilter();
+    const years = [...new Set(UW.M.legs.filter((l) => l.archive && f.legs.has(l.id)).map((l) => String(l.year)))]
+      .filter((y) => meta.archive_files?.[y]).sort();
+    const data = await cachedJSON(`aggregate:${rule}`, meta.file);
+    const older = await Promise.all(years.map((y) => cachedJSON(`aggregate:${rule}:${y}`, meta.archive_files[y])));
     if (tbl.loadedFor !== stamp) tbl.data = {};
-    tbl.data[rule] = data; tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
+    tbl.data[rule] = older.length ? { ...data, rows: older.flatMap((o) => o.rows).concat(data.rows) } : data;
+    tbl.loadedFor = stamp; tbl.legs = UW.M.legs;
   }
   function currentRows() {
     const d = tbl.data[tbl.rule]; if (!d) return [];
