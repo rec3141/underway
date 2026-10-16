@@ -6088,6 +6088,11 @@
       "source": "archive",
       "text": "archives",
       "status": "draft"
+    },
+    "underway.ashore": {
+      "source": "cruise ended {date}",
+      "text": "croisière terminée le {date}",
+      "status": "draft"
     }
   }
 }

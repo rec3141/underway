@@ -352,6 +352,7 @@ def test_map_log_layers_place_rows_and_carry_sample_ids(monkeypatch):
     monkeypatch.setattr(report, "_logs", lambda rep: logs)
     op = SimpleNamespace(start=SimpleNamespace(lat=70.0, lon=-100.0))
     monkeypatch.setattr(report.eventlog, "by_key", lambda leg: {"AMD2603-001": op})
+    monkeypatch.setattr(report.logsheets, "leg_span", lambda leg: None)     # the leg's dates come from the real event log
     rep = {"leg": "2026_LEG_03"}
     both = {"a:Sheet1": {"show": True, "ids": True}, "b:Sheet1": {"show": True, "ids": True}}
     [layer] = report.log_layers(rep, both)

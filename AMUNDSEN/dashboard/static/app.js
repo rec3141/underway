@@ -56,8 +56,14 @@
   // choices are remembered, and a browser with settings from before these
   // defaults (prefs.v < 2) takes them once
   const newestLeg = M.legs.find((l) => l.id === M.live) || M.legs.reduce((a, b) => (!a || b.last_date > a.last_date) ? b : a, null);
-  const otherLegs = M.legs.filter((l) => l.id !== newestLeg?.id).map((l) => l.id);
+  // ashore (manifest.ashore) no leg is live: the page opens on the last season,
+  // once for a browser that had settled on the live leg
+  const ashore = M.ashore?.season?.length ? new Set(M.ashore.season) : null;
+  const otherLegs = M.legs.filter((l) => ashore ? !ashore.has(l.id) : l.id !== newestLeg?.id).map((l) => l.id);
   if (store.get("prefs.v", 0) < 2) { store.set("prefs.v", 2); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs); }
+  if (ashore && store.get("ashore.seen", null) !== M.ashore.ended) {
+    store.set("ashore.seen", M.ashore.ended); store.set("win", M.default_window); store.set("hiddenLegs", otherLegs);
+  }
   // a leg this browser has not seen before starts hidden, so a year of the
   // archive arriving does not switch itself on; a browser that has never
   // recorded what it has seen counts every leg but the archive's as seen
@@ -501,7 +507,7 @@
     const notice = inapp.msgs.at(-1);
     const statusWord = notice && Date.now() - notice.receivedAt < 120000
       ? `<span class="status-tail status-notice"> · <span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span></span>` : schedWord;
-    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> · </span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">${esc(t("underway.refresh", {time:fmtTs(gen).slice(11)}))}${live ? ` · <span class="live">${esc(t("underway.live"))}</span>` : ` · <span class="stale">${esc(t("underway.dataAge", {age:ago(end)}))}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
+    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> · </span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">${esc(t("underway.refresh", {time:fmtTs(gen).slice(11)}))}${M.ashore ? ` · <span class="ended">${esc(t("underway.ashore", {date:fmtTs(Date.parse(M.ashore.ended + "T12:00:00Z")).slice(0, 10)}))}</span>` : live ? ` · <span class="live">${esc(t("underway.live"))}</span>` : ` · <span class="stale">${esc(t("underway.dataAge", {age:ago(end)}))}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
     const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
@@ -1469,12 +1475,27 @@
     return name;
   }
   let refreshMapFooter = () => {};
+  function ensureMapView(el) {
+    if (mapView) return;
+    mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(); }, onWaypoint: mapWaypoint, onZoom: onMapZoom,
+      onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
+    window.UW.mapView = mapView;
+    $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
+  }
   function renderMap() {
     refreshMapFooter = () => {};
     const overview = state.span;
     const d = trackData || {...overview, t:[], lat:[], lon:[], leg:[], dist_km:[], vars:{}, pump_low:[], n:0, shown:0};
     const el = $("#map");
-    if (!overview || !(overview.shown ?? overview.n)) { mapView?.clear(); mapMessage(overview ? t("underway.empty.track") : t("underway.empty.data")); $("#mapfoot").textContent = ""; return; }
+    if (!overview || !(overview.shown ?? overview.n)) {
+      // no leg shown, or no track in the span: the map keeps its background,
+      // with nothing on it (and is made here when the page opens this way)
+      ensureMapView(el);
+      mapView.clear();
+      mapView.draw({ style: mapStyle(null, []), view: state.view || fitView([], []), base: [], live: [] })
+        .catch((e) => console.warn("map draw:", e));
+      mapMessage(overview ? t("underway.empty.track") : t("underway.empty.data")); $("#mapfoot").textContent = ""; return;
+    }
     mapMessage("");
 
     const v = VAR[state.colour] || extraColours.get(state.colour);
@@ -1562,12 +1583,7 @@
     const sat = (state.sat && satPicture()) || null;
     const details = sat?.details || (sat?.near ? [sat.near] : []);
     mapData = d;
-    if (!mapView) {
-      mapView = new UW.MapView(el, { onClick: mapClick, onEmptyClick: (e) => { if (!UW.iceCharts?.click(e)) mapEmptyClick(); }, onWaypoint: mapWaypoint, onZoom: onMapZoom,
-        onMove: (v) => { if (!state.fitPending) state.view = v; updateScale(); scheduleTrack(); } });
-      window.UW.mapView = mapView;
-      $('#mapexport').onclick = () => { if(mapView.map)window.UWPlotExport.openMap(mapView.map); };
-    }
+    ensureMapView(el);
     try {
       mapView.draw({ style: mapStyle(sat, details), view, base: traces, live: liveTraces(ship) }).then(() => {
         state.fitPending = false;

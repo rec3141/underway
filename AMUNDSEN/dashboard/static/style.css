@@ -241,6 +241,7 @@ footer .themepick { justify-content: flex-end; margin: 10px 0 0; }        /* a p
 .top .controls .pickhint.phone { flex: 0 1 auto; margin: 0; line-height: 1.2; }
 .top .pickhint.inline { display: none; }
 .top .controls { order: 3; flex: 1 0 100%; }
+.ended { color: var(--muted); }
 .live { color: var(--ok); font-weight: 700; text-transform: uppercase; font-size: var(--t-sm); letter-spacing: .5px; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }

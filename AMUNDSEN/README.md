@@ -280,6 +280,35 @@ Without a clone at `ARCTIC_HISTORY_ROOT` the unit's condition skips it and the
 Wiki tab is simply absent. No release on grid leaves whatever release the ship
 already has; an empty release is how the crew withdraws every locale.
 
+### Ashore
+
+Off the ship the shares and the intranet are gone; the dashboard runs from
+its own copy (the local mirror). In `/etc/underway/site.env`:
+
+```sh
+UNDERWAY_ASHORE=2026-10-01          # the day the cruise ended
+UNDERWAY_DATA_ROOT=/data/ship/Data  # the mirror, for every service, not only the build
+UNDERWAY_SHARE_ROOT=/data/ship/Share
+```
+
+Then no leg is live: the page opens on the last season, the status line says
+when the cruise ended instead of how old the data are, and the schedule's
+"now" banner is left out. The build no longer pulls from the shares, nor
+reads the intranet's live page or the TSG tail. Grid's public rebuild takes
+the same from the ship's manifest. The cruise report builder reads its
+template from `$UNDERWAY_SHARE_ROOT/Guidelines, Templates & Forms/`, so a
+copy of `Cruise Report Template_2026.docx` belongs there in the mirror.
+
+Stop what only works aboard:
+
+```sh
+sudo systemctl disable --now underway-camera.timer underway-camera-sync.timer \
+    underway-alerts.timer underway-uptime.timer underway-satellite.timer \
+    underway-gcal.timer ship-routes.service
+```
+
+Back aboard: remove `UNDERWAY_ASHORE` and the two roots, and enable them again.
+
 ### Taking over
 
 To run the dashboard on another account or another machine:

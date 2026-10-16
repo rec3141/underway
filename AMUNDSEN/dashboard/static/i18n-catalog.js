@@ -1120,6 +1120,7 @@ window.UW_UI_CATALOG = {
         "underway.age.hours": "{count} h ago",
         "underway.age.minutes": "{count} min ago",
         "underway.age.seconds": "{count} s ago",
+        "underway.ashore": "cruise ended {date}",
         "underway.axis.depth": "depth (m)",
         "underway.axis.depthRoot": "depth (m, √ spacing)",
         "underway.axis.distance": "distance along track (km)",
@@ -2415,6 +2416,7 @@ window.UW_UI_CATALOG = {
         "underway.age.hours": "il y a {count} h",
         "underway.age.minutes": "il y a {count} min",
         "underway.age.seconds": "il y a {count} s",
+        "underway.ashore": "croisière terminée le {date}",
         "underway.axis.depth": "profondeur (m)",
         "underway.axis.depthRoot": "profondeur (m, échelle √)",
         "underway.axis.distance": "distance parcourue (km)",
@@ -7042,6 +7044,10 @@ window.UW_UI_CATALOG = {
         "underway.age.seconds": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "199cd4c0ae4d7039c938afbd7830e24052a6b6347fb7b31a98d1426a64661472"
+        },
+        "underway.ashore": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "d2cadf26fdecdd2b856ee9c789d5fbfbfbca5953a0ff7d3bd61c0666b5d7dbbe"
         },
         "underway.axis.depth": {
           "profile": "editorial-fr-ca-v4",
