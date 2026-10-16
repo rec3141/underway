@@ -134,7 +134,7 @@ def _landing(parts: dict) -> str:
     return _page("Manual · " + TITLE, body)
 
 
-def _print(parts: dict) -> str:
+def _print(parts: dict, src: Path = SRC) -> str:
     """Every chapter of both parts as one document, chapter ids prefixed so
     links within a chapter still work."""
     cover = (f'<section class="cover"><h1>{html.escape(TITLE)}</h1><p>User and administrator manual</p></section>')
@@ -147,8 +147,8 @@ def _print(parts: dict) -> str:
                    + "".join(f'<li><a href="#{key}-{c.slug}">{html.escape(c.title)}</a></li>' for c in chs) + "</ol></li>")
         blocks.append(f'<section class="part" id="part-{key}"><h1>{html.escape(name)}</h1><p class="lede">{html.escape(blurb)}</p></section>')
         for c in chs:
-            src = (SRC / key).glob(f"[0-9][0-9]-{c.slug}.md")
-            text = next(src).read_text(encoding="utf-8").partition("\n")[2]
+            path = next((src / key).glob(f"[0-9][0-9]-{c.slug}.md"))
+            text = path.read_text(encoding="utf-8").partition("\n")[2]
             rendered, _ = _render(text, prefix=f"{key}-{c.slug}")
             blocks.append(f'<section class="chapter" id="{key}-{c.slug}"><h1>{html.escape(c.title)}</h1>{rendered}</section>')
     body = (f'<header class="top noprint"><a href="index.html">Manual</a><span class="sp"></span>'
@@ -189,7 +189,7 @@ def publish(root: Path, src: Path = SRC, force: bool = False) -> dict | None:
         for i in range(len(chs)):
             (d / f"{chs[i].slug}.html").write_text(_chapter_page(part, chs, i), encoding="utf-8")
     (stage / "index.html").write_text(_landing(parts), encoding="utf-8")
-    (stage / "print.html").write_text(_print(parts), encoding="utf-8")
+    (stage / "print.html").write_text(_print(parts, src), encoding="utf-8")
     (stage / ".stamp").write_text(stamp)
     old = out.with_name("manual.old")
     shutil.rmtree(old, ignore_errors=True)
