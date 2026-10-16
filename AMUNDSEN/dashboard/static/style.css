@@ -415,7 +415,8 @@ main > .map { position: relative; display: flex; flex-direction: column; min-hei
 .map-foot b { color: var(--fg); font-weight: 600; }
 .map-foot .mono { font-family: var(--mono); }
 .map-foot .hint { margin-left: auto; opacity: .7; }
-.mapmsg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 1rem; pointer-events: none; }
+.mapmsg { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; color: var(--muted); font-size: 1rem; pointer-events: none; }
+.mapmsg:not([hidden]) { text-shadow: 0 0 6px var(--card), 0 0 2px var(--card); }
 main > .map.dropping { outline: 2px dashed var(--accent); outline-offset: -4px; }   /* a KMZ held over the map */
 /* the layer toggles: a bar above the map, each button on or off */
 .maplayers { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 4px 8px; font-size: var(--t-md); }
