@@ -6093,6 +6093,11 @@
       "source": "cruise ended {date}",
       "text": "croisière terminée le {date}",
       "status": "draft"
+    },
+    "sources.manual": {
+      "source": "The manual: how to use the dashboard, and how to run it",
+      "text": "Le manuel : utiliser le tableau de bord, et le faire fonctionner",
+      "status": "draft"
     }
   }
 }

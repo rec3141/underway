@@ -5110,6 +5110,10 @@
     "underway.ashore": {
       "text": "cruise ended {date}",
       "context": "Status line once the dashboard runs ashore from its own copy of the ship's data: replaces the live/stale data age. {date} is a date."
+    },
+    "sources.manual": {
+      "text": "The manual: how to use the dashboard, and how to run it",
+      "context": "Link at the top of the Sources tab to the user and administrator manual."
     }
   }
 }

@@ -14,7 +14,7 @@
 # whole: rsync fills a sibling directory and the swap is one rename, so a
 # build never reads a half-copied pyramid. The next build finds the new
 # metadata.json and the map takes the layer from there; the GEBCO raster
-# pyramid is not pulled (it is rendered on the ship, see the README).
+# pyramid is not pulled (it is rendered on the ship, see the manual: Administrator manual › Map data).
 set -euo pipefail
 SITE=${UNDERWAY_SITE:-/etc/underway/site.env}
 if [[ -r $SITE ]]; then set -a; . "$SITE"; set +a; fi

@@ -115,7 +115,7 @@ done
 
 if [[ $mode == --enable ]]; then
   systemctl enable --now "${CORE[@]}"
-  echo "enabled ${CORE[*]}; the others are enabled one by one once their credentials are in place (README, Taking over)"
+  echo "enabled ${CORE[*]}; the others are enabled one by one once their credentials are in place (manual: Administrator manual › Installing and taking over)"
 fi
 [[ ${#changed[@]} -eq 0 ]] && echo "the installed units were already up to date"
 exit 0

@@ -465,7 +465,7 @@ def bathy_choices(tiles_dir: Path) -> list:
 
 
 def vector_tiles(tiles: Path, attribution: str = "© OpenStreetMap contributors (ODbL)") -> dict | None:
-    """Describe a vector tile set (ogr2ogr -f MVT, see the README) for the
+    """Describe a vector tile set (ogr2ogr -f MVT; the manual's Administrator manual › Map data) for the
     map: zoom range, bounds and layer names from the metadata.json the writer
     leaves beside the tiles. The coastline and the geographic names are both
     cut this way. Like the raster pyramid they live on local disk and are
@@ -492,6 +492,17 @@ def _limits(vals: list) -> list | None:
 
 
 # ---------------------------------------------------------------- build
+
+def manual_published(root: Path) -> dict | None:
+    """The manual rendered into the web root (dashboard/manual.py); a failure
+    leaves the last one and does not stop the build."""
+    from . import manual
+    try:
+        return manual.publish(root)
+    except Exception:                       # noqa: BLE001 — the manual is extra
+        log.exception("manual not published")
+        return None
+
 
 def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = False, public: bool = False) -> dict:
     started = datetime.now(timezone.utc)
@@ -771,7 +782,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "surprise": {"features": [union_keys.get(f, f) for f in a.surprise_features], "note": a.surprise_note,
                      "scales": [list(x) for x in SURPRISE_SCALES], "alert": {"scale": SURPRISE_ALERT_SCALE, "level": SURPRISE_ALERT}},
         "stations": stations,
-        "alerts": _alerts_info(),
+        "alerts": {} if ashore else _alerts_info(),     # ashore nothing sends alerts: no bells, no form
         "data_range": {"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
         "provisional": {"from": prov_from.isoformat(), "source": " + ".join(prov_src)} if prov_from is not None else None,
         # when each source last had anything, for the subtitle's tooltip
@@ -793,6 +804,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "ice_charts": ice_charts.publish(root),         # cached dated CIS vector and raster charts, or None
         "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
         "history": history.publish(root),               # the History tab's wiki and artifacts, or None
+        "manual": manual_published(root),             # docs/manual -> manual/, when its sources changed
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 

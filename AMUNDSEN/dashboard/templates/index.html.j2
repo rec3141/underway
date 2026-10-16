@@ -223,6 +223,7 @@
 
     <div class="pane card" id="pane-sources" hidden>
       <h2 data-i18n="sources.title" data-i18n-locale>Sources</h2>
+      <p class="manuallink">📖 <a href="manual/" target="_blank" rel="noopener" data-i18n="sources.manual" data-i18n-locale>The manual: how to use the dashboard, and how to run it</a></p>
       <div class="prov">
         <div class="meta">
           {% if m.public %}<span data-i18n="sources.webCopy" data-i18n-locale>Web copy: published from the ship when its link is up; the chat, photo uploads, live feeds, alerts and feedback run only aboard</span>{% else %}<span><span data-i18n="sources.intranet" data-i18n-locale>Ship intranet: </span>{% for l in site.intranet %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.label }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}
