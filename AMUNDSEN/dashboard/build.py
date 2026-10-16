@@ -465,7 +465,7 @@ def bathy_choices(tiles_dir: Path) -> list:
 
 
 def vector_tiles(tiles: Path, attribution: str = "© OpenStreetMap contributors (ODbL)") -> dict | None:
-    """Describe a vector tile set (ogr2ogr -f MVT, see the README) for the
+    """Describe a vector tile set (ogr2ogr -f MVT; the manual's Administrator manual › Map data) for the
     map: zoom range, bounds and layer names from the metadata.json the writer
     leaves beside the tiles. The coastline and the geographic names are both
     cut this way. Like the raster pyramid they live on local disk and are

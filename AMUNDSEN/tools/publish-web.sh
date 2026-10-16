@@ -65,7 +65,7 @@ stats() { grep -E "Number of (regular files transferred|created|deleted)|Total t
 rebuild_tracks() {
   [[ -f $MIRROR/data/manifest.json && -f $MIRROR/index.html ]] || { echo 'No incoming ship manifest/index' >&2; return 1; }
   [[ -d $SOURCE/Data/FULL_CSV && -d $SOURCE/Share ]] || { echo "No source observations at $SOURCE" >&2; return 1; }
-  [[ -x $TRACK_PY ]] || { echo "Set up grid's rebuild Python at $TRACK_PY (README)" >&2; return 1; }
+  [[ -x $TRACK_PY ]] || { echo "Set up grid's rebuild Python at $TRACK_PY (manual: Administrator manual › Publishing to the web)" >&2; return 1; }
   mkdir -p "$GRID_HOME/db" "$GRID_HOME/cache"
   rsync -a "$SOURCE/runtime/" "$GRID_HOME/db/"
   local stage
@@ -336,5 +336,5 @@ case "${1:-}" in
     ssh "${TARGET%%:*}" "du -sh ${TARGET#*:} 2>/dev/null; ls -la ${TARGET#*:}/index.html ${TARGET#*:}/data/manifest.json 2>/dev/null" || true
     echo "served at $URL"
     ;;
-  *) echo "usage: publish-web.sh {push|rebuild|rebuild-deploy|deploy|history|static|status}" >&2; exit 1 ;;
+  *) echo "usage: publish-web.sh {push|rebuild|rebuild-deploy|deploy|history|static|tiles|status}" >&2; exit 1 ;;
 esac

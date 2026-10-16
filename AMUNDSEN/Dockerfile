@@ -3,7 +3,7 @@
 # Build from this directory, with the game (github.com/rec3141/amundsen-game) as a second context:
 #   docker build --build-context game=/data/dev/amundsen-game -t underway:<version> .
 # Everything that changes lives under /underway (a host folder) and in the settings
-# the /settings page writes to /underway/config; see deploy/container/README.md.
+# the /settings page writes to /underway/config; see deploy/container/HOW-TO.txt and the manual (Administrator manual › The container and releases).
 FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1
