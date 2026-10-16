@@ -782,7 +782,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "surprise": {"features": [union_keys.get(f, f) for f in a.surprise_features], "note": a.surprise_note,
                      "scales": [list(x) for x in SURPRISE_SCALES], "alert": {"scale": SURPRISE_ALERT_SCALE, "level": SURPRISE_ALERT}},
         "stations": stations,
-        "alerts": _alerts_info(),
+        "alerts": {} if ashore else _alerts_info(),     # ashore nothing sends alerts: no bells, no form
         "data_range": {"start": a.frame.index.min().isoformat(), "end": end.isoformat()},
         "provisional": {"from": prov_from.isoformat(), "source": " + ".join(prov_src)} if prov_from is not None else None,
         # when each source last had anything, for the subtitle's tooltip

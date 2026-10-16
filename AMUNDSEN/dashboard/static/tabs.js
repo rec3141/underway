@@ -1093,9 +1093,9 @@
     if (!XMODES.includes(casts.xmode)) casts.xmode = "time";
     sx.textContent = XWORD[casts.xmode];
     sx.onclick = () => { casts.xmode = XMODES[(XMODES.indexOf(casts.xmode) + 1) % XMODES.length]; store.set("casts.xmode", casts.xmode); sx.textContent = XWORD[casts.xmode]; renderCastPlots(); };
-    if (UW.public && casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // Seasave's feed is aboard only
+    if ((UW.public || UW.M.ashore) && casts.kind === "live") { casts.kind = "all"; store.set("casts.kind", "all"); }   // Seasave's feed is aboard only
     for (const b of $("#castkind").querySelectorAll("button")) {
-      if (UW.public && b.dataset.k === "live") { b.hidden = true; continue; }
+      if ((UW.public || UW.M.ashore) && b.dataset.k === "live") { b.hidden = true; continue; }
       b.classList.toggle("on", b.dataset.k === casts.kind);
       // the live view (and the poll that feeds its setup box) is started by the
       // plots renderer, so a change to or from Live redraws the plots too
@@ -1202,7 +1202,11 @@
       return dayHead(d) + (nDone ? `<tr class="fold"><td colspan="7"><button type="button" class="dayfold-done" data-day="${esc(d)}" data-count="${nDone}">${open ? '▾ ' : '▸ '}${esc(ui(open ? 'Hide {count} finished' : 'Show {count} finished', {count:nDone}))}</button></td></tr>` : "") +
         rs.map((r) => schedRow(r, rowKey(r), false).replace("<tr ", isFinished(r) && !open ? "<tr hidden " : "<tr ")).join("");
     }).join("");
-    let html = `<section class="card block"><h3>${uh("Operations schedule {v0}{v1}", {v0: (esc(s.title || "")), v1: (changesBell())})}</h3>` +
+    // ashore the schedule is the last one read aboard, not what happens now
+    const ashoreNote = UW.M.ashore ? `<section class="card block"><h3>${uh("Operations schedule {v0}{v1}", {v0: "", v1: ""})}</h3>` +
+      `<p>${esc(ui("The cruise ended on {date}. The Event Log and the Calendar hold the record of what was done.", {date: UW.M.ashore.ended}))}</p>` +
+      `<p class="muted small">${esc(ui('calendars:'))} ${(UW.M.links || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}</p></section>` : "";
+    let html = ashoreNote || `<section class="card block"><h3>${uh("Operations schedule {v0}{v1}", {v0: (esc(s.title || "")), v1: (changesBell())})}</h3>` +
       (s.whiteboard ? `<p class="whiteboard">📋 ${esc(s.whiteboard)}</p>` : "") +
       (sched ? `<div class="hscroll"><table class="sched">${SCHED_HEAD(false)}${sched}</table></div>` : `<p class="muted">${uh("no scheduled operations listed")}</p>`) +
       `<p class="muted small">${esc(ui('Ship intranet:'))} ${(UW.M.intranet || []).map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(" · ")}` +
