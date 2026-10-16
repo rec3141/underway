@@ -31,8 +31,9 @@ flock -n 9 || { echo "Another run is in progress; exiting."; exit 0; }
 umask 002
 export TZ=${TZ:-America/Toronto}
 
-if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
-    # a failed mirror pass is not fatal: the build proceeds on what is mirrored.
+if [[ ${UNDERWAY_LOCAL:-0} == 1 && -z ${UNDERWAY_ASHORE:-} ]]; then
+    # ashore (UNDERWAY_ASHORE) the mirror is the copy: there is no share to pull from.
+    # A failed mirror pass is not fatal: the build proceeds on what is mirrored.
     # The underway files are mirrored every run; the cast, MVP and archive
     # trees (a CIFS stat per file) every ten minutes, or when asked for.
     mode=quick

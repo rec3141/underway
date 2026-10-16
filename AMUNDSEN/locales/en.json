@@ -5106,6 +5106,10 @@
     "underway.legs.archive": {
       "text": "archive",
       "context": "Leg menu tag for a leg from Amundsen Science's published archive rather than this ship's own record."
+    },
+    "underway.ashore": {
+      "text": "cruise ended {date}",
+      "context": "Status line once the dashboard runs ashore from its own copy of the ship's data: replaces the live/stale data age. {date} is a date."
     }
   }
 }

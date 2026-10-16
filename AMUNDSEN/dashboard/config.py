@@ -192,6 +192,10 @@ VARIABLES = VARIABLES[:1] + tuple(Variable(surprise_scale_name(l), "", (), deriv
 import os  # noqa: E402  (kept with the settings that use it)
 from pathlib import Path  # noqa: E402
 
+# Ashore: the date the cruise ended (YYYY-MM-DD), once the dashboard runs off
+# the ship from its own copy of the shares. No leg is live then, the live feeds
+# and the schedule's "now" are left out, and the page opens on the last season.
+ASHORE = os.environ.get("UNDERWAY_ASHORE", "").strip() or None
 DATA_ROOT = Path(os.environ.get("UNDERWAY_DATA_ROOT", "/mnt/ship/Data"))    # FULL_CSV/<leg>/, Rosette/<leg>/Logs/
 DATA_SHARE_URL = os.environ.get("UNDERWAY_DATA_URL", "smb://10.0.0.10/Data")  # the same folders as a link people can open
 SHARE_ROOT = Path(os.environ.get("UNDERWAY_SHARE_ROOT", "/mnt/ship/Share"))  # <year>/<leg>/ for archived seasons

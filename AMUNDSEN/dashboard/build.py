@@ -25,7 +25,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from . import __version__
 from . import history
-from .config import (CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
+from .config import (ASHORE, CAMERA_OUTPUT, DEFAULT_WINDOW, INTRANET_BASE, INTRANET_LINKS, LOCAL_TZ, LOW_FLOW_V, MAP_KM_STEP, QUANTILE_LIMITS, SURPRISE_ALERT, SURPRISE_ALERT_SCALE,
                      SURPRISE_SCALES, VARIABLES, WINDOWS, WINDOW_FILLED, Window)
 from . import plan, satellite, ice_charts
 from .buildcache import (AGG_ARCHIVE_VERSION, cached_frame, file_signature, kept_archive_aggregates, kept_window,
@@ -567,10 +567,16 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     # intranet live page fill in (the TSG's values first where both have a
     # minute); marked provisional, they drop out as the ACSD catches up
     live_i = next((i for i, (leg, _) in enumerate(stores) if leg.live), None)
+    # ashore (config.ASHORE; grid's public rebuild takes it from the ship's
+    # manifest): the newest leg still keys the caches, but it is not live
+    ashore = ASHORE or ((incoming or {}).get("ashore") or {}).get("ended")
+    ship_legs = [leg for leg, _ in stores if not getattr(leg, "archive", False)]
+    season_year = max((getattr(leg, "year", 0) for leg in ship_legs), default=None)
+    season = [leg.id for leg in ship_legs if getattr(leg, "year", 0) == season_year]
     prov_from = None
     prov_src = []
     acsd_end = df.index.max()
-    if live_i is not None:
+    if live_i is not None and not ashore:
         try:
             tail = provisional_tail(tsg, acsd_end, list(df.columns)) if tsg is not None else pd.DataFrame(columns=df.columns)
             if len(tail):
@@ -635,7 +641,14 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     # default view, so the browser opens on the current leg
     in_leg = a.frame.index[a.frame["leg"] == live_i] if live_i is not None else []
     default_window = DEFAULT_WINDOW if any(w.label == DEFAULT_WINDOW for w in windows) else windows[0].label
-    if len(in_leg):
+    if ashore:
+        # the page opens on the last season: the shortest span that reaches it
+        first = min((pd.Timestamp(leg.first_date, tz="UTC") for leg, _ in stores
+                     if leg.id in season and leg.first_date), default=None)
+        if first is not None:
+            need = (end - first).total_seconds() / 3600
+            default_window = next((w.label for w in windows if w.hours >= need), windows[-1].label)
+    elif len(in_leg):
         hours = max(1.0, float(math.ceil((end - in_leg.min()).total_seconds() / 3600) + 1))
         w = Window("leg", hours, next((x.step_s for x in windows if x.hours >= hours), windows[-1].step_s))
         windows_meta.append(write_window(w))
@@ -745,8 +758,9 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "local_tz": LOCAL_TZ, "default_window": default_window,
         "windows": windows_meta,
         "track": track,
-        "legs": [dict(leg.meta(), index=i) for i, (leg, _) in enumerate(stores)],
-        "live": next((leg.id for leg, _ in stores if leg.live), None),
+        "legs": [dict(leg.meta(), index=i, **({"live": False} if ashore else {})) for i, (leg, _) in enumerate(stores)],
+        "live": None if ashore else next((leg.id for leg, _ in stores if leg.live), None),
+        "ashore": {"ended": ashore, "season": season} if ashore else None,
         "variables": [{
             "name": r.variable.name, "unit": r.variable.unit, "derived": r.variable.derived,
             "log_ok": r.variable.log_ok, "circular": r.variable.circular, "tsg": r.variable.tsg, "cmap": r.variable.cmap, "reverse": r.variable.reverse,
@@ -772,7 +786,8 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "links": links,
         "aggregates": agg_meta,
         "casts": {"index": "data/casts/index.json", "n": len(casts_idx["casts"]), "variables": casts_idx["variables"]},
-        "calendar": {"file": "data/calendar.json", **cal},
+        # ashore the schedule's "now" is the last day aboard, not now
+        "calendar": {"file": "data/calendar.json", **({k: v for k, v in cal.items() if k not in ("now", "update")} if ashore else cal)},
         "intranet": [{"label": l, "url": f"{INTRANET_BASE}/{path}"} for l, path in INTRANET_LINKS],
         "satellite": satellite.publish(root),           # recent Sentinel pictures around the ship, or None
         "ice_charts": ice_charts.publish(root),         # cached dated CIS vector and raster charts, or None
