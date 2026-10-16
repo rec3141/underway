@@ -30,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("legs", help="list discovered legs")
+    mn = sub.add_parser("manual", help="render docs/manual into the web root's manual/")
+    mn.add_argument("--root", required=True, type=Path)
     sub.add_parser("archive-import", help="write Amundsen Science's archive (by-leg CSVs) as ACSD files for the build")
 
     b = sub.add_parser("build", help="ingest new files and regenerate the dashboard")
@@ -92,6 +94,12 @@ def main(argv: list[str] | None = None) -> int:
         if a.refresh and result["failed"] and not (result["added"] or result["kept"]):
             return 2
         return 0
+
+    if a.cmd == "manual":
+        from .manual import publish
+        n = publish(a.root, force=True)
+        print(f"manual: {n} chapters in {a.root / 'manual'}" if n else "manual: no sources (docs/manual) or the markdown package missing")
+        return 0 if n else 1
 
     if a.cmd == "archive-import":
         from .archive import ARCHIVE_ROOT, import_all

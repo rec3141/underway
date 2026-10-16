@@ -1098,6 +1098,7 @@ window.UW_UI_CATALOG = {
         "sources.coverage": "Source columns and leg coverage",
         "sources.data": " · Data: Amundsen Science (ACSD)",
         "sources.intranet": "Ship intranet: ",
+        "sources.manual": "The manual: how to use the dashboard, and how to run it",
         "sources.scroll": "Swipe the table sideways to see source columns and leg coverage.",
         "sources.source": "source",
         "sources.title": "Sources",
@@ -2394,6 +2395,7 @@ window.UW_UI_CATALOG = {
         "sources.coverage": "Colonnes sources et tronçons couverts",
         "sources.data": " · Données : Amundsen Science (ACSD)",
         "sources.intranet": "Intranet du navire : ",
+        "sources.manual": "Le manuel : utiliser le tableau de bord, et le faire fonctionner",
         "sources.scroll": "Faites défiler le tableau horizontalement pour voir les colonnes sources et les tronçons couverts.",
         "sources.source": "code source",
         "sources.title": "Sources",
@@ -6956,6 +6958,10 @@ window.UW_UI_CATALOG = {
         "sources.intranet": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "ac632207d39407eaa1038e0e83379c58de161fc9a5f156eddd4437873cbe5407"
+        },
+        "sources.manual": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "e5212ff90933ac87f599b96acb5161548ff46f5109c8c86e0011af5ec5fdd561"
         },
         "sources.scroll": {
           "profile": "editorial-fr-ca-v4",

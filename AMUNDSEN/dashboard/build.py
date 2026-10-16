@@ -493,6 +493,17 @@ def _limits(vals: list) -> list | None:
 
 # ---------------------------------------------------------------- build
 
+def manual_published(root: Path) -> dict | None:
+    """The manual rendered into the web root (dashboard/manual.py); a failure
+    leaves the last one and does not stop the build."""
+    from . import manual
+    try:
+        return manual.publish(root)
+    except Exception:                       # noqa: BLE001 — the manual is extra
+        log.exception("manual not published")
+        return None
+
+
 def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = False, public: bool = False) -> dict:
     started = datetime.now(timezone.utc)
     incoming = None
@@ -793,6 +804,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "ice_charts": ice_charts.publish(root),         # cached dated CIS vector and raster charts, or None
         "plan": plan.publish(root),                     # the leg's cruise plan (KMZ), or None
         "history": history.publish(root),               # the History tab's wiki and artifacts, or None
+        "manual": manual_published(root),             # docs/manual -> manual/, when its sources changed
     }
     atomic_write(root / "data" / "manifest.json", json.dumps(manifest, indent=1))
 
