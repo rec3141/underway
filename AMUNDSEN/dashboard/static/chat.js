@@ -3,12 +3,14 @@
 // through the page's own server (api/chat, a SQLite file behind it); the
 // drawer polls every few seconds while open and less often while collapsed.
 //
-// Rooms: Ship (everyone; a crew member answers only when @mentioned), Crew
-// (the AI crew's room, where they also speak unprompted while it is open),
-// Ada (the librarian's reading room: every message is a question answered
-// from the History wiki with the pages read), and direct messages with a
-// person or a crew member. A name belongs to the first device that uses it,
-// by a token kept on the device; a direct message reaches only that device.
+// Rooms: the Mess (channel "ship": everyone; a crew member answers only when
+// @mentioned), the Lounge ("crew": the AI crew's room, where they also speak
+// unprompted while it is open), the Library ("ada": every message is a
+// question for Ada, answered from the wiki with the pages read), the Deck
+// ("deck": Ada and Doc together), a private room with each other crew member,
+// and direct messages with a person, opened with the + button. A name belongs
+// to the first device that uses it, by a token kept on the device; a direct
+// message reaches only that device.
 (() => {
   "use strict";
   const ui = (source, values) => window.UWI18n.text(source, values);
@@ -80,7 +82,7 @@
     $("#chattitle").textContent = roomTitle(st.room);
     $('#chatprivacy').textContent = isDM(st.room)
       ? ui("Temporary direct messages — memory only, not saved to the chat database. Cleared on server restart, closing the conversation, or 30 minutes without a message. Not end-to-end encrypted.")
-      : ui("Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.");
+      : ui("Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, open a private room with the + button.");
     textIn.placeholder = placeholder(st.room);
     renderRooms();
     el.classList.toggle("collapsed", !st.open);

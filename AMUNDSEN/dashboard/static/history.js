@@ -619,7 +619,8 @@
     const current = currentView();
     await renderMainBody();
     if (!current()) return;
-    if (!hist.index || UW.public || (hist.slug.startsWith('artifact/') && artifactById(hist.slug.slice(9)))) return;
+    // the page's own flag: not on an artifact (its card carries one), nor on a search's results or Explore, which are lists
+    if (!hist.index || UW.public || hist.search.trim() || hist.slug === 'explore' || (hist.slug.startsWith('artifact/') && artifactById(hist.slug.slice(9)))) return;
     const el = $('#histmain'), heading = el.querySelector('h2');
     const target = {id: 'page:' + (hist.slug || 'home'), page: hist.slug, title: heading?.textContent.trim() || 'Wiki'};
     flagPages.set(target.id, target);
@@ -1298,8 +1299,9 @@
     if (!bar.querySelector("details")) {
       bar.innerHTML = `<details class="legmenu"><summary></summary><div class="pop">` +
         `<div class="pophead">${uh("On the map ·")} <a href="#" data-all>${uh("all")}</a> · <a href="#" data-none>${uh("none")}</a></div><ul>` +
-        rows.map((r) => r.key
-          ? `<li><label title="${esc(r.hint || "")}"><input type="checkbox" data-k="${r.key}"><span class="dot" data-k="${r.key}"></span><span class="name">${esc(r.label)}</span></label></li>`
+        rows.map((r) => r.sep ? `<li class="gsep" role="separator"></li>`
+          : r.key
+          ? `<li${r.under ? ` class="under"` : ""}><label title="${esc(r.hint || "")}"><input type="checkbox" data-k="${r.key}"><span class="dot" data-k="${r.key}"></span><span class="name">${esc(r.label)}</span></label></li>`
           : `<li class="ghead">${esc(r.label)}</li>`).join("") + `</ul></div></details>`;
       const apply = () => { store.set(storeKey, [...set]); renderMenu(bar, word, rows, set, storeKey, layerOn); if (layerOn()) UW.renderMap(); };
       for (const box of bar.querySelectorAll("input[data-k]")) box.onchange = () => { box.checked ? set.add(box.dataset.k) : set.delete(box.dataset.k); apply(); };
@@ -1311,10 +1313,16 @@
     bar.querySelector("summary").textContent = `${word} · ${keys.filter((k) => set.has(k)).length}/${keys.length}`;
   }
   // the artifact kinds in their hierarchy, for the map's menu: a head with
-  // no kind of its own (People) is a label over its kinds
+  // no kind of its own (People) is a label over its kinds, a head that is a
+  // kind (Places) is a box over its own, the kinds under a head are indented,
+  // and a rule sets off each group that has kinds under it
   function typeRows() {
-    const row = (k) => ({ key: k, label: TYPES[k].label, colour: TYPES[k].colour });
-    return GROUPS.flatMap((g) => { const under = g.under.filter((k) => TYPES[k]); return [...(TYPES[g.head] ? [row(g.head)] : under.length ? [{ label: KINDS[g.head].label }] : []), ...under.map(row)]; });
+    const row = (k, under) => ({ key: k, label: TYPES[k].label, colour: TYPES[k].colour, under });
+    return GROUPS.flatMap((g, i) => {
+      const under = g.under.filter((k) => TYPES[k]);
+      const head = TYPES[g.head] ? [row(g.head, false)] : under.length ? [{ label: KINDS[g.head].label }] : [];
+      return [...(i && under.length ? [{ sep: true }] : []), ...head, ...under.map((k) => row(k, true))];
+    });
   }
   // the kinds as a dropdown's groups, the one open selected; the ship's own photographs sit
   // with the images and the observations with the events, whatever the labels
@@ -1356,7 +1364,7 @@
   // who answers the Ask button: Ada for the history, Doc for the nature, the crew's room for both
   const ASK = {
     history: { label: "Ask Ada", room: "ada", title: "open the Library in the chat and ask Ada, the librarian, about the region's past" },
-    nature: { label: "Ask Doc", room: "doc", title: "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal" },
+    nature: { label: "Ask Doc", room: "doc", title: "open the Lab in the chat and ask Doc, the naturalist; Doc repeats a sighting back and asks you to enter it at Photos → Submit" },
     both: { label: "Ask a Q", room: "deck", title: "open the Deck in the chat, where Ada and Doc both answer: Ada from the history, Doc from the nature" },
   };
   const askTarget = () => ASK[hist.domains.size !== 1 ? "both" : domainOn("nature") ? "nature" : "history"];
@@ -1615,7 +1623,7 @@
   // ---------------------------------------------------------------- wiring
   const pill = (layer, state) => { const b = document.querySelector(`#maplayers button[data-layer="${layer}"]`); if (b) { b.classList.toggle("on", !!state); b.setAttribute("aria-pressed", String(!!state)); } };
   function wire() {
-    $("#histsearch").oninput = debounce((e) => { hist.search = e.target.value; renderMain(); }, 150);
+    $("#histsearch").oninput = debounce((e) => { hist.search = e.target.value; renderMain(); renderTools(); }, 150);
     $("#histback").onclick = goBack;
     $("#histhome").onclick = () => open("");
     $("#histexplore").onclick = () => open(hist.slug === "explore" ? "" : "explore");

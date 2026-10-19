@@ -266,7 +266,8 @@ The wiki is written by people and a computer model, and can be wrong. If you
 see a mistake, flag it.
 
 1. Click the small flag **⚑** after a page's title, or in the corner of an
-   artifact's card.
+   artifact's card. Lists of pages, such as search results and **Explore**,
+   have no flag of their own: flag the page or the card itself.
 2. A box asks **What should be looked at? (optional)**. Type what is wrong, for
    example "this photo is of Gjoa Haven, not Cambridge Bay".
 3. Click **OK**. The flag turns dark. Everyone aboard now sees it, and the
@@ -296,10 +297,11 @@ what to show.
 
 ![The map with the History layer on and its Kinds menu open](img/14-map-history.webp)
 
-- Beside **History**, **Kinds · 8/8** lists the kinds of artifact (**Images**,
-  **Events**, **Objects**, **Quotes**, **Texts**, **Places**, **Tracks**,
-  **Maps**), each with its colour. Untick a kind to hide it. **all** and
-  **none** tick or untick them all.
+- Beside **History**, **Kinds · 8/8** lists the kinds of artifact, each with
+  its colour: **Images** and **Events**; then, under the heading **People**,
+  **Objects**, **Quotes** and **Texts**; then **Places**, with **Tracks** and
+  **Maps** under it. A line separates the groups. Untick a kind to hide it.
+  **all** and **none** tick or untick them all.
 - Beside **Nature**, **Domains** lists the fields of nature in the same way.
 
 On the map:

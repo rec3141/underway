@@ -1111,6 +1111,10 @@ function renderFigures() {
     f.options = f.options || {};
     const img = h("div", { class: "fig-images" });
     const opts = h("div", { class: "row" });
+    // a T–S caption still at a colour's default names the colour chosen (report.figure_caption)
+    const tsDefaults = INFO?.ts_captions || {};
+    if (f.kind === "ts" && Object.values(tsDefaults).includes((f.caption || "").trim())) f.caption = tsDefaults[f.options.colour || "pressure"] || f.caption;
+    const caption = h("textarea", { style: "min-height:50px", oninput: (e) => { f.caption = e.target.value; persist(); } }, f.caption || "");
     let wait;
     const refresh = () => { clearTimeout(wait); wait = setTimeout(() => drawFigure(f, img), 700); };
     if (f.kind === "map") {
@@ -1164,13 +1168,18 @@ function renderFigures() {
       updateNote();
     } else if (f.kind === "ts") {
       const nTeams = R.selection.teams.length;
-      opts.append(h("label", {}, "Colour by ", h("select", { onchange: (e) => { f.options.colour = e.target.value; persist(); refresh(); } },
+      opts.append(h("label", {}, "Colour by ", h("select", { onchange: (e) => {
+        // a caption still at a colour's default follows the new colour; one written by hand stays
+        const defaults = Object.values(INFO.ts_captions || {});
+        f.options.colour = e.target.value;
+        if (!(f.caption || "").trim() || defaults.includes(f.caption.trim())) { f.caption = INFO.ts_captions?.[f.options.colour] || f.caption; caption.value = f.caption; }
+        persist(); refresh(); } },
         ...(INFO.ts_colours || [["pressure", "Pressure (dbar)"]]).map(([v, l]) => h("option", { value: v, selected: (f.options.colour || "pressure") === v }, l)))));
       opts.append(h("label", {}, h("input", { type: "checkbox", checked: !!f.options.team_bottles, onchange: (e) => { f.options.team_bottles = e.target.checked; persist(); refresh(); } }),
         nTeams ? ` mark the bottles your team sampled (×) — ${R.selection.teams.join(", ")}` : " mark the bottles sampled (×) — tick your team's names in step 2 to show only yours"));
     }
     const card = h("div", { class: "fig" }, img,
-      h("label", {}, "Caption", h("textarea", { style: "min-height:50px", oninput: (e) => { f.caption = e.target.value; persist(); } }, f.caption || "")),
+      h("label", {}, "Caption", caption),
       opts,
       h("div", { class: "row" },
         h("label", {}, "Section ", h("select", { onchange: (e) => { f.section = e.target.value; persist(); } },
@@ -1238,13 +1247,16 @@ async function refreshDrafts() {
     const name = draftName().replace(/^-+|-+$/g, "").slice(0, 80);   // as the server names it
     const mine = drafts.find((d) => d.name === name);                  // after a reload: this draft's last save
     if (mine && !savedAt) { savedAt = mine.mtime * 1000; showSaved(); }
+    // the menu names the draft being worked on: the one this report saves as, else the one opened
+    const current = mine ? mine.name : openedDraft;
     $("#draft-list").replaceChildren(h("option", { value: "" }, "— open a saved draft —"),
-      ...drafts.map((d) => h("option", { value: d.name }, `${d.name} · ${new Date(d.mtime * 1000).toLocaleString()}`)));
+      ...drafts.map((d) => h("option", { value: d.name, selected: d.name === current }, `${d.name} · ${new Date(d.mtime * 1000).toLocaleString()}`)));
   } catch (e) { /* the list is a convenience */ }
 }
 const draftName = () => `${(R.team || "team").trim()}-${R.leg || "leg"}`.replace(/[^\w-]+/g, "-");
-// When the draft was last saved on (or opened from) the server, shown beside the word count.
-let savedAt = null;
+// When the draft was last saved on (or opened from) the server, shown beside the word count,
+// and the name of the draft last opened from the list.
+let savedAt = null, openedDraft = "";
 function showSaved() {
   const el = $("#saved");
   if (!el) return;
@@ -1268,7 +1280,7 @@ async function openDraft(name) {
   if (!name) return;
   try {
     R = Object.assign(blank(), await api(`api/draft/${encodeURIComponent(name)}`));
-    savedAt = null; refreshDrafts();
+    savedAt = null; openedDraft = name; refreshDrafts();
     renderAll();
     $("#leg").value = R.leg;
     await loadLeg(R.leg);

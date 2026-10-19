@@ -88,8 +88,9 @@ minutes or hours behind the ship.
 The web copy is not the whole dashboard:
 
 - **What runs only aboard is left out.** There is no **Chat**, no **Photos**
-  tab, no **Feedback** button, no photo uploads, no alerts and no live feeds
-  (the cast in the water, the bridge's live page). Measuring a distance by
+  tab, no **Games** link, no **Cruise reports: build yours →** button, no
+  **Feedback** button, no photo uploads, no alerts and no live feeds (the
+  cast in the water, the bridge's live page). Measuring a distance by
   sea from the ship (see [Waypoints, distances and exporting the
   map](waypoints-and-export.html)) also needs the ship's computer.
 - **It shows only what Amundsen Science has published.** For the 2026

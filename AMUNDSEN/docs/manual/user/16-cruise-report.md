@@ -18,7 +18,7 @@ first time. You can stop at any point and come back later.
 !!! note "Aboard only"
     The builder runs on the ship's server and reads the ship's shared drive.
     It works only on the ship's network. The public web copy of the dashboard
-    does not have it.
+    does not have it, nor its button.
 
 ## Opening the builder
 
@@ -538,7 +538,9 @@ Temperature against salinity for your casts.
 
 - **Colour by**: **Pressure (dbar)**, **Cast time**, **Latitude (°N)**,
   **Station**, or any other variable the casts measured, such as
-  **Oxygen (µM)**.
+  **Oxygen (µM)**. The ready-made caption names the colour, for example
+  "…coloured by cast time." A caption you have written yourself is left as
+  it is.
 - **mark the bottles sampled (×)**: marks your bottles with a small ×.
 
 ### Underway record
@@ -626,7 +628,7 @@ To open a draft, on any computer aboard:
 2. Choose the draft from the **Draft** menu at the top. Each entry shows its
    name and when it was last saved.
 3. The report loads, with its logs, photos, tables and figures. This takes a
-   few seconds.
+   few seconds. The **Draft** menu then names the draft you are working on.
 
 !!! warning
     A draft has one copy on the server. If two teammates edit the same draft

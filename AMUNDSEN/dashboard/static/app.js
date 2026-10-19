@@ -2464,8 +2464,9 @@
       if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; resizeMap(); });
     }).observe($("#map"));
     if (PUBLIC) {
-      // the web copy: the tabs and buttons for what runs only aboard go
-      for (const sel of ['#tabs button[data-tab="photos"]', "#tabchat", "#feedback-open"]) { const b = $(sel); if (b) b.hidden = true; }
+      // the web copy: the tabs and buttons for what runs only aboard go, and the links to the
+      // cruise report builder (/report/) and the games (/game/), which the web server does not serve
+      for (const sel of ['#tabs button[data-tab="photos"]', "#tabchat", "#feedback-open", "#tabs .games-link", ".brand .report-banner"]) { const b = $(sel); if (b) b.hidden = true; }
       const plan = document.querySelector('#maplayers button[data-layer="plan"]');
       if (plan) plan.title = t("underway.plan.description");
     } else wirePlanDrop();

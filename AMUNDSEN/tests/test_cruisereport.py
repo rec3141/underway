@@ -389,3 +389,21 @@ def test_map_log_rows_without_a_place_or_operation_take_the_ship_position(monkey
     [layer] = report.log_layers({"leg": "2026_LEG_03"}, {"c:FLOWTHRU": {"show": True, "ids": True}})
     assert layer["label"] == "FLOWTHRU"                # the sheet, not the workbook
     assert layer["points"] == [(-95.0, 75.0, "FT-1")]
+
+
+def test_the_ts_caption_follows_the_colour_until_written_by_hand():
+    from cruisereport import report
+    assert report.FIGURE_CAPTIONS["ts"] == report.ts_caption("pressure")
+
+    def by(caption, colour=None):
+        return report.figure_caption({"kind": "ts", "caption": caption, "options": {"colour": colour} if colour else {}})
+    assert by(report.ts_caption("pressure"), "time").endswith("coloured by cast time.")
+    assert by("", "lat").endswith("coloured by latitude.")
+    assert by(report.ts_caption("station"), "var:Oxygen").endswith("coloured by Oxygen.")
+    assert by(report.ts_caption("time")) == report.ts_caption("pressure")
+    mine = "T–S at the four Baffin Bay stations."
+    assert by(mine, "time") == mine
+    edited = report.ts_caption("pressure") + " Stations 1–4."
+    assert by(edited, "time") == edited
+    assert report.figure_caption({"kind": "map", "caption": ""}) == report.FIGURE_CAPTIONS["map"]
+

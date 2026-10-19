@@ -112,5 +112,16 @@ class RestrictTests(unittest.TestCase):
         self.assertEqual(json.loads(path.read_text())["default_window"], "12h")
 
 
+
+def test_the_web_copy_page_hides_the_report_banner_and_the_games_link():
+    import jinja2
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(Path(__file__).resolve().parents[1] / "dashboard/templates"))
+    for public in (False, True):
+        page = env.get_template("index.html.j2").render(site={"title": "x", "intranet": []}, m={"public": public})
+        for cls in ("games-link", "report-banner"):
+            [line] = [x for x in page.splitlines() if f'class="{cls}"' in x]
+            assert (" hidden" in line.split(">")[0]) is public, (cls, public)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -691,7 +691,7 @@ window.UW_UI_CATALOG = {
         "pages.92b5025fa8382d1c": "Time zone applies when the photo has none. Camera / ship uses the camera's zone, then ship time.",
         "pages.93c6b664dce6c207": "Browse…",
         "pages.94038397ceeb4d30": "selected dips",
-        "pages.9429b1dc65906b5e": "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal",
+        "pages.9429b1dc65906b5e": "open the Lab in the chat and ask Doc, the naturalist; Doc repeats a sighting back and asks you to enter it at Photos → Submit",
         "pages.943077f0507ddf71": "Oxygen",
         "pages.944eae254aeae6c5": "Counted {v0}{v1}{v2}.",
         "pages.945d2c03508adc66": "saving…",
@@ -863,7 +863,7 @@ window.UW_UI_CATALOG = {
         "pages.cbff5a3278aa8fc3": " · {v0} failed",
         "pages.cc9056c6599cc0c6": "nobody else here",
         "pages.ccd7d1e38d7fd793": "With credit",
-        "pages.ccf0b0d00167c7a2": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.",
+        "pages.ccf0b0d00167c7a2": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, open a private room with the + button.",
         "pages.cd42404d52ad55cc": "value",
         "pages.cd8e53a08c5c8f05": "No matching navigation distance",
         "pages.cdd9848714e8c437": "✓ {v0} photo{v1} saved to the share",
@@ -1991,7 +1991,7 @@ window.UW_UI_CATALOG = {
         "pages.92b5025fa8382d1c": "Le fuseau horaire s’applique lorsque la photo n’en indique aucun. Caméra / navire utilise celui de la caméra, puis l’heure du navire.",
         "pages.93c6b664dce6c207": "Parcourir…",
         "pages.94038397ceeb4d30": "plongées sélectionnées",
-        "pages.9429b1dc65906b5e": "ouvrir le laboratoire dans le clavardage et interroger Doc, le naturaliste; une observation rapportée à Doc est ajoutée au journal",
+        "pages.9429b1dc65906b5e": "ouvrir le laboratoire dans le clavardage et interroger Doc, le naturaliste; Doc répète une observation et vous demande de l’inscrire sous Photos → Soumettre",
         "pages.943077f0507ddf71": "Oxygène",
         "pages.944eae254aeae6c5": "Décompte du {v0}{v1}{v2}.",
         "pages.945d2c03508adc66": "enregistrement…",
@@ -2163,7 +2163,7 @@ window.UW_UI_CATALOG = {
         "pages.cbff5a3278aa8fc3": " · échecs : {v0}",
         "pages.cc9056c6599cc0c6": "personne d’autre ici",
         "pages.ccd7d1e38d7fd793": "Avec attribution",
-        "pages.ccf0b0d00167c7a2": "Salle partagée — toute personne sur ce tableau de bord peut lire les messages, y compris les visiteurs sans nom. Pour une conversation directe, choisissez une personne ou une IA dans la liste.",
+        "pages.ccf0b0d00167c7a2": "Salle partagée — toute personne sur ce tableau de bord peut lire les messages, y compris les visiteurs sans nom. Pour une conversation directe, ouvrez une salle privée avec le bouton +.",
         "pages.cd42404d52ad55cc": "valeur",
         "pages.cd8e53a08c5c8f05": "Aucune distance de navigation correspondante",
         "pages.cdd9848714e8c437": "✓ Enregistrement terminé dans le dossier partagé : {v0} photo{v1}",
@@ -5351,7 +5351,7 @@ window.UW_UI_CATALOG = {
         },
         "pages.9429b1dc65906b5e": {
           "profile": "editorial-fr-ca-v4",
-          "sourceSha256": "72ce603457363a6dd72584e3dd278dbca36f766cee796ef9322fea539565197b"
+          "sourceSha256": "de1f113e043c27dcfe95a2fb0370072ee9b60f1c278510b01e7eea57a4ab0826"
         },
         "pages.943077f0507ddf71": {
           "profile": "editorial-fr-ca-v4",
@@ -6039,7 +6039,7 @@ window.UW_UI_CATALOG = {
         },
         "pages.ccf0b0d00167c7a2": {
           "profile": "editorial-fr-ca-v4",
-          "sourceSha256": "62c8433bf3788f02f0b8652ac9076d7cbd565ed6992f218c143521825e4b6118"
+          "sourceSha256": "18d0039f44e26e4d01357367f2d4d56b19d3157ad22b15cd3e10963f7e43a139"
         },
         "pages.cd42404d52ad55cc": {
           "profile": "editorial-fr-ca-v4",

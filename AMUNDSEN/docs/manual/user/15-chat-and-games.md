@@ -127,7 +127,8 @@ ship's computer by itself, because that computer is shared with other work.
 
 **Games** in the row of tabs opens the ship's game, **Amundsen Expedition**,
 in the same window. It is a separate web page; **← Underway** at its top
-brings you back to the dashboard.
+brings you back to the dashboard. The game runs on the ship's server, so the
+public web copy has no **Games** link.
 
 ![The game: the expedition chart on the left, the ship's panel on the right](img/15-games.webp)
 

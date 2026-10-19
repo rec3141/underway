@@ -3164,8 +3164,8 @@
       "status": "draft"
     },
     "pages.ccf0b0d00167c7a2": {
-      "source": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.",
-      "text": "Salle partagée — toute personne sur ce tableau de bord peut lire les messages, y compris les visiteurs sans nom. Pour une conversation directe, choisissez une personne ou une IA dans la liste.",
+      "source": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, open a private room with the + button.",
+      "text": "Salle partagée — toute personne sur ce tableau de bord peut lire les messages, y compris les visiteurs sans nom. Pour une conversation directe, ouvrez une salle privée avec le bouton +.",
       "status": "draft"
     },
     "pages.d54828eeb2ee6063": {
@@ -3629,8 +3629,8 @@
       "status": "draft"
     },
     "pages.9429b1dc65906b5e": {
-      "source": "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal",
-      "text": "ouvrir le laboratoire dans le clavardage et interroger Doc, le naturaliste; une observation rapportée à Doc est ajoutée au journal",
+      "source": "open the Lab in the chat and ask Doc, the naturalist; Doc repeats a sighting back and asks you to enter it at Photos → Submit",
+      "text": "ouvrir le laboratoire dans le clavardage et interroger Doc, le naturaliste; Doc répète une observation et vous demande de l’inscrire sous Photos → Soumettre",
       "status": "draft"
     },
     "pages.d0a27ca03da4cfae": {
