@@ -96,8 +96,9 @@ The archive years start closed. To look at an archive leg:
 
     ![The year 2024 opened in the Legs menu, showing its six archive legs](img/04-legs-archive.webp)
 
-3. Tick the leg you want, for example **2024 Leg 3**.
-4. Set **Show last** to **all** (see below). The leg appears on the map.
+3. Tick the leg you want, for example **2024 Leg 3**. **Show last** widens
+   by itself to reach back to the leg's first day (see below), and the leg
+   appears on the map.
 
 !!! note
     When a year or a leg is added to the dashboard, it starts hidden, so
@@ -140,8 +141,19 @@ observation the dashboard has, from any leg. Aboard, that is a few minutes
 ago. Ashore, it is the last day of the cruise.
 
 So **24 h** means the last 24 hours of the record, not the last 24 hours of
-the leg you ticked. This matters when you look at an earlier leg. See the
-example [Why is the map empty?](#why-is-the-map-empty) below.
+the leg you ticked. This matters when you look at an earlier leg.
+
+### Ticking an earlier leg widens the span
+
+When you tick a leg that starts before the span reaches, **Show last** moves
+by itself to the shortest step that reaches back to that leg's first day.
+For example, with **Show last** at **4 mo**, ticking a leg from 2025 moves it
+to **2 yr**, and ticking a leg from 2010 moves it to **all**.
+
+It only ever widens: a span that already covers every ticked leg stays as you
+set it. You can still shorten it afterwards, for example to look at only the
+end of the newest leg; see [Why is the map empty?](#why-is-the-map-empty)
+below.
 
 ### What the span changes, and what it does not
 
@@ -168,7 +180,7 @@ The span does not change:
 Think of the legs as choosing the pages of a logbook, and the span as how far
 back you read from the last page.
 
-- To see an earlier leg in full, tick it and set **Show last** to **all**.
+- To see an earlier leg in full, tick it: **Show last** widens to include it.
 - To see what happened recently, keep the current legs and choose a short
   span such as **24 h** or **72 h**.
 
@@ -199,8 +211,8 @@ all of it:
 
 1. Click **Legs**, and click **none**.
 2. Click the arrow beside **2025**, and tick **2025 Leg 2**.
+   **Show last** widens by itself to reach the leg's first day.
 3. Click outside the menu.
-4. Drag **Show last** all the way to the right, to **all**.
 
 The **Legs** button now reads **Legs · 1/101**, and the map shows the leg's
 whole track.
@@ -214,8 +226,7 @@ To see both tracks together:
 
 1. Click **Legs**, and click **none**.
 2. Open **2026** and tick **2026 Leg 3**.
-3. Open **2025** and tick **2025 Leg 4**.
-4. Set **Show last** to **all**.
+3. Open **2025** and tick **2025 Leg 4**. **Show last** widens to reach it.
 
 Both tracks appear on the map, coloured on the same scale. Choose a colour
 such as **SST (°C)** (the sea-surface temperature) to compare the two
@@ -224,15 +235,15 @@ other, with a gap between them.
 
 ### Why is the map empty?
 
-Suppose you tick only **2025 Leg 2**, and leave **Show last** at **4 mo**. The
-map shows no track at all, and the graphs are empty.
+Suppose you tick only **2025 Leg 2**, and then drag **Show last** back to
+**4 mo**. The map shows no track at all, and the graphs are empty.
 
 ![2025 Leg 2 with Show last at 4 mo: the map shows no track](img/04-empty-span.webp)
 
 The reason: the span counts back four months from the end of the record,
 which is in 2026. 2025 Leg 2 ended more than a year earlier, so none of it
-falls inside the span. Move **Show last** to **2 y** or **all** and the track
-appears.
+falls inside the span. Move **Show last** to **2 yr** or **all**, or untick and
+tick the leg again, and the track appears.
 
 The same happens if you click **none** in the **Legs** menu: no leg is shown,
 so there is nothing to draw.
@@ -263,6 +274,6 @@ replaces the legs and span that the other person's browser remembered.
 - Both apply to every tab.
 - In the **Legs** menu, the arrow opens a year, and the box beside a year
   shows or hides all its legs.
-- To see an earlier leg, tick it and set **Show last** to **all**.
+- To see an earlier leg, tick it: **Show last** widens to reach it.
 - If the map is empty, the span probably does not reach back to the legs you
   ticked.

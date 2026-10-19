@@ -312,8 +312,25 @@
     state.win = label; store.set("win", state.win);
     requestFit(); renderControls(); loadWindow();
   }
+  // Ticking a leg the span does not reach widens the span to the shortest
+  // one that holds the earliest shown leg from its first day; a span that
+  // already holds them is left as chosen.
+  function widenSpanToLegs() {
+    const end = Date.parse(M.data_range.end);
+    const starts = shownLegs().filter((l) => l.first_date)
+      .map((l) => Date.parse(`${l.first_date.slice(0, 4)}-${l.first_date.slice(4, 6)}-${l.first_date.slice(6, 8)}T00:00:00Z`))
+      .filter(Number.isFinite);
+    if (!starts.length || !Number.isFinite(end)) return;
+    const need = (end - Math.min(...starts)) / 3600e3;
+    if (spanWindow().hours >= need) return;
+    const byHours = [...M.windows].sort((a, b) => a.hours - b.hours);
+    const w = byHours.find((x) => x.hours >= need) || byHours[byHours.length - 1];
+    if (w.label === state.win) return;
+    state.win = w.label; store.set("win", state.win);
+    renderControls();
+  }
   // a table's "show all legs" link
-  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); requestFit(); loadWindow(); }
+  function showAllLegs() { state.hidden.clear(); store.set("hiddenLegs", []); widenSpanToLegs(); requestFit(); loadWindow(); }
   function inFilter(legId, time, f = currentFilter()) {
     if (legId != null && !f.legs.has(legId)) return false;
     const t = tms(time);
@@ -437,7 +454,7 @@
       if (!years.has(l.year)) years.set(l.year, []);
       years.get(l.year).push(l);
     }
-    const changed = () => { store.set("hiddenLegs", [...state.hidden]); requestFit(); loadWindow(); syncLegMenu(); };
+    const changed = () => { store.set("hiddenLegs", [...state.hidden]); widenSpanToLegs(); requestFit(); loadWindow(); syncLegMenu(); };
     for (const [year, legs] of years) {
       const li = document.createElement("li");
       li.className = "legyear";
