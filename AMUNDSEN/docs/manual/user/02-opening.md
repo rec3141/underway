@@ -8,7 +8,8 @@ Which address you use depends on where you are.
 
 The ship has two networks. Your device is on one or the other:
 
-- the **ship's Wi-Fi**, which most laptops, tablets and phones use;
+- the **ship's Wi-Fi**, named **AMD-WiFi**, which most laptops, tablets and
+  phones use;
 - the **wired network** (the ship's LAN), which the computers in the labs
   and offices plugged in with a cable use.
 
@@ -22,8 +23,9 @@ Use the address for the network you are on:
 
 To open the dashboard on the ship:
 
-1. Join the ship's Wi-Fi, or plug in to the wired network. If you do not know
-   the Wi-Fi's name or password, ask on the bridge or the ship's IT contact.
+1. Join the ship's Wi-Fi, **AMD-WiFi**, or plug in to the wired network. If
+   you do not know the Wi-Fi's password, ask on the bridge or the ship's IT
+   contact.
 2. Open your web browser.
 3. Click in the address bar at the top of the browser window.
 4. Type the address from the table, exactly as written, starting with
