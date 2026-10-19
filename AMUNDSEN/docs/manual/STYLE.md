@@ -3,7 +3,9 @@
 The manual is built from `user/` and `admin/`: one chapter per file, named
 `NN-topic.md`, read in that order; the first line is the chapter's `# Title`.
 `python -m dashboard manual --root <web root>` renders it into `<web root>/manual/`
-(every full build does this when a source changed). This file is not part of it.
+(every full build does this when a source changed), and with WeasyPrint installed
+typesets it into PDFs with `manual-pdf.css`; a picture's description becomes its
+caption there. This file is not part of it.
 
 ## Both parts
 

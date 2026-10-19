@@ -180,7 +180,7 @@ From `$UNDERWAY_HOME/app/AMUNDSEN`, with `$UNDERWAY_PYTHON`:
 | `python -m dashboard build --root DIR [--title T] [--link 'LABEL|URL']` | build the site into DIR |
 | `python -m dashboard build --tracks-only [--public] --root DIR` | rebuild only windows and track (grid) |
 | `python -m dashboard serve --root DIR [--port 8042] [--bind 0.0.0.0]` | serve a built site |
-| `python -m dashboard manual --root DIR` | render this manual into DIR/manual |
+| `python -m dashboard manual --root DIR` | render this manual into DIR/manual, with its PDFs when WeasyPrint is installed |
 | `python -m dashboard archive-import` | write the archive as ACSD files |
 | `python -m dashboard alerts` | send due alerts once |
 | `python -m dashboard telegram-bot` | run the Telegram bot |

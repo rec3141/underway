@@ -98,7 +98,12 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "manual":
         from .manual import publish
         n = publish(a.root, force=True)
-        print(f"manual: {n} chapters in {a.root / 'manual'}" if n else "manual: no sources (docs/manual) or the markdown package missing")
+        if n:
+            pdf = n.pop("pdf", None)
+            print(f"manual: {n} chapters in {a.root / 'manual'}"
+                  + (f"; PDF pages {pdf}" if pdf else "; no PDF (WeasyPrint not installed)"))
+        else:
+            print("manual: no sources (docs/manual) or the markdown package missing")
         return 0 if n else 1
 
     if a.cmd == "archive-import":

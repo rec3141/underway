@@ -1,0 +1,105 @@
+/* The manual as a printed book: the paged stylesheet WeasyPrint typesets the
+   PDFs with (dashboard/manual.py), applied to print.html's document on its
+   own, without manual.css. Fonts are local only (Noto, then DejaVu). */
+
+@page {
+  size: letter;
+  margin: 0.9in 0.85in 0.85in 0.85in;
+  @top-left { content: string(part); font: 8pt "Noto Sans", "DejaVu Sans", sans-serif; color: #666; vertical-align: bottom; padding-bottom: 6pt; }
+  @top-right { content: string(chapter, first-except); font: italic 8pt "Noto Sans", "DejaVu Sans", sans-serif; color: #666; vertical-align: bottom; padding-bottom: 6pt; }
+  @bottom-center { content: counter(page); font: 9pt "Noto Sans", "DejaVu Sans", sans-serif; color: #444; }
+}
+@page :first { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
+@page cover { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
+@page front { @top-left { content: none; } @top-right { content: none; } }
+@page part { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
+
+html { font: 10.5pt/1.45 "Noto Serif", "DejaVu Serif", serif; color: #111; }
+body { margin: 0; }
+a { color: #1a4f8b; text-decoration: none; }
+a.away { color: inherit; }
+p, li, dd { orphans: 3; widows: 3; text-align: left; hyphens: auto; }
+p { margin: 0 0 .55em; }
+
+h1, h2, h3, h4 { font-family: "Noto Sans", "DejaVu Sans", sans-serif; line-height: 1.2;
+  break-after: avoid; break-inside: avoid; color: #0d2a4a; }
+h1 { font-size: 22pt; margin: 0 0 .8em; }
+h2 { font-size: 14pt; margin: 1.4em 0 .45em; padding-top: .25em; border-top: .5pt solid #bbb; bookmark-level: 3; }
+h3 { font-size: 11.5pt; margin: 1.1em 0 .35em; bookmark-level: none; }
+h4 { font-size: 10.5pt; margin: 1em 0 .3em; bookmark-level: none; }
+
+/* cover, contents and part pages */
+.cover { page: cover; text-align: left; padding-top: 2.6in; }
+.cover h1 { font-size: 30pt; margin: 0 0 .3em; bookmark-level: none; border-bottom: 2pt solid #0d2a4a; padding-bottom: .3em; }
+.cover h1.partname { string-set: part content(); }
+.cover .sub { font: 14pt "Noto Sans", "DejaVu Sans", sans-serif; color: #333; margin: 0 0 1.2em; }
+.cover .lede { font-size: 12pt; color: #444; max-width: 5in; }
+.cover .date { margin-top: 3.2in; font: 10pt "Noto Sans", "DejaVu Sans", sans-serif; color: #555; }
+
+.toc { page: front; break-before: page; }
+.toc h1 { bookmark-level: 1; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { margin: 0; }
+.toc a { color: #111; }
+.toc a::after { content: leader('.') target-counter(attr(href url), page); }
+.toc li.tp > a { display: block; font: bold 12pt "Noto Sans", "DejaVu Sans", sans-serif; margin: 1em 0 .4em; color: #0d2a4a; }
+.toc li.ch { margin-top: .45em; break-inside: avoid; }
+.toc li.ch > a { display: block; font: bold 10pt "Noto Sans", "DejaVu Sans", sans-serif; }
+.toc li.sec > a { display: block; font-size: 9pt; color: #333; padding-left: 1.4em; }
+.toc li.ch > ol { break-before: avoid; }
+
+.part { page: part; break-before: page; padding-top: 3in; }
+.part h1 { font-size: 28pt; string-set: part content(); bookmark-level: 1; }
+.part .lede { font-size: 13pt; color: #444; max-width: 5in; }
+
+.chapter { page: chapter; break-before: page; counter-reset: footnote; }
+.chapter > h1 { string-set: chapter content(); bookmark-level: 2; padding-bottom: .25em; border-bottom: 1pt solid #0d2a4a; }
+.book.one .chapter > h1 { bookmark-level: 1; }
+.book.one h2 { bookmark-level: 2; }
+
+/* body text */
+ul, ol { margin: 0 0 .6em; padding-left: 1.5em; }
+li { margin: .15em 0; }
+li > p { margin-bottom: .3em; }
+dt { font-weight: bold; break-after: avoid; }
+dd { margin: 0 0 .5em 1.5em; }
+strong, b { font-weight: bold; }
+a.xref::after { content: " (p.\00a0" target-counter(attr(href url), page) ")"; color: #555; font-size: .9em; }
+
+/* pictures: never split, scaled to the page, kept with the sentence before
+   them (every picture is introduced by one) and with their caption */
+figure { margin: .7em 0 1em; break-inside: avoid; text-align: center; }
+p + figure, li > figure { break-before: avoid; }
+p + pre, p + table.short { break-before: avoid; }
+img { display: block; max-width: 100%; max-height: 5.8in; width: auto; height: auto;
+  margin: 0 auto; border: .5pt solid #999; break-inside: avoid; }
+li img, p img { margin: .4em 0; }
+figcaption { font: italic 8.5pt/1.35 "Noto Sans", "DejaVu Sans", sans-serif; color: #444;
+  margin: .35em auto 0; max-width: 5.5in; text-align: center; break-before: avoid; }
+
+/* code */
+code, kbd, pre { font-family: "Noto Sans Mono", "DejaVu Sans Mono", monospace; }
+code { font-size: 8.8pt; background: #f1f3f5; padding: 0 .15em; border-radius: 2pt; overflow-wrap: anywhere; }
+pre { font-size: 8.3pt; line-height: 1.35; background: #f4f5f7; border: .5pt solid #ccc; border-radius: 3pt;
+  padding: .5em .7em; margin: .5em 0 .8em; white-space: pre-wrap; overflow-wrap: anywhere; break-inside: avoid; }
+pre code { background: none; padding: 0; font-size: inherit; }
+kbd { font-size: 8.5pt; border: .5pt solid #999; border-bottom-width: 1.2pt; border-radius: 2pt; padding: 0 .25em; }
+
+/* tables: the header repeats on every page; a short table stays whole */
+table { border-collapse: collapse; width: 100%; margin: .6em 0 1em; font-size: 8.8pt; line-height: 1.35; }
+table.short { break-inside: avoid; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { border: .5pt solid #bbb; padding: .25em .45em; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+th { background: #e9edf2; font-family: "Noto Sans", "DejaVu Sans", sans-serif; }
+td code, th code { font-size: 8pt; overflow-wrap: break-word; }
+
+/* notes, tips and warnings */
+.admonition { break-inside: avoid; border-left: 3pt solid #1c64b4; background: #edf3fa; padding: .45em .8em; margin: .7em 0 .9em; }
+.admonition.tip { border-color: #2f8f55; background: #edf7f0; }
+.admonition.warning, .admonition.caution { border-color: #c88a1c; background: #fcf4e6; }
+.admonition-title { font: bold 9pt "Noto Sans", "DejaVu Sans", sans-serif; margin: 0 0 .2em; text-transform: none; }
+.admonition p:last-child { margin-bottom: 0; }
+
+/* the screen's chrome is not part of the book */
+header.top, nav.side, footer.pager, .noprint { display: none; }

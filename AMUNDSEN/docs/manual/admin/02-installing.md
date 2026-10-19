@@ -31,10 +31,11 @@ Install with `pip install -e 'AMUNDSEN[extra,extra,...]'`.
 | `ice-charts` | Canadian Ice Service charts (`pyshp`, `pyproj`) |
 | `report` | the cruise report builder (`python-docx`, `matplotlib`, `pyproj`, Pillow) |
 | `routing` | sea-route distances (`scikit-fmm`; builds from source, needs a compiler) |
+| `manual-pdf` | the manual as PDF (`weasyprint`; needs the system's Pango 1.44 or later) |
 | `sampling` | the experimental live sampling adviser |
 | `assets` | only to refresh the bundled `plotly.min.js` |
 
-The usual set aboard is `chat,gcal,cameras,ice-charts,report`.
+The usual set aboard is `chat,gcal,cameras,ice-charts,report,manual-pdf`.
 
 ## Install, step by step
 
@@ -56,7 +57,7 @@ The steps below use the Amundsen workstation's values: installation in
 
         git clone <repository url> /data/underway_server/app
         /opt/miniforge3/bin/python3 -m pip install -e \
-            '/data/underway_server/app/AMUNDSEN[chat,gcal,cameras,ice-charts,report]'
+            '/data/underway_server/app/AMUNDSEN[chat,gcal,cameras,ice-charts,report,manual-pdf]'
 
 3. **Write the site file.**
 

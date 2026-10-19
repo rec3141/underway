@@ -115,7 +115,7 @@ Raster tiles are never written to the share: they live in
 5. parses new casts, the schedule, the event log, ice charts and satellite
    pictures from their caches;
 6. copies `static/`, renders `index.html` and, when its sources changed,
-   the manual into `manual/`.
+   the manual and its PDFs into `manual/` (see [The manual](#the-manual)).
 
 `update_underway_py.sh` passes the page title and the footer links (the two
 public Google calendars) as `--title` and `--link`.
@@ -139,6 +139,32 @@ which are immutable and cached; it gzips JSON (static files up to 8 MiB).
 Unreferenced track chunks are removed after seven days, so an open page can
 finish with an older set. Restart the page server after an update that
 changes its compression or caching.
+
+### The manual
+
+The build renders `docs/manual/` into `manual/` only when something there
+(or `dashboard/manual.py`, or the installed WeasyPrint version) has changed
+since the last time; `manual/.stamp` records what it rendered.
+`python -m dashboard manual --root DIR` renders it regardless.
+
+| Path | What |
+|---|---|
+| `manual/index.html` | the front page: the two parts and the links to the PDFs |
+| `manual/user/`, `manual/admin/` | a page per chapter |
+| `manual/print.html` | the whole manual as one web page, for printing from the browser |
+| `manual/underway-manual.pdf` | the whole manual, typeset |
+| `manual/underway-user-manual.pdf`, `manual/underway-admin-manual.pdf` | each part on its own |
+
+The PDFs need the `manual-pdf` extra (WeasyPrint, which loads the system's
+Pango). Without it the build logs one line, `manual: no PDF, WeasyPrint is
+not installed`, and writes everything else; the pages then offer no PDF
+links. WeasyPrint typesets the same document as `print.html` with its own
+stylesheet, `docs/manual/manual-pdf.css`: US Letter, a cover, contents
+with page numbers, a running header with the part and chapter, page numbers
+in the footer, each chapter on a new page, pictures as captioned figures
+that never split, and table headers repeated across pages. Fonts are local
+(Noto, else DejaVu). The three PDFs take about 25 seconds, within the build
+that follows a change to the manual.
 
 ### Stores and caches
 

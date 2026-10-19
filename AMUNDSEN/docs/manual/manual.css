@@ -68,9 +68,13 @@ main.print { max-width: 46em; margin: 0 auto; padding: 1em 1.2em 4em; }
   header.top, nav.side, footer.pager, .noprint { display: none !important; }
   .layout { display: block; padding: 0; }
   a { text-decoration: none; }
-  h1, h2, h3 { break-after: avoid; }
-  img, table, pre, .admonition, figure { break-inside: avoid; }
-  img { max-height: 16cm; width: auto; }
+  h1, h2, h3 { break-after: avoid; break-inside: avoid; }
+  p, li { orphans: 3; widows: 3; }
+  img, pre, .admonition, figure, p:has(> img) { break-inside: avoid; }
+  img { display: block; max-width: 100%; max-height: 16cm; width: auto; height: auto; page-break-inside: avoid; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
   .print .cover, .print .part, .print .toc, .print .chapter { break-before: page; }
   .print .cover { break-before: auto; padding-top: 35%; }
   .print .toc a::after { content: ""; }
