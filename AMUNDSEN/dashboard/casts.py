@@ -221,17 +221,34 @@ def _plot_traces(path: Path) -> list[tuple[str, np.ndarray, np.ndarray]]:
     return out
 
 
-def read_logbook(path: Path | None) -> dict[str, dict]:
+def logbook_rows(path: Path | None) -> list[dict]:
+    """A CTD logbook's rows, one per cast, in the order the casts first
+    appear, with lower-cased column names. A cast written on more than one
+    row is one cast: a later row fills and corrects the earlier one, but a
+    blank cell never erases what an earlier row recorded (a repeated row
+    with no station keeps the station). Rows without a cast number pass
+    through as they are."""
     if not path or not path.is_file():
-        return {}
-    out = {}
+        return []
+    out: list[dict] = []
+    seen: dict[str, dict] = {}
     with path.open(encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
             row = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k}
-            cast = row.get("cast", "").zfill(3)
-            if cast:
-                out[cast] = row
+            cast = row.get("cast", "")
+            if not cast:
+                out.append(row)
+            elif cast.zfill(3) in seen:
+                seen[cast.zfill(3)].update({k: v for k, v in row.items() if v and k != "cast"})
+            else:
+                seen[cast.zfill(3)] = row
+                out.append(row)
     return out
+
+
+def read_logbook(path: Path | None) -> dict[str, dict]:
+    """The logbook's rows by zero-padded cast number."""
+    return {row["cast"].zfill(3): row for row in logbook_rows(path) if row.get("cast")}
 
 
 # ---------------------------------------------------------------- seabird cnv

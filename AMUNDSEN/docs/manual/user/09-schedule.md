@@ -122,7 +122,9 @@ which leg it belongs to, for example
 - The operations that were scheduled for that day but taken off the
   schedule are folded under **▸ Show 12 formerly scheduled**.
 
-The log shows up to the last 60 days of the chosen legs.
+The log shows up to the last 60 days of the chosen legs. When a leg is not ticked, the first row of the log says how many of
+its rows are left out, for example **1,234 rows from legs not shown · show
+all legs**. Click **show all legs** to tick every leg.
 
 ## Calendar
 

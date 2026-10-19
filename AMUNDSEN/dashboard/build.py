@@ -9,7 +9,6 @@ half-written file.
 
 from __future__ import annotations
 
-import csv
 import hashlib
 import json
 import logging
@@ -49,27 +48,25 @@ def atomic_write(path: Path, text: str) -> None:
 FINE_STEP_S = 0       # native observations, without time averaging ("all points")
 
 def read_stations(path: Path | None, leg_id: str) -> list[dict]:
-    """CTD logbook rows; tolerant of a missing or partial file, since a leg's
-    logbook does not exist until its first cast."""
-    if not path or not path.is_file():
-        return []
+    """CTD logbook rows, one per cast (casts.logbook_rows); tolerant of a
+    missing or partial file, since a leg's logbook does not exist until its
+    first cast."""
+    from .casts import logbook_rows
     out = []
-    with path.open(encoding="utf-8-sig", newline="") as fh:
-        for row in csv.DictReader(fh):
-            row = {k.strip().lower(): (v or "").strip() for k, v in row.items() if k}
-            try:
-                lat, lon = float(row.get("latitude", "")), float(row.get("longitude", ""))
-            except ValueError:
-                continue
-            if not (abs(lat) <= 90 and abs(lon) <= 180):
-                continue
-            out.append({
-                "kind": "cast", "leg": leg_id, "cast": row.get("cast", ""), "label": row.get("label", ""),
-                "station": row.get("station", ""), "time": row.get("date_utc", ""),
-                "lat": lat, "lon": lon,
-                "bottom_m": _num(row.get("bottom_m")), "depth_m": _num(row.get("depth_m")),
-                "type": row.get("type_cast", ""), "comments": row.get("comments", ""),
-            })
+    for row in logbook_rows(path):
+        try:
+            lat, lon = float(row.get("latitude", "")), float(row.get("longitude", ""))
+        except ValueError:
+            continue
+        if not (abs(lat) <= 90 and abs(lon) <= 180):
+            continue
+        out.append({
+            "kind": "cast", "leg": leg_id, "cast": row.get("cast", ""), "label": row.get("label", ""),
+            "station": row.get("station", ""), "time": row.get("date_utc", ""),
+            "lat": lat, "lon": lon,
+            "bottom_m": _num(row.get("bottom_m")), "depth_m": _num(row.get("depth_m")),
+            "type": row.get("type_cast", ""), "comments": row.get("comments", ""),
+        })
     return out
 
 

@@ -50,7 +50,7 @@ Each row is one cast, newest first.
 | **cast** | The cast number of the leg, for example `090`. A **↗** after it opens the rosette sheet: the team's log sheet of that cast, with what was sampled in each bottle. |
 | **station** | The station, for example `BS-2`. |
 | **label** | The sample label, for example `AMD2603-251`. |
-| **time** | When the cast started. |
+| **time** | When the cast started, in ship time. |
 | **max depth (m)** | How deep the instrument went. |
 | **bottles** | How many bottles were fired (closed to take water). |
 | **leg** | The leg. |
@@ -68,6 +68,9 @@ Above the list:
 
 The list shows the casts of the legs ticked in the header's **Legs** menu
 (see [Choosing legs and a time span](legs-and-time.html)).
+When a leg is not ticked, the first row of the list says how many of
+its rows are left out, for example **1,234 rows from legs not shown · show
+all legs**. Click **show all legs** to tick every leg.
 
 ### Choosing casts
 
@@ -241,7 +244,7 @@ fired in the selected casts, with what was measured when it closed.
 ![Bottles fired: the 24 bottles of cast 090 at BS-2, with their depth and the CTD readings at that moment](img/11-casts-bottles.webp)
 
 - One row per bottle: the leg, cast, station, position, bottle number,
-  pressure (dbar), depth (m), time, and then every variable the CTD measured
+  pressure (dbar), depth (m), time (ship time), and then every variable the CTD measured
   at that moment (temperature, salinity, oxygen, …).
 - **filter bottles**: keep the rows that contain your text.
 - Click a column's name to sort by it.
