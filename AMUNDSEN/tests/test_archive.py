@@ -130,3 +130,17 @@ def test_archive_tables_are_kept_for_the_same_archive_while_their_files_are_ther
     assert buildcache.kept_archive_aggregates("sig-b", tmp_path) is None            # the archive changed
     (tmp_path / "data/agg-1h-archive-2016.json").unlink()
     assert buildcache.kept_archive_aggregates("sig-a", tmp_path) is None            # a file went missing
+
+
+def test_legs_without_a_logbook_get_stations_from_their_ctd_casts():
+    from dashboard.build import archive_stations
+    index = [
+        {"kind": "CTD", "leg": "2010_LEG_01", "cast": "003", "station": "356", "time": "2010-07-07T08:51:18",
+         "lat": 60.8, "lon": -64.7, "max_p": 337.0, "label": ""},
+        {"kind": "CTD", "leg": "2010_LEG_01", "cast": "004", "station": "", "time": None, "lat": None, "lon": None},
+        {"kind": "MVP", "leg": "2010_LEG_01", "cast": "001", "lat": 61.0, "lon": -64.0},
+        {"kind": "CTD", "leg": "2026_LEG_03", "cast": "077", "station": "PHATE", "lat": 74.0, "lon": -80.0},
+    ]
+    [row] = archive_stations(index, logged={"2026_LEG_03"})
+    assert row["leg"] == "2010_LEG_01" and row["station"] == "356" and row["cast"] == "003"
+    assert row["kind"] == "cast" and row["source"] == "archive" and row["depth_m"] == 337.0
