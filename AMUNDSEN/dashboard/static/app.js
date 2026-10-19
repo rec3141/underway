@@ -507,16 +507,18 @@
     const notice = inapp.msgs.at(-1);
     const statusWord = notice && Date.now() - notice.receivedAt < 120000
       ? `<span class="status-tail status-notice"> · <span class="status-alert" title="${esc(notice.text)}">🔔 ${esc(notice.text)}</span></span>` : schedWord;
-    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> · </span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">${esc(t("underway.refresh", {time:fmtTs(gen).slice(11)}))}${M.ashore ? ` · <span class="ended">${esc(t("underway.ashore", {date:fmtTs(Date.parse(M.ashore.ended + "T12:00:00Z")).slice(0, 10)}))}</span>` : live ? ` · <span class="live">${esc(t("underway.live"))}</span>` : ` · <span class="stale">${esc(t("underway.dataAge", {age:ago(end)}))}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
+    $("#status").innerHTML = `<span class="status-now"><b>${now}</b> ·&nbsp;</span><details class="srcpop" id="srcpop"${open ? " open" : ""}><summary class="refresh">${esc(t("underway.refresh", {time:fmtTs(gen).slice(11)}))}${M.ashore ? ` · <span class="ended">${esc(t("underway.ashore", {date:fmtTs(Date.parse(M.ashore.ended + "T12:00:00Z")).slice(0, 10)}))}</span>` : live ? ` · <span class="live">${esc(t("underway.live"))}</span>` : ` · <span class="stale">${esc(t("underway.dataAge", {age:ago(end)}))}</span>`}</summary><table>${rows}</table></details>${statusWord}`;
     const sl = $("#schedlink"); if (sl) sl.onclick = () => setSchedMode("open");
     $("#gen").textContent = `${fmtTs(Date.parse(M.generated_utc))} ${tzAbbr()}`;
   }
   setInterval(() => { if (M?.data_range) renderStatus(); }, 20000);
 
+  // a window's label (1h, 72h, 1w, 1mo, 4y, all) in words of the page's language
+  const SPAN_UNITS = { h: "hours", d: "days", w: "weeks", mo: "months", y: "years" };
   function spanLabel(label) {
     if (label === "leg" || label === "all") return t("underway.span." + label);
-    const match = /^(\d+)(d|y)$/.exec(label);
-    return match ? t("underway.span." + (match[2] === "d" ? "days" : "years"), {count:match[1]}) : label;
+    const match = /^(\d+)(h|d|w|mo|y)$/.exec(label);
+    return match ? t("underway.span." + SPAN_UNITS[match[2]], {count:+match[1]}) : label;
   }
   function renderControls() {
     const r = $("#span"), ticks = $("#spanticks");
@@ -1061,8 +1063,8 @@
       anchor.after(b);
     });
   }
-  // the plan file follows the manifest: a new version (a build, or a drop
-  // on the map) is fetched and drawn
+  // the leg's plan file follows the manifest: a new version from the build
+  // is fetched and drawn
   async function loadPlan() {
     const p = M?.plan;
     if (!p) { if (state.planData) { state.planData = null; state.planStamp = null; renderMap(); } return; }
@@ -1070,7 +1072,8 @@
     try { state.planData = await fetchJSON(p.file); state.planStamp = p.stamp; renderMap(); }
     catch { /* the next manifest */ }
   }
-  // a KMZ or KML dropped on the map replaces the plan for everyone
+  // a KMZ or KML dropped on the map: the server parses it, and the plan is
+  // kept in this browser alone as a pill of its own beside the leg's plan
   function wirePlanDrop() {
     const sec = document.querySelector("section.map"); if (!sec) return;
     sec.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); sec.classList.add("dropping"); } });
@@ -1207,7 +1210,9 @@
   // The mark's box: what it is, where, how far from the ship by air and by
   // sea, and what the ground does there. A waypoint's name is a field: it
   // arrives numbered, can be typed over, and Save beside it keeps the
-  // waypoint for everyone.
+  // waypoint for everyone. The public web copy has no server behind it, so
+  // there the box gives the air distance alone: no sea route, no depth and
+  // no Save.
   function focusBox(f, ship) {
     const box = document.createElement("div");
     box.className = "focusbox";
@@ -1219,7 +1224,7 @@
     if (!f.html || !f.html.includes(dms(f.lat, f.lon))) line("wpwhere", dms(f.lat, f.lon));
     if (f.waypoint && f.at) line("wpwhen", ui("marked: {when}", { when: `${fmtTs(tms(f.at))} ${tzAbbr()}` }));
     if (ship?.lat != null) {
-      line("wpsea", seaText(f)).title = seaTitle(f);
+      if (!PUBLIC) line("wpsea", seaText(f)).title = seaTitle(f);
       line("wpair", ui("by air: {distance}", { distance: kmLine(haversineKm(ship.lat, ship.lon, f.lat, f.lon)) }));
     }
     const ground = line("wpground", groundLine((f.ground ?? f.route)?.elev_m));
@@ -1235,14 +1240,14 @@
     pencil.className = "wppencil"; pencil.textContent = "✎"; pencil.title = ui("click to rename"); pencil.setAttribute("aria-hidden", "true");
     pencil.onclick = () => { name.focus(); getSelection().selectAllChildren(name); };
     const save = document.createElement("button");
-    save.type = "button"; save.className = "wpsave"; save.hidden = !!f.saved; save.textContent = ui("Save");
+    save.type = "button"; save.className = "wpsave"; save.hidden = PUBLIC || !!f.saved; save.textContent = ui("Save");
     save.title = ui("keep this waypoint on everyone's Stations tab");
     const state = document.createElement("span");
     state.className = "wpstate muted"; state.textContent = f.saved ? ui("saved") : "";
     head.append(name, pencil, save, state);
 
     const typed = () => name.textContent.trim().slice(0, 80);
-    name.oninput = () => { save.hidden = !typed(); state.textContent = ""; };
+    name.oninput = () => { save.hidden = PUBLIC || !typed(); state.textContent = ""; };
     name.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); name.blur(); if (!save.hidden) save.onclick(); } };
     save.onclick = async () => {
       const label = typed();
@@ -1355,7 +1360,7 @@
     mapView.setTraces("live", liveTraces(ship));
     fetchRoute(ship);
   }
-  // The colour scale beside every Color by picker: the colour map's gradient
+  // The colour scale beside every Colour by picker: the colour map's gradient
   // with the limits at its ends, from the stops the map and the charts share.
   function renderColourBar(v, lim) {
     const stops = UW.cmap(v?.cmap || "Viridis", !!v?.reverse);   // a map read the other way (depth: deep is dark)
@@ -1522,7 +1527,7 @@
       type: "scattermap", mode: v?.tsg ? "lines" : "lines+markers", name: "track",
       lat: d.lat, lon: d.lon, text: hover, hoverinfo: "text", connectgaps: false,
       line: { width: 1.4, color: "rgba(200,215,230,.5)" },
-      marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Color by pickers (renderColourBar)
+      marker: { size: v?.sizes?.(d) || 6, color: c, colorscale: v?.cmap || "Viridis", reversescale: !!v?.reverse, cmin: v?.rgb ? undefined : lim?.[0], cmax: v?.rgb ? undefined : lim?.[1], showscale: false, opacity: .95 },   // the scale sits by the Colour by pickers (renderColourBar)
     });
     if (state.track && v?.tsg) traces.push({
       type: "scattermap", mode: "markers", name: ui("track readings"),
@@ -2348,7 +2353,7 @@
     const m = /^#tab\/([a-z]+)$/.exec(location.hash);
     return m && (m[1] === "photos" || document.getElementById(`pane-${m[1]}`)) ? m[1] : null;
   };
-  function showTab(name, { pop = false } = {}) {
+  function showTab(name, { pop = false, initial = false } = {}) {
     if(name==='table')name='underway'; // old bookmarks and saved tab choices
     if (PUBLIC && name === "photos") name = "wiki";                    // the /Share gallery is aboard only; the wiki stands
     if (name === "chat") { window.UW?.chatToggle?.(); return; }       // not a pane: the chat side bar
@@ -2361,7 +2366,7 @@
     if(name!=='wiki' && name!=='photos')store.set('lastNonWikiTab',name);
     for (const b of $("#tabs").querySelectorAll("button")) if (b.dataset.tab !== "chat" && b.dataset.tab !== "map") b.classList.toggle("on", b.dataset.tab === name);
     for (const p of document.querySelectorAll(".pane")) p.hidden = p.id !== "pane-" + (name==='photos'?'wiki':name);
-    if (window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half
+    if (!initial && window.UW?.mapMode?.() === "full") window.UW.setMapMode("half");   // a chosen tab wants seeing: a full map gives way to half; a reload keeps it full
     const mn = document.querySelector("main"); mn.className = "tab-" + name + (mn.classList.contains("mapmin") ? " mapmin" : mn.classList.contains("mapfull") ? " mapfull" : "");   // No Map survives a tab change
     // the header row (legs, span) filters every tab; the other switches live
     // in the figure areas
@@ -2443,7 +2448,7 @@
   (async () => {
     renderControls();
     renderProvenance();
-    showTab(tabFromHash() || store.get("tab", "underway"), { pop: true });
+    showTab(tabFromHash() || store.get("tab", "underway"), { pop: true, initial: true });
     setInterval(checkForUpdate, 30 * 1000);
     window.addEventListener("online", checkForUpdate);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });

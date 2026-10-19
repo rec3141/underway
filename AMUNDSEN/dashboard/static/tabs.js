@@ -71,15 +71,19 @@
 
   UW.onWaypointsChanged = () => { if (!$("#pane-stations").hidden) renderStations(); };
   UW.selectedCastKeys = () => new Set(selectionIds().map(parentId));
-  // a station click on the map toggles its cast and opens the Casts tab; a
-  // quiet call (the stations table) only makes sure it is selected
+  // a station click on the map toggles its cast, and a station without a
+  // cast is looked up in the Stations table. The page stays on the tab that
+  // can show what was clicked (Casts, or Stations for a CTD cast or a station
+  // without one) and otherwise opens the one that can. A quiet call (the
+  // stations table) only makes sure the cast is selected.
   UW.onStationClick = async (key, opts = {}) => {
-    if (key.startsWith("ev:")) {                          // a station without a cast: its events on the Agenda
+    if (key.startsWith("ev:")) {                          // a station without a cast: its row in the Stations table
       const st = (UW.M.stations || []).find((s) => s.kind === "event" && `ev:${s.leg}:${s.station}` === key);
       if (!st || opts.quiet) return;
       UW.focusMap(st.lat, st.lon, st.station);
       stn.search = st.station; const box = $("#stnsearch"); if (box) box.value = st.station;
-      UW.showTab("stations"); renderStations(); return;
+      if ($("#pane-stations").hidden) UW.showTab("stations");
+      renderStations(); return;
     }
     if (!casts.idx) {
       try { await ensureCastIndex(); }
@@ -92,7 +96,9 @@
     }
     if (opts.quiet) { if (opts.toggle || !casts.sel.has(key)) toggleCast(key); return; }
     toggleCast(key);
-    if ($("#pane-casts").hidden) UW.showTab("casts");
+    const listed = (UW.M.stations || []).some((s) => s.kind !== "event" && `${s.leg}:CTD_${String(s.cast).padStart(3, "0")}` === key);
+    if (listed && !$("#pane-stations").hidden) renderStations();   // a CTD cast's row in the table shows it selected
+    else if ($("#pane-casts").hidden) UW.showTab("casts");          // a tow, a section or an LADCP cast is drawn on Casts alone
   };
   UW.extraMapTraces = () => {
     const out = [];

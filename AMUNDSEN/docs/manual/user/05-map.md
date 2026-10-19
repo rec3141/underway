@@ -9,11 +9,11 @@ satellite pictures, ice charts, the sea floor and more. Each of these is a
 The map sits on the left of every tab, so it is always there to answer
 "where was that?".
 
-![The map card: the Color by menu and the buttons at the top, the layer pills, and the map with the 2026 season's track](img/05-map.webp)
+![The map card: the Colour by menu and the buttons at the top, the layer pills, and the map with the 2026 season's track](img/05-map.webp)
 
 The map card has three parts, from top to bottom:
 
-1. **The toolbar**: the **Color by** menu, and five small buttons on the
+1. **The toolbar**: the **Colour by** menu, and five small buttons on the
    right.
 2. **The layer pills**: one rounded button per layer.
 3. **The map itself**, with a colour key at its top left and a scale bar at
@@ -51,7 +51,7 @@ The **scale bar** at the bottom left shows a round distance, for example
 
 ## The toolbar
 
-**Color by**
+**Colour by**
 :   The menu that chooses what the track's colour means. See [Colouring the
     track](#colouring-the-track) below.
 
@@ -82,7 +82,7 @@ three map sizes.
 ## Colouring the track
 
 Each dot on the track is one moment of the ship's record. Its colour shows the
-value of one measurement at that moment. The **Color by** menu chooses which
+value of one measurement at that moment. The **Colour by** menu chooses which
 measurement.
 
 The menu lists every measurement the dashboard has for the shown legs. They
@@ -107,13 +107,13 @@ include:
 
 To colour the track:
 
-1. Click the **Color by** menu above the map.
+1. Click the **Colour by** menu above the map.
 2. Click a measurement, for example **Salinity (PSU)**.
 3. The track takes the new colours at once. The colour key on the map
    changes to match.
 
 The same choice also colours the points of the graphs on the **Underway**
-tab. That tab has its own **Color by** menu above its panels; it is the same
+tab. That tab has its own **Colour by** menu above its panels; it is the same
 setting, so changing one changes the other. On the Underway tab, clicking a
 panel's title also colours the map by that panel's measurement. See [The
 Underway tab](underway.html).
@@ -126,7 +126,7 @@ The colour key is the small box at the top left of the map. It shows:
 - a colour bar, with the highest value at the top and the lowest at the
   bottom.
 
-The Underway tab shows the same key, lying flat, beside its **Color by** menu.
+The Underway tab shows the same key, lying flat, beside its **Colour by** menu.
 
 The key stretches over the values in the span you are showing (see [Choosing
 legs and a time span](legs-and-time.html)). It leaves out the most extreme
@@ -145,7 +145,7 @@ is much saltier.
 
 1. Choose **2025 Leg 2** alone in the **Legs** menu, and set **Show last**
    to **all** (see [Choosing legs and a time span](legs-and-time.html#look-at-a-whole-earlier-leg)).
-2. In **Color by**, choose **Salinity (PSU)**.
+2. In **Colour by**, choose **Salinity (PSU)**.
 
 The track is dark purple in Lake Melville, at the bottom of the map, and
 turns yellow out at sea.
@@ -194,7 +194,7 @@ nothing.
 | Symbol | What it is |
 |---|---|
 | a red and white ship | the *Amundsen*, at her latest position, turned to her heading |
-| coloured dots joined by a thin line | the ship's track, coloured by **Color by** |
+| coloured dots joined by a thin line | the ship's track, coloured by **Colour by** |
 | white dots | stations with a CTD cast |
 | green dots | stations worked without a cast (from the event log) |
 | larger orange dots | casts you have selected on the Casts tab |
@@ -262,7 +262,8 @@ The first four, joined together, are the ship's own layers. The others follow.
 Hold the mouse over a pill to read what it does. The dashboard remembers
 which layers you have on.
 
-On a narrow screen the pills shrink, and **Stations** becomes **Stns**.
+On a narrow screen **Stations** becomes **Stns**, and the other pills wrap
+onto as many rows as they need, each keeping its whole name.
 
 ### Plan
 
@@ -340,11 +341,13 @@ done there, and the depth of the sea floor.
 
 Clicking a station does more than a box:
 
-- **Click a white dot**, and its cast is added to the graphs on the **Casts**
-  tab, which opens. Click it again to take the cast away. See [The Casts
-  tab](casts.html).
-- **Click a green dot**, and the **Stations** tab opens with that station
-  found in its list. See [The Stations tab](stations.html).
+- **Click a white dot**, and its cast is selected. On the **Casts** tab it is
+  added to the graphs; on the **Stations** tab its row is ticked. From any
+  other tab the **Casts** tab opens. Click the dot again to take the cast
+  away. See [The Casts tab](casts.html).
+- **Click a green dot**, and that station is found in the list of the
+  **Stations** tab, which opens unless you are on it already. See [The
+  Stations tab](stations.html).
 
 Either way the map marks the station with a ring and a box, as for any point
 you click.
@@ -589,7 +592,7 @@ Click **ⓘ** in the toolbar to open **Map details**.
 From top to bottom it tells you:
 
 - the span, the number of legs shown and the distance the ship travelled in
-  them, for example "4mo span · 5 legs selected · 19334 km travelled";
+  them, for example "4 mo span · 5 legs selected · 19334 km travelled";
 - how much of the track the map is drawing (see [Track
   detail](#track-detail));
 - how many CTD casts and other stations are on the map;
@@ -620,7 +623,7 @@ page if that does not help.
 
 - Drag to move, scroll or pinch to zoom, **⟲** to see the whole track. A
   double click drops a waypoint; it does not zoom.
-- **Color by** chooses what the track's colour means; the key at the top left
+- **Colour by** chooses what the track's colour means; the key at the top left
   of the map reads it.
 - Hold the mouse over anything to read it; click a point to keep its box,
   with distances from the ship.

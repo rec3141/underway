@@ -182,7 +182,7 @@
       "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
     },
     "shell.colorBy": {
-      "text": "Color by ",
+      "text": "Colour by ",
       "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
     },
     "mapControls.plan": {
@@ -478,7 +478,7 @@
       "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
     },
     "mapControls.planHint": {
-      "text": "the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it",
+      "text": "the leg's planned cruise track and stations from the expedition's KMZ; drop another KMZ or KML on the map to add it as a plan kept in this browser only",
       "context": "Dashboard static tooltip, accessible label or input hint; Canadian French."
     },
     "mapControls.trackHint": {
@@ -1249,8 +1249,20 @@
       "text": "{count} d",
       "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
     },
+    "underway.span.hours": {
+      "text": "{count} h",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.span.weeks": {
+      "text": "{count} wk",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
+    "underway.span.months": {
+      "text": "{count} mo",
+      "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
+    },
     "underway.span.years": {
-      "text": "{count} y",
+      "text": "{count} yr",
       "context": "Dashboard display text only; scientific identifiers, values and units are unchanged."
     },
     "underway.time": {

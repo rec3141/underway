@@ -168,7 +168,7 @@ window.UW_UI_CATALOG = {
         "mapControls.photos": "Photos",
         "mapControls.photosHint": "the pictures: a camera for each day's timelapse, and the ship's own photographs from /Share; click one to play or read it",
         "mapControls.plan": "Plan",
-        "mapControls.planHint": "the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it",
+        "mapControls.planHint": "the leg's planned cruise track and stations from the expedition's KMZ; drop another KMZ or KML on the map to add it as a plan kept in this browser only",
         "mapControls.previousDay": "previous day",
         "mapControls.previousImage": "the picture before",
         "mapControls.region": "Region ",
@@ -1073,7 +1073,7 @@ window.UW_UI_CATALOG = {
         "scheduleBanner.next": "Coming up next",
         "scheduleBanner.over": "{duration} over",
         "shell.all": "all",
-        "shell.colorBy": "Color by ",
+        "shell.colorBy": "Colour by ",
         "shell.colorHint": "the variable that colours the track and the graph points",
         "shell.legsToShow": "Legs to show · ",
         "shell.none": "none",
@@ -1212,8 +1212,11 @@ window.UW_UI_CATALOG = {
         "underway.sort": "sort",
         "underway.span.all": "all",
         "underway.span.days": "{count} d",
+        "underway.span.hours": "{count} h",
         "underway.span.leg": "this leg",
-        "underway.span.years": "{count} y",
+        "underway.span.months": "{count} mo",
+        "underway.span.weeks": "{count} wk",
+        "underway.span.years": "{count} yr",
         "underway.stat.max": "max",
         "underway.stat.mean": "mean",
         "underway.stat.min": "min",
@@ -1465,7 +1468,7 @@ window.UW_UI_CATALOG = {
         "mapControls.photos": "Photos",
         "mapControls.photosHint": "images : une caméra pour la vidéo accélérée de chaque jour et les photos du navire provenant de /Share; cliquez sur une image pour l’ouvrir",
         "mapControls.plan": "Plan",
-        "mapControls.planHint": "trajet et stations prévus pour le tronçon, tirés du fichier KMZ de l’expédition; déposez un nouveau fichier KMZ ou KML sur la carte pour les remplacer",
+        "mapControls.planHint": "trajet et stations prévus pour le tronçon, tirés du fichier KMZ de l’expédition; déposez un autre fichier KMZ ou KML sur la carte pour l’ajouter comme plan conservé dans ce navigateur seulement",
         "mapControls.previousDay": "jour précédent",
         "mapControls.previousImage": "image précédente",
         "mapControls.region": "Région ",
@@ -2509,7 +2512,10 @@ window.UW_UI_CATALOG = {
         "underway.sort": "trier",
         "underway.span.all": "tout",
         "underway.span.days": "{count} j",
+        "underway.span.hours": "{count} h",
         "underway.span.leg": "ce tronçon",
+        "underway.span.months": "{count} mois",
+        "underway.span.weeks": "{count} sem.",
         "underway.span.years": "{count} a",
         "underway.stat.max": "max",
         "underway.stat.mean": "moyenne",
@@ -3253,7 +3259,7 @@ window.UW_UI_CATALOG = {
         },
         "mapControls.planHint": {
           "profile": "editorial-fr-ca-v4",
-          "sourceSha256": "9c6bf8a1beea27686fc341a7fe5e68ef7f99696d1f034328d56e95cedbc95a21"
+          "sourceSha256": "86958d37af8775bb5bf05b50f2866ca258d5a7b2ff90a4f7b317abb055272de9"
         },
         "mapControls.previousDay": {
           "profile": "editorial-fr-ca-v4",
@@ -6861,7 +6867,7 @@ window.UW_UI_CATALOG = {
         },
         "shell.colorBy": {
           "profile": "editorial-fr-ca-v4",
-          "sourceSha256": "60385992c419cf3c35b4e9d83e964878526cd997f0d7ff77cc0931032c05c45e"
+          "sourceSha256": "4880a97fe85febee462c683932431e307dece6d0269f1a7a20f92631137efcec"
         },
         "shell.colorHint": {
           "profile": "editorial-fr-ca-v4",
@@ -7379,13 +7385,25 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "22f6c1b816284686edfe58ba7f69114a37b8f5557df87bfff554872f2a09f3b5"
         },
+        "underway.span.hours": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6dc5d156402ff24f28a626171d8efa55d4dd98f70cd28b83a1807d9aed8abed2"
+        },
         "underway.span.leg": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "04d01f4ba9f57732dd452de923c9a8196b98760f491d52df513f1dc017b1df40"
         },
+        "underway.span.months": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "03234ac16ecd67dd4cec46ae19ec0f37cdff97537bd440831fcea4f5b176fde1"
+        },
+        "underway.span.weeks": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "6abf5c2652c6b881a45b5777600217ad9715026fefb1d77e2230f32444a99175"
+        },
         "underway.span.years": {
           "profile": "editorial-fr-ca-v4",
-          "sourceSha256": "99a612876597c45d8f02b1b8a49793bfc94be664171b91f70d642a32840f0ec2"
+          "sourceSha256": "6b01d2c6968022d8c8f6e2aa528c28de9ae6573ec28c8e620f403c4db04327b9"
         },
         "underway.stat.max": {
           "profile": "editorial-fr-ca-v4",

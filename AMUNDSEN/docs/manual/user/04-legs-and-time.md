@@ -73,7 +73,7 @@ From top to bottom, the menu has:
 
 **The line at the bottom**
 :   How many legs are shown, and how much of the record the dashboard has
-    loaded to cover them: for example "5 of 101 legs shown · the 4mo window
+    loaded to cover them: for example "5 of 101 legs shown · the 4 mo window
     loaded".
 
 Here is the menu with two years open. Only one leg of each year is ticked,
@@ -111,18 +111,18 @@ The archive years start closed. To look at an archive leg:
 ## The Show last slider
 
 **Show last** sets how far back from the end of the record the dashboard
-looks. Its value is written beside it, in blue: **4mo** means "the last four
+looks. Its value is written beside it, in blue: **4 mo** means "the last four
 months".
 
 The slider has fifteen steps, from short to long:
 
 | Step | Means |
 |---|---|
-| **1h**, **3h**, **6h**, **12h** | the last 1, 3, 6 or 12 hours |
-| **24h**, **48h**, **72h** | the last one, two or three days |
-| **1w** | the last week |
-| **1mo**, **2mo**, **4mo** | the last one, two or four months |
-| **1 y**, **2 y**, **4 y** | the last one, two or four years |
+| **1 h**, **3 h**, **6 h**, **12 h** | the last 1, 3, 6 or 12 hours |
+| **24 h**, **48 h**, **72 h** | the last one, two or three days |
+| **1 wk** | the last week |
+| **1 mo**, **2 mo**, **4 mo** | the last one, two or four months |
+| **1 yr**, **2 yr**, **4 yr** | the last one, two or four years |
 | **all** | everything, back to the first leg |
 
 To change it:
@@ -139,7 +139,7 @@ The span always counts back from the *end of the record*: the newest
 observation the dashboard has, from any leg. Aboard, that is a few minutes
 ago. Ashore, it is the last day of the cruise.
 
-So **24h** means the last 24 hours of the record, not the last 24 hours of
+So **24 h** means the last 24 hours of the record, not the last 24 hours of
 the leg you ticked. This matters when you look at an earlier leg. See the
 example [Why is the map empty?](#why-is-the-map-empty) below.
 
@@ -170,7 +170,7 @@ back you read from the last page.
 
 - To see an earlier leg in full, tick it and set **Show last** to **all**.
 - To see what happened recently, keep the current legs and choose a short
-  span such as **24h** or **72h**.
+  span such as **24 h** or **72 h**.
 
 The line at the bottom of the **Legs** menu says how much of the record the
 dashboard has loaded: always enough to reach back to the first day of the
@@ -186,7 +186,7 @@ earliest leg you show.
 1. Click **Legs**, and click **none**.
 2. Open the current year with its arrow, and tick the leg marked **live**.
 3. Click outside the menu to close it.
-4. Drag **Show last** to **24h**.
+4. Drag **Show last** to **24 h**.
 
 The map shows the last day's track, ending at the ship. The graphs on the
 **Underway** tab show the last 24 hours.
@@ -224,10 +224,10 @@ other, with a gap between them.
 
 ### Why is the map empty?
 
-Suppose you tick only **2025 Leg 2**, and leave **Show last** at **4mo**. The
+Suppose you tick only **2025 Leg 2**, and leave **Show last** at **4 mo**. The
 map shows no track at all, and the graphs are empty.
 
-![2025 Leg 2 with Show last at 4mo: the map shows no track](img/04-empty-span.webp)
+![2025 Leg 2 with Show last at 4 mo: the map shows no track](img/04-empty-span.webp)
 
 The reason: the span counts back four months from the end of the record,
 which is in 2026. 2025 Leg 2 ended more than a year earlier, so none of it
@@ -246,7 +246,7 @@ joined with `&`:
 | Add | Does |
 |---|---|
 | `legs=2025_LEG_02` | shows that leg only. Write legs as year, `_LEG_`, and the two-digit number. Separate several legs with commas: `legs=2025_LEG_04,2026_LEG_03`. Use `legs=all` for every leg. |
-| `win=all` | sets **Show last**. Use any step from the table above, written without spaces: `24h`, `1w`, `4mo`, `2y`, `all`. |
+| `win=all` | sets **Show last**. Use any step from the table above, written short and without spaces: `24h`, `1w`, `4mo`, `2y`, `all`. |
 | `tab=casts` | opens that tab: `underway`, `casts`, `stations`, `calendar` (the Schedule tab), `wiki`. |
 
 For example, on the ship's Wi-Fi:

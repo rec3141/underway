@@ -119,7 +119,8 @@ reason, for example **no route**.
 
 !!! note "Aboard only"
     The distance by sea and the depth are worked out by the ship's computer.
-    The public web copy cannot work them out.
+    On the public web copy the box gives the distance by air alone, with no
+    **by sea** line, no depth and no **Save**.
 
 ### Where the depth comes from
 
@@ -215,6 +216,7 @@ On the left, from top to bottom:
 
 **Copy to clipboard**
 :   Copies a PNG picture, ready to paste into a document, a slide or a chat.
+    It is there only on a secure (https) connection: see the note below.
 
 **Export PNG**
 :   Saves the picture as a PNG file, the best format for maps and screens.
@@ -239,10 +241,9 @@ Click **×** at the top right to close the box.
 
 !!! note
     **Copy to clipboard** needs a secure (https) connection. The ship's
-    dashboard is opened with `http://`, so aboard the box says "Copying
-    requires HTTPS or localhost. Use Export PNG on this connection." Use
-    **Export PNG** instead, and insert the file. On the public web copy,
-    which uses `https://`, copying works.
+    dashboard is opened with `http://`, so aboard the box has no **Copy to
+    clipboard** button: use **Export PNG** instead, and insert the file. On
+    the public web copy, which uses `https://`, copying works.
 
 !!! tip
     If an export fails with "Export failed. Try a smaller size or resolution,

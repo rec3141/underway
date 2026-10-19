@@ -80,8 +80,9 @@ There are four ways to choose casts:
   deselect it.
 - **Tick the box in the heading** to select every cast in the list. Use the
   filter first to narrow the list.
-- **Click a station on the map.** Its cast is selected and the Casts tab
-  opens. Click it again to deselect it. See [The map](map.html).
+- **Click a station on the map.** Its cast is selected, and the Casts tab
+  opens if you are not on it (or on the Stations tab). Click it again to
+  deselect it. See [The map](map.html).
 - **On the Stations tab**, click a row (see [The Stations tab](stations.html)),
   or in the Schedule's **Event Log**, click **view data** on a logged CTD.
 
@@ -180,7 +181,7 @@ CS1-9, across Davis Strait from Baffin Island to Greenland.
 3. Click one cast at each station, from **CS1-1** to **CS1-9**. (Some
    stations have two casts; one of each is enough.)
 4. Click **Section**.
-5. Choose **Temperature** in **Color by**, and click **X-axis** until it
+5. Choose **Temperature** in **Colour by**, and click **X-axis** until it
    says **Distance**.
 
 ![A temperature section across Davis Strait: eight casts over 314 km, cold water near the surface on the west side, warm water at depth in the middle and on the east side](img/11-casts-section.webp)
@@ -202,7 +203,7 @@ towards the Greenland side.
 
 The Section's own controls, in the second row:
 
-- **Color by**: the variable to draw. The list offers what the selected
+- **Colour by**: the variable to draw. The list offers what the selected
   casts measured.
 - **X-axis**: click to step through
     - **Time**: each cast at its own time;

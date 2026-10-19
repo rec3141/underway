@@ -109,7 +109,7 @@ casts of the CS1 line are ready for a section on the Casts tab.
 
 !!! tip
     It works the other way too: click a station on the map and its cast is
-    selected and the Casts tab opens. See [The map](map.html).
+    selected, and its row here is ticked. See [The map](map.html).
 
 ## Positions and distances
 

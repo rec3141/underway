@@ -127,9 +127,8 @@ Legend panel.
 
 !!! note
     **Copy to clipboard** needs a secure connection. On the ship, where the
-    dashboard is reached by its plain address, the window says
-    **Copying requires HTTPS or localhost. Use Export PNG on this
-    connection.** Use **Export PNG** instead.
+    dashboard is reached by its plain address, the window has no **Copy to
+    clipboard** button: use **Export PNG** instead.
 
 The map has its own export, with a Google Earth (KMZ) option: see
 [Waypoints, distances and exporting the map](waypoints-and-export.html).

@@ -66,6 +66,9 @@
       <p class="export-format-note muted"></p><button type="button" data-format="png" data-copy data-i18n="export.copy" data-i18n-title="export.copyHint">Copy to clipboard</button><button type="button" data-format="png" data-i18n="export.png">Export PNG</button><button type="button" data-format="svg" data-i18n="export.svg">Export SVG</button><button type="button" class="export-kmz" hidden></button><p class="export-status" role="status"></p>
       </aside><div class="export-viewport"><div class="export-canvas"></div></div></div>`;
     document.body.append(dialog);preview=dialog.querySelector('.export-canvas');
+    // Copying an image needs a secure context (https or localhost) and the
+    // async clipboard; without them the button is not offered.
+    dialog.querySelector('[data-copy]').hidden=!(window.isSecureContext && navigator.clipboard?.write && window.ClipboardItem);
     dialog.querySelector('.export-close').onclick=()=>dialog.close();
     scaleInput().oninput=resolution;
     for(const input of dialog.querySelectorAll('input[type=number]'))input.onchange=()=>{
