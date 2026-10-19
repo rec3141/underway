@@ -10,9 +10,13 @@ order; a chapter's first line is its ``# Title``:
 ``publish(root)`` writes ``manual/index.html`` (the two parts), a page per
 chapter with the part's contents beside it, and ``manual/print.html``: the
 whole manual as one document with a title page, contents and a page break
-before each chapter, for printing or saving as a PDF. It is called by every
-full build and does nothing when the sources have not changed since the last
-time (a stamp of their contents in ``manual/.stamp``).
+before each chapter, for printing from the browser. With WeasyPrint
+installed (the ``manual-pdf`` extra) it also typesets the same document with
+the paged stylesheet ``docs/manual/manual-pdf.css`` into three PDFs: the
+whole manual and each part on its own. It is called by every full build and
+does nothing when the sources have not changed since the last time (a stamp
+of their contents, this module and the WeasyPrint version in
+``manual/.stamp``).
 """
 
 from __future__ import annotations
@@ -22,7 +26,10 @@ import html
 import logging
 import re
 import shutil
+import tempfile
+import time
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -32,6 +39,10 @@ PARTS = (("user", "User manual", "For everyone aboard and ashore: what the dashb
          ("admin", "Administrator manual", "For whoever installs and runs it: how it works, where everything is, what to check."))
 EXTENSIONS = ["tables", "fenced_code", "attr_list", "admonition", "def_list", "toc", "sane_lists"]
 TITLE = "CCGS Amundsen underway dashboard"
+# the PDFs: file, the parts it holds, the label of its link
+PDFS = (("underway-manual.pdf", ("user", "admin"), "Download PDF"),
+        ("underway-user-manual.pdf", ("user",), "User manual (PDF)"),
+        ("underway-admin-manual.pdf", ("admin",), "Administrator manual (PDF)"))
 
 
 @dataclass
@@ -77,19 +88,32 @@ def chapters(src: Path = SRC) -> dict[str, list[Chapter]]:
     return parts
 
 
+def _weasyprint():
+    """The weasyprint module, or None when it (or the Pango it loads) is
+    not installed."""
+    try:
+        import weasyprint
+        return weasyprint
+    except (ImportError, OSError):
+        return None
+
+
 def _stamp(src: Path) -> str:
     h = hashlib.sha1(Path(__file__).read_bytes())
     for p in sorted(src.rglob("*")):
         if p.is_file():
             h.update(str(p.relative_to(src)).encode())
             h.update(p.read_bytes())
+    # installing or upgrading WeasyPrint changes the output: the PDFs
+    h.update(f"weasyprint {getattr(_weasyprint(), '__version__', None)}".encode())
     return h.hexdigest()
 
 
 def _page(title: str, body: str, css: str = "manual.css", extra_head: str = "") -> str:
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">'
-            f'<title>{html.escape(title)}</title><link rel="stylesheet" href="{css}">{extra_head}</head>'
+            f'<title>{html.escape(title)}</title>'
+            + (f'<link rel="stylesheet" href="{css}">' if css else "") + f'{extra_head}</head>'
             f'<body>{body}</body></html>')
 
 
@@ -115,46 +139,160 @@ def _up(body: str) -> str:
     return re.sub(r'(src|href)="img/', r'\1="../img/', body)
 
 
-def _part_index(part: tuple, chs: list[Chapter]) -> str:
+def _part_index(part: tuple, chs: list[Chapter], pdf: str = "") -> str:
     key, name, blurb = part
     items = "".join(f'<li><a href="{c.slug}.html">{html.escape(c.title)}</a></li>' for c in chs)
     body = (f'<header class="top"><a href="../index.html">Manual</a> › {html.escape(name)}'
             f'<span class="sp"></span><a href="../print.html">Print the whole manual</a> · <a href="../../">Dashboard</a></header>'
-            f'<main class="solo"><h1>{html.escape(name)}</h1><p class="lede">{html.escape(blurb)}</p><ol class="contents">{items}</ol></main>')
+            f'<main class="solo"><h1>{html.escape(name)}</h1><p class="lede">{html.escape(blurb)}</p><ol class="contents">{items}</ol>'
+            + (f'<p><a href="../{pdf}">The {html.escape(name.lower())} as a PDF</a>, typeset for printing.</p>' if pdf else "")
+            + '</main>')
     return _page(name, body, css="../manual.css")
 
 
-def _landing(parts: dict) -> str:
+def _landing(parts: dict, pdfs: bool = False) -> str:
     cards = "".join(
         f'<a class="card" href="{key}/index.html"><h2>{html.escape(name)}</h2><p>{html.escape(blurb)}</p>'
         f'<span>{len(parts[key])} chapters</span></a>' for key, name, blurb in PARTS if parts.get(key))
+    if pdfs:
+        files = " · ".join(f'<a href="{f}">{html.escape(label)}</a>' for f, keys, label in PDFS[1:] if any(parts.get(k) for k in keys))
+        get = (f'<p><a href="{PDFS[0][0]}"><b>Download the whole manual as a PDF</b></a>, typeset for printing'
+               f' (or each part: {files}).</p>'
+               f'<p><a href="print.html">The whole manual on one page</a>, to read or print from the browser.</p>')
+    else:
+        get = '<p><a href="print.html">The whole manual on one page</a>, for printing or saving as a PDF.</p>'
     body = (f'<header class="top"><span>{html.escape(TITLE)}</span><span class="sp"></span><a href="../">Dashboard</a></header>'
-            f'<main class="solo"><h1>Manual</h1><div class="cards">{cards}</div>'
-            f'<p><a href="print.html">The whole manual on one page</a>, for printing or saving as a PDF.</p></main>')
+            f'<main class="solo"><h1>Manual</h1><div class="cards">{cards}</div>{get}</main>')
     return _page("Manual · " + TITLE, body)
 
 
-def _print(parts: dict, src: Path = SRC) -> str:
-    """Every chapter of both parts as one document, chapter ids prefixed so
-    links within a chapter still work."""
-    cover = (f'<section class="cover"><h1>{html.escape(TITLE)}</h1><p>User and administrator manual</p></section>')
+def _crosslinks(body: str, key: str, slugs: dict) -> str:
+    """Links between chapters (``map.html#colour-by``, ``../user/tour.html``)
+    as links within the one document; a link to a chapter the document does
+    not hold is left as plain text."""
+    def sub(m):
+        part = m["part"] or key
+        if m["slug"] not in slugs.get(part, ()):
+            return '<a class="away"'
+        return f'<a class="xref" href="#{part}-{m["slug"]}' + (f'-{m["frag"]}' if m["frag"] else "") + '"'
+    return re.sub(r'<a href="(?:\.\./(?P<part>user|admin)/)?(?P<slug>[a-z0-9-]+)\.html(?:#(?P<frag>[^"]+))?"', sub, body)
+
+
+def _figures(body: str) -> str:
+    """A picture alone in its paragraph as a figure, its description as the
+    caption."""
+    return re.sub(r'<p>(<img alt="([^"]*)"[^>]*>)</p>',
+                  lambda m: f'<figure>{m[1]}' + (f'<figcaption>{m[2]}</figcaption>' if m[2] else "") + "</figure>", body)
+
+
+def _short_tables(body: str, rows: int = 12) -> str:
+    """A table of a few rows is marked to be kept on one page; a longer one
+    may break between rows."""
+    return re.sub(r"<table>(.*?)</table>", lambda m: (
+        '<table class="short">' if m[1].count("<tr") <= rows + 1 else "<table>") + m[1] + "</table>", body, flags=re.S)
+
+
+def _book(parts: dict, src: Path, keys: tuple = ("user", "admin"), pdf: bool = False, pdfs: tuple = ()) -> str:
+    """The chapters of the parts in ``keys`` as one document: a cover, the
+    contents and every chapter, chapter ids prefixed so links work within
+    it. ``pdf`` gives the variant WeasyPrint typesets: no screen header,
+    pictures as captioned figures, and the contents listing each chapter's
+    sections. ``pdfs`` are the (file, label) the screen variant links to."""
+    keys = tuple(k for k in keys if parts.get(k))
+    names = {k: (n, b) for k, n, b in PARTS}
+    slugs = {k: {c.slug for c in parts[k]} for k in keys}
+    one = len(keys) == 1
+    title, sub = (names[keys[0]][0], TITLE) if one else (TITLE, "User and administrator manual")
+    cover = (f'<section class="cover"><h1{" class=partname" if one else ""}>{html.escape(title)}</h1>'
+             f'<p class="sub">{html.escape(sub)}</p>'
+             + (f'<p class="lede">{html.escape(names[keys[0]][1])}</p>' if one else "")
+             + (f'<p class="date">{date.today():%-d %B %Y}</p>' if pdf else "") + "</section>")
     toc, blocks = [], []
-    for key, name, blurb in PARTS:
-        chs = parts.get(key) or []
-        if not chs:
-            continue
-        toc.append(f'<li><a href="#part-{key}">{html.escape(name)}</a><ol>'
-                   + "".join(f'<li><a href="#{key}-{c.slug}">{html.escape(c.title)}</a></li>' for c in chs) + "</ol></li>")
-        blocks.append(f'<section class="part" id="part-{key}"><h1>{html.escape(name)}</h1><p class="lede">{html.escape(blurb)}</p></section>')
-        for c in chs:
+    for key in keys:
+        name, blurb = names[key]
+        if not one:
+            blocks.append(f'<section class="part" id="part-{key}"><h1>{html.escape(name)}</h1><p class="lede">{html.escape(blurb)}</p></section>')
+        entries = []
+        for c in parts[key]:
             path = next((src / key).glob(f"[0-9][0-9]-{c.slug}.md"))
             text = path.read_text(encoding="utf-8").partition("\n")[2]
-            rendered, _ = _render(text, prefix=f"{key}-{c.slug}")
+            rendered, sections = _render(text, prefix=f"{key}-{c.slug}")
+            rendered = _crosslinks(rendered, key, slugs)
+            if pdf:
+                rendered = _short_tables(_figures(rendered))
+            secs = "".join(f'<li class="sec"><a href="#{hid}">{html.escape(t)}</a></li>' for level, hid, t in sections if level == 2)
+            entries.append(f'<li class="ch"><a href="#{key}-{c.slug}">{html.escape(c.title)}</a>'
+                           + (f"<ol>{secs}</ol>" if pdf and secs else "") + "</li>")
             blocks.append(f'<section class="chapter" id="{key}-{c.slug}"><h1>{html.escape(c.title)}</h1>{rendered}</section>')
+        toc.append("".join(entries) if one else
+                   f'<li class="tp"><a href="#part-{key}">{html.escape(name)}</a><ol>{"".join(entries)}</ol></li>')
+    main = f'{cover}<section class="toc"><h1>Contents</h1><ol>{"".join(toc)}</ol></section>{"".join(blocks)}'
+    if pdf:
+        return _page(title, f'<main class="print book{" one" if one else ""}">{main}</main>', css="")
+    links = "".join(f' · <a href="{f}">{html.escape(label)}</a>' for f, label in pdfs)
     body = (f'<header class="top noprint"><a href="index.html">Manual</a><span class="sp"></span>'
-            f'<a href="#" onclick="window.print();return false">Print</a> · <a href="../">Dashboard</a></header>'
-            f'<main class="print">{cover}<section class="toc"><h1>Contents</h1><ol>{"".join(toc)}</ol></section>{"".join(blocks)}</main>')
+            f'<a href="#" onclick="window.print();return false">Print</a>{links} · <a href="../">Dashboard</a></header>'
+            f'<main class="print">{main}</main>')
     return _page("Manual (print) · " + TITLE, body)
+
+
+def _print(parts: dict, src: Path = SRC, pdfs: tuple = ()) -> str:
+    return _book(parts, src, pdfs=pdfs)
+
+
+def _no_subset_notice(record: logging.LogRecord) -> bool:
+    """Without the system's HarfBuzz-Subset, WeasyPrint subsets fonts with
+    fontTools, correctly, and says so once per font and document."""
+    return "instead of HarfBuzz-Subset" not in record.getMessage()
+
+
+def write_pdfs(parts: dict, src: Path, out: Path) -> dict:
+    """Typeset the PDFs into ``out``, the folder that holds ``img/``, with
+    the paged stylesheet ``manual-pdf.css``; {file: pages}."""
+    weasyprint = _weasyprint()
+    for noisy in ("weasyprint.progress", "fontTools"):     # a line per page and per font otherwise
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+    logging.getLogger("weasyprint").addFilter(_no_subset_notice)
+    css = weasyprint.CSS(filename=str(src / "manual-pdf.css"))
+    done = {}
+    with tempfile.TemporaryDirectory(prefix="manual-pdf-") as tmpdir:
+        jpegs = _jpegs(out / "img", Path(tmpdir))
+        for name, keys, _ in PDFS:
+            if not any(parts.get(k) for k in keys):
+                continue
+            book = _book(parts, src, keys, pdf=True)
+            book = re.sub(r'src="img/([^"]+)"', lambda m: f'src="{jpegs[m[1]].as_uri()}"' if m[1] in jpegs else m[0], book)
+            doc = weasyprint.HTML(string=book, base_url=str(out) + "/").render(stylesheets=[css])
+            tmp = out / (name + ".tmp")
+            doc.write_pdf(tmp)
+            tmp.replace(out / name)
+            done[name] = len(doc.pages)
+    return done
+
+
+def _jpegs(img: Path, into: Path) -> dict:
+    """The pictures as JPEG for the PDFs: WeasyPrint embeds a WebP losslessly,
+    several times its size. {name: jpeg path}; a picture Pillow cannot read
+    is embedded as it is."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return {}
+    out = {}
+    for p in sorted(img.glob("*")) if img.is_dir() else ():
+        try:
+            with Image.open(p) as im:
+                if im.mode in ("RGBA", "LA", "P"):
+                    im = im.convert("RGBA")
+                    flat = Image.new("RGB", im.size, "white")
+                    flat.paste(im, mask=im.getchannel("A"))
+                    im = flat
+                dest = into / (p.stem + ".jpg")
+                im.convert("RGB").save(dest, "JPEG", quality=88, optimize=True)
+                out[p.name] = dest
+        except OSError:
+            continue
+    return out
 
 
 def publish(root: Path, src: Path = SRC, force: bool = False) -> dict | None:
@@ -172,6 +310,10 @@ def publish(root: Path, src: Path = SRC, force: bool = False) -> dict | None:
         log.warning("manual not built: the markdown package is missing (pip install markdown)")
         return None
     parts = chapters(src)
+    typeset = _weasyprint() is not None and (src / "manual-pdf.css").is_file()
+    if not typeset:
+        log.info("manual: no PDF, WeasyPrint is not installed (pip install -e '.[manual-pdf]')")
+    pdfs = tuple((f, label) for f, keys, label in PDFS if typeset and any(parts.get(k) for k in keys))
     stage = out.with_name("manual.new")
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
@@ -185,11 +327,18 @@ def publish(root: Path, src: Path = SRC, force: bool = False) -> dict | None:
             continue
         d = stage / key
         d.mkdir()
-        (d / "index.html").write_text(_part_index(part, chs), encoding="utf-8")
+        own = next((f for f, keys, _ in PDFS if keys == (key,) and typeset), "")
+        (d / "index.html").write_text(_part_index(part, chs, own), encoding="utf-8")
         for i in range(len(chs)):
             (d / f"{chs[i].slug}.html").write_text(_chapter_page(part, chs, i), encoding="utf-8")
-    (stage / "index.html").write_text(_landing(parts), encoding="utf-8")
-    (stage / "print.html").write_text(_print(parts, src), encoding="utf-8")
+    (stage / "index.html").write_text(_landing(parts, pdfs=bool(pdfs)), encoding="utf-8")
+    (stage / "print.html").write_text(_print(parts, src, pdfs), encoding="utf-8")
+    n = {k: len(v) for k, v in parts.items()}
+    if typeset:
+        t0 = time.monotonic()
+        pages = write_pdfs(parts, src, stage)
+        log.info("manual: PDFs %s in %.0f s", pages, time.monotonic() - t0)
+        n["pdf"] = pages
     (stage / ".stamp").write_text(stamp)
     old = out.with_name("manual.old")
     shutil.rmtree(old, ignore_errors=True)
@@ -197,6 +346,5 @@ def publish(root: Path, src: Path = SRC, force: bool = False) -> dict | None:
         out.rename(old)
     stage.rename(out)
     shutil.rmtree(old, ignore_errors=True)
-    n = {k: len(v) for k, v in parts.items()}
-    log.info("manual: %s chapters", n)
+    log.info("manual: %s chapters", {k: v for k, v in n.items() if k != "pdf"})
     return n

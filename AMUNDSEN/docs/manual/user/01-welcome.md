@@ -99,6 +99,19 @@ The user manual goes from the general to the particular:
 5. The last chapter is a glossary: a list of the words the dashboard uses,
    with their meanings, and answers to common questions.
 
+### On paper
+
+To print the manual or keep a copy, use the PDF. On the manual's front page,
+click **Download the whole manual as a PDF**, or one of the links after it
+for the user manual or the administrator manual alone. The PDF is laid out
+for US Letter paper, with a contents list, page numbers, and pictures that
+are never cut across two pages. Its links to other chapters work, and each
+one gives the page number it leads to.
+
+The link **The whole manual on one page** opens the manual as one long web
+page, for reading or for printing from the browser. A browser prints it less
+neatly than the PDF.
+
 You do not have to read it in order. Each chapter stands on its own, and
 links to the others where they help.
 
