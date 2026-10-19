@@ -110,7 +110,7 @@ Ashore mode is one setting, `UNDERWAY_ASHORE`, in `site.env`
 
 | From | Address |
 |---|---|
-| ship Wi-Fi (192.168.3.x) | `http://underway.local` or `http://192.168.3.216/underway/` |
+| ship Wi-Fi `AMD-WiFi` (192.168.3.x) | `http://underway.local` or `http://192.168.3.216/underway/` |
 | wired ship LAN (10.0.0.x) | `http://10.0.0.58/` |
 | the workstation itself | `http://127.0.0.1:8042/` |
 
