@@ -23,8 +23,14 @@ The columns carried over, and why some are not:
   position and speed stand in every minute it covers; a leg without one, or
   a minute it misses, takes them from the files below.
 * TSG: hull temperature, salinity, fluorescence, sound velocity; its vessel
-  speed is the ship's speed. The ship's position comes from whichever
-  archive row has it.
+  speed is the ship's speed.
+* Position: one file per leg gives the track (``_track_source``): the
+  navigation, else the TSG, else AVOS, else ATS, unless that file covers
+  under 80% of the hours the best-covering one does, which is then used.
+  The others fill only gaps of more than half an hour in it: positions from
+  two receivers taken minute by minute zigzag between their offsets and
+  inflate the distance run. A lone fix out and back faster than the ship
+  goes is dropped first (``_despike``).
 * AVOS: true wind direction, air temperature, pressure, and the humidity
   that follows from the air and dew-point temperatures. Its wind speed is
   the true wind speed, which the dashboard has no variable for (its wind
@@ -39,12 +45,14 @@ The columns carried over, and why some are not:
 
 from __future__ import annotations
 
+import bisect
 import csv
 import logging
 import math
 import os
 import re
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 from .config import DB_DIR
@@ -75,7 +83,12 @@ ATS = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longit
        "shortwave_radiation": ("ATS_Portside", "Short wave radiation (W/m²)")}
 HUMIDITY = ("AVOS", "Air humidity (%)")
 # read in this order; the first file to give a minute a column keeps it
+# (the position excepted: see _track_source)
 SOURCES = (("nav.csv", NAV), ("tsg.csv", TSG), ("avos.csv", AVOS), ("ats.csv", ATS))
+LAT, LON = NAV["latitude"], NAV["longitude"]
+TRACK_COVER = 0.8                   # a preferred file's share of the best file's hours
+TRACK_GAP_MIN = 30                  # a gap in the track file another file may fill
+SPIKE_KN = 40                       # faster than the ship goes: a lone fix out and back at this speed is dropped
 
 # the casts: archive column -> (the Casts tab's variable, unit); the older
 # one-leg datasets name their columns differently and publish no units for
@@ -141,13 +154,72 @@ def _place(lat: float | None, lon: float | None) -> tuple[float | None, float | 
     return lat, lon
 
 
+def _epoch_min(t: str) -> int:
+    """'2016/06/05 18:37:00' -> minutes since 1970."""
+    y, mo, d, h, mi = int(t[:4]), int(t[5:7]), int(t[8:10]), int(t[11:13]), int(t[14:16])
+    days = (date(y, mo, d) - date(1970, 1, 1)).days
+    return days * 1440 + h * 60 + mi
+
+
+def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    la1, lo1, la2, lo2 = map(math.radians, (*a, *b))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6371.0 * math.asin(math.sqrt(min(1.0, h)))
+
+
+def _despike(fixes: dict[str, tuple[float, float]]) -> dict[str, tuple[float, float]]:
+    """``fixes`` without the lone bad ones: a fix reached from the one before
+    and left for the one after faster than SPIKE_KN, while those two are
+    within SPIKE_KN of each other (some TSG files carry a position from
+    elsewhere at midnight, 500 km out and back in two minutes)."""
+    times = sorted(fixes)
+    for _ in range(3):
+        mins = [_epoch_min(t) for t in times]
+        kn = lambda i, j: _km(fixes[times[i]], fixes[times[j]]) / 1.852 / max(mins[j] - mins[i], 1) * 60
+        bad = {i for i in range(1, len(times) - 1) if kn(i - 1, i) > SPIKE_KN and kn(i, i + 1) > SPIKE_KN and kn(i - 1, i + 1) <= SPIKE_KN}
+        if not bad:
+            break
+        times = [t for i, t in enumerate(times) if i not in bad]
+    return {t: fixes[t] for t in times}
+
+
+def _track_source(positions: dict[str, dict]) -> str | None:
+    """The file whose positions make the leg's track: the first in SOURCES
+    order covering at least TRACK_COVER of the hours the best-covering file
+    covers."""
+    hours = {name: len({t[:13] for t in fixes}) for name, fixes in positions.items() if fixes}
+    if not hours:
+        return None
+    best = max(hours.values())
+    return next(name for name, _ in SOURCES if hours.get(name, 0) >= TRACK_COVER * best)
+
+
+def _place_track(rows: dict[str, dict], positions: dict[str, dict], order: list[str]) -> None:
+    """Positions into ``rows``: every fix of the first file in ``order``,
+    then each other file's (and the casts') only where the track has no fix
+    within TRACK_GAP_MIN minutes."""
+    taken: list[int] = []                  # the track's fix times so far, sorted
+    for k, name in enumerate(order):
+        placed = []
+        for t, (lat, lon) in sorted((positions.get(name) or {}).items()):
+            m = _epoch_min(t)
+            if k:
+                i = bisect.bisect_left(taken, m - TRACK_GAP_MIN)
+                if i < len(taken) and taken[i] <= m + TRACK_GAP_MIN:
+                    continue
+            rows[t][LAT], rows[t][LON] = lat, lon
+            placed.append(m)
+        taken = sorted(taken + placed)
+
+
 def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
     """A leg's archive files merged per minute: the (instrument, column)
     list and {time: {(instrument, column): value}}. Where two files give the
-    ship's position or speed in one minute, the first one read stands: the
-    navigation's when the leg has it, else the TSG's."""
+    ship's speed in one minute, the first one read stands: the navigation's
+    when the leg has it, else the TSG's. The position follows _track_source."""
     columns: dict[tuple[str, str], None] = {}
     rows: dict[str, dict] = defaultdict(dict)
+    positions: dict[str, dict] = {}
     for name, mapping in SOURCES:
         path = leg_dir / name
         if not path.is_file():
@@ -158,9 +230,12 @@ def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
                 if not t:
                     continue
                 row = rows[t]
-                r = {**r}
-                r["latitude"], r["longitude"] = _place(_num(r.get("latitude")), _num(r.get("longitude")))
+                lat, lon = _place(_num(r.get("latitude")), _num(r.get("longitude")))
+                if lat is not None and lon is not None:
+                    positions.setdefault(name, {}).setdefault(t, (lat, lon))
                 for src, key in mapping.items():
+                    if src in ("latitude", "longitude"):
+                        continue
                     v = _num(r.get(src))
                     if v is not None and key not in row:
                         row[key] = v
@@ -182,10 +257,14 @@ def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
                     continue
                 seen.add(t)
                 lat, lon = _place(_num(r.get("latitude")), _num(r.get("longitude")))
-                row = rows[t]
-                if lat is not None and lon is not None and TSG["latitude"] not in row:
-                    row[TSG["latitude"]], row[TSG["longitude"]] = lat, lon
-                    columns[TSG["latitude"]] = columns[TSG["longitude"]] = None
+                if lat is not None and lon is not None:
+                    positions.setdefault("casts", {})[t] = (lat, lon)
+    positions = {k: _despike(v) for k, v in positions.items()}
+    main = _track_source({k: v for k, v in positions.items() if k != "casts"})
+    order = ([main] if main else []) + [name for name, _ in SOURCES if name != main] + ["casts"]
+    _place_track(rows, positions, order)
+    if any(positions.values()):
+        columns[LAT] = columns[LON] = None
     rows = {t: r for t, r in rows.items() if r}
     return list(columns), rows
 

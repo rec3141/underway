@@ -30,10 +30,14 @@ Inside:
   hidden in the leg menu until someone ticks them, and grouped by year in
   the **Sources** table.
 - Their casts come from `ctd_1dbar.csv`.
-- A leg's track and ship speed come from its `nav.csv` where it has one.
-  Without one, and in any minute it misses, the track comes from the
-  positions in the TSG and weather rows and the casts' places, and the
-  speed from the TSG.
+- A leg's track comes from one file: `nav.csv`, else the TSG, else the
+  weather station (AVOS), else ATS, unless that file covers under 80% of
+  the hours the best-covering file does, which is then used. The other
+  files, and the casts' places, fill only gaps of more than 30 minutes in
+  it. A lone fix out and back faster than 40 kn is dropped first. Mixing
+  two receivers minute by minute, or keeping such a fix, inflates the
+  distance run.
+- The ship speed comes from `nav.csv` where the leg has one, else the TSG.
 - The time-span slider's **all** reaches back to them.
 - A leg the ship has itself is never replaced by the archive's.
 
