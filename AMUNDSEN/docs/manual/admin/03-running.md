@@ -24,7 +24,6 @@ them. In the container the same jobs run under one supervisor
 | `underway-history.timer` | :03, :23, :43 | pull the Wiki tab's data from grid (`tools/history-pull.sh`) |
 | `underway-publish.timer` | every 5 minutes | push the site to grid for the public web copy (`tools/publish-web.sh push`) |
 | `underway-mdns.service` | always | publish `underway.local` on the Wi-Fi interface |
-| `ship-routes.timer` | every minute (at :30 s) | keep 10.0.0.x routed over the LAN while the UM VPN is up |
 | `underway-codex.service` | always | optional: a Telegram bot for the Codex coding agent (`deploy/telegram-codex.md`) |
 
 `deploy/install.sh --enable` enables the core set: `underway.timer`,
@@ -42,10 +41,9 @@ credentials or prerequisites are in place:
 | `underway-history.timer` | a clone at `ARCTIC_HISTORY_ROOT` and an ssh key grid accepts |
 | `underway-publish.timer` | an ssh key grid accepts; grid set up ([Publishing to the web](public-web.html)) |
 | `underway-mdns.service` | avahi |
-| `ship-routes.timer` | only while the UM VPN is in use |
 
 The minute-by-minute jobs are spread across the minute so they do not
-start together: the build on the minute, routes at :30, alerts at :20 s
+start together: the build on the minute, alerts at :20 s
 every other minute; the Wiki pull keeps clear of the round minutes.
 
 Unit hardening: the jobs run with `ProtectSystem=full`,

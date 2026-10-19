@@ -13,7 +13,7 @@ not in files.
 |---|---|
 | page server, build, cruise report builder, game, Caddy | publishing to the web |
 | alerts, Telegram bot, Google Calendar, satellite, ice charts, uptime check | the Wiki pull from grid: the Wiki is whatever snapshot the data folder holds |
-| camera timelapses, the ice camera (on its own OpenRouter key) | the Codex bot, the VPN routes |
+| camera timelapses, the ice camera (on its own OpenRouter key) | the Codex bot |
 | SMB mounting of the ship's shares | a local GPU: `UNDERWAY_LLM=0`; AI parts run on OpenRouter once they have a key ([Integrations](integrations.html#ai-models)) |
 
 ## The supervisor

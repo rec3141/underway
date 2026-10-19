@@ -28,7 +28,7 @@ cruise. Ashore mode is three lines in `/etc/underway/site.env`.
 
         sudo systemctl disable --now underway-camera.timer underway-camera-sync.timer \
             underway-alerts.timer underway-uptime.timer underway-satellite.timer \
-            underway-gcal.timer ship-routes.timer
+            underway-gcal.timer
         sudo systemctl restart underway-dashboard underway-report
 
 ## What changes
@@ -56,7 +56,5 @@ publishing keep running.
             underway-alerts.timer underway-uptime.timer underway-satellite.timer \
             underway-gcal.timer
         sudo systemctl restart underway-dashboard underway-report
-
-    Enable `ship-routes.timer` too if the UM VPN is in use.
 
 4. Set the camera leg for the new leg ([Running it day to day](running.html#routine-tasks)).
