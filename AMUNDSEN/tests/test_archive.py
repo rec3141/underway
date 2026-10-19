@@ -48,6 +48,26 @@ def test_a_leg_becomes_acsd_files_the_ingest_reads_into_the_right_variables(tmp_
     assert frame.loc[frame.index == "2016-06-05T20:37:00Z", lat].tolist() == [50.3]
 
 
+def test_navigation_gives_position_and_speed_where_a_leg_has_it(tmp_path):
+    d = write_leg(tmp_path)
+    (d / "nav.csv").write_text(                                              # as the fetch's split writes it
+        "cruise_number,time,n,latitude,longitude,Speed\n"
+        "Amundsen_2016001,2016-06-05T18:00:00Z,60,50.15,-58.55,11.2\n"
+        "Amundsen_2016001,2016-06-05T18:01:00Z,60,,,\n"                   # a minute with no fix
+        "Amundsen_2016001,2016-06-05T18:02:00Z,60,50.25,-58.65,10.8\n")
+    out = tmp_path / "acsd"
+    archive.write_acsd(d, out)
+    frame, names = ingest.parse_file(out / "ACSD_20160605.csv")
+    lat, lon = resolve_position(list(frame.columns))[0]
+    by_var = {r.variable.name: r.key for r in resolve_variables(list(frame.columns), names) if r.key}
+    speed = by_var["Ship speed (kn)"]
+    at = lambda m: frame.loc[f"2016-06-05T{m}:00Z"]
+    assert (at("18:00")[lat], at("18:00")[lon], at("18:00")[speed]) == (50.15, -58.55, 11.2)  # over the TSG's
+    assert (at("18:01")[lat], at("18:01")[lon]) == (50.2, -58.6)                            # the TSG's, without one
+    assert (at("18:02")[lat], at("18:02")[speed]) == (50.25, 10.8)                          # a minute only it has
+    assert at("18:00")[by_var["SST (°C)"]] == 6.1                                            # the rest is the TSG's
+
+
 def test_casts_group_by_cast_and_skip_rows_without_one(tmp_path, monkeypatch):
     write_leg(tmp_path)
     monkeypatch.setattr(archive, "ARCHIVE_ROOT", tmp_path)

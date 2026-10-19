@@ -9,6 +9,8 @@ User=@UNDERWAY_USER@
 Group=@UNDERWAY_GROUP@
 WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
 EnvironmentFile=@UNDERWAY_SITE@
+# the plain settings saved on the /settings page; they override the site file
+EnvironmentFile=-@UNDERWAY_CONFIG@/site.env
 Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
 # drafts, uploaded logsheets and digitized logbook pages
 Environment=CRUISE_STATE_DIR=@UNDERWAY_HOME@/report

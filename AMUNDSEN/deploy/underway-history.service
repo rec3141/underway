@@ -12,6 +12,8 @@ User=@UNDERWAY_USER@
 Group=@UNDERWAY_GROUP@
 WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
 EnvironmentFile=@UNDERWAY_SITE@
+# the plain settings saved on the /settings page; they override the site file
+EnvironmentFile=-@UNDERWAY_CONFIG@/site.env
 ExecStart=@UNDERWAY_HOME@/app/AMUNDSEN/tools/history-pull.sh
 # a first pull over Starlink copies the whole database and every fetched file
 TimeoutStartSec=45min

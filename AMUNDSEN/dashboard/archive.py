@@ -4,7 +4,8 @@
 record from https://erddap.amundsenscience.com/erddap and lays them out by
 leg (CC-BY 4.0; cite Amundsen Science / ArcticNet):
 
-    <ARCHIVE_ROOT>/by-leg/<year>/<YYYY_LEG_NN>/tsg.csv        TSG, per-minute means
+    <ARCHIVE_ROOT>/by-leg/<year>/<YYYY_LEG_NN>/nav.csv        navigation, per-minute means (optional)
+                                              tsg.csv        TSG, per-minute means
                                               avos.csv       AVOS weather (2004-2022)
                                               ats.csv        ATS weather (2023-2024)
                                               ctd_1dbar.csv  rosette CTD, 1 dbar bins
@@ -17,6 +18,10 @@ and the track take them like any other leg (``legs.discover`` marks them
 
 The columns carried over, and why some are not:
 
+* Navigation (amundsen12447, 1 Hz POS-MV, averaged per minute by the
+  fetch): position and speed (knots). Where a leg has ``nav.csv`` its
+  position and speed stand in every minute it covers; a leg without one, or
+  a minute it misses, takes them from the files below.
 * TSG: hull temperature, salinity, fluorescence, sound velocity; its vessel
   speed is the ship's speed. The ship's position comes from whichever
   archive row has it.
@@ -30,8 +35,6 @@ The columns carried over, and why some are not:
   same reason as AVOS's.
 * Each CTD cast's time and place is a position as well: a leg with casts and
   no underway record (most of 2002-2004) is then a leg with its stations.
-* Navigation (1 Hz, amundsen12447) could not be fetched: the server resets
-  every transfer of it.
 """
 
 from __future__ import annotations
@@ -52,6 +55,8 @@ ARCHIVE_ROOT = Path(os.environ.get("UNDERWAY_ARCHIVE_DIR", DB_DIR.parent / "arch
 LEG_RE = re.compile(r"^(\d{4})_LEG_(\d{2})$")
 
 # (instrument, column) the ship's ACSD files use, from each archive file's column
+NAV = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longitude (deg E)"),
+       "Speed": ("POSMV", "Speed (knt)")}
 TSG = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longitude (deg E)"),
        "SST_TSG": ("TSG", "Hull temperature (deg C)"), "P_sal_TSG": ("TSG", "Salinity (psu)"),
        "Fluo": ("TSG", "Fluorescence (ug/L)"), "SVel": ("TSG", "Sound velocity (m/s)"),
@@ -69,7 +74,8 @@ ATS = {"latitude": ("POSMV", "Latitude (deg N)"), "longitude": ("POSMV", "Longit
        "air_pressure": ("AVOS", "Atmospheric pressure (HPa)"),
        "shortwave_radiation": ("ATS_Portside", "Short wave radiation (W/m²)")}
 HUMIDITY = ("AVOS", "Air humidity (%)")
-SOURCES = (("tsg.csv", TSG), ("avos.csv", AVOS), ("ats.csv", ATS))
+# read in this order; the first file to give a minute a column keeps it
+SOURCES = (("nav.csv", NAV), ("tsg.csv", TSG), ("avos.csv", AVOS), ("ats.csv", ATS))
 
 # the casts: archive column -> (the Casts tab's variable, unit); the older
 # one-leg datasets name their columns differently and publish no units for
@@ -138,7 +144,8 @@ def _place(lat: float | None, lon: float | None) -> tuple[float | None, float | 
 def leg_rows(leg_dir: Path) -> tuple[list[tuple[str, str]], dict[str, dict]]:
     """A leg's archive files merged per minute: the (instrument, column)
     list and {time: {(instrument, column): value}}. Where two files give the
-    ship's position in one minute, the first one read (the TSG's) stands."""
+    ship's position or speed in one minute, the first one read stands: the
+    navigation's when the leg has it, else the TSG's."""
     columns: dict[tuple[str, str], None] = {}
     rows: dict[str, dict] = defaultdict(dict)
     for name, mapping in SOURCES:

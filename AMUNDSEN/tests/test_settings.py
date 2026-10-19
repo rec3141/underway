@@ -300,3 +300,16 @@ def test_gcal_upload_and_password_change(client, conf):
     assert S.verify_password("a new pass")
     client.cookie = old                         # the login from before the change no longer counts
     assert 'name="password"' in client.page()
+
+
+def test_the_note_after_a_save_says_who_restarts(monkeypatch):
+    monkeypatch.setenv("UNDERWAY_SUPERVISED", "1")
+    assert "restarts in a few seconds" in S.saved_note()
+    monkeypatch.delenv("UNDERWAY_SUPERVISED")
+    assert "systemctl restart underway-dashboard" in S.saved_note()       # a workstation: no supervisor
+
+
+def test_the_supervisor_marks_its_children(tmp_path, monkeypatch):
+    from dashboard import supervise
+    monkeypatch.setenv("UNDERWAY_CONFIG", str(tmp_path))
+    assert supervise.environment()["UNDERWAY_SUPERVISED"] == "1"

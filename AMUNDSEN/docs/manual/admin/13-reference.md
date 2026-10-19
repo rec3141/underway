@@ -4,9 +4,10 @@
 
 Every setting is an environment variable. On a workstation, plain settings
 go in `/etc/underway/site.env` and secrets in
-`~/.config/underway/underway.env`; in the container both are written by the
-`/settings` page into `data/config/`. "Page" marks the settings that page
-offers.
+`~/.config/underway/underway.env`; the `/settings` page writes its plain
+settings to `~/.config/underway/site.env`, which the units read after
+`/etc/underway/site.env`. In the container the page writes both files into
+`data/config/`. "Page" marks the settings that page offers.
 
 ### Installation and paths
 
@@ -19,7 +20,7 @@ offers.
 | `UNDERWAY_SITE` | `/etc/underway/site.env` | the site file the tools and `install.sh` read |
 | `UNDERWAY_DB_DIR` | `db/` beside the package (the units set `$UNDERWAY_HOME/db`) | stores and service state |
 | `UNDERWAY_CACHE_DIR` | `cache/` beside the package (units: `$UNDERWAY_HOME/cache`) | build cache |
-| `UNDERWAY_WEBROOT` | `$UNDERWAY_HOME/www` | the built site |
+| `UNDERWAY_WEBROOT` | `$UNDERWAY_HOME/www` (the units set it); required when `UNDERWAY_LOCAL` is unset | the built site |
 | `UNDERWAY_CHAT_DB` | `$UNDERWAY_HOME/chat/chat.sqlite` | the chat database |
 | `UNDERWAY_CAMERA_OUTPUT` | `$UNDERWAY_HOME/camera360` | camera timelapses |
 | `UNDERWAY_ARCHIVE_DIR` | `$UNDERWAY_DB_DIR/../archive` | Amundsen Science's archive |
@@ -106,7 +107,7 @@ On a workstation the shares are mounted from `/etc/fstab` with
 |---|---|---|
 | `UNDERWAY_CAMERA_SOURCE` (Page) | `/mnt/ship/Data/Camera_360` | camera pictures |
 | `UNDERWAY_CAMERA_INTERVAL` (Page) | `120` | seconds between frames |
-| `UNDERWAY_CAMERA_LAYOUT` (Page) | `mosaic` (Page and example: `portrait`) | `portrait` or `mosaic` |
+| `UNDERWAY_CAMERA_LAYOUT` (Page) | `portrait` | `portrait` or `mosaic` |
 | `UNDERWAY_CAMERA_WIDTH` (Page) | 720 portrait, 1280 mosaic | video width |
 | `UNDERWAY_CAMERA_SYNC_LEG` (Page) | | the leg the daily copy takes |
 | `UNDERWAY_CAMERA_SHARE` (Page) | | the daily copy's destination (must exist) |
@@ -145,7 +146,7 @@ see [The cruise report builder](cruise-report.html#settings).
 | File | What |
 |---|---|
 | `underway.env` | secrets (mode 600) |
-| `site.env` | plain settings (container only; a workstation uses `/etc/underway/site.env`) |
+| `site.env` | plain settings from the settings page (a workstation's units read it after `/etc/underway/site.env`) |
 | `gcal-sa.json` | Google service account key (mode 600) |
 | `admins.json` | chat names that may clear review flags |
 | `chat-model.json` | local chat model override (`api`, `url`, `model`) |

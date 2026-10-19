@@ -13,7 +13,10 @@ it writes is the two files everything else already reads from
 
 After a save the page touches ``CONFIG_DIR/.reload``; the supervisor
 (dashboard.supervise) then restarts the servers so they start with the new
-values. Scheduled jobs read the files afresh on each run.
+values. Scheduled jobs read the files afresh on each run. On a workstation
+install the systemd units read both files too (``CONFIG_DIR/site.env`` after
+the site file, so the page's value wins), but nothing watches ``.reload``: the
+page says the servers take a saved setting at their next restart.
 
 The admin password is set only from the command line
 (``python -m dashboard set-admin-password``): the page never lets the first
@@ -311,6 +314,16 @@ def mask(value: str) -> str:
     if not value:
         return "not set"
     return f"set (ends …{value[-4:]})" if len(value) >= 12 else "set"
+
+
+def saved_note() -> str:
+    """What happens next to a saved setting: the supervisor restarts the servers;
+    under systemd only the scheduled jobs pick it up by themselves."""
+    if os.environ.get("UNDERWAY_SUPERVISED"):
+        return "The dashboard restarts in a few seconds to use them; reload this page if it does not answer at once."
+    return ("The scheduled jobs use them from their next run. The servers (this page, the chat bots, the "
+            "cruise report builder) use them once restarted: sudo systemctl restart underway-dashboard "
+            "underway-telegram underway-report")
 
 
 def request_reload() -> None:
@@ -687,8 +700,7 @@ def handle_post(h, path: str) -> None:
             return _send(h, 500, render(sid, ("bad", f"Could not write the settings file: {e.strerror}."), typed))
         n = sum(len(c) for c in changed.values())
         if n:
-            _flash[sid] = ("ok", f"Saved {n} setting{'s' if n != 1 else ''}. The dashboard restarts in a few "
-                                 "seconds to use them; reload this page if it does not answer at once.")
+            _flash[sid] = ("ok", f"Saved {n} setting{'s' if n != 1 else ''}. " + saved_note())
             log.info("settings: saved %s", ", ".join(k for c in changed.values() for k in c))
         else:
             _flash[sid] = ("ok", "Nothing had changed.")

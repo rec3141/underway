@@ -184,10 +184,14 @@ Other protections:
   unencrypted.
 
 !!! note "On a workstation install"
-    The page server answers `/settings` there too, and its secrets go to the
-    account's `underway.env`, which the units read. Its plain settings go to
-    `~/.config/underway/site.env`, which the units do not read: on a
-    workstation, edit `/etc/underway/site.env` instead.
+    The page server answers `/settings` there too. Its secrets go to the
+    account's `underway.env` and its plain settings to
+    `~/.config/underway/site.env`; the units read both, the page's
+    `site.env` after `/etc/underway/site.env`, so a value saved on the page
+    wins. There is no supervisor: the timers' jobs take a saved setting at
+    their next run, and the servers once restarted
+    (`sudo systemctl restart underway-dashboard underway-telegram underway-report`),
+    as the page says after a save.
 
 ## Making a release
 
