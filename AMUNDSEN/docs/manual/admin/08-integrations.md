@@ -329,9 +329,9 @@ UNDERWAY_DB_DIR=/data/underway_server/db /opt/miniforge3/bin/python3 -m dashboar
 
 The page server listens for SeaSave's converted-data XML stream on the CTD
 acquisition PC and shows the cast in progress in the Casts tab. By default
-it probes `10.0.0.22`, ports 49160–49168, and keeps the first stream it
+it probes `10.0.0.xxx`, ports 49160–49168, and keeps the first stream it
 recognises. Set `UNDERWAY_CTD_TCP` (for example
-`10.0.0.22:49161`) only if the live cast does not appear.
+`10.0.0.xxx:49161`) only if the live cast does not appear.
 
 ## The Codex bot (optional)
 

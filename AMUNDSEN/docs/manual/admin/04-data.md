@@ -25,9 +25,9 @@ mirror's `/data/ship/Data`) unless they start with `Share/`
 | CTD casts | `external_proprietary/CTD/*.cnv` | rosette profiles (SBE 9 and SBE 19plus) |
 | MVP tows | `MVP/<leg>/<tow>/*.m1` (and `.raw`, `.log`) | MVP tows and dips |
 | Camera pictures | `Camera_360/` | timelapses and the ice camera ([Integrations](integrations.html#cameras)) |
-| Intranet schedule | `http://10.0.0.2/Schedule.html` (`UNDERWAY_SCHEDULE_URL`) | Schedule tab; the last copy is kept in `db/schedule.json` for when the intranet is down |
-| Intranet live page | `http://10.0.0.2/live.html` (`UNDERWAY_INTRANET`) | readings a few seconds old; recorded in `db/live_scrape/` |
-| Live CTD | SeaSave on `10.0.0.22`, TCP ports 49160–49168 (`UNDERWAY_CTD_TCP`) | the live cast in the Casts tab |
+| Intranet schedule | `http://10.0.0.xxx/Schedule.html` (`UNDERWAY_SCHEDULE_URL`) | Schedule tab; the last copy is kept in `db/schedule.json` for when the intranet is down |
+| Intranet live page | `http://10.0.0.xxx/live.html` (`UNDERWAY_INTRANET`) | readings a few seconds old; recorded in `db/live_scrape/` |
+| Live CTD | SeaSave on `10.0.0.xxx`, TCP ports 49160–49168 (`UNDERWAY_CTD_TCP`) | the live cast in the Casts tab |
 | Archive 2002–2024 | `UNDERWAY_HOME/archive/acsd/…` | archive legs ([Amundsen Science's archive](archive.html)) |
 
 ### Legs and the live leg

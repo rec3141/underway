@@ -205,8 +205,8 @@ plain-HTTP requests with a package manager's User-Agent; HTTPS works.
 `sudo tools/ship-smb-setup.sh` writes these to `/etc/fstab`:
 
 ```
-//10.0.0.10/Data  /mnt/ship/Data  cifs credentials=/etc/ship-smb.creds,uid=…,gid=…,file_mode=0664,dir_mode=0775,iocharset=utf8,vers=3.0,_netdev,nofail,noauto,x-systemd.automount 0 0
-//10.0.0.10/Share /mnt/ship/Share cifs …same options…
+//10.0.0.xxx/Data  /mnt/ship/Data  cifs credentials=/etc/ship-smb.creds,uid=…,gid=…,file_mode=0664,dir_mode=0775,iocharset=utf8,vers=3.0,_netdev,nofail,noauto,x-systemd.automount 0 0
+//10.0.0.xxx/Share /mnt/ship/Share cifs …same options…
 ```
 
 The mounts belong to the service account and mount on first access
@@ -224,17 +224,17 @@ mirror, and only the mirror pass touches the share.
 
 When the University of Manitoba VPN is up it installs `10.0.0.0/25` and
 `10.0.0.128/25` routes through `tun0` on every reconnect, which captures the
-ship's NAS (10.0.0.10) and intranet (10.0.0.2). The CIFS mount then hangs
+ship's NAS (10.0.0.xxx) and intranet (10.0.0.xxx). The CIFS mount then hangs
 and the mirror goes stale.
 
 `tools/ship-routes.sh` installs four `/26` routes for `10.0.0.0/24`,
 on-link over the wired port that holds a 10.0.0.x address, or through the
-Wi-Fi gateway (192.168.3.1) when no wired port is up. Only 10.0.0.0/24 is
+Wi-Fi gateway (192.168.3.xxx) when no wired port is up. Only 10.0.0.0/24 is
 steered; the rest of 10/8 keeps going over the VPN.
 
 ```sh
 sudo tools/ship-routes.sh on        # install the routes
-sudo tools/ship-routes.sh status    # where 10.0.0.10 goes now
+sudo tools/ship-routes.sh status    # where 10.0.0.xxx goes now
 sudo tools/ship-routes.sh off
 ```
 

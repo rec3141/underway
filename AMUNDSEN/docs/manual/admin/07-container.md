@@ -129,7 +129,7 @@ docker exec -it underway bash  # a shell inside
 
 | Group | Settings |
 |---|---|
-| Ship shares | server address (10.0.0.10), Data share name, science share name, user name, password |
+| Ship shares | server address (10.0.0.xxx), Data share name, science share name, user name, password |
 | Telegram | bot token, your chat id |
 | Email alerts | mail server, port, account, password, send as, secure connection, replies go to, problem alerts to |
 | Satellite | Copernicus client id and secret |
@@ -192,7 +192,7 @@ Other protections:
 ## Making a release
 
 A release is a git tag and a drive (or a folder on the ship's file server,
-`\\10.0.0.10\Share\Software\underway-<version>`).
+`\\10.0.0.xxx\Share\Software\underway-<version>`).
 
 ```sh
 git tag 2026.10 && git push origin 2026.10

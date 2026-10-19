@@ -18,8 +18,8 @@ Use the address for the network you are on:
 | You are on | Type this address |
 |---|---|
 | the ship's Wi-Fi | `http://underway.local` |
-| the ship's Wi-Fi, if that name does not work | `http://192.168.3.216/underway/` |
-| the wired network | `http://10.0.0.58/` |
+| the ship's Wi-Fi, if that name does not work | `http://192.168.3.xxx/underway/` |
+| the wired network | `http://10.0.0.xxx/` |
 
 To open the dashboard on the ship:
 
@@ -39,7 +39,7 @@ To open the dashboard on the ship:
 
 !!! note
     Android phones and tablets cannot use the name `underway.local`. On
-    Android, type the number address instead: `http://192.168.3.216/underway/`.
+    Android, type the number address instead: `http://192.168.3.xxx/underway/`.
 
 ### How do I know which network I am on?
 
@@ -129,7 +129,7 @@ If the page does not open, try these steps in order:
 2. **Check the network.** Make sure your device is on the ship's network,
    and use the address for that network (see the table above).
 3. **Use the number, not the name.** If `http://underway.local` does not
-   work, type `http://192.168.3.216/underway/` instead.
+   work, type `http://192.168.3.xxx/underway/` instead.
 4. **Reload the page.** Press F5, or the circular arrow in the browser.
 5. **Try another browser** on the same device.
 6. **Ask for help.** If none of this works, the dashboard's computer may be
