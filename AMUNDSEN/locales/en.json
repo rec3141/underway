@@ -157,10 +157,6 @@
       "text": "Select leg and time span:",
       "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
     },
-    "shell.reportBanner": {
-      "text": "Cruise reports: build yours →",
-      "context": "Header banner linking to the cruise report builder; a cruise report is the field report each science team writes for Amundsen Science before leaving the ship."
-    },
     "shell.legsToShow": {
       "text": "Legs to show · ",
       "context": "Dashboard static interface label; Canadian French. Preserve scientific identifiers and units."
@@ -5126,6 +5122,10 @@
     "sources.manual": {
       "text": "The manual: how to use the dashboard, and how to run it",
       "context": "Link at the top of the Sources tab to the user and administrator manual."
+    },
+    "sources.report": {
+      "text": "The cruise report builder: your team's report in the Amundsen Science template, from the ship's records, due before the end of your leg",
+      "context": "Link in the Sources tab to the cruise report builder; a cruise report is the field report each science team writes for Amundsen Science before leaving the ship."
     }
   }
 }

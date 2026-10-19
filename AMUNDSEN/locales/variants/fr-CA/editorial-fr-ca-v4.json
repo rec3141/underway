@@ -2873,11 +2873,6 @@
       "text": "Choisir le tronçon et la période :",
       "status": "draft"
     },
-    "shell.reportBanner": {
-      "source": "Cruise reports: build yours →",
-      "text": "Rapports de mission : préparez le vôtre →",
-      "status": "draft"
-    },
     "shell.legsToShow": {
       "source": "Legs to show · ",
       "text": "Tronçons à afficher · ",
@@ -6112,6 +6107,11 @@
     "sources.manual": {
       "source": "The manual: how to use the dashboard, and how to run it",
       "text": "Le manuel : utiliser le tableau de bord, et le faire fonctionner",
+      "status": "draft"
+    },
+    "sources.report": {
+      "source": "The cruise report builder: your team's report in the Amundsen Science template, from the ship's records, due before the end of your leg",
+      "text": "Le générateur de rapports de mission : le rapport de votre équipe dans le gabarit d'Amundsen Science, à partir des registres du navire, à remettre avant la fin de votre tronçon",
       "status": "draft"
     }
   }

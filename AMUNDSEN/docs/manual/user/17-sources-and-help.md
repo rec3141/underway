@@ -17,6 +17,9 @@ The last tab in the row at the top is a question mark, **?**. It opens the
 
 - **📖 The manual: how to use the dashboard, and how to run it** opens this
   manual in a new tab.
+- **📝 The cruise report builder** opens the builder, where each science team
+  writes its part of the cruise report from the ship's records. Aboard only.
+  See [The cruise report builder](cruise-report.html).
 - **Ship intranet:** links to the ship's own web pages: the **Schedule**, the
   **Event log**, the **Rosette log**, the **Live** data page and a
   **Tutorial**. These work only aboard. On the public web copy this line

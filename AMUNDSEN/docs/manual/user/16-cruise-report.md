@@ -18,14 +18,16 @@ first time. You can stop at any point and come back later.
 !!! note "Aboard only"
     The builder runs on the ship's server and reads the ship's shared drive.
     It works only on the ship's network. The public web copy of the dashboard
-    does not have it, nor its button.
+    does not have it, nor its link.
 
 ## Opening the builder
 
 1. Open the dashboard (see [Opening the dashboard](opening.html)).
-2. Under the ship's name, at the top left, click the amber button
-   **Cruise reports: build yours →**.
-3. The builder opens in the same window. You can also type its address
+2. Click **?** at the right end of the row of tabs. The **Sources** page
+   opens.
+3. Near its top, under the link to this manual, click **📝 The cruise report
+   builder**.
+4. The builder opens in the same window. You can also type its address
    directly: `http://underway.local/report/`.
 
 The page is one long form in six numbered steps. You fill them in from top to
@@ -670,8 +672,8 @@ EDNA and FLOWTHRU.
 
 ## In short
 
-- Open the builder from the dashboard's **Cruise reports: build yours →**
-  button, aboard.
+- Open the builder from the dashboard's **?** tab (**📝 The cruise report
+  builder**), aboard.
 - Step 1: leg, team, people.
 - Step 2: bring in your logbook (photos or spreadsheet), mark what each column
   holds, tick your logs and instruments, check the operations and the bottles.
