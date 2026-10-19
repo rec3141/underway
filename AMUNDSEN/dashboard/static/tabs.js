@@ -42,7 +42,11 @@
     return xa + (xb - xa) * (pres - p[j]) / (p[j + 1] - p[j] || 1);
   };
   const bottleDepth = (b, lat) => b.depth_m ?? (b.p != null ? depthFrom(b.p, lat) : null);
-  const bottleText = (b) => ui("bottle {v0}{v1}", {v0: (b.bottle), v1: (b.time ? " · " + String(b.time).replace("T", " ").slice(11, 16) : "")});
+  // cast and bottle times arrive in UTC; a person reads them in ship time,
+  // as on the Stations tab (fmtTs)
+  const shipStamp = (s) => { const ms = UW.tms(s); return isNaN(ms) ? "" : fmtTs(ms); };   // YYYY-MM-DD HH:MM, ship time
+  const shipHM = (s) => shipStamp(s).slice(11);                                            // HH:MM, ship time
+  const bottleText = (b) => ui("bottle {v0}{v1}", {v0: (b.bottle), v1: (b.time ? " · " + shipHM(b.time) : "")});
   if (casts.mode === "live") { casts.kind = "live"; casts.mode = "single"; store.set("casts.kind", "live"); store.set("casts.mode", "single"); }   // Live is a kind now
   // selection ids: a cast or tow id, or "<towid>#<dip index>" for one dip
   const parentId = (id) => id.split("#")[0];
@@ -54,7 +58,7 @@
   casts.open = new Set(store.get("casts.open", []));
   const castLabel = (c) => c.kind === "LIVE" ? ui("Live cast") : c.kind === "MVP" ? ui("MVP tow {v0}{v1}", {v0: (c.cast), v1: (c.n_profiles ? ui(" · {v0} dips", {v0: (c.n_profiles)}) : "")})
     : `${c.kind === "LADCP" ? ui("LADCP cast") : c.kind === "TM" ? ui("TM cast") : ui("Cast")} ${c.cast}${c.station ? " · " + c.station : ""}`;
-  const castDate = (c) => c.time ? c.time.replace("T", " ").slice(0, 16) + (c.time_end ? "–" + c.time_end.replace("T", " ").slice(11, 16) : "") : "";
+  const castDate = (c) => c.time ? shipStamp(c.time) + (c.time_end ? "–" + shipHM(c.time_end) : "") : "";
   // a tow bundle expands into its dips — only the selected ones when dips were
   // picked individually, all of them when the tow was selected as a whole; a
   // CTD cast is one profile
@@ -244,21 +248,22 @@
   const CAST_COLS = [["sel", ""], ["kind", "type"], ["cast", "cast"], ["station", "station"], ["label", "label"], ["time", "time (ship)"], ["depth", "max depth (m)"], ["bottles", "bottles"], ["leg", "leg"]];
   casts.sort = store.get("casts.sort", { key: "time", dir: -1 });
   function castRows() {
-    if (!casts.idx) return { rows: [], inLegs: [] };
+    if (!casts.idx) return { rows: [], hidden: 0 };
     const q = casts.search.toLowerCase();
     const f = UW.currentFilter();
-    const inLegs = allCasts()
-      .filter((c) => (c.legs || [c.leg]).some((leg) => f.legs.has(leg)))
+    // every cast of the kind and search, so the casts of hidden legs can be counted
+    const all = allCasts()
       .filter((c) => casts.kind === "all" || c.kind === casts.kind)
       .filter((c) => !q || `${c.cast} ${c.station} ${c.label} ${c.time} ${c.leg}`.toLowerCase().includes(q));
-    const rows = inLegs.filter((c) => c.kind === "TRS"
+    const hidden = all.filter((c) => !(c.legs || [c.leg]).some((leg) => f.legs.has(leg))).length;
+    const rows = all.filter((c) => (c.legs || [c.leg]).some((leg) => f.legs.has(leg))).filter((c) => c.kind === "TRS"
       ? c.members.some((id) => { const m = castById(id); return m && (UW.inFilter(m.leg, m.time_end || m.time, f) || UW.inFilter(m.leg, m.time, f)); })
       : UW.inFilter(c.leg, c.time_end || c.time, f) || UW.inFilter(c.leg, c.time, f))
       .map((c) => ({ ...c, legLabel: UW.legById(c.leg)?.label || c.leg, depth: maxDepthValue(c) != null ? Math.round(maxDepthValue(c)) : null, bottles: c.n_bottles ?? null }));
     const k = casts.sort.key, dir = casts.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : k === "sel" ? (casts.sel.has(r.id) ? 1 : 0) : r[k];
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
-    return { rows, inLegs, f };
+    return { rows, hidden, f };
   }
   let bottleTableSeq = 0, bottleTableHead = [], bottleTableRows = [], bottleTableView = [];
   let bottleTableSort = { column: 0, dir: 1 };
@@ -274,7 +279,7 @@
   function bottleBrowseValue(value, column) {
     if (value == null || value === "") return "—";
     const key = bottleTableHead[column];
-    if (key === "time") return String(value).replace("T", " ").slice(0, 16);
+    if (key === "time") return shipStamp(value) || String(value);
     if (typeof value !== "number" || !Number.isFinite(value)) return String(value);
     if (key === "lat" || key === "lon") return value.toFixed(4);
     if (key === "pressure (dbar)" || key === "depth (m)") return String(Number(value.toFixed(1)));
@@ -337,7 +342,7 @@
       if (live.data) liveCfgForm(tbl, live.data);
       $("#castclear").textContent = t("underway.clearSelection"); $("#castclear").classList.remove("has"); return;
     }
-    const { rows, inLegs, f } = castRows();
+    const { rows, hidden, f } = castRows();
     renderBottleTable();
     const arrow = (k) => casts.sort.key === k ? (casts.sort.dir > 0 ? " ▲" : " ▼") : "";
     const head = CAST_COLS.map(([k, l]) => k === "sel"
@@ -359,7 +364,7 @@
       }
       return html;
     };
-    tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, inLegs.length, f, "tr", CAST_COLS.length)}${rows.map(row).join("")}${!rows.length ? `<tr><td colspan="${CAST_COLS.length}" class="muted">${uh("no casts match")}</td></tr>` : ""}</tbody>`;
+    tbl.innerHTML = `<thead><tr>${head}</tr></thead><tbody>${spanNote(rows.length, rows.length + hidden, f, "tr", CAST_COLS.length)}${rows.map(row).join("")}${!rows.length ? `<tr><td colspan="${CAST_COLS.length}" class="muted">${uh("no casts match")}</td></tr>` : ""}</tbody>`;
     const all = tbl.querySelector("thead input[data-select-all]");
     selectAllHeader(tbl, rows.map((c) => c.id));
     all.onclick = (e) => { e.stopPropagation(); selectCastRows(rows.map((c) => c.id), all.checked); };
@@ -631,7 +636,7 @@
     for (const b of host.querySelectorAll(".singlevar")) b.onclick = () => { single.vars = single.vars.includes(b.dataset.v) ? single.vars.filter((x) => x !== b.dataset.v) : [...single.vars, b.dataset.v]; store.set("casts.single.vars", single.vars); renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-id]")) b.onclick = () => { single.id = b.dataset.id; single.dip = null; renderSingle(host, data); };
     for (const b of host.querySelectorAll("[data-dip]")) b.onclick = () => { single.dip = +b.dataset.dip; renderSingle(host, data); };
-    const when = prof.time ? String(prof.time).replace("T", " ").slice(0, 16) : castDate(pick);
+    const when = prof.time ? shipStamp(prof.time) : castDate(pick);
     drawOverlay(host.querySelector("#singlebody"), "single-plot", profs.length > 1 ? ui("{v0} · dip #{v1}", {v0: (castLabel(pick)), v1: (prof.index + 1)}) : castLabel(pick),
       { depth: currentSeries(prof, vars[0]).depth, vars: Object.fromEntries(Object.keys(prof.vars).map((v) => [v, currentSeries(prof, v).values])), units: pick.units || {}, splitAt: null, nowDepth: null, bottles: prof.bottles || pick.bottles, lat: prof.lat ?? pick.lat,
         scope:[pick.id,single.dip], upperAxes, axisOrderTopDown:true,sub: `${when}${(prof.bottom_m || pick.bottom_m) ? ui(" · bottom {v0} m", {v0: (Math.round(prof.bottom_m || pick.bottom_m))}) : ""}` }, ordered.filter(v=>v!==CHART&&single.vars.includes(v)));
@@ -1186,9 +1191,9 @@
     const s = cal.data.schedule || {};
     const q = cal.search.toLowerCase();
     const f = UW.currentFilter();
-    const evAll = cal.data.events.filter((e) => f.legs.has(e.leg)).filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
+    const evAll = cal.data.events.filter((e) => !q || JSON.stringify(e).toLowerCase().includes(q));
     const evs = evAll.filter((e) => UW.inFilter(e.leg, e.time_utc, f));
-    if (cal.view === "timeline") return renderTimeline(host, evs, s, evAll.length - evs.length);
+    if (cal.view === "timeline") return renderTimeline(host, evs, s, evAll.filter((e) => !f.legs.has(e.leg)).length);   // the loaded events of legs not shown
     if (cal.view === "month") return renderMonth(host, q);
     const isoDay = (r) => { const t = UW.tms(r.start_utc); return isNaN(t) ? "" : dayL(t); };
     // the rows in page order under a header row per ship day; a day's
@@ -1523,7 +1528,7 @@
       shapes: [{ type: "line", xref: "x", x0: shifted(now), x1: shifted(now), yref: "paper", y0: 0, y1: 1, line: { color: C.now, width: 2 } }],
       annotations: [{ xref: "x", x: shifted(now), yref: "paper", y: 1, yanchor: "bottom", text: ui("now {v0}", {v0: (hmL(now))}), showarrow: false, font: { size: fz(11), color: C.now } }] };
     UW.reactPlot($("#cal-plot"), traces, layout, CFG, `event-span:${span.start}:${span.end}`).then((gd) => { UW.axisZoom(gd); gd.removeAllListeners?.("plotly_click"); gd.on("plotly_click", (ev) => { const k = ev.points?.[0]?.customdata; if (k) showLogRow(host, k); }); });
-    wireCastPanels(host, () => renderTimeline(host, evs, s));
+    wireCastPanels(host, () => renderTimeline(host, evs, s, nHidden));
     host.querySelector('[data-cp="cal-plot"] .reset').onclick = () => Plotly.relayout($("#cal-plot"),
       range ? { "xaxis.range": range, "xaxis.autorange": false } : { "xaxis.autorange": true });
   }
@@ -1634,7 +1639,8 @@
         evs.slice(0, 6).map(({ e, cont }) => entryHtml(e, cont)).join("") +
         (evs.length > 6 ? `<div class="mmore">${uh("+{v0} more", {v0: (evs.length - 6)})}</div>` : "") + `</div>`);
     }
-    const label = first.toLocaleString(undefined, { month: "long", year: "numeric", timeZone: LTZ });
+    // cal.month names a calendar month, not an instant: name it in UTC, where `first` is its first day
+    const label = first.toLocaleString(window.UWI18n.locale, { month: "long", year: "numeric", timeZone: "UTC" });
     calFrame(host, label, `<div class="mgrid">${[uh("Mon"), uh("Tue"), uh("Wed"), uh("Thu"), uh("Fri"), uh("Sat"), uh("Sun")].map((d) => `<div class="mdow">${d}</div>`).join("")}${cells.join("")}</div>`, items,
       (n) => { const d = new Date(Date.UTC(y, m + n, 1)); cal.month = d.toISOString().slice(0, 7); store.set("cal.month", cal.month); renderCalendar(); });
     // a day number opens that day in the 3-day view
@@ -1724,7 +1730,7 @@
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
-    let all = (UW.M.stations || []).filter((s) => f.legs.has(s.leg)).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    let all = (UW.M.stations || []).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
     // the waypoints people have kept: a position and a name, no leg, so never filtered out
     all = all.concat((UW.waypoints?.() || []).map((w) => ({ station: w.name, kind: "waypoint", waypoint: w.id, legLabel: "", always: true,
       lat: w.lat, lon: w.lon, time: w.created_utc || null, leg: null, comments: [w.by, w.note].filter(Boolean).join(" · ") })));
@@ -1732,7 +1738,7 @@
     for (const pl of UW.plansShown?.() || []) all = all.concat(pl.stations.map((st) => ({ station: st.name, kind: `kmz ${pl.imported}`, legLabel: st.group, type: st.type || "", bottom_m: st.depth_m ?? null, activities: st.ops || "", label: st.region || "", comments: st.desc || "", lat: st.lat, lon: st.lon, time: null, leg: null })));
     if (q) all = all.filter((r) => `${r.time} ${r.legLabel} ${r.kind} ${r.station} ${r.label} ${r.type} ${r.activities} ${r.comments}`.toLowerCase().includes(q));
     const rows = all.filter((s) => s.always || UW.inFilter(s.leg, s.time, f));   // a waypoint or a planned station belongs to no leg or span
-    stn.hidden = all.length - rows.length;
+    stn.hidden = all.filter((s) => s.leg != null && !f.legs.has(s.leg)).length;   // the rows of legs not shown
     const k = stn.sort.key, dir = stn.sort.dir;
     const val = (r) => k === "leg" ? r.legLabel : k === "cast" ? +r.cast : r[k];
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null || x === "") return 1; if (y == null || y === "") return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });
@@ -1833,10 +1839,10 @@
     const f = UW.currentFilter();
     // A failed refresh can leave older table data visible; its numeric leg
     // codes must still be interpreted with the matching manifest.
-    let all = d.rows.filter((r) => f.legs.has(tbl.legs[r.leg]?.id)).map((r) => ({ ...r, legLabel: tbl.legs[r.leg]?.label || "" }));
+    let all = d.rows.map((r) => ({ ...r, legLabel: tbl.legs[r.leg]?.label || "" }));
     if (q) all = all.filter((r) => `${fmtTs(r.t)} ${r.legLabel}`.toLowerCase().includes(q));
     const rows = all.filter((r) => UW.inFilter(tbl.legs[r.leg]?.id, r.t, f));
-    tbl.hidden = all.length - rows.length;
+    tbl.hidden = all.filter((r) => !f.legs.has(tbl.legs[r.leg]?.id)).length;   // the loaded rows of legs not shown
     const k = tbl.sort.key, dir = tbl.sort.dir;
     const val = (r) => k === "t" ? r.t : k === "leg" ? r.legLabel : k === "lat" || k === "lon" ? r[k] : (r[k] ? r[k][tbl.stat] : null);
     rows.sort((a, b) => { const x = val(a), y = val(b); if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * dir; });

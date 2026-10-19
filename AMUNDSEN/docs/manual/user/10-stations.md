@@ -68,6 +68,10 @@ menu (see [Choosing legs and a time span](legs-and-time.html)). The
 **Show last** span does not shorten it: every station of a ticked leg is
 listed.
 
+When a leg is not ticked, the first row of the table says how many of
+its rows are left out, for example **1,234 rows from legs not shown · show
+all legs**. Click **show all legs** to tick every leg.
+
 Waypoints and planned stations have no leg, so they are always listed.
 
 ## Searching
