@@ -9,7 +9,15 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from dashboard.track import publish_track, _select
+from dashboard import track as track_module
+from dashboard.track import _select, track_levels
+
+
+def publish_track(frame, root):
+    """The published header with its index's levels read back in."""
+    header = track_module.publish_track(frame, root)
+    assert "levels" not in header and header["index"].startswith("data/track/")
+    return {**header, "levels": track_levels(root, header)}
 from dashboard.derive import haversine_km
 
 
@@ -153,3 +161,21 @@ class TrackTests(unittest.TestCase):
                 payload = json.loads((root / entry['file']).read_text())
                 self.assertEqual(payload['lon'][0], 179.999)
                 self.assertEqual(payload['lon'][-1], -179.999)
+
+
+def test_the_index_is_its_own_file_kept_by_pruning_and_the_public_filter(tmp_path):
+    from dashboard.public import stale_track
+    from dashboard.track import prune_track
+    idx = pd.date_range("2026-08-01", periods=120, freq="min", tz="UTC")
+    f = pd.DataFrame({"lat": np.linspace(70, 71, 120), "lon": np.linspace(-80, -79, 120),
+                      "dist_km": np.linspace(0, 100, 120), "leg": 0}, index=idx)
+    header = track_module.publish_track(f, tmp_path)
+    index = tmp_path / header["index"]
+    assert index.is_file() and json.loads(index.read_text())["levels"]
+    old = time.time() - 30 * 86400
+    for p in (tmp_path / "data/track").iterdir():
+        os.utime(p, (old, old))
+    prune_track(tmp_path, header)
+    referenced = [header["index"]] + [c["file"] for level in track_levels(tmp_path, header) for c in level["chunks"]]
+    assert all((tmp_path / f).is_file() for f in referenced)
+    assert stale_track(tmp_path, {"track": header}) == []

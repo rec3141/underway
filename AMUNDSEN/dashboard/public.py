@@ -185,7 +185,9 @@ def stale_windows(root: Path, manifest: dict) -> list[str]:
 
 def stale_track(root: Path, manifest: dict) -> list[str]:
     """Track chunks in the web root that the manifest does not reference."""
-    listed = {c.get("file") for level in (manifest.get("track") or {}).get("levels", []) for c in level.get("chunks", [])}
+    from .track import track_levels
+    track = manifest.get("track") or {}
+    listed = {c.get("file") for level in track_levels(root, track) for c in level.get("chunks", [])} | {track.get("index")}
     return sorted(f"data/track/{p.name}" for p in (root / "data/track").glob("*.json") if f"data/track/{p.name}" not in listed)
 
 

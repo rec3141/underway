@@ -8,6 +8,7 @@ from contextlib import ExitStack
 import pandas as pd
 from dashboard import build as b
 from dashboard.config import Window
+from dashboard.track import track_levels
 from dashboard.legs import RootsUnavailable
 
 class TracksOnlyTests(unittest.TestCase):
@@ -66,7 +67,7 @@ class TracksOnlyTests(unittest.TestCase):
                 self.assertNotIn('fine_file', window)
                 self.assertTrue((root / window['file']).is_file())
             self.assertFalse(list((root / 'data').glob('*-fine.json')))
-            native = next(level for level in manifest['track']['levels'] if level['spacing_km'] == 0)
+            native = next(level for level in track_levels(root, manifest['track']) if level['spacing_km'] == 0)
             points = {}
             for chunk in native['chunks']:
                 payload = json.loads((root / chunk['file']).read_text())

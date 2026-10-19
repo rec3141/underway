@@ -78,7 +78,42 @@ def _payload(frame, segment):
 
 
 def publish_track(frame: pd.DataFrame, root: Path) -> dict:
-    """Publish leg/day chunks; return the small manifest embedded by build.py.
+    """Publish the chunks and their index; return the header build.py embeds
+    in the manifest. The index (every chunk's file, bounds and times, at each
+    spacing) is a file of its own, named by its content, so a page fetches it
+    only when the track changes rather than with every manifest."""
+    full = _publish_chunks(frame, root)
+    levels = full.pop("levels")
+    encoded = json.dumps({"version": full["version"], "levels": levels}, separators=(",", ":"),
+                         ensure_ascii=False, allow_nan=False).encode()
+    destination = Path(root) / "data" / "track"
+    destination.mkdir(parents=True, exist_ok=True)
+    name = hashlib.sha256(encoded).hexdigest()[:24] + ".json"
+    path = destination / name
+    if not path.exists():
+        temporary = path.with_suffix(".tmp")
+        temporary.write_bytes(encoded)
+        temporary.replace(path)
+    elif path.stat().st_mtime < time.time() - 86400:
+        os.utime(path, None)                # in use: prune_track's grace period runs from its last use
+    return {**full, "index": f"data/track/{name}"}
+
+
+def track_levels(root: Path, track: dict) -> list[dict]:
+    """The levels of a manifest's track header, read from its index file
+    (or embedded, as a page built by an older build has them)."""
+    if "levels" in track:
+        return track["levels"]
+    if not track.get("index"):
+        return []
+    try:
+        return json.loads((Path(root) / track["index"]).read_text()).get("levels", [])
+    except (OSError, ValueError):
+        return []
+
+
+def _publish_chunks(frame: pd.DataFrame, root: Path) -> dict:
+    """Publish leg/day chunks; return the header and the levels of chunks.
 
     Segment ids mark genuine breaks. Adjacent day/size chunks in a segment
     share one observation, allowing independent rendering without lost edges.
@@ -180,8 +215,10 @@ def prune_track(root: Path, manifest: dict, grace_days: float = 7) -> int:
     Reused fingerprint indexes refresh their age at most once per day.
     The grace period lets existing browser sessions finish loading their version.
     """
-    referenced = {entry["file"] for level in manifest.get("levels", [])
+    referenced = {entry["file"] for level in track_levels(root, manifest)
                   for entry in level.get("chunks", [])}
+    if manifest.get("index"):
+        referenced.add(manifest["index"])
     cutoff = time.time() - grace_days * 86400
     removed = 0
     destination = Path(root) / "data" / "track"
