@@ -594,7 +594,7 @@ At the bottom of the page, a reminder says where to put your report.
 2. Your browser saves **Cruise Report_Tremblay.docx** (your team name).
 3. Open it in Word. Check it, add your photos and your own plots.
 4. Save it, under that name, in the folder the page names, for example
-   `\\10.0.0.10\share\2026\Leg 3\Cruise Report`, before the end of your leg.
+   `\\10.0.0.xxx\share\2026\Leg 3\Cruise Report`, before the end of your leg.
 5. Fill in the **Amundsen user survey** (the link in the box).
 
 The Word file is the template, filled in: your title, the leaders with their

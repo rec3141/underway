@@ -29,11 +29,11 @@ Python package and the page's `static/` files and `templates/`),
 ## How data flows
 
 ```
- Ship's NAS 10.0.0.10                    workstation (/data/underway_server)
+ Ship's NAS 10.0.0.xxx                    workstation (/data/underway_server)
  //Data  //Share  (CIFS)
    |  /mnt/ship/Data, /mnt/ship/Share
    v
- mirror-share.sh (rsync) --> /data/ship/{Data,Share}       intranet 10.0.0.2
+ mirror-share.sh (rsync) --> /data/ship/{Data,Share}       intranet 10.0.0.xxx
                                    |                        (schedule, live page)
                                    v                              |
                     python -m dashboard build  <------------------+
@@ -48,7 +48,7 @@ Python package and the page's `static/` files and `templates/`),
    publish-web.sh push (every 5 min)  -->  grid  -->  web server (cryomics.org)
 ```
 
-1. The ship's file server (`//10.0.0.10/Data` and `//10.0.0.10/Share`) is
+1. The ship's file server (`//10.0.0.xxx/Data` and `//10.0.0.xxx/Share`) is
    mounted at `/mnt/ship/Data` and `/mnt/ship/Share`.
 2. Each build first runs `tools/mirror-share.sh`, which copies only what the
    dashboard reads onto local disk (`UNDERWAY_MIRROR`, `/data/ship`). Every
@@ -110,8 +110,8 @@ Ashore mode is one setting, `UNDERWAY_ASHORE`, in `site.env`
 
 | From | Address |
 |---|---|
-| ship Wi-Fi `AMD-WiFi` (192.168.3.x) | `http://underway.local` or `http://192.168.3.216/underway/` |
-| wired ship LAN (10.0.0.x) | `http://10.0.0.58/` |
+| ship Wi-Fi `AMD-WiFi` (192.168.3.x) | `http://underway.local` or `http://192.168.3.xxx/underway/` |
+| wired ship LAN (10.0.0.x) | `http://10.0.0.xxx/` |
 | the workstation itself | `http://127.0.0.1:8042/` |
 
 Plain `http://` only: nothing listens on port 443. `underway.local` is

@@ -46,16 +46,16 @@ offers.
 | `UNDERWAY_MIRROR_DATA`, `UNDERWAY_MIRROR_SHARE` | `/mnt/ship/Data`, `/mnt/ship/Share` | what the mirror copies from |
 | `UNDERWAY_MIRROR_FULL` | `0` | `1` forces a full mirror pass |
 | `UNDERWAY_ASHORE` | unset | the day the cruise ended (`YYYY-MM-DD`): ashore mode |
-| `UNDERWAY_DATA_URL` | `smb://10.0.0.10/Data` | the Data share as a link people can open |
-| `UNDERWAY_INTRANET` | `http://10.0.0.2` | the ship's intranet (live page, links) |
-| `UNDERWAY_SCHEDULE_URL` | `http://10.0.0.2/Schedule.html` | the operations schedule |
-| `UNDERWAY_CTD_TCP` (Page) | `10.0.0.22:49160,…,49168` | SeaSave's address and ports for the live cast |
+| `UNDERWAY_DATA_URL` | `smb://10.0.0.xxx/Data` | the Data share as a link people can open |
+| `UNDERWAY_INTRANET` | `http://10.0.0.xxx` | the ship's intranet (live page, links) |
+| `UNDERWAY_SCHEDULE_URL` | `http://10.0.0.xxx/Schedule.html` | the operations schedule |
+| `UNDERWAY_CTD_TCP` (Page) | `10.0.0.xxx:49160,…,49168` | SeaSave's address and ports for the live cast |
 
 ### Ship shares (container)
 
 | Setting | Default | What |
 |---|---|---|
-| `SHIP_SMB_HOST` (Page) | `10.0.0.10` | the file server |
+| `SHIP_SMB_HOST` (Page) | `10.0.0.xxx` | the file server |
 | `SHIP_SMB_DATA` (Page) | `Data` | the Data share's name |
 | `SHIP_SMB_SHARE` (Page) | `Share` | the Science share's name |
 | `SHIP_SMB_USER` (Page) | | share user name |
@@ -166,7 +166,7 @@ see [The cruise report builder](cruise-report.html#settings).
 | 11434 | 127.0.0.1 | local Ollama model (workstation) |
 | 18043 | 127.0.0.1 | ice camera model server (workstation, optional) |
 
-Outbound aboard: 10.0.0.10 (SMB), 10.0.0.2 (intranet, HTTP), 10.0.0.22
+Outbound aboard: 10.0.0.xxx (SMB), 10.0.0.xxx (intranet, HTTP), 10.0.0.xxx
 (SeaSave TCP 49160–49168), grid (ssh), GitHub (deploy pull), and the
 internet over HTTPS for OpenRouter, Telegram, SMTP, Google, Copernicus and
 the Ice Service.

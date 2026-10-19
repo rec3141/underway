@@ -15,7 +15,7 @@ curl -s http://127.0.0.1:8042/api/health
 | A client cannot load the page | wrong network's address, `https://`, or a name the client cannot resolve | check which network it is on (192.168.3.x Wi-Fi or 10.0.0.x wired) and use that network's address; try the IP before the name; use `http://` (nothing listens on 443); Android does not resolve `underway.local` |
 | Nobody can load the page | page server or Caddy down | on the workstation, `curl http://127.0.0.1:8042/api/health`; `systemctl status underway-dashboard caddy underway-mdns` |
 | `/api/health` answers 503 | the web root has no `index.html` or manifest yet | wait for the first build, or see "The build" below |
-| `underway.local` fails but the IP works | mDNS service down, or the client is on the wired side | `systemctl status underway-mdns`; check `UNDERWAY_IFACE` is the Wi-Fi interface (`ip -br addr`); wired clients use `http://10.0.0.58/` |
+| `underway.local` fails but the IP works | mDNS service down, or the client is on the wired side | `systemctl status underway-mdns`; check `UNDERWAY_IFACE` is the Wi-Fi interface (`ip -br addr`); wired clients use `http://10.0.0.xxx/` |
 | The header says a data update failed | a request timed out or the server was briefly away | nothing: the page keeps the last data and retries on the next 30-second poll, on reconnection, or when the page becomes visible |
 | The map is blank | the browser has no WebGL, or `static/geo/*.geojson` is not served | check the browser's network panel for 200s on `static/geo/`; try another browser. In the console, `UW.mapView.map` is the MapLibre map |
 | "nothing to show" | every leg unticked, or the span holds no data | tick a leg; widen **Show last** |
@@ -41,7 +41,7 @@ curl -s http://127.0.0.1:8042/api/health
 | Symptom | Cause | Fix |
 |---|---|---|
 | `/mnt/ship/Data` is empty after boot | the automount units are not active | `sudo systemctl start mnt-ship-Data.automount mnt-ship-Share.automount` |
-| `ls /mnt/ship/Data` hangs | the UM VPN has captured 10.0.0.x | `ip route get 10.0.0.10` must say `dev enp6s0` (the wired port), not `tun0`; `sudo tools/ship-routes.sh on`; enable `ship-routes.timer` |
+| `ls /mnt/ship/Data` hangs | the UM VPN has captured 10.0.0.x | `ip route get 10.0.0.xxx` must say `dev enp6s0` (the wired port), not `tun0`; `sudo tools/ship-routes.sh on`; enable `ship-routes.timer` |
 | One ship host unreachable with the VPN up | a `/32` VPN route for that host | add it to `SHIP_EXTRA_HOSTS` |
 | Jobs killed part-way while reading the share | `x-systemd.idle-timeout` on the mount | remove it from `/etc/fstab` |
 | Package installs fail aboard | the ship's Fortinet blocks plain-HTTP package requests and outbound port 22 | use HTTPS mirrors; for git and ssh, use a host that is reachable |
