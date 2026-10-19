@@ -12,6 +12,7 @@ import pandas as pd
 
 from dashboard import build as module
 from dashboard.config import Window
+from dashboard.track import track_levels
 from dashboard.derive import Analysis
 from dashboard.legs import Leg
 
@@ -75,8 +76,8 @@ class TrackBuildTests(unittest.TestCase):
                 module.build(root, 'Synthetic track', [])
                 manifest = json.loads((root / 'data/manifest.json').read_text())
                 self.assertEqual(manifest['track']['version'], 1)
-                self.assertTrue(manifest['track']['levels'][0]['chunks'])
-                for level in manifest['track']['levels']:
+                self.assertTrue(track_levels(root, manifest['track'])[0]['chunks'])
+                for level in track_levels(root, manifest['track']):
                     for chunk in level['chunks']:
                         self.assertTrue((root / chunk['file']).is_file())
                 self.assertFalse(any(k.startswith('fine_') for w in manifest['windows'] for k in w))

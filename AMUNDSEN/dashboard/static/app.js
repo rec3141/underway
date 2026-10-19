@@ -1426,6 +1426,21 @@
     const km = 2 * mpp / 1000;
     return km >= 1 ? 1 : km >= 0.1 ? 0.1 : km >= 0.025 ? 0.025 : km >= 0.005 ? 0.005 : 0;
   }
+  // The track's chunk index is a file of its own, named by its content: it is
+  // fetched when the manifest names a new one, and kept for the page's life.
+  let trackIndex = { file: null, promise: null };
+  function loadTrackIndex() {
+    if (M.track?.levels) return Promise.resolve(M.track);
+    const file = M.track?.index, header = M.track;
+    if (!file) return Promise.reject(new Error("no track index"));
+    if (trackIndex.file !== file) {
+      const promise = fetch(file).then((r) => { if (!r.ok) throw new Error(`track index ${r.status}`); return r.json(); })
+        .then((j) => ({ ...header, levels: j.levels || [] }));
+      trackIndex = { file, promise };
+      promise.catch(() => { if (trackIndex.promise === promise) trackIndex = { file: null, promise: null }; });
+    }
+    return trackIndex.promise;
+  }
   function scheduleTrack() {
     if (!state.track || !mapView?.map || !state.span) return;
     if (!M.track || !trackLoader) { setTrackStatus("underway.track.rebuild"); return; }
@@ -1437,9 +1452,11 @@
     clearTimeout(trackTimer); trackLoader.cancel();
     const sequence = ++trackSequence;
     trackKey = key; setTrackStatus("underway.track.loading");
-    const track = M.track, generation = M.generated_utc;
+    const generation = M.generated_utc;
     trackTimer = setTimeout(async () => {
       try {
+        const track = await loadTrackIndex();
+        if (sequence !== trackSequence) return;
         const next = await trackLoader.load({track, bounds, start:f.start, end:f.end, legs, spacingKm, generation});
         if (sequence !== trackSequence) return;
         // Geometry and values remain native; colour limits stay tied to the
