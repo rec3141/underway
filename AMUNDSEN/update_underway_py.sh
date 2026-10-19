@@ -2,8 +2,8 @@
 # Regenerate the underway dashboard.
 #
 # Two modes, chosen by UNDERWAY_LOCAL (set in the systemd unit's Environment=):
-#   unset  — read the CIFS shares directly and write into the web root on the
-#            Share drive (the original arrangement)
+#   unset  — read the CIFS shares directly and write into UNDERWAY_WEBROOT,
+#            which must then be set (there is no usual place for it)
 #   1      — first mirror the shares onto local disk with tools/mirror-share.sh,
 #            then build from the mirror into a local web root. Every read and
 #            write is then local; the share is touched only by one rsync pass.
@@ -20,7 +20,7 @@ if [[ ${UNDERWAY_LOCAL:-0} == 1 ]]; then
     WEBROOT=${UNDERWAY_WEBROOT:-${UNDERWAY_HOME:-/data/underway_server}/www}
     export UNDERWAY_DATA_ROOT="$MIRROR/Data" UNDERWAY_SHARE_ROOT="$MIRROR/Share"
 else
-    WEBROOT=${UNDERWAY_WEBROOT:-/mnt/ship/Share/2026/2026_LEG_03/Collins/underway_dashboard}
+    WEBROOT=${UNDERWAY_WEBROOT:?set UNDERWAY_WEBROOT to the directory the site is built into, or UNDERWAY_LOCAL=1}
 fi
 
 # one run at a time; the timer fires every minute regardless

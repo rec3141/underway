@@ -11,6 +11,8 @@ Group=@UNDERWAY_GROUP@
 WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
 # the installation's settings (UNDERWAY_MIRROR, UNDERWAY_TILES_DIR, ARCTIC_HISTORY_ROOT, TZ, ...)
 EnvironmentFile=@UNDERWAY_SITE@
+# the plain settings saved on the /settings page; they override the site file
+EnvironmentFile=-@UNDERWAY_CONFIG@/site.env
 # numpy's BLAS starts a thread per core at import (32 here) and that alone costs 8 s CPU a run
 Environment=OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 Environment=UNDERWAY_LOCAL=1

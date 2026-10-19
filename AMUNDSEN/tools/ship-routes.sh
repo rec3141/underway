@@ -5,7 +5,7 @@
 # The VPN installs 10.0.0.0/25 and 10.0.0.128/25 via tun0 on every connect,
 # swallowing the ship network. Longest prefix wins, so a /24 would lose to
 # those /25s: four /26s are installed instead. They go on-link over a wired
-# port that holds a 10.0.0.x address (the ship LAN, static 10.0.0.57/24) when
+# port that holds a 10.0.0.x address (the ship LAN, static 10.0.0.58/24) when
 # one is up, otherwise via the Wi-Fi gateway, which also reaches the ship.
 #
 # Scoped to 10.0.0.0/24 only: UM DNS (10.0.1.x) and the rest of 10/8 keep

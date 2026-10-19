@@ -18,7 +18,8 @@ Inside:
 
 | Path | What |
 |---|---|
-| `by-leg/<year>/<YYYY_LEG_NN>/tsg.csv` | TSG, per-minute means |
+| `by-leg/<year>/<YYYY_LEG_NN>/nav.csv` | navigation (position, speed), per-minute means of the 1 Hz record; only where the `nav` fetch has run |
+| `by-leg/…/tsg.csv` | TSG, per-minute means |
 | `by-leg/…/avos.csv`, `ats.csv` | AVOS weather (2004–2022), ATS weather (2023–2024) |
 | `by-leg/…/ctd_1dbar.csv` | rosette CTD in 1 dbar bins |
 | `acsd/<year>/<YYYY_LEG_NN>/ACSD_YYYYMMDD.csv` | the same underway record as the ship's own daily files, written by `archive-import` |
@@ -29,13 +30,15 @@ Inside:
   hidden in the leg menu until someone ticks them, and grouped by year in
   the **Sources** table.
 - Their casts come from `ctd_1dbar.csv`.
+- A leg's track and ship speed come from its `nav.csv` where it has one.
+  Without one, and in any minute it misses, the track comes from the
+  positions in the TSG and weather rows and the casts' places, and the
+  speed from the TSG.
 - The time-span slider's **all** reaches back to them.
 - A leg the ship has itself is never replaced by the archive's.
 
 What is not there:
 
-- Navigation: an archive leg's track comes from the positions in its TSG and
-  weather rows and its casts' places, not from the 1 Hz navigation.
 - True wind speed: the dashboard's wind speed is the relative one, so the
   archive's true wind speed is left out rather than mislabelled.
 

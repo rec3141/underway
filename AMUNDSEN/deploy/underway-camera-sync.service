@@ -7,6 +7,8 @@ Type=oneshot
 User=@UNDERWAY_USER@
 WorkingDirectory=@UNDERWAY_HOME@/app/AMUNDSEN
 EnvironmentFile=@UNDERWAY_SITE@
+# the plain settings saved on the /settings page; they override the site file
+EnvironmentFile=-@UNDERWAY_CONFIG@/site.env
 Environment=UNDERWAY_DB_DIR=@UNDERWAY_HOME@/db
 Environment=UNDERWAY_CACHE_DIR=@UNDERWAY_HOME@/cache
 Environment=UNDERWAY_CAMERA_OUTPUT=@UNDERWAY_HOME@/camera360

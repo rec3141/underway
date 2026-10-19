@@ -162,7 +162,7 @@ busy skips. Needs `ffmpeg` with libx264 and the `cameras` extra.
 |---|---|---|
 | `UNDERWAY_CAMERA_SOURCE` | `/mnt/ship/Data/Camera_360` | one leg's directory (`YYYYMMDD` folders), or the directory holding the legs; with the latter every leg builds into `camera360/<leg>/` |
 | `UNDERWAY_CAMERA_INTERVAL` | `120` | seconds between frames |
-| `UNDERWAY_CAMERA_LAYOUT` | `portrait` | `portrait` (9:16, the three cameras stacked, for phones) or `mosaic` (side by side, the default when unset) |
+| `UNDERWAY_CAMERA_LAYOUT` | `portrait` | `portrait` (9:16, the three cameras stacked, for phones) or `mosaic` (side by side) |
 | `UNDERWAY_CAMERA_WIDTH` | `720` | pixels; default 720 portrait, 1280 mosaic |
 | `UNDERWAY_CAMERA_SYNC_LEG` | `2026_LEG_03` | the leg the daily copy takes |
 | `UNDERWAY_CAMERA_SHARE` | `/mnt/ship/Share/2026/2026_LEG_03/Pictures/Timelapse` | where the daily copy goes; must already exist |

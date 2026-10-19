@@ -75,6 +75,7 @@ def environment() -> dict[str, str]:
         for k, v in read_env_file(config_dir() / name).items():
             if k not in PINNED:
                 env[k] = v
+    env["UNDERWAY_SUPERVISED"] = "1"            # the settings page says a save restarts the servers
     return env
 
 
