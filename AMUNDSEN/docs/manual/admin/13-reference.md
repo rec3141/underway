@@ -126,7 +126,6 @@ see [The cruise report builder](cruise-report.html#settings).
 
 | Setting | Default | What |
 |---|---|---|
-| `SHIP_EXTRA_HOSTS` | | ship hosts that get their own `/32` route (`ship-routes.sh`) |
 | `AMUNDSEN_GAME` | `/data/dev/amundsen-game` | the game checkout for `make-release.sh` |
 | `STAGE` | `/data/underway-release-stage` | `make-release.sh` staging |
 | `UNDERWAY_VERSION`, `UNDERWAY_HTTP_PORT`, `UNDERWAY_DATA` | `latest`, `80`, `./data` | `compose.yaml` |
@@ -207,7 +206,6 @@ From `$UNDERWAY_HOME/app/AMUNDSEN`, with `$UNDERWAY_PYTHON`:
 | `tools/mirror-share.sh [DEST] [full|quick]` | mirror the shares |
 | `tools/deploy-pull.sh` | the deploy pull |
 | `tools/ship-smb-setup.sh` | mount the shares (once) |
-| `tools/ship-routes.sh on|off|status` | ship routes under the UM VPN |
 | `tools/publish-mdns.sh NAME IFACE` | publish the mDNS name |
 | `tools/camera-job.sh build|sync` | camera jobs |
 | `tools/history-pull.sh [pull|status]` | the Wiki pull |

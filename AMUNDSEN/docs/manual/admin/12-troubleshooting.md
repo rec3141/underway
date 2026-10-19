@@ -41,8 +41,6 @@ curl -s http://127.0.0.1:8042/api/health
 | Symptom | Cause | Fix |
 |---|---|---|
 | `/mnt/ship/Data` is empty after boot | the automount units are not active | `sudo systemctl start mnt-ship-Data.automount mnt-ship-Share.automount` |
-| `ls /mnt/ship/Data` hangs | the UM VPN has captured 10.0.0.x | `ip route get 10.0.0.xxx` must say `dev enp6s0` (the wired port), not `tun0`; `sudo tools/ship-routes.sh on`; enable `ship-routes.timer` |
-| One ship host unreachable with the VPN up | a `/32` VPN route for that host | add it to `SHIP_EXTRA_HOSTS` |
 | Jobs killed part-way while reading the share | `x-systemd.idle-timeout` on the mount | remove it from `/etc/fstab` |
 | Package installs fail aboard | the ship's Fortinet blocks plain-HTTP package requests and outbound port 22 | use HTTPS mirrors; for git and ssh, use a host that is reachable |
 

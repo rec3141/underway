@@ -220,30 +220,6 @@ The mounts belong to the service account and mount on first access
 The build itself does not need the mount to stay up: it reads the local
 mirror, and only the mirror pass touches the share.
 
-### The UM VPN and the ship's network
-
-When the University of Manitoba VPN is up it installs `10.0.0.0/25` and
-`10.0.0.128/25` routes through `tun0` on every reconnect, which captures the
-ship's NAS (10.0.0.xxx) and intranet (10.0.0.xxx). The CIFS mount then hangs
-and the mirror goes stale.
-
-`tools/ship-routes.sh` installs four `/26` routes for `10.0.0.0/24`,
-on-link over the wired port that holds a 10.0.0.x address, or through the
-Wi-Fi gateway (192.168.3.xxx) when no wired port is up. Only 10.0.0.0/24 is
-steered; the rest of 10/8 keeps going over the VPN.
-
-```sh
-sudo tools/ship-routes.sh on        # install the routes
-sudo tools/ship-routes.sh status    # where 10.0.0.xxx goes now
-sudo tools/ship-routes.sh off
-```
-
-`ship-routes.timer` re-asserts the routes every minute. It is needed only
-while that VPN is used. The VPN also installs the odd `/32` host route,
-which beats any `/26`: list each colliding ship host in `SHIP_EXTRA_HOSTS`
-(space-separated) to give it its own `/32`. A DHCP reservation or a ship DNS
-name for the workstation is the stable long-term fix.
-
 ## Taking over on another machine or account
 
 The installation is portable: everything machine-specific is in
