@@ -1736,7 +1736,7 @@
   function stationRows() {
     const q = stn.search.toLowerCase();
     const f = UW.currentFilter();
-    let all = (UW.M.stations || []).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : "CTD logbook", activities: (s.activities || []).join(", ") }));
+    let all = (UW.M.stations || []).map((s) => ({ ...s, legLabel: UW.legById(s.leg)?.label || s.leg, kind: s.kind === "event" ? "event log" : s.source === "archive" ? "CTD archive" : "CTD logbook", activities: (s.activities || []).join(", ") }));
     // the waypoints people have kept: a position and a name, no leg, so never filtered out
     all = all.concat((UW.waypoints?.() || []).map((w) => ({ station: w.name, kind: "waypoint", waypoint: w.id, legLabel: "", always: true,
       lat: w.lat, lon: w.lon, time: w.created_utc || null, leg: null, comments: [w.by, w.note].filter(Boolean).join(" · ") })));

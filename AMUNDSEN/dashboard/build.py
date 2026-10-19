@@ -106,6 +106,23 @@ def _iso_utc(s) -> str:
         return str(s or "")
 
 
+def archive_stations(cast_index: list[dict], logged: set[str]) -> list[dict]:
+    """One station row per CTD cast of a leg with no CTD logbook (the
+    archive's legs), from the cast's own station name, time and position.
+    The cast depth is the deepest pressure, in dbar (within about 1% of
+    metres at these depths)."""
+    out = []
+    for c in cast_index:
+        if c.get("kind") != "CTD" or c.get("leg") in logged or c.get("lat") is None or c.get("lon") is None:
+            continue
+        out.append({
+            "kind": "cast", "source": "archive", "leg": c["leg"], "cast": c.get("cast", ""), "label": c.get("label", ""),
+            "station": c.get("station", ""), "time": c.get("time") or "", "lat": c["lat"], "lon": c["lon"],
+            "bottom_m": c.get("bottom_m"), "depth_m": c.get("max_p"), "type": "", "comments": "",
+        })
+    return out
+
+
 def event_stations(events: list[dict], casts: list[dict]) -> list[dict]:
     """Stations worked without a CTD cast (a box core, a mapping site, a
     mooring), from the event log: one per leg × station id with the median
@@ -753,6 +770,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
                   "heading": _latest_heading(a.frame, lt)}
 
     stations = [s for leg, _ in stores for s in read_stations(leg.stations, leg.id)]
+    stations += archive_stations(casts_idx.get("casts", []), {s["leg"] for s in stations})
     stations += event_stations(events, stations)
     try:
         cameras = camera_index(CAMERA_OUTPUT, a.frame)

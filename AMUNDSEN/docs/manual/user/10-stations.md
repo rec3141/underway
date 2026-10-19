@@ -26,11 +26,12 @@ Above the table:
   and how many casts are selected for the Casts tab, for example
   **7 stations (1 without a cast) · 1 selected for the Casts tab**.
 
-The rows come from four places, named in the **source** column:
+The rows come from five places, named in the **source** column:
 
 | source | What the row is |
 |---|---|
 | **CTD logbook** | One CTD cast, from the rosette team's logbook. A station visited three times has three rows. |
+| **CTD archive** | One CTD cast of an earlier leg (2002–2024), from Amundsen Science's archive: its station name, time, position and depth. Those legs have no logbook here, so there are no event log stations or bottom depths for them. |
 | **event log** | A station where work was logged but no CTD cast was made: a net, a core, an ice station. Its **activities** column lists what was done. |
 | **waypoint** | A position someone saved on the map (see [Waypoints, distances and exporting the map](waypoints-and-export.html)). |
 | **kmz** and a date | A station from the leg's cruise plan, when the **Plan** layer is on. These have no time. |
