@@ -127,8 +127,7 @@ ship's computer by itself, because that computer is shared with other work.
 
 **Games** in the row of tabs opens the ship's game, **Amundsen Expedition**,
 in the same window. It is a separate web page; **← Underway** at its top
-brings you back to the dashboard. The game runs on the ship's server, so the
-public web copy has no **Games** link.
+brings you back to the dashboard.
 
 ![The game: the expedition chart on the left, the ship's panel on the right](img/15-games.webp)
 
@@ -141,7 +140,8 @@ transect, Inuktitut syllabics and more). You spend points and diesel in the
 
 Aboard, the game is shared: other players' ships sail on the same chart, the
 **Leaderboard** shows everyone's points, and **Crew ideas** lets you suggest
-a new minigame.
+a new minigame. The public web copy has the game too, played on your own: no
+other ships, no leaderboard and no crew ideas.
 
 ## In short
 

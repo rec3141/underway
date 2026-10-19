@@ -1077,7 +1077,6 @@ window.UW_UI_CATALOG = {
         "shell.colorHint": "the variable that colours the track and the graph points",
         "shell.legsToShow": "Legs to show · ",
         "shell.none": "none",
-        "shell.reportBanner": "Cruise reports: build yours →",
         "shell.selectLegSpan": "Select leg and time span:",
         "shell.showLast": "Show last",
         "shell.showSchedule": "show the schedule",
@@ -1099,6 +1098,7 @@ window.UW_UI_CATALOG = {
         "sources.data": " · Data: Amundsen Science (ACSD)",
         "sources.intranet": "Ship intranet: ",
         "sources.manual": "The manual: how to use the dashboard, and how to run it",
+        "sources.report": "The cruise report builder: your team's report in the Amundsen Science template, from the ship's records, due before the end of your leg",
         "sources.scroll": "Swipe the table sideways to see source columns and leg coverage.",
         "sources.source": "source",
         "sources.title": "Sources",
@@ -2377,7 +2377,6 @@ window.UW_UI_CATALOG = {
         "shell.colorHint": "variable qui détermine la couleur du trajet et des points des graphiques",
         "shell.legsToShow": "Tronçons à afficher · ",
         "shell.none": "aucun",
-        "shell.reportBanner": "Rapports de mission : préparez le vôtre →",
         "shell.selectLegSpan": "Choisir le tronçon et la période :",
         "shell.showLast": "Période affichée",
         "shell.showSchedule": "afficher le programme",
@@ -2399,6 +2398,7 @@ window.UW_UI_CATALOG = {
         "sources.data": " · Données : Amundsen Science (ACSD)",
         "sources.intranet": "Intranet du navire : ",
         "sources.manual": "Le manuel : utiliser le tableau de bord, et le faire fonctionner",
+        "sources.report": "Le générateur de rapports de mission : le rapport de votre équipe dans le gabarit d'Amundsen Science, à partir des registres du navire, à remettre avant la fin de votre tronçon",
         "sources.scroll": "Faites défiler le tableau horizontalement pour voir les colonnes sources et les tronçons couverts.",
         "sources.source": "code source",
         "sources.title": "Sources",
@@ -6881,10 +6881,6 @@ window.UW_UI_CATALOG = {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "30a0924a3360be687d1df9fcbbfdff62c01bc0fd14036ab9076cf7f451568666"
         },
-        "shell.reportBanner": {
-          "profile": "editorial-fr-ca-v4",
-          "sourceSha256": "457366b22351388569b1f5584b9e8ec17c5151a653481817330ec990706c5fe7"
-        },
         "shell.selectLegSpan": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "b72cf745a853f1dd75004ad443082d60ef5ce506e805bf706d3fe9756f4ddb33"
@@ -6968,6 +6964,10 @@ window.UW_UI_CATALOG = {
         "sources.manual": {
           "profile": "editorial-fr-ca-v4",
           "sourceSha256": "e5212ff90933ac87f599b96acb5161548ff46f5109c8c86e0011af5ec5fdd561"
+        },
+        "sources.report": {
+          "profile": "editorial-fr-ca-v4",
+          "sourceSha256": "7ee9e148a92ca8c062de727727c1f96ac10654df56043d1c1a7cf6c35cf576d8"
         },
         "sources.scroll": {
           "profile": "editorial-fr-ca-v4",

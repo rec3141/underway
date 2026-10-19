@@ -113,14 +113,17 @@ class RestrictTests(unittest.TestCase):
 
 
 
-def test_the_web_copy_page_hides_the_report_banner_and_the_games_link():
+def test_the_web_copy_page_links_the_game_and_leaves_out_the_report_builder():
     import jinja2
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(Path(__file__).resolve().parents[1] / "dashboard/templates"))
     for public in (False, True):
-        page = env.get_template("index.html.j2").render(site={"title": "x", "intranet": []}, m={"public": public})
-        for cls in ("games-link", "report-banner"):
-            [line] = [x for x in page.splitlines() if f'class="{cls}"' in x]
-            assert (" hidden" in line.split(">")[0]) is public, (cls, public)
+        page = env.get_template("index.html.j2").render(site={"title": "x", "intranet": [], "links": []}, m={"public": public})
+        # the game is published beside the page on both copies, so its link is relative
+        [games] = [x for x in page.splitlines() if 'class="games-link"' in x]
+        assert 'href="game/"' in games and " hidden" not in games.split(">")[0]
+        # the report builder runs only aboard, and is linked from the Sources tab
+        assert ('class="manuallink reportlink"' in page) is not public, public
+        assert "report-banner" not in page
 
 
 if __name__ == "__main__":

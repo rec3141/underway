@@ -62,12 +62,12 @@ From left to right:
 
 **Games**
 :   Opens the ship's games on a page of their own. Use your browser's back
-    button to come back. Aboard only: the public web copy has no **Games**
-    link. See [Chat and games](chat-and-games.html).
+    button to come back. See [Chat and games](chat-and-games.html).
 
 **?**
 :   The **Sources** tab: where each number comes from, which legs have which
-    data, credits, and a link to this manual. See [Sources, feedback and
+    data, credits, a link to this manual and, aboard, the cruise report
+    builder. See [Sources, feedback and
     help](sources-and-help.html).
 
 !!! note "Aboard only"
@@ -218,13 +218,6 @@ Under the status line, an extra line can appear when part of the page cannot
 be updated, for example "Track update unavailable · retrying; displayed data
 may be older". The dashboard keeps trying on its own. See [Opening the
 dashboard](opening.html#when-the-page-does-not-load).
-
-## The cruise report link
-
-The pale button **Cruise reports: build yours →** opens the cruise report
-builder, on a page of its own. There, each science team writes its part of
-the cruise report from the ship's records. The button is shown only aboard,
-not on the public web copy. See [The cruise report builder](cruise-report.html).
 
 ## Legs and time span
 
