@@ -80,19 +80,19 @@
 <main lang="en">
   <div class="plotctl" id="plotctl">
     <div class="group xmode" data-i18n-aria-label="shell.xAxisAria" aria-label="X axis"><span class="lbl" data-i18n="shell.xAxis" data-i18n-locale>X-axis</span><button type="button" class="xcycle" data-i18n-title="shell.xAxisHint" title="switch the graphs between time and distance along track">Time</button></div>
-    <label class="group select strip"><span data-i18n="shell.colorBy" data-i18n-locale>Color by </span><select class="colourpick" data-i18n-title="shell.colorHint" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
+    <label class="group select strip"><span data-i18n="shell.colorBy" data-i18n-locale>Colour by </span><select class="colourpick" data-i18n-title="shell.colorHint" title="the variable that colours the track and the graph points"></select><span class="cbar" hidden><span class="lo"></span><span class="grad"></span><span class="hi"></span></span></label>
   </div>
   <section class="map card">
     <div class="maplayers" id="maplayers">
       <div class="map-toolbar">
-      <label class="group select mapcolour"><span data-i18n="shell.colorBy" data-i18n-locale>Color by </span><select id="colour" class="colourpick" data-i18n-title="shell.colorHint" title="the variable that colours the track and the graph points"></select></label>
+      <label class="group select mapcolour"><span data-i18n="shell.colorBy" data-i18n-locale>Colour by </span><select id="colour" class="colourpick" data-i18n-title="shell.colorHint" title="the variable that colours the track and the graph points"></select></label>
       <div class="tools"><button id="mapdetailsopen" data-i18n-title="mapControls.details" title="Map details" data-i18n-aria-label="mapControls.details" aria-label="Map details">ⓘ</button><button id="mapexport" data-i18n-title="mapControls.exportHint" title="Preview and export the map" data-i18n-aria-label="mapControls.export" aria-label="Export map">⇩</button><button id="mapreset" data-i18n-title="mapControls.fit" title="fit to track" data-i18n-aria-label="mapControls.reset" aria-label="Reset map view">⟲</button><button id="mapnone" data-i18n-title="mapControls.minimizeHint" title="no map: the pane takes the whole width" data-i18n-aria-label="mapControls.minimize" aria-label="Minimise map">—</button><button id="mapfull" data-i18n-title="mapControls.maximizeHint" title="full map: the map takes the whole page" data-i18n-aria-label="mapControls.maximize" aria-label="Maximise map">⤢</button></div>
       </div>
       <!-- the layer pills on their own row: the ship's own together, then the places, the wiki's two, the pictures; each is an on/off toggle -->
       <div class="layers">
       <div class="wiki-split plan-photos">
       <span class="pillset" data-i18n-title="mapControls.shipLayers" title="the ship's own layers">
-      <button data-layer="plan" data-i18n-title="mapControls.planHint" title="the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it" data-i18n="mapControls.plan" data-i18n-locale>Plan</button>
+      <button data-layer="plan" data-i18n-title="mapControls.planHint" title="the leg's planned cruise track and stations from the expedition's KMZ; drop another KMZ or KML on the map to add it as a plan kept in this browser only" data-i18n="mapControls.plan" data-i18n-locale>Plan</button>
       <button data-layer="track" data-i18n-title="mapControls.trackHint" title="the ship's track for the shown legs and span" data-i18n="mapControls.track" data-i18n-locale>Track</button>
       <button data-layer="stations" data-i18n-title="mapControls.stationsHint" title="CTD casts (white) and stations worked without a cast, from the event log (green)"><span class="full" data-i18n="mapControls.stations" data-i18n-locale>Stations</span><span class="short" data-i18n="mapControls.stationsShort" data-i18n-locale>Stns</span></button>
       <button data-layer="events" data-i18n-title="mapControls.eventsHint" title="geolocated entries of the ship's event log, for the shown legs and span" data-i18n="mapControls.events" data-i18n-locale>Events</button>
@@ -177,7 +177,7 @@
           <div class="pane-tools compact" id="castrow2" hidden>
             <button type="button" id="savetransect" disabled data-i18n-title="castsControls.saveHint" title="Save this section and its station order for everyone on the ship" data-i18n="castsControls.saveTransect" data-i18n-locale>Save transect</button>
             <div class="group sectionx" id="castxmode" data-i18n-aria-label="castsControls.xAxis" aria-label="Section x axis"><span class="lbl" data-i18n="shell.xAxis" data-i18n-locale>X-axis</span><button type="button" class="xcycle" data-i18n-title="castsControls.xAxisHint" title="the section's x axis: time, distance along the profiles in time order, the stations A–Z, or a custom order you arrange with the chips">Time</button></div>
-            <label class="group select" id="castvarwrap"><span data-i18n="shell.colorBy" data-i18n-locale>Color by </span><select id="castvar"></select></label>
+            <label class="group select" id="castvarwrap"><span data-i18n="shell.colorBy" data-i18n-locale>Colour by </span><select id="castvar"></select></label>
           </div>
           <div class="castplots" id="castplots"><div class="empty">Select casts from the list, or click stations and tow tracks on the map.</div></div>
         </div>

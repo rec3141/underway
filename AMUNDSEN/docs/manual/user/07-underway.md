@@ -20,7 +20,7 @@ Click **Underway** in the row of tabs. The map stays on the left, as on every
 tab. The right-hand side shows a strip of controls and, under it, a set of
 cards.
 
-![The Underway tab: the strip with X-axis and Color by at the top, then the Surprise, Lab, Met Station and Bridge cards](img/07-underway-tab.webp)
+![The Underway tab: the strip with X-axis and Colour by at the top, then the Surprise, Lab, Met Station and Bridge cards](img/07-underway-tab.webp)
 
 The first time you open the dashboard, every panel is folded away and you see
 only the **group cards**. This keeps the page short. You open the panels you
@@ -162,7 +162,7 @@ Your arrangement is remembered on this device.
 
 The strip at the top of the tab holds two controls that change every panel.
 
-![The strip: X-axis, Color by, and the colour bar](img/07-underway-strip.webp)
+![The strip: X-axis, Colour by, and the colour bar](img/07-underway-strip.webp)
 
 The **X-axis** button switches the horizontal axis of the graphs:
 
@@ -176,11 +176,11 @@ on a distance axis, while it takes hours on a time axis.
 
 ## Colour by
 
-**Color by** chooses the variable that colours the points of every graph and
+**Colour by** chooses the variable that colours the points of every graph and
 the ship's track on the map. The same choice is in the box above the map;
 the two always agree.
 
-1. Open the **Color by** list.
+1. Open the **Colour by** list.
 2. Choose a variable, for example **Salinity (PSU)**.
 3. The points of every panel and the track on the map take the colours of
    salinity. The bar to the right of the list shows the scale, from its low
@@ -190,7 +190,7 @@ The scale runs from the 5th to the 95th percentile of the values in the span:
 the lowest and highest few values are left out so that one odd value does not
 wash out all the colours.
 
-Clicking a panel's title does the same as choosing it in **Color by**. The
+Clicking a panel's title does the same as choosing it in **Colour by**. The
 panel whose variable colours the page is the selected one. Click its title
 again to unselect it.
 
@@ -199,7 +199,7 @@ again to unselect it.
     **SST (°C)** and colour by **Salinity (PSU)**: if the warm points are also
     the fresh ones, the warm water is river or melt water.
 
-**Color by** also offers a few variables that have no panel of their own:
+**Colour by** also offers a few variables that have no panel of their own:
 **Time elapsed (h)**, **Distance travelled (km)** and **TSG line warming (°C)**.
 
 ## Example: a salinity drop
@@ -210,7 +210,7 @@ Canadian Arctic Archipelago. To see what the surface water did:
 1. In **Legs**, make sure **2026 Leg 3** is ticked.
 2. Set **Show last** to **1 mo** (one month).
 3. Open **Salinity (PSU)** and **Ship speed (kn)** from their cards.
-4. Set **Color by** to **Salinity (PSU)**.
+4. Set **Colour by** to **Salinity (PSU)**.
 5. On the salinity panel, drag and zoom until the axis shows 10 September.
 
 ![Salinity and ship speed on 10 September 2026: each time the ship gets under way, the salinity falls from about 30.5 to about 23 PSU](img/07-underway-salinity-drop.webp)
@@ -278,6 +278,6 @@ alerts you only when it judges the water worth sampling.
 - Click a panel to select it, then drag to move and scroll to zoom. All
   panels follow.
 - **X-axis** switches between **Time** and **Distance**.
-- **Color by**, or a click on a panel's title, colours every graph and the
+- **Colour by**, or a click on a panel's title, colours every graph and the
   map track by one variable.
 - Grey points on the Lab panels are water measured while the pump was off.

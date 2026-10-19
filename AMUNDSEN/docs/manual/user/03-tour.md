@@ -301,8 +301,8 @@ When the map is hidden, click **Map** in the tab row to bring it back.
 
 !!! note
     Choosing a tab while the map is full brings the map back to half size,
-    so that you can see the tab. When you reload the page, the map also
-    starts at half size.
+    so that you can see the tab. The dashboard remembers the size you chose:
+    when you reload the page, the map opens at that size again.
 
 The map itself, its layers and its buttons are explained in [The
 map](map.html).

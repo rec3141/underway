@@ -1818,8 +1818,23 @@
       "text": "{count} j",
       "status": "draft"
     },
+    "underway.span.hours": {
+      "source": "{count} h",
+      "text": "{count} h",
+      "status": "draft"
+    },
+    "underway.span.weeks": {
+      "source": "{count} wk",
+      "text": "{count} sem.",
+      "status": "draft"
+    },
+    "underway.span.months": {
+      "source": "{count} mo",
+      "text": "{count} mois",
+      "status": "draft"
+    },
     "underway.span.years": {
-      "source": "{count} y",
+      "source": "{count} yr",
       "text": "{count} a",
       "status": "draft"
     },
@@ -2454,8 +2469,8 @@
       "status": "draft"
     },
     "mapControls.planHint": {
-      "source": "the leg's planned cruise track and stations from the expedition's KMZ; drop a new KMZ or KML on the map to replace it",
-      "text": "trajet et stations prévus pour le tronçon, tirés du fichier KMZ de l’expédition; déposez un nouveau fichier KMZ ou KML sur la carte pour les remplacer",
+      "source": "the leg's planned cruise track and stations from the expedition's KMZ; drop another KMZ or KML on the map to add it as a plan kept in this browser only",
+      "text": "trajet et stations prévus pour le tronçon, tirés du fichier KMZ de l’expédition; déposez un autre fichier KMZ ou KML sur la carte pour l’ajouter comme plan conservé dans ce navigateur seulement",
       "status": "draft"
     },
     "mapControls.trackHint": {
@@ -2889,7 +2904,7 @@
       "status": "draft"
     },
     "shell.colorBy": {
-      "source": "Color by ",
+      "source": "Colour by ",
       "text": "Colorer selon ",
       "status": "draft"
     },
