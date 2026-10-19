@@ -389,6 +389,36 @@
              pump_low: cover.pump_low && span.pump_low ? cat(cover.pump_low, span.pump_low) : null,
              limits: span.limits || cover.limits };
   }
+  // Time elapsed and Distance travelled count from the start of each point's
+  // own leg (the build's start_ms and start_km), so every leg runs through the
+  // whole colour scale from zero. A leg the manifest gives no start for counts
+  // from its first point here. `km` is the distance run since the record's
+  // origin; points of no leg have neither.
+  function sinceLegStart(t, km, leg) {
+    const origin = new Map(M.legs.map((l) => [l.index, { t: l.start_ms ?? null, km: l.start_km ?? null }]));
+    const hours = new Array(t.length).fill(null), dist = new Array(t.length).fill(null);
+    for (let i = 0; i < t.length; i++) {
+      const L = leg[i];
+      if (L == null || t[i] == null) continue;
+      let o = origin.get(L);
+      if (!o) origin.set(L, o = { t: null, km: null });
+      if (o.t == null) o.t = t[i];
+      if (o.km == null && km[i] != null) o.km = km[i];
+      hours[i] = (t[i] - o.t) / 3600e3;
+      if (km[i] != null && o.km != null) dist[i] = km[i] - o.km;
+    }
+    return { hours, dist };
+  }
+  function withLegClock(d) {
+    const v = d.vars;
+    if (!('Time elapsed (h)' in v) && !('Distance travelled (km)' in v)) return d;
+    const base = d.dist_origin_km ?? 0;
+    const { hours, dist } = sinceLegStart(d.t, d.dist_km.map((x) => (x == null ? null : x + base)), d.leg);
+    const vars = { ...v };
+    if ('Time elapsed (h)' in v) vars['Time elapsed (h)'] = hours;
+    if ('Distance travelled (km)' in v) vars['Distance travelled (km)'] = dist;
+    return { ...d, vars };
+  }
   // the graphs' x range for the span: the last so many hours of ship time,
   // or the distance run over them
   function spanRange(d) {
@@ -1461,12 +1491,12 @@
         if (sequence !== trackSequence) return;
         // Geometry and values remain native; colour limits stay tied to the
         // entire selected span, so panning never changes the colour meaning.
-        const origin = state.raw?.t?.find(t => t != null) ?? f.start;
         const distanceOrigin = state.raw?.dist_origin_km ?? M.track.dist_start_km ?? 0;
         const vars = {...next.vars};
-        vars['Time elapsed (h)'] = next.t.map(t => t == null ? null : (t - origin) / 3600e3);
+        const clock = sinceLegStart(next.t, next.dist_km, next.leg);
+        vars['Time elapsed (h)'] = clock.hours;
+        vars['Distance travelled (km)'] = clock.dist;
         const distances = next.dist_km.map(x => x == null ? null : x - distanceOrigin);
-        vars['Distance travelled (km)'] = distances;
         trackData = {...next, vars, dist_km:distances, limits:state.span.limits,
           label:state.span.label, start:state.span.start, end:state.span.end};
         setTrackStatus(next.limited ? "underway.track.limited" :
@@ -2250,7 +2280,7 @@
       // a successful download. A failed update keeps the last good pair.
       M = manifest; VAR = Object.fromEntries(M.variables.map((v) => [v.name, v]));
       hideUnseenLegs(M);
-      state.raw = mergeWindows(cover, span); state.rawFile = key;
+      state.raw = withLegClock(mergeWindows(cover, span)); state.rawFile = key;
       setLoadError("Underway", false);
       renderControls(); renderProvenance();
       applyAndRender(); renderAlert();

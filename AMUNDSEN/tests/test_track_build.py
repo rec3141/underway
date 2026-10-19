@@ -76,6 +76,8 @@ class TrackBuildTests(unittest.TestCase):
                 module.build(root, 'Synthetic track', [])
                 manifest = json.loads((root / 'data/manifest.json').read_text())
                 self.assertEqual(manifest['track']['version'], 1)
+                # each leg's start, from which the page counts Time elapsed and Distance travelled
+                self.assertTrue(all(isinstance(l['start_ms'], int) and 'start_km' in l for l in manifest['legs']))
                 self.assertTrue(track_levels(root, manifest['track'])[0]['chunks'])
                 for level in track_levels(root, manifest['track']):
                     for chunk in level['chunks']:

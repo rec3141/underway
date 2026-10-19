@@ -101,9 +101,10 @@ include:
 - the sea floor and the winches: **Bottom depth (m)**, **Rosette depth (m)**,
   **Cable length (m)**;
 - the **Surprise** scores (see [The surprise score](surprise.html));
-- **Time elapsed (h)** and **Distance travelled (km)**, which colour the
-  track from its start to its end. Use them to see in which order the ship
-  went where.
+- **Time elapsed (h)** and **Distance travelled (km)**: the hours and the
+  kilometres since the start of each point's own leg. Every leg runs from
+  zero at its first day, so with several legs shown each has the whole
+  colour range. Use them to see in which order the ship went where.
 
 To colour the track:
 
