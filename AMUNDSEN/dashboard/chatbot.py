@@ -1,4 +1,4 @@
-"""Crew members in the ship chat, played by a local model through Ollama.
+"""Crew members in the ship chat, played by one language model with four prompts.
 
 Each persona has an @handle and a beat, and sees only their own slice of the
 dashboard: the Cap'n has the schedule, the weather and the logistics; Doc has
@@ -10,11 +10,13 @@ each favouring their own half, and their answers cite its pages. They answer whe
 ``@ada``, ``@polly``) and, every so often while someone has the page open, the
 one whose beat has news says something unprompted, sooner when a surprise
 episode or a schedule change has just appeared; now and then Polly, or another,
-riffs on what was said. All four are the one local model with different
-prompts; there is one GPU.
+riffs on what was said. All four are the one model with different prompts:
+OpenRouter's when the dashboard has a key (llm.py), otherwise the resident
+local Ollama model or the shared server, which this module never loads (there
+is one GPU).
 
-Everything here is best-effort: no Ollama, no GPU, or a slow reply simply
-means silence. One generation runs at a time.
+Everything here is best-effort: no key and no loaded model, or a slow reply,
+simply means silence. One generation runs at a time.
 """
 
 from __future__ import annotations
@@ -90,7 +92,7 @@ PERSONAS = {
                       "nothing you have bears on a question, say so as yourself, 'I have nothing on that', and then give what you "
                       "know, marked as your own. A sighting a crew member tells you belongs in the ship's journal: repeat it back "
                       "as one line (the subject, the time, the position, the count, who saw it) and ask them to enter it on the "
-                      "Nature tab's Journal page, where they can also import their photographs from the ship's share, each placed "
+                      "Photos tab's Submit page, where they can also add their photographs from the ship's share, each placed "
                       "by its own time and position and captioned. The schedule is the Cap'n's and the human past is the Librarian's: point people to "
                       "@capn or @ada for those.")},
     "ada": {"name": "Ada", "emoji": "📚", "beat": "history", "room": "Library",

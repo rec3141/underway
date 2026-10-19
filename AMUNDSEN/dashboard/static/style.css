@@ -1158,6 +1158,8 @@ body.tab-wiki #maplayers button[data-layer="history"], body.tab-wiki #maplayers 
 @media (max-width: 640px) { .maplayers .layers .mapmenu { flex: 0 0 auto; } .maplayers .mapmenu .pop { left: 0; right: auto; } }
 .maplayers .mapmenu li label { padding: 4px 8px; }
 .maplayers .mapmenu li.ghead { color: var(--muted); font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px 2px; }
+.maplayers .mapmenu li.gsep { border-top: 1px solid var(--line); margin: 4px 8px; }
+.maplayers .mapmenu li.under label { padding-left: 22px; }
 table.sched.timeline td:first-child { white-space: nowrap; }
 table.sched.timeline .dot { margin-right: 5px; }
 ol.mla { padding-left: 22px; font-size: var(--t-md); line-height: 1.5; } ol.mla li { margin: 4px 0; }

@@ -27,14 +27,40 @@ untick any of them.
 
 from __future__ import annotations
 
+import re
+
 from . import conditions, docxbuild, eventlog, figures, logsheets, tables
+
+# what the T–S caption says the points are coloured by, for each fixed choice
+# (figures.TS_COLOURS); a profile variable ("var:<name>") is named as it is
+TS_COLOURED_BY = {"pressure": "pressure", "time": "cast time", "lat": "latitude", "station": "station"}
+# a caption still in this form is a default, and follows the colour chosen
+TS_DEFAULT = re.compile(r"Temperature–salinity diagram for the CTD casts, coloured by [^.\n]+\.")
+
+
+def ts_caption(colour: str = "pressure") -> str:
+    """The T–S diagram's default caption for its colour choice."""
+    by = colour[4:] if colour.startswith("var:") else TS_COLOURED_BY.get(colour, "pressure")
+    return f"Temperature–salinity diagram for the CTD casts, coloured by {by}."
+
 
 FIGURE_CAPTIONS = {
     "map": "Ship track and the stations sampled, by instrument.",
     "profiles": "CTD downcast profiles at the stations sampled.",
-    "ts": "Temperature–salinity diagram for the CTD casts, coloured by pressure.",
+    "ts": ts_caption("pressure"),
     "underway": "The ship's underway record over the sampling period; grey lines mark the selected operations.",
 }
+
+
+def figure_caption(f: dict) -> str:
+    """A figure's caption: its own, unless it is empty or still a default T–S
+    caption, which follows the colour chosen."""
+    caption = (f.get("caption") or "").strip()
+    if f.get("kind") == "ts":
+        colour = (f.get("options") or {}).get("colour") or "pressure"
+        if not caption or TS_DEFAULT.fullmatch(caption):
+            return ts_caption(colour)
+    return caption or FIGURE_CAPTIONS.get(f.get("kind"), "")
 
 
 def _logs(report: dict) -> dict[str, dict]:
@@ -193,7 +219,7 @@ def content(report: dict) -> dict:
         blocks.append({"section": t.get("section", "methods"), "kind": "table",
                        "caption": t.get("title") or "", "table": tab})
     for f in report.get("figures", []):
-        caption = f.get("caption") or FIGURE_CAPTIONS.get(f["kind"], "")
+        caption = figure_caption(f)
         pngs = figure(report, f)
         for i, png in enumerate(pngs, start=1):
             part = f" ({i} of {len(pngs)})" if len(pngs) > 1 else ""

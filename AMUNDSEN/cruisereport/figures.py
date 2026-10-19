@@ -6,7 +6,9 @@
   lat/lon plot is stretched fourfold at 76°N).
 * ``profiles``     CTD downcasts, one panel per variable, casts shaded light to
   dark in time order (one hue; the station names go in the caption table).
-* ``ts_diagram``   bottle-level temperature against salinity, coloured by depth.
+* ``ts_diagram``   the casts' temperature against salinity, coloured by pressure,
+  cast time, latitude, station or a profile variable (TS_COLOURS), the
+  bottles sampled marked when asked.
 * ``underway``     stacked panels (never two y-axes) of the ship's record through
   the selected period, with the operations marked.
 

@@ -2517,7 +2517,7 @@
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
     "pages.ccf0b0d00167c7a2": {
-      "text": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, choose a person or AI from the people list.",
+      "text": "Shared room — anyone on this dashboard can read, including unnamed visitors. For a direct conversation, open a private room with the + button.",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
     "pages.d54828eeb2ee6063": {
@@ -2889,7 +2889,7 @@
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
     "pages.9429b1dc65906b5e": {
-      "text": "open the Lab in the chat and ask Doc, the naturalist; a sighting told to Doc goes into the journal",
+      "text": "open the Lab in the chat and ask Doc, the naturalist; Doc repeats a sighting back and asks you to enter it at Photos → Submit",
       "context": "Authored interface message; vN placeholders preserve original displayed values. Not a source-data translation."
     },
     "pages.d0a27ca03da4cfae": {

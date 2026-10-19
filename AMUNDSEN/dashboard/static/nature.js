@@ -684,12 +684,15 @@
       ${reasons.length ? `<details><summary>${active ? uh("Warnings") : 'Why?'}</summary>${reasons.slice(0,3).map(r=>`<p>${esc(r)}</p>`).join('')}</details>` : ''}
       <a href="#wiki/import/${esc(j.id)}" data-slug="import/${esc(j.id)}">${active ? uh("Details") : uh("View results")}</a></section>`;
   }
+  // the latest request wins: a slow answer for a folder since left is dropped
+  let shareSeq = 0;
   async function loadShare(path) {
+    const seq = ++shareSeq;
     try {
       const r = await fetch(`api/nature/share${path == null ? "" : "?path=" + encodeURIComponent(path)}`, { cache: "no-store" });
       const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
-      share.list = j; share.path = j.path;
-    } catch (e) { share.list = { path: path || "", parent: null, folders: [], files: [], error: e.message || String(e) }; }
+      if (seq === shareSeq) { share.list = j; share.path = j.path; }
+    } catch (e) { if (seq === shareSeq) share.list = { path: path || "", parent: null, folders: [], files: [], error: e.message || String(e) }; }
   }
   async function loadImports() {
     try { const r = await fetch("api/nature/import", { cache: "no-store" }); const j = await r.json(); share.jobs = j.jobs || []; share.watches = j.watches || []; share.licences = j.licences || share.licences; } catch { /* the panel stands without the list */ }
@@ -699,8 +702,15 @@
     wireUpload(box);
     for (const b of box.querySelectorAll('[data-import-source]')) b.onclick=()=>{share.source=b.dataset.importSource;store.set('nat.import.source',share.source);H.rerender();};
     if (!share.watch && store.get('nat.import.current','')) watchJob(store.get('nat.import.current',''));
-    if (!share.list) Promise.all([loadShare(share.path), loadImports()]).then(() => { if (slug() === "journal") return window.UWI18n.preserve(el, H.rerender); }).catch(console.error);
-    for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); if (phoneUpload?.busy) return; share.list = null; share.path = a.dataset.share; if (phoneUpload && !phoneUpload.batch) phoneUpload.parent = a.dataset.share; H.rerender(); };
+    // the imports and the licences come from the ship's own database and the folder from the share,
+    // which can take half a minute to answer: each redraws the panel as it arrives
+    if (!share.list && !share.reading) {
+      const redraw = () => { if (slug() === "journal") return window.UWI18n.preserve(el, H.rerender); };
+      share.reading = true;
+      loadImports().then(redraw).catch(console.error);
+      loadShare(share.path).then(() => { if (share.list) { share.reading = false; return redraw(); } }).catch((e) => { share.reading = false; console.error(e); });
+    }
+    for (const a of box.querySelectorAll("a[data-share]")) a.onclick = (ev) => { ev.preventDefault(); if (phoneUpload?.busy) return; share.list = null; share.reading = false; share.path = a.dataset.share; if (phoneUpload && !phoneUpload.batch) phoneUpload.parent = a.dataset.share; H.rerender(); };
     for (const b of box.querySelectorAll("button[data-unwatch]")) b.onclick = async () => {
       b.disabled = true;
       try { await fetch("api/nature/watch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: b.dataset.unwatch, stop: true }) }); } catch { /* the list below says */ }

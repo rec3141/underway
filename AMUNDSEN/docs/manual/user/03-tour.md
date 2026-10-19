@@ -62,7 +62,8 @@ From left to right:
 
 **Games**
 :   Opens the ship's games on a page of their own. Use your browser's back
-    button to come back. See [Chat and games](chat-and-games.html).
+    button to come back. Aboard only: the public web copy has no **Games**
+    link. See [Chat and games](chat-and-games.html).
 
 **?**
 :   The **Sources** tab: where each number comes from, which legs have which
@@ -222,8 +223,8 @@ dashboard](opening.html#when-the-page-does-not-load).
 
 The pale button **Cruise reports: build yours →** opens the cruise report
 builder, on a page of its own. There, each science team writes its part of
-the cruise report from the ship's records. See [The cruise report
-builder](cruise-report.html).
+the cruise report from the ship's records. The button is shown only aboard,
+not on the public web copy. See [The cruise report builder](cruise-report.html).
 
 ## Legs and time span
 
