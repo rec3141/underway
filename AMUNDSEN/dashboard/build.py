@@ -633,6 +633,13 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
     a = build_analysis(df, res, pos_pairs, feats, union_keys, tsg=tsg, score=score)
     leg_codes = leg_codes[~leg_codes.index.duplicated(keep="last")]
     a.frame["leg"] = leg_codes.reindex(a.frame.index).to_numpy()
+    # each leg's first record and the distance run by then: the page counts a
+    # point's Time elapsed and Distance travelled from its own leg's start
+    leg_start = {}
+    for code, g in a.frame[["leg", "dist_km"]].groupby("leg", sort=False):
+        km = g["dist_km"].dropna()
+        leg_start[int(code)] = {"start_ms": int(g.index.min().value // 10**6),
+                                "start_km": round(float(km.iloc[0]), 3) if len(km) else None}
     a.frame["provisional"] = (a.frame.index >= prov_from).astype(float) if prov_from is not None else 0.0
     windows = WINDOWS
     if public:
@@ -784,7 +791,7 @@ def build(root: Path, title: str, links: list[dict], *, tracks_only: bool = Fals
         "local_tz": LOCAL_TZ, "default_window": default_window,
         "windows": windows_meta,
         "track": track,
-        "legs": [dict(leg.meta(), index=i, **({"live": False} if ashore else {})) for i, (leg, _) in enumerate(stores)],
+        "legs": [dict(leg.meta(), index=i, **leg_start.get(i, {}), **({"live": False} if ashore else {})) for i, (leg, _) in enumerate(stores)],
         "live": None if ashore else next((leg.id for leg, _ in stores if leg.live), None),
         "ashore": {"ended": ashore, "season": season} if ashore else None,
         "variables": [{
