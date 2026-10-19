@@ -1,8 +1,14 @@
 # Publishing to the web
 
 A public copy of the dashboard is at <https://cryomics.org/underway/>. It is
-published in two hops, because the ship's firewall lets the workstation
-reach grid (a University of Manitoba server) and nothing else:
+published in two hops: the workstation sends its source files and built site
+to a publishing host, which rebuilds the public copy (thinned to what Amundsen
+Science has released, with the Wiki layer) and sends it to the web server. In
+this installation the publishing host is grid (a University of Manitoba
+server) and the web server is DreamHost. Both are settings
+([Settings](#settings)): any host the workstation can reach by ssh, and that
+can reach the web server, can be the publishing host. This chapter calls it
+grid.
 
 ```
 ship  --(rsync over ssh, every 5 min)-->  grid  --(rebuild, then rsync)-->  web server (DreamHost)
