@@ -14,7 +14,8 @@ def write_leg(root: Path, leg="2016_LEG_01"):
     (d / "tsg.csv").write_text(
         "cruise_number,time,latitude,longitude,SST_TSG,P_sal_TSG,Fluo,SVel\n"
         "Amundsen_2016001,2016-06-05T18:00:00Z,50.1,-58.5,6.1,31.4,0.5,1450\n"
-        "Amundsen_2016001,2016-06-05T18:01:00Z,50.2,-58.6,6.2,31.5,0.6,1451\n")
+        "Amundsen_2016001,2016-06-05T18:01:00Z,50.2,-58.6,6.2,31.5,0.6,1451\n"
+        "Amundsen_2016001,2016-06-06T00:00:00Z,50.6,-59.1,6.0,31.6,0.5,1450\n")
     (d / "avos.csv").write_text(
         "cruise_number,time,latitude,longitude,Wind_dir,Wind_speed,Air_temp,Dew_point,Pressure\n"
         "Amundsen_2016001,2016-06-05T18:00:00Z,49.0,-57.0,270,20,5.0,2.0,1012\n"
@@ -43,8 +44,8 @@ def test_a_leg_becomes_acsd_files_the_ingest_reads_into_the_right_variables(tmp_
     assert 80 < first[by_var["Relative humidity (%)"]] < 83                   # from the dew point
     assert "Relative wind speed (kn)" not in by_var                          # a true wind speed is not a relative one
     lat, lon = resolve_position(list(frame.columns))[0]
-    assert (first[lat], first[lon]) == (50.1, -58.5)                         # the TSG's position stands
-    # a cast's minute is a position of its own
+    assert (first[lat], first[lon]) == (50.1, -58.5)                         # the TSG's position, not AVOS's
+    # a cast more than half an hour from the track's fixes fills that gap
     assert frame.loc[frame.index == "2016-06-05T20:37:00Z", lat].tolist() == [50.3]
 
 
@@ -54,7 +55,8 @@ def test_navigation_gives_position_and_speed_where_a_leg_has_it(tmp_path):
         "cruise_number,time,n,latitude,longitude,Speed\n"
         "Amundsen_2016001,2016-06-05T18:00:00Z,60,50.15,-58.55,11.2\n"
         "Amundsen_2016001,2016-06-05T18:01:00Z,60,,,\n"                   # a minute with no fix
-        "Amundsen_2016001,2016-06-05T18:02:00Z,60,50.25,-58.65,10.8\n")
+        "Amundsen_2016001,2016-06-05T18:02:00Z,60,50.25,-58.65,10.8\n"
+        "Amundsen_2016001,2016-06-06T00:00:00Z,60,50.65,-59.15,10.0\n")
     out = tmp_path / "acsd"
     archive.write_acsd(d, out)
     frame, names = ingest.parse_file(out / "ACSD_20160605.csv")
@@ -63,7 +65,7 @@ def test_navigation_gives_position_and_speed_where_a_leg_has_it(tmp_path):
     speed = by_var["Ship speed (kn)"]
     at = lambda m: frame.loc[f"2016-06-05T{m}:00Z"]
     assert (at("18:00")[lat], at("18:00")[lon], at("18:00")[speed]) == (50.15, -58.55, 11.2)  # over the TSG's
-    assert (at("18:01")[lat], at("18:01")[lon]) == (50.2, -58.6)                            # the TSG's, without one
+    assert at("18:01")[lat] != at("18:01")[lat]                                             # no TSG fix between the navigation's
     assert (at("18:02")[lat], at("18:02")[speed]) == (50.25, 10.8)                          # a minute only it has
     assert at("18:00")[by_var["SST (°C)"]] == 6.1                                            # the rest is the TSG's
 
@@ -144,3 +146,24 @@ def test_legs_without_a_logbook_get_stations_from_their_ctd_casts():
     [row] = archive_stations(index, logged={"2026_LEG_03"})
     assert row["leg"] == "2010_LEG_01" and row["station"] == "356" and row["cast"] == "003"
     assert row["kind"] == "cast" and row["source"] == "archive" and row["depth_m"] == 337.0
+
+
+def test_one_file_makes_the_track_others_fill_only_its_gaps_and_spikes_go(tmp_path):
+    d = tmp_path / "by-leg" / "2016" / "2016_LEG_02"
+    d.mkdir(parents=True)
+    tsg = ["cruise_number,time,latitude,longitude,SST_TSG"]
+    minutes = [(10, m) for m in range(31)] + [(h, m) for h in (12, 13) for m in range(60)]   # a gap from 10:30 to 12:00
+    for k, (h, m) in enumerate(minutes):
+        lat = 67.5 if (h, m) == (10, 20) else 63.0 + k * 0.001                              # one fix 500 km out and back
+        tsg.append(f"A,2016-07-23T{h}:{m:02d}:00Z,{lat},-60.6,5.0")
+    (d / "tsg.csv").write_text("\n".join(tsg) + "\n")
+    (d / "avos.csv").write_text(                             # AVOS's own receiver, a little off the TSG's
+        "cruise_number,time,latitude,longitude,Air_temp\n"
+        "A,2016-07-23T11:15:00Z,63.05,-60.62,4.0\n"
+        "A,2016-07-23T13:15:00Z,63.15,-60.62,4.0\n")
+    cols, rows = archive.leg_rows(d)
+    lat = lambda t: rows.get(f"2016/07/23 {t}:00", {}).get(archive.LAT)
+    assert lat("10:20") is None                              # the spike is dropped
+    assert lat("10:15") == pytest.approx(63.015)             # the TSG makes the track
+    assert lat("11:15") == 63.05                             # AVOS fills the TSG's gap
+    assert lat("13:15") == pytest.approx(63.106)             # and nowhere else
