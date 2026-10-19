@@ -33,7 +33,8 @@ class PackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "new-site"
             result = build_casts([], root)
-            self.assertEqual(result, {"casts": [], "variables": []})
+            self.assertEqual(result, {"ladcp_file": "data/casts/ladcp.json", "casts": [], "variables": []})
+            self.assertTrue((root / "data/casts/ladcp.json").is_file())
             self.assertEqual(json.loads((root / "data/casts/index.json").read_text()), result)
 
     def test_cached_calendar_needs_no_http_extra(self):
