@@ -33,6 +33,7 @@ settings to `~/.config/underway/site.env`, which the units read after
 | `UNDERWAY_PORT` | `8042` | the page server's port |
 | `UNDERWAY_IFACE` | `wlo1` | the Wi-Fi interface (mDNS, the routes' fallback) |
 | `UNDERWAY_MDNS_NAME` | `underway.local` | the mDNS name |
+| `UNDERWAY_MDNS_IFACES` | `UNDERWAY_IFACE` | the interfaces `underway.local` is published for |
 | `TZ` | `America/Toronto` (Page: UTC if blank) | the ship's time zone |
 | `UNDERWAY_APP` | the checkout the script is in | `deploy-pull.sh`: the deploy checkout |
 

@@ -123,6 +123,7 @@ by systemd and bash.
 | `UNDERWAY_PORT` | `8042` | the page server's port |
 | `UNDERWAY_IFACE` | `wlo1` | the Wi-Fi interface: `underway.local` is published on it |
 | `UNDERWAY_MDNS_NAME` | `underway.local` | the mDNS name |
+| `UNDERWAY_MDNS_IFACES` | `UNDERWAY_IFACE` | the interfaces `underway.local` is published for |
 | `TZ` | `America/Toronto` | the ship's time zone |
 | `UNDERWAY_CAMERA_*` | | the camera timelapses ([Integrations](integrations.html#cameras)) |
 | `UNDERWAY_PUBLISH_*` | | publishing to the web ([Publishing to the web](public-web.html)) |
@@ -192,10 +193,12 @@ sudo systemctl reload caddy
 | anything else on `:80` | `/var/www/html` and the `:5000` API on this machine, unchanged |
 
 `underway-mdns.service` runs `tools/publish-mdns.sh`, which publishes
-`UNDERWAY_MDNS_NAME` for the address of `UNDERWAY_IFACE` only. Avahi cannot
-scope a record to one interface, and a client on the Wi-Fi handed the wired
-address cannot reach it, so the name is published for the Wi-Fi address
-alone.
+`UNDERWAY_MDNS_NAME` for the addresses of `UNDERWAY_MDNS_IFACES`, which
+defaults to `UNDERWAY_IFACE`. Avahi cannot scope a record to one interface:
+every client is handed every address. On the ship a client on the Wi-Fi
+handed the wired address cannot reach it, so the name is published for the
+Wi-Fi address alone. Where every client reaches both, as ashore on one subnet,
+`UNDERWAY_MDNS_IFACES="wlo1 enp5s0"` lets wired-only machines find it too.
 
 Firewall: nothing on the workstation blocks port 80 or 8042 (`ufw` is
 installed but inactive). The ship's Fortinet blocks outbound port 22 and

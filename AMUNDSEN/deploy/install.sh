@@ -39,6 +39,7 @@ ARCTIC_HISTORY_ROOT=${ARCTIC_HISTORY_ROOT:-/data/dev/arctic-history}
 UNDERWAY_PORT=${UNDERWAY_PORT:-8042}
 UNDERWAY_IFACE=${UNDERWAY_IFACE:-wlo1}
 UNDERWAY_MDNS_NAME=${UNDERWAY_MDNS_NAME:-underway.local}
+UNDERWAY_MDNS_IFACES=${UNDERWAY_MDNS_IFACES:-$UNDERWAY_IFACE}
 UNDERWAY_SITE=$SITE
 
 APP=$UNDERWAY_HOME/app/AMUNDSEN
@@ -60,6 +61,7 @@ render() {
             -e "s|@UNDERWAY_PORT@|$UNDERWAY_PORT|g" \
             -e "s|@UNDERWAY_IFACE@|$UNDERWAY_IFACE|g" \
             -e "s|@UNDERWAY_MDNS_NAME@|$UNDERWAY_MDNS_NAME|g" \
+            -e "s|@UNDERWAY_MDNS_IFACES@|$UNDERWAY_MDNS_IFACES|g" \
             -e "s|@UNDERWAY_SITE@|$UNDERWAY_SITE|g" "$1")
   if grep -q '@[A-Z_]*@' <<<"$out"; then
     echo "$1: a placeholder install.sh does not fill: $(grep -o '@[A-Z_]*@' <<<"$out" | sort -u | tr '\n' ' ')" >&2
